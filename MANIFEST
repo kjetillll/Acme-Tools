@@ -1,0 +1,12 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+Tools.pm
+t/1_check_use.t
+t/2_general.t
+t/3_bloomfilter.t
+t/4_resolve.t
+test_k_m.pl
+test_fork_bloom.pl
+test_resolve_bigfloat.pl
