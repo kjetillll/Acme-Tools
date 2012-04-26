@@ -15,6 +15,8 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw(
  min
  max
+ mins
+ maxs
  sum
  avg
  geomavg
@@ -24,8 +26,22 @@ our @EXPORT = qw(
  $Resolve_iterations
  $Resolve_last_estimate
  resolve
+ conv
+ rank
+ rankstr
+ eqarr
+ sorted
+ sortedstr
+ pushsort
+ pushsortstr
+ binsearch
+ binsearchstr
  random
  random_gauss
+ big
+ bigi
+ bigf
+ bigscale
  nvl
  replace
  decode
@@ -83,9 +99,14 @@ our @EXPORT = qw(
  dserialize
  serialize
  bytes_readable
+ distance
  easter
  time_fp
  sleep_fp
+ eta
+ sys
+ recursed
+ md5sum
  bfinit
  bfsum
  bfaddbf
@@ -133,51 +154,53 @@ Acme::Tools - Lots of more or less useful subs lumped together and exported into
 
 =head1 ABSTRACT
 
-Useful subroutines for perl exported into the using namespace.
+Useful subroutines for perl. About 90 of them.
 
 =head1 DESCRIPTION
 
-A set of more or less useful subs collected for some time...
+Subs created and collected since the mid-90s.
 
 =head1 EXPORT
 
-Almost every sub, about 60 of them.
+Almost every sub, about 90 of them.
 
-Beware of name space pollution. But what did you expect from an acme module?
+Beware of namespace pollution. But what did you expect from an Acme module?
 
-=head1 NUMBERS, SETS, STATISTICS
+=head1 NUMBERS, SETS, ARRAYS, STATISTICS
 
 =head2 min
 
 Returns the smallest in a list of numbers. Undef is ignored.
 
- @lengths=(2,3,5,2,10,5);
- $shortest = min(@lengths);   # 2
+ @lengths=(2,3,5,2,10,undef,5,4);
+ $shortest = min(@lengths);   # returns 2
 
-=cut
+Note: The comparison operator is perls C<< < >>> which means empty strings is treated as C<0>, the number zero. The same goes for C<max()>, except of course C<< > >> is used instead.
 
-sub min
-{
-  my $min;
-  for(@_){ $min=$_ if defined($_) and !defined($min) || $_<$min }
-  $min;
-}
+ min(3,4,5)       # 3
+ min(3,4,5,undef) # 3
+ min(3,4,5,'')    # returns the empty string
 
 =head2 max
 
 Returns the largest in a list of numbers. Undef is ignored.
 
- @heights=(123,90,134,132);
+ @heights=(123,90,134,undef,132);
  $highest = max(@heights);   # 134
+
+=head2 mins
+
+Just as L</min>, except for strings.
+
+ print min( 2,7,10);   # 2
+ print mins(2,7,10,);  # 10
 
 =cut
 
-sub max
-{
-  my $max;
-  for(@_){ $max=$_ if defined($_) and !defined($max) || $_>$max }
-  $max;
-}
+sub min  {my $min;for(@_){ $min=$_ if defined($_) and !defined($min) || $_ < $min } $min }
+sub mins {my $min;for(@_){ $min=$_ if defined($_) and !defined($min) || $_ lt $min} $min }
+sub max  {my $max;for(@_){ $max=$_ if defined($_) and !defined($max) || $_ > $max } $max }
+sub maxs {my $max;for(@_){ $max=$_ if defined($_) and !defined($max) || $_ gt $max} $max }
 
 =head2 sum
 
@@ -221,25 +244,36 @@ Returns the I<geometric average> (a.k.a I<geometric mean>) of a list of numbers.
  print 0+ (10*100*1000*10000*100000) ** (1/5);          # 1000 same thing
  print exp(avg(map log($_),10,100,1000,10000,100000));  # 1000 same thing, this is how geomavg() works internally
 
-
 =cut
 
 sub geomavg { exp(avg(map log($_),@_)) }
 
+
+=head2 variance
+
+C<< Variance = ( sum (x[i]-Average)**2)/(n-1) >>
+
+=cut
+
+sub variance
+{
+  my $sumx2; $sumx2+=$_*$_ for @_;
+  my $sumx; $sumx+=$_ for @_;
+  (@_*$sumx2-$sumx*$sumx)/(@_*(@_-1));
+}
+
 =head2 stddev
 
-C<< Standard_Deviation = sqrt(varians) >>
-
-C<< Varians = ( sum (x[i]-Avgerage)**2)/(n-1) >>
+C<< Standard_Deviation = sqrt(variance) >>
 
 Standard deviation (stddev) is a measurement of the width of a normal
 distribution where one stddev on each side of the mean covers 68% and
 two stddevs 95%.  Normal distributions are sometimes called Gauss curves
 or Bell shapes.
 
- stddev(4,5,6,5,6,4,3,5,5,6,7,6,5,7,5,6,4)             # 1.0914103126635
- avg(@IQtestscores) + stddev(@IQtestscores)            # the score for IQ = 115 (by one definition)
- avg(@IQtestscores) - stddev(@IQtestscores)            # the score for IQ = 85
+ stddev(4,5,6,5,6,4,3,5,5,6,7,6,5,7,5,6,4)             # = 1.0914103126635
+ avg(@IQtestscores) + stddev(@IQtestscores)            # = the score for IQ = 115 (by one definition)
+ avg(@IQtestscores) - stddev(@IQtestscores)            # = the score for IQ = 85
 
 =cut
 
@@ -250,9 +284,10 @@ sub stddev
   sqrt( (@_*$sumx2-$sumx*$sumx)/(@_*(@_-1)) );
 }
 
+
 =head2 median
 
-Returns the median value of a list of numbers. The list don't have to
+Returns the median value of a list of numbers. The list do not have to
 be sorted.
 
 Example 1, list having an odd number of numbers:
@@ -278,6 +313,7 @@ sub median
     ? $list[($n-1)/2]
     : ($list[$n/2-1] + $list[$n/2])/2;
 }
+
 
 =head2 percentile
 
@@ -430,7 +466,7 @@ sub percentile
   @t=sort{$a<=>$b}@t;
   push@t,$t[0] if @t==1;
   for(@p){
-    die if $_<0 or $_>100;
+    croak if $_<0 or $_>100;
     my $i=(@t+1)*$_/100-1;
     push@ret,
       $i<0       ? $t[0]+($t[1]-$t[0])*$i:
@@ -492,7 +528,7 @@ B<BigFloat-example:>
 If either second, third or fourth argument is an instance of Math::BigFloat, so will the result be:
 
  use Acme::Tools;
- use Math::BigFloat try => 'GMP';  # pure perl, no warnings if GMP not installed
+ use Math::BigFloat try => 'GMP';  # try means pure perl and no warnings if Math::GMP is not installed
  my $start=Math::BigFloat->new(1);
  my $gr1 = resolve(sub{my$x=shift; $x-1-1/$x}, 0, 1);     # 1/2 + sqrt(5)/2
  my $gr2 = resolve(sub{my$x=shift; $x-1-1/$x}, 0, $start);# 1/2 + sqrt(5)/2
@@ -561,39 +597,288 @@ sub resolve
   return $x[-1];
 }
 
-=head2 convert
+=head2 conv
 
 Converts between units of measurements.
 
 Examples:
 
- print convert(70,"cm","in");  #prints 27.5590551181102
+ print conv(70,"cm","in");  #prints 27.5590551181102
 # See L<Math::Units>
 
 =cut
 
-sub convert
+sub conv
 {
   my($num,$from,$to)=@_;
-  my %factors
+  my %f
     =(
       #length
-      m => 1,
+      m       => 1,
+      mil     => 10000,
+      inch    => 0.0254,
+      inches  => 0.0254,
+      ft      => 0.0254*12,               #0.3048 m
+      yard    => 0.0254*12*3,             #0.9144 m
+      chain   => 0.0254*12*3*22,          #20.1168 m
+      furlong => 0.0254*12*3*22*10,       #201.168 m
+      mile    => 0.0254*12*3*22*10*8,     #1609.344 m
+      miles   => 0.0254*12*3*22*10*8,
+      league  => 0.0254*12*3*22*10*8*3,   #4828.032 m
 
-      #time
-      s => 1,
+      yard_imperical => 0.914398416,
+
+      #area
+      m2      => 1,
+      km2     => 1000*1000,
+      sqmi    => 0.0254*12*3*22*10*8 * 0.0254*12*3*22*10*8,
+      'sq mi' => 0.0254*12*3*22*10*8 * 0.0254*12*3*22*10*8,
 
       #volume
+      m3=>1,
+      liter=>0.001,
+
+      #weight
+      g => 1,
+      #ounce=>
+      
+
+      #time
+      s  => 1,
+      m  => 60,
+      h  => 60*60,
+      d  => 60*60*24,
+      w  => 60*60*24*7,
+      mo => 60*60*24*30, #hm 30
+      y  => 60*60*24*365,#hm 365
 
       #ampere
 
       #temperature
+      C=>1,
+      F=>1234,
 
       #force
+      W=>1,
+      hp=>1,
 
-     )
+      #fuel economy
+     'l/mil'         => 1,
+      liter_pr_mil   => 1,
+      liter_pr_km    => 10,
+      liter_pr_100km => 1/10,
+      mpg            => -23.5214584, # negative signals inverse
+
+      #valuta
+      NOK=>1,
+      SEK=>1,
+      EUR=>1,
+      USD=>1,
+
+     );
+  my $f=$f{$from}/$f{$to};
+  my $r=( $f>0 ? $num*$f : (1/-$num)*$f );
+  print STDERR "$num $from => $to    from=$f{$from}  to=$f{$to}  f=$f  r=$r\n";
+  return $r;
 }
- 
+
+=head2 pushsort
+
+Adds one or more element to a numerically sorted array and keeps it sorted.
+
+  pushsort @a, 13;                         # this...
+  push     @a, 13; @a = sort {$a<=>$b} @a; # is the same as this, but first is faster if @a is large
+
+=head2 pushsortstr
+
+Same as pushsort except that the array is kept sorted alphanumerically (cmp) instead of numerically (<=>). See L</pushsort>.
+
+  pushsort @a, "abc";                   # this...
+  push     @a, "abc"; @a = sort @a;     # is the same as this, first is faster if @a is large
+
+=cut
+
+our $Pushsort_cmpsub=undef;
+sub pushsort (\@@)
+{
+  my $ar=shift;
+
+  #not needed but often faster
+  if(not defined $Pushsort_cmpsub and @$ar+@_<100){ #hm speedup?
+    @$ar=(sort {$a<=>$b} (@$ar,@_));
+    return 0+@$ar;
+  }
+
+  for my $v (@_){
+
+    #not needed but often faster
+    if(not defined $Pushsort_cmpsub){ #faster rank() in most cases
+      push    @$ar, $v and next if $v>=$$ar[-1];
+      unshift @$ar, $v and next if $v< $$ar[0];
+    }
+
+    splice @$ar, binsearch($v,$ar,1,$Pushsort_cmpsub)+1, 0, $v;
+  }
+  0+@$ar
+}
+sub pushsortstr(\@@){ local $Pushsort_cmpsub=sub{$_[0]cmp$_[1]}; pushsort(@_) }
+
+=head2 binsearch
+
+Returns the position of an element in a numerically sorted array. Returns undef if the element is not found.
+
+B<Input:> Two, three or four arguments
+
+First argument: the element to find. Usually a number.
+
+Second argument: a reference to the array to search in. The array should be sorted in ascending numerical order (se exceptions below).
+
+Third argument:  Optional. Default false.
+
+If the third argument is false binsearcg returns undef is the element is not found.
+If the third argument is true binsearch returns 0.5 plus closest position below the searched value.
+Returns C< last position + 0.5 > if the searched element is greater than all elements in the sorted array.
+Returns C< -0.5 > if the searched element is less than all elements in the sorted array.
+
+Fourth argument: Optional. Default C<< sub { $_[0] <=> $_[1] } >>.
+
+If present, the fourth argument is a code-ref that alters the way binsearch compares two elements.
+
+Example:
+
+ binsearch(10,[5,10,15,20]);                                # 1
+ binsearch(10,[20,15,10,5],undef,sub{$_[1]<=>$_[0]});       # 2 search arrays sorted numerically in opposite order
+ binsearch("c",["a","b","c","d"],undef,sub{$_[0]cmp$_[1]}); # 2 search arrays sorted alphanumerically
+ binsearchstr("b",["a","b","c","d"]);                       # 1 search arrays sorted alphanumerically
+
+ Whether not found should return undef or a fractional position.
+
+=head2 binsearchstr
+
+Same as binsearch except that the arrays is sorted alphanumerically (cmp) instead of numerically (<=>) and the searched element is a string, not a number. See L</binsearch>.
+
+=cut
+
+our $Binsearch_steps;
+our $Binsearch_maxsteps=100;
+sub binsearch
+{
+  my($search,$aref,$insertpos,$cmpsub)=@_; #search pos of search in array
+  croak "binsearch did not get arrayref as second arg" if ref($aref) ne 'ARRAY';
+  croak "binsearch got fourth arg which is not a code-ref" if $cmpsub and ref($cmpsub) ne 'CODE';
+  return $insertpos ? -0.5 : undef if not @$aref;
+  my($min,$max)=(0,$#$aref);
+  $Binsearch_steps=0;
+  while (++$Binsearch_steps <= $Binsearch_maxsteps) {
+    my $middle=int(($min+$max+0.5)/2);
+    my $middle_value=$$aref[$middle];
+
+    #croak "binsearch got non-sorted array" if !$cmpsub and $$aref[$min]>$$aref[$min]
+    #                                       or  $cmpsub and &$cmpsub($$aref[$min],$$aref[$min])>0;
+
+    if(   !$cmpsub and $search < $middle_value
+    or     $cmpsub and &$cmpsub($search,$middle_value) < 0  ) {      #print "<\n";
+      $max=$min, next                   if $middle == $max and $min != $max;
+      return $insertpos ? $middle-0.5 : undef if $middle == $max;
+      $max=$middle;
+    }
+    elsif( !$cmpsub and $search > $middle_value
+    or      $cmpsub and &$cmpsub($search,$middle_value) > 0 ) {      #print ">\n";
+      $min=$max, next                   if $middle == $min and $max != $min;
+      return $insertpos ? $middle+0.5 : undef if $middle == $min;
+      $min=$middle;
+    }
+    else {                                                           #print "=\n";
+      return $middle;
+    }
+  }
+  croak "binsearch exceded $Binsearch_maxsteps steps";
+}
+
+sub binsearchfast { # binary search routine finds index just below value
+  my ($x,$v)=@_;
+  my ($klo,$khi)=(0,$#{$x});
+  my $k;
+  while (($khi-$klo)>1) {
+    $k=int(($khi+$klo)/2);
+    if ($$x[$k]>$v) { $khi=$k; } else { $klo=$k; }
+  }
+  return $klo;
+}
+
+
+sub binsearchstr {binsearch(@_[0..2],sub{$_[0]cmp$_[1]})}
+
+sub rank
+{
+  my($rank,$aref,$cmpsub)=@_;
+  if($rank<0){
+    $cmpsub||=sub{$_[0]<=>$_[1]};
+    return rank(-$rank,$aref,sub{0-&$cmpsub});
+  }
+  my @sort;
+  local $Pushsort_cmpsub=$cmpsub;
+  for(@$aref){
+    pushsort @sort, $_;
+    pop @sort if @sort>$rank;
+  }
+  return wantarray ? @sort : $sort[$rank-1];
+}
+sub rankstr {wantarray?(rank(@_,sub{$_[0]cmp$_[1]})):rank(@_,sub{$_[0]cmp$_[1]})}
+
+=head2 eqarr
+
+B<Input:> Two or more arrays. References to two or more arrays.
+
+B<Output:> True (1) or false (0) for whether or not the arrays are
+numerically and alphanumerically equal. Comparing each element in each
+array with both C< == > and C< eq >.
+
+Examples:
+
+ eqarr([1,2,3],[1,2,3],[1,2,3]); # 1 (true)
+ eqarr([1,2,3],[1,2,3],[1,2,4]); # 0 (false)
+ eqarr([1,2,3],[1,2,3,4]);       # undef (difference size, false)
+ eqarr([1,2,3]);                 # croak (should be two or more arrays)
+ eqarr([1,2,3],1,2,3);           # croak (not arraysrefs)
+
+=cut
+
+sub eqarr
+{
+  my @arefs=@_;
+  croak if @arefs<2;
+  ref($_) ne 'ARRAY' and croak for @arefs;
+  @{$arefs[0]} != @{$arefs[$_]} and return undef for 1..$#arefs;
+  my $ant;
+  
+  for my $ar (@arefs[1..$#arefs]){
+    for(0..@$ar-1){
+      ++$ant and $ant>100 and croak ">100";
+      return 0 if $arefs[0][$_] ne $$ar[$_]
+   	       or $arefs[0][$_] != $$ar[$_];
+    }
+  }
+  return 1;
+}
+
+=head2 sorted
+
+  @a=(1..10);
+  print "array is sorted" if sorted @a;
+
+=cut
+
+sub sorted (\@@)
+{
+  my($a,$cmpsub)=@_;
+  for(0..$#$a-1){
+    return 0 if !$cmpsub and $$a[$_]>$$a[$_+1]
+             or  $cmpsub and &$cmpsub($$a[$_],$$a[$_+1])>0;
+  }
+  return 1;
+}
+sub sortedstr { sorted(@_,sub{$_[0]cmp$_[1]}) }
 
 #=head1 SQL INSPIRED FUNCTIONS
 #Inspired from Oracles SQL.
@@ -791,6 +1076,87 @@ sub bytes_readable
   return sprintf("%.2f PB",$bytes/2**50); #petabyte, exabyte, zettabyte, yottabyte
 }
 
+=head2 distance
+
+B<Input:> the four decimal numbers of latutude1, longitude1, latitude2, longitude2
+
+B<Output:> the air distance fra point1 to point2 in meters, the SI unit for length.
+
+Calculation is done using the Haversine Formula for spherical distance:
+
+  a = sin((lat2-lat1)/2)^2
+    + sin((lon2-lon1)/2)^2 * cos(lat1) * cos(lat2);
+
+  c = 2 * atan2(min(1,sqrt(a)),
+	        min(1,sqrt(1-a)))
+
+  distance = c * R
+
+With earth radius set to:
+
+  R = Re - (Re-Rp) * sin(abs(lat1+lat2)/2)
+
+Where C<Re = 6378137.0> (equatorial radius) and C<Rp = 6356752.3> (polar radius).
+
+B<Example:>
+
+ my @oslo= (59.93942,  10.75122);
+ my @rio=  (59.939362,  10.751312);
+ my @rio=  (-22.97673, -43.19508);
+
+ printf "%.1f km\n",   distance(@oslo,@rio)/1000;     # 10431.5 km
+ printf "%.1f km\n",   distance(@rio,@oslo)/1000;     # 10431.5 km
+ printf "%.1f nmi\n",  distance(@oslo,@rio)/1852.000; # 5632.5 nmi   (nautical miles)
+ printf "%.1f miles\n",distance(@oslo,@rio)/1609.344; # 6481.8 miles
+
+See L<http://www.faqs.org/faqs/geography/infosystems-faq/>
+
+and L<http://mathforum.org/library/drmath/view/51879.html>
+
+and L<http://en.wikipedia.org/wiki/Earth_radius>
+
+and L<Geo::Direction::Distance>, Acme::Tools::distance() is about 8 times faster.
+
+=cut
+
+our $Distance_factor=3.141592653589793238462643383279502884197169399375105820974944592307816406286 / 180;
+sub acos { atan2( sqrt(1 - $_[0] * $_[0]), $_[0] ) }
+sub distance_great_circle
+{
+  my($lat1,$lon1,$lat2,$lon2)=map $Distance_factor*$_, @_;
+  my($Re,$Rp)=( 6378137.0, 6356752.3 ); #earth equatorial and polar radius
+  my $R=$Re-($Re-$Rp)*sin(abs($lat1+$lat2)/2); #approx
+  return $R*acos(sin($lat1)*sin($lat2)+cos($lat1)*cos($lat2)*cos($lon2-$lon1))
+}
+
+sub distance
+{
+  my($lat1,$lon1,$lat2,$lon2)=map $Distance_factor*$_, @_;
+  my $a= sin(($lat2-$lat1)/2)**2
+       + sin(($lon2-$lon1)/2)**2 * cos($lat1) * cos($lat2);
+  my $sqrt_a  =sqrt($a);    $sqrt_a  =1 if $sqrt_a  >1;
+  my $sqrt_1ma=sqrt(1-$a);  $sqrt_1ma=1 if $sqrt_1ma>1;
+  my $c=2*atan2($sqrt_a,$sqrt_1ma);
+  my($Re,$Rp)=( 6378137.0, 6356752.3 ); #earth equatorial and polar radius
+  my $R=$Re-($Re-$Rp)*sin(abs($lat1+$lat2)/2); #approx
+  return $c*$R;
+}
+
+  #my $R_authalic=6371007.2; #earth radius in meters, mean, Authalic radius, real R varies 6353-6384km, http://en.wikipedia.org/wiki/Earth_radius
+#*)
+         #    ( 6378157.5, 6356772.2 )  #hmm
+    #my $e=0.081819218048345;#sqrt(1 - $b**2/$a**2); #eccentricity of the ellipsoid
+    #my($a,$b)=( 6378137.0, 6356752.3 ); #earth equatorial and polar radius
+    #warn "e=$e\n";
+    #warn "t=".(1 - $e**2)."\n";
+    #warn "n=".((1 - $e**2 * sin(($lat1+$lat1)/2)**2)**1.5)."\n";
+    #my $t=1 - $e**2;
+    #my $n=(1 - $e**2 * sin(($lat1+$lat1)/2)**2)**1.5;
+    #warn "t=$t\n";
+    #warn "n=$n\n";
+    #$a * (1 - $e**2) / ((1 - $e**2 * sin(($lat1+$lat2)/2)**2)**1.5); #hmm avg lat
+    #$R=$a * $t/$n;
+
 
 # =head1 veci
 # 
@@ -978,37 +1344,38 @@ sub uniq(@)
 
 =head2 zip
 
-B<Input:> Two arrayrefs.
+B<Input:> Two or more arrayrefs. A number of equal sized arrays
+containing numbers, strings or anything really.
 
-That is: two arrays containing numbers, strings or anything really.
-
-B<Output:> An array of the two arrays zipped (interlocked, merged) into each other.
+B<Output:> An array of those input arrays zipped (interlocked, merged) into each other.
 
  print join " ", zip( [1,3,5], [2,4,6] );               # 1 2 3 4 5 6
+ print join " ", zip( [1,4,7], [2,5,8], [3,6,9] );      # 1 2 3 4 5 6 7 8 9
 
-zip() can create hashes where the keys are found in the first array and values in the secord in correct order:
+Example:
+
+zip() creates a hash where the keys are found in the first array and values in the secord in the correct order:
 
  my @media = qw/CD DVD VHS LP Blueray/;
- my @count = qw/20 12 2 4 3/;
+ my @count = qw/20 12  2   4  3/;
  my %count = zip(\@media,\@count);                 # or zip( [@media], [@count] )
  print "I got $count{DVD} DVDs\n";                 # I got 12 DVDs
 
-Dies (croaks) if the two lists are of different sizes.
+Dies (croaks) if the two lists are of different sizes
 
-(TODO: Merge any number of arrayrefs, not just two)
+...or any input argument is not an array ref.
 
 =cut
 
-sub zip  #?(\@\@)
+sub zip
 {
-  my($t1,$t2)=@_;
-  if(ref($t1) ne 'ARRAY' or ref($t2) ne 'ARRAY' or 0+@$t1 != 0+@$t2){
-    my $brb=serialize($t1,'t1')."\n".serialize($t2,'t2');
-    croak("ERROR: wrong arguments to zip\n$brb");
-  }
+  my @t=@_;
+  ref($_) ne 'ARRAY' and croak "ERROR: zip should have arrayrefs as arguments" for @t;
+  @{$t[$_]} != @{$t[0]} and croak "ERROR: zip should have equal sized arrays" for 1..$#t;
   my @res;
-  my $i=$[;
-  for(@$t1){push@res,$_,$$t2[$i++]}
+  for my $i (0..@{$t[0]}-1){
+    push @res, $$_[$i] for @t;
+  }
   return @res;
 }
 
@@ -1023,12 +1390,12 @@ B<Output:> The hash consisting of the keys and values you specified.
 
 Example:
 
- %population = ( Norway=>4800000, Sweden=>8900000, Finland=>5000000,
-                 Denmark=>5100000, Iceland=>260000,
-                 India => 1e9, China=>1.3e9, USA=>300e6, UK=>60e6 );
+ %population = ( Norway=>5000000, Sweden=>9500000, Finland=>5400000,
+                 Denmark=>5600000, Iceland=>320000,
+                 India => 1.21e9, China=>1.35e9, USA=>313e6, UK=>62e6 );
 
- %scandinavia = subhash( \%population , 'Norway', 'Sweden', 'Denmark' ); # this
- %scandinavia = (Norway=>4500000,Sweden=>8900000,Denmark=>5100000);      # and this is the same
+ %scandinavia = subhash( \%population , 'Norway', 'Sweden', 'Denmark' ); # this and
+ %scandinavia = (Norway=>5000000,Sweden=>9500000,Denmark=>5600000);      # this is the same
 
  print "Population of $_ is $scandinavia{$_}\n" for keys %scandinavia;
 
@@ -1087,41 +1454,46 @@ B<Input:> One or two arguments.
 
 B<Output:>
 
+If the argument one and two are not refs: returns a random integer between the integers in argument one and two.
+
 If the first argument is an arrayref: returns a random member of that array without changing the array.
 
-Else: returns a random integer between the integers in argument one and two.
+If the first argument is an hashref and there is no second arg: return a random key weighted by the values of that hash
 
-Note: This is different from C<< int($from+rand($to-$from)) >> because that never returns C<$to>, but C<random()> will.
+If the first argument is an hashref and there is a second arg: return that many random keys weighted by the values of that hash
 
 If there is no second argument and the first is an integer, a random integer between 0 and that number is returned. Including 0 and the number itself.
 
 B<Examples:>
 
- $dice=random(1,6);                                # 1, 2, 3, 4, 5 or 6
- $dice=random([1..6]);                             # same as previous
- print random(['head','tail','standing on edge']); # prints one of those three strings
- print random(2);                                  # prints 0, 1 or 2
- print 2**random(7);                               # prints 1, 2, 4, 8, 16, 32, 64 or 128
-
-B<TODO:>
-
-Draw numbers from a normal deviation (bell curve) or other statistical deviations (Although there are probably other modules that do that).
-I.e.:
-
- print random({-deviation=>'Normal', -average=>178, -stddev=>15});
-
-Another possible TODO: weighted dices, for cheating:
-
- print random([[1,0],[2,1],[3,1],[4,1],[5,2],[6,2]]); # never 1 and twice as likely to return  5 and 6 as opposed to 2, 3 and 4
- print random([[1,0],2,3,4,[5,2],[6,2]]);             # same, default weight 1 on 2, 3 and 4
+ $dice=random(1,6);                                   # 1, 2, 3, 4, 5 or 6
+ $dice=random([1..6]);                                # same as previous
+ $dice=random({1=>1, 2=>1, 3=>1, 4=>1, 5=>1, 6=>2});  # weighted dice with 6 being twice as likely as the others
+ print random({head=>0.499,tail=>0.499,edge=>0.002}); # coin toss (sum 1 here but not required to be)
+ print random(2);                                     # prints 0, 1 or 2
+ print 2**random(7);                                  # prints 1, 2, 4, 8, 16, 32, 64 or 128
 
 =cut
 
 sub random
 {
   my($from,$to)=@_;
-  if(ref($from) eq 'ARRAY'){
-      return $$from[random($#$from)];
+  my $ref=ref($from);
+  if($ref eq 'ARRAY'){
+   #return $$from[random($#$from)];
+    return $$from[rand(1+$#$from)];
+  }
+  elsif($ref eq 'HASH') {
+    my @k=sort(keys(%$from));
+    my $max=0; $$from{$_}>$max and $max=$$from{$_} or $$from{$_}<0 and die for @k;
+    my @r;
+    for(1 .. $to||1){
+      while (1) {
+	my $r=$k[rand(1+$#k)]; #random(\@k);
+	push@r,$r and last if rand($max)<$$from{$r};
+      }
+    }
+    return @_>1?@r:$r[0] ;
   }
   ($from,$to)=(0,$from) if @_==1;
   ($from,$to)=($to,$from) if $from>$to;
@@ -1251,6 +1623,84 @@ sub random_gauss
   pop @r if @r > $num;
   return $r[0] if @_<3;
   return @r;
+}
+
+=head2 big
+
+=head2 bigi
+
+=head2 bigf
+
+=head2 bigscale
+
+big, bigi, bigf and bigscale are just convenient shorthands for using
+L<Math::BigInt>->new() and L<Math::BigFloat>->new() preferably with
+the GMP for faster calculations. Use those modules instead of the real
+deal. Examples:
+
+  my $num1 = big(3);      #returns a new Math::BigInt-object
+  my $num2 = big('3.0');  #returns a new Math::BigFloat-object
+  my $num3 = big(3.0);    #returns a new Math::BigInt-object
+  my $num4 = big(3.1);    #returns a new Math::BigFloat-object
+  my($int1,$float1,$int2,$float2) = big(3,'3.0',3.0,3.1); #returns the four new numbers, as the above four lines
+                                                          #uses wantarray
+
+  print 2**1000;          #1.60693804425899e+60
+  print big(2)**1000;     #1606938044258990275541962092341162602522202993782792835301376
+  print 2**big(1000);     #1606938044258990275541962092341162602522202993782792835301376
+
+  print 1/7;              #0.142857142857143
+  print 1/big(7);         #0      because of integer arithmetics
+  print 1/big(7.0);       #0      because of integer arithmetics
+  print 1/big('7.0');     #0.1428571428571428571428571428571428571429
+  print 1/bigf(7);        #0.1428571428571428571428571428571428571429
+  print bigf(1/7);        #0.142857142857143   probably not what you wanted
+
+  bigscale(60);           #increase precesion from the default 40
+  print 1/bigf(7);        #0.142857142857142857142857142857142857142857142857142857142857
+
+Instead of guessing on int or float by looking for a C<.> character
+like C<big> do, C<bigi> and C<bigf> explicitly orders int and float
+respectively.
+
+B<Note:> Acme::Tools does not itself require Math::BigInt and
+Math::BigFloat and GMP, but these four big*-subs do (by internal
+C<require>).  To these four (effectively) you should install
+Math::BigInt::GMP and Math::BigFloat::GMP like this:
+
+  cpan Math::BigFloat Math::GMP Math::BingInt::GMP          # or
+  yum install perl-Math-BigInt-GMP perl-Math-GMP            # on RedHat, RHEL or
+  apt-get install libmath-bigint-gmp-perl libmath-gmp-perl  # on Ubuntu or some other way
+
+=cut
+
+sub bigi
+{
+  eval{q(use Math::BigInt try=>"GMP")} if not $INC{'Math/BigInt.pm'};
+  if (wantarray) { return (map Math::BigInt->new($_),@_)  }
+  else           { return Math::BigInt->new($_[0])        }
+}
+sub bigf
+{
+  eval{q(use Math::BigFloat try=>"GMP")} if not $INC{'Math/BigFloat.pm'};
+  if (wantarray) { return (map Math::BigFloat->new($_),@_)  }
+  else           { return Math::BigFloat->new($_[0])        }
+}
+sub big
+{
+  wantarray 
+  ? (map $_=~/\./ ? bigf($_)    : bigi($_), @_)
+  :   $_[0]=~/\./ ? bigf($_[0]) : bigi($_[0]);
+}
+sub bigscale
+{
+  @_==1 or croak "bigscale requires one and only one argument";
+  my $scale=shift();
+  eval{q(use Math::BigInt    try=>"GMP")} if not $INC{'Math/BigInt.pm'};
+  eval{q(use Math::BigFloat  try=>"GMP")} if not $INC{'Math/BigFloat.pm'};
+  Math::BigInt->div_scale($scale);
+  Math::BigFloat->div_scale($scale);
+  return;
 }
 
 =head2 mix
@@ -1505,7 +1955,7 @@ See L</gzip> and L</gunzip>.
 
 C<bzip2()> and C<bunzip2()> works just as  C<gzip()> and C<gunzip()>,
 but use another compression algorithm. This is usually better but slower
-than the C<gzip>-algorithm. Especially in the compression, decompression speed is less different.
+than the C<gzip>-algorithm. Especially in the compression. Decompression speed is less different.
 
 See also C<man bzip2>, C<man bunzip2> and L<Compress::Bzip2>
 
@@ -1808,7 +2258,8 @@ See C<perldoc -f stat>, C<perldoc -f chmod>, C<perldoc -f chown>, C<perldoc -f u
 
 sub chall
 {
-  my($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,$blksize,$blocks ) = @{shift()};
+  my($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,$blksize,$blocks )
+    = ref($_[0]) ? @{shift()} : stat(shift());
   my $successful=0;
   for(@_){ chmod($mode,$_) && utime($atime,$mtime,$_) && chown($uid,$gid,$_) && $successful++ }
   return $successful;
@@ -1863,10 +2314,10 @@ The regex sets $1 if it match.
 Example:
 
   my @list=qw/ABc XY DEF DEFG XYZ/;
-  my $filter=qrlist("ABC","DEF","XY.");         # makes a regex of it qr/^(\QABC\E|\QDEF\E|\QXYZ\E)$/
+  my $filter=qrlist("ABC","DEF","XY.");         # makes a regex of it qr/^(\QABC\E|\QDEF\E|\QXY.\E)$/
   my @filtered= grep { $_ =~ $filter } @list;   # returns DEF and XYZ, but not XYZ
 
-Note: hash lookups are WAY faster.
+Note: Filtering with hash lookups are WAY faster.
 
 Source:
 
@@ -1888,7 +2339,7 @@ B<Input:> One argument. A string where the char C<¤> have special
 meaning and is replaced by color codings depending on the letter
 following the C<¤>.
 
-B<Output:> The same string, but with C<¤letter> replaces by ANSI color codes respected by many types terminal windows. (xterm, telnet, ssh,
+B<Output:> The same string, but with C<¤letter> replaced by ANSI color codes respected by many types terminal windows. (xterm, telnet, ssh,
 telnet, rlog, vt100, cygwin, rxvt and such...).
 
 B<Codes for ansicolor():>
@@ -2048,7 +2499,7 @@ B<See also:> L</ccn_ok>
 
 sub KID_ok
 {
-  die if $_[0]=~/\D/;
+  croak "Non-numeric argument" if $_[0]=~/\D/;
   my @k=split//,shift or return undef;
   my $s;$s+=pop(@k)+[qw/0 2 4 6 8 1 3 5 7 9/]->[pop@k] while @k;
   $s%10==0?1:0;
@@ -2074,7 +2525,7 @@ Sub writefile opens the file i binary mode (C<binmode()>) and has two usage mode
 B<Input:> Two arguments
 
 B<First argument> is the filename. If the file exists, its overwritten.
-If the file can not be opened for writing, a die (a carp really) happens.
+If the file can not be opened for writing, a die (a croak really) happens.
 
 B<Second input argument> is one of:
 
@@ -2218,20 +2669,18 @@ B<Output:>
 
 A list of all files in it, except of  C<.> and C<..>  (on linux/unix systems, all directories have a C<.> and C<..> directory).
 
-The names of all types of files are returned: normal files, sub directories, symbolic links,
-pipes, semaphores. That is every thing shown by C<ls -la> except of C<.> and C<..>
+The names of all types of files are returned: normal files, directories, symbolic links,
+pipes, semaphores. That is every thing shown by C<ls -la> except C<.> and C<..>
 
-C<readdirectory> does not recurce into sub directories.
+C<readdirectory> do not recurce down into subdirectories (but see example below).
 
 B<Example:>
 
   my @files = readdirectory("/tmp");
 
-B<Why?>
+B<Why readdirectory?>
 
-Sometimes calling the built ins C<opendir>, C<readdir> and C<closedir> seems a bit tedious.
-
-This:
+Sometimes calling the built ins C<opendir>, C<readdir> and C<closedir> seems a tad tedious, since this:
 
  my $dir="/usr/bin";
  opendir(D,$dir);
@@ -2244,13 +2693,28 @@ Is the same as this:
 
 See also: L<File::Find>
 
-B<Why not?>
+B<Why not readdirectory?>
 
-If you got a huge directory with tens or even houndreds of thousands of
-files, readdirectory() uses more memory than perls opendir/readdir. This
-isn't usually a concern anymore for "normal" modern computers, but
-might be the rationale behind perls more tedious way created back in the 80s.
-The same argument often goes for file slurping.
+On huge directories with perhaps tens or houndreds of thousands of
+files, readdirectory() will consume more memory than perls
+opendir/readdir. This isn't usually a concern anymore for modern
+computers with gigabytes of RAM, but might be the rationale behind
+Perls more tedious way created in the 80s.  The same argument goes for
+file slurping. On the other side it's also a good practice to never
+assume to much on available memory and the number of files if you
+don't know for certain that enough memory is available whereever your
+code is run or that the size of the directory is limited.
+
+B<Example:>
+
+How to get all files in the C</tmp> directory including all subdirectories below of any depth:
+
+ my @files=("/tmp");
+ map {-d $_ and unshift @files,$_ or push @files,$_} readdirectory(shift(@files)) while -d $files[0];
+
+...or to avoid symlinks and only get real files:
+
+ map {-d and !-l and unshift @files,$_ or -f and !-l and push @files,$_} readdirectory(shift(@files)) while -d $files[0];
 
 =cut
 
@@ -2319,7 +2783,7 @@ How many ways (permutations) can those six be placed when the number of chairs e
  If five persons:        120
  If six  persons:        720
 
-The formula is C<x!> where the postfix operator C<!>, also known as I<faculty> is defined like:
+The formula is C<x!> where the postfix unary operator C<!>, also known as I<faculty> is defined like:
 C<x! = x * (x-1) * (x-2) ... * 1>. Example: C<5! = 5 * 4 * 3 * 2 * 1 = 120>.
 
 Run this to see the 100 first C<< n! >>
@@ -2597,11 +3061,26 @@ Examples, from the tests:
  $s=join"",map "*".join(",",@$_), cart(\@a1,\@a2,\@a3,sub{sum(@$_)%3==0});
  ok( $s eq "*1,10,100*1,10,400*1,20,300*1,30,200*2,10,300*2,20,200*2,30,100*2,30,400");
 
+Hash-mode returns hashrefs instead of arrayrefs:
+
+ @cards=cart(             #100 decks of 52 cards
+   deck  => [1..100],
+   value => [qw/2 3 4 5 6 7 8 9 10 J Q K A/],
+   col   => [qw/heart diamond club star/],
+ );
+ for my $card ( mix(@cards) ) {
+   print "From deck number $$card{deck} we got $$card{value} $$card{col}\n";
+ }
+
 =cut
 
 sub cart
 {
   my @ars=@_;
+  if(!ref($_[0])){ #if hash-mode detected
+    my(@k,@v); push@k,shift@ars and push@v,shift@ars while @ars;
+    return map{my%h;@h{@k}=@$_;\%h}cart(@v);
+  }
   my @res=map[$_],@{shift@ars};
   for my $ar (@ars){
     @res=grep{&$ar(@$_)}@res and next if ref($ar) eq 'CODE';
@@ -2626,7 +3105,7 @@ DON'T TRY THIS AT HOME, C PROGRAMMERS.
    return $proc->();
  }
 
-Many functions can then be easily implemented by using reduce. Such as:
+Many functions can then be implemented with very little code. Such as:
 
  sub mean { (reduce {$a + $b} @_) / @_ }
 
@@ -2658,9 +3137,11 @@ at Mathematical institutt at University of Oslo:
  V = 5
  X = 10
  L = 50
- C = 100 I<centum>
+ C = 100     (centum)
  D = 500
- M = 1000 I<mille>
+ M = 1000    (mille)
+
+See also L<Roman>.
 
 See L<http://en.wikipedia.org/wiki/Roman_numbers> for more.
 
@@ -2712,13 +3193,13 @@ sub num2code
   my $antlovligetegn=length($lovligetegn);
   my $key;
   no warnings;
-  die if $num<$start;
+  croak if $num<$start;
   $num-=$start;
   for(1..$sifre){
     $key=substr($lovligetegn,$num%$antlovligetegn,1).$key;
     $num=int($num/$antlovligetegn);
   }
-  die if $num>0;
+  croak if $num>0;
   return $key;
 }
 
@@ -2748,8 +3229,8 @@ B<Example:>
 
   print gcd(12, 8);   # prints 4
 
-Because (prime number) factoring of  12  is  2 * 2 * 3 and factoring 4 is 2 * 2
-and the common ('overlapping') for both 12 and 4 is then 2 * 2. The result is 4.
+Because the (prime number) factors of  12  is  2 * 2 * 3 and the factors of 8 is 2 * 2 * 2
+and the common ('overlapping') for both 12 and 8 is then 2 * 2, the result becomes 4.
 
 B<Example two>:
 
@@ -2759,6 +3240,10 @@ B<Example two>:
 ...same tre numbers, 3*3*5 is common = 45.
 
  sub gcd { my($a,$b,@r)=@_; @r ? gcd($a,gcd($b,@r)) : $b==0 ? $a : gcd($b, $a % $b) }
+
+L<http://en.wikipedia.org/wiki/Greatest_common_divisor>
+
+L<http://en.wikipedia.org/wiki/Euclidean_algorithm>
 
 =cut
 
@@ -2790,6 +3275,12 @@ Take the bigest power of each primary number (2, 3 and 5 here).
 Which is 2^3, 3^2 and 5^2. Multiplied this is 8 * 9 * 25 = 1800.
 
  sub lcm { my($a,$b,@r)=@_; @r ? lcm($a,lcm($b,@r)) : $a*$b/gcd($a,$b) }
+
+Seems to works with L<Math::BigInt> as well: (C<lcm> of all integers from 1 to 200)
+
+ perl -MAcme::Tools -MMath::BigInt -le'print lcm(map Math::BigInt->new($_),1..200)'
+
+ 337293588832926264639465766794841407432394382785157234228847021917234018060677390066992000
 
 =cut
 
@@ -3297,7 +3788,7 @@ Be aware of the security implications of C<eval>ing a perl code string
 stored somewhere that unauthorized users can change them! You are
 probably better of using L<YAML::Syck> or L<Storable> without
 enabling the CODE-options if you have such security issues.
-See C<perldoc Storable> or C<perldoc B::Deparse> for how to decompile perl.
+More on decompiling Perl-code: L<Storable> or L<B::Deparse>.
 
 =head2 dserialize
 
@@ -3316,7 +3807,7 @@ sub serialize
   my($r,$navn,$filnavn,$nivaa)=@_;
   my @r=(undef,undef,($nivaa||0)-1);
   if($filnavn){
-    open(FIL,">$filnavn")||die("FEIL: kunne ikke åpne $filnavn\n".kallstack());
+    open(FIL,">$filnavn")||croak("FEIL: could not open file $filnavn\n".kallstack());
     my $ret=serialize($r,$navn,undef,$nivaa);
     print FIL "$ret\n1;\n";
     close FIL;
@@ -3396,7 +3887,7 @@ sub serialize
   }
   elsif(ref($$r) eq 'CODE'){
     #warn "Forsøk på å serialisere (serialize) CODE";
-    return 'sub{die "Kan ikke serialisere CODE-referanser, se istedet B::Deparse og Storable"}'
+    return 'sub{croak "Can not serialize CODE-references, see perhaps B::Deparse and Storable"}'
   }
   elsif(ref($$r) eq 'GLOB'){
     warn "Forsøk på å serialisere (serialize) en GLOB";
@@ -3406,13 +3897,19 @@ sub serialize
     my $tilbake;
     my($pakke,$fil,$linje,$sub,$hasargs,$wantarray);
       ($pakke,$fil,$linje,$sub,$hasargs,$wantarray)=caller($tilbake++) until $sub ne 'serialize' || $tilbake>20;
-    die("FEIL:serialize: argument skal være referanse!\n".
+    croak("serialize() argument should be reference!\n".
         "\$r=$r\n".
         "ref(\$r)   = ".ref($r)."\n".
         "ref(\$\$r) = ".ref($$r)."\n".
         "kallstack:\n".kallstack());
   }
 }
+
+#todo: sub unbless eller sub damn
+#todo: ..se også: use Data::Structure::Util qw/unbless/;
+#todo: ...og: Acme::Damn sin damn()
+#todo? sub swap($$) http://www.idg.no/computerworld/article242008.ece
+
 
 =head1 TIME FUNCTIONS
 
@@ -3654,9 +4151,9 @@ sub serialize
 
 =head2 easter
 
-Input: A year, four digits
+Input: A year (a four digit number)
 
-Output: array of two numbers: month and date of Easter Sunday that year. Month 3 means March and 4 means April.
+Output: array of two numbers: day and month of Easter Sunday that year. Month 3 means March and 4 means April.
 
  sub easter { use integer;my$Y=shift;my$C=$Y/100;my$L=($C-$C/4-($C-($C-17)/25)/3+$Y%19*19+15)%30;
              (($L-=$L>28||($L>27?1-(21-$Y%19)/11:0))-=($Y+$Y/4+$L+2-$C+$C/4)%7)<4?($L+28,3):($L-3,4) }
@@ -3665,9 +4162,17 @@ Output: array of two numbers: month and date of Easter Sunday that year. Month 3
 (see also http://www.smart.net/~mmontes/ec-cal.html )
 
 Valid for any Gregorian year. Dates repeat themselves after 70499183
-lunations = 2081882250 days = ca 5699845 year ...but the earth will
-before that have a different rotation time around the sun and spin
-time around itself...
+lunations = 2081882250 days = ca 5699845 years. However, our planet will
+by then have a different rotation and spin time...
+
+Example:
+
+ ( $day, $month ) = easter( 2012 ); # $day == 8 and $month == 4
+
+Example 2:
+
+ my @e=map sprintf("%02d%02d", reverse(easter($_))), 1800..300000;
+ print "First: ".min(@e)." Last: ".max(@e)."\n"; # First: 0322 Last: 0425
 
 =cut
 
@@ -3712,10 +4217,12 @@ sleep_fp() work as the built in C<< sleep() >>, but accepts fractional seconds:
 
  sleep_fp(0.02);  # sleeps for 20 milliseconds
 
-Sub sleep_fp requires L<Time::HiRes>, thus it might take some extra
-time first time called. To avoid that, use C<< use Time::HiRes >> in
-your code. Sleep_fp should not be trusted for accuracy to more than a
-tenth of a second on many (virtual) systems.
+Sub sleep_fp do a C<require Time::HiRes>, thus it might take some
+extra time the first call. To avoid that, add C<< use Time::HiRes >>
+to your code. Sleep_fp should not be trusted for accuracy to more than
+a tenth of a second. Virtual machines tend to be less accurate (sleep
+longer) than physical ones. This was tested on VMware and RHEL
+(Linux). See also L<Time::HiRes>.
 
 =cut
 
@@ -3723,13 +4230,131 @@ sub sleep_fp { eval{require Time::HiRes} or (sleep(shift()),return);Time::HiRes:
 
 =head2 eta
 
-Estimated time of arrival. ...not implemented yet...
+Estimated time of arrival. ...NOT IMPLEMENTED YET...
 
 =cut
 
+our %Eta;
+our $Eta_forgetfulness=2;
+#http://en.wikipedia.org/wiki/Kalman_filter god idé?
+
 sub eta
 {
+  my($id,$pos,$end,$time_fp)=@_;
+  #@_==2 ? ("",@_) : @_==3 ? (@_) : croak"Two or three arguments to eta()";
+  $time_fp=time_fp() if not defined $time_fp;
+  my $a=$Eta{$id}||=[];
+  push @$a, [$pos,$time_fp];
+  return undef if @$a<2;
+# print "$$a[-1][1] + ($end-$$a[-1][0]) * ($$a[-1][1]-$$a[-2][1])/($$a[-1][0]-$$a[-2][0])\n";
+  
+  my @eta;
+  for(2..@$a){
+    push @eta, $$a[-1][1] + ($end-$$a[-1][0]) * ($$a[-1][1]-$$a[-$_][1])/($$a[-1][0]-$$a[-$_][0]);
+  }
+  my($sum,$sumw,$w)=(0,0,1);
+  for(@eta){
+    $sum+=$w*$_;
+    $sumw+=$w;
+    $w/=$Eta_forgetfulness;
+  }
+  my $avg=$sum/$sumw;
+  return $avg;
+#  return avg(@eta);
+ #return $$a[-1][1] + ($end-$$a[-1][0]) * ($$a[-1][1]-$$a[-2][1])/($$a[-1][0]-$$a[-2][0]);
   1;
+}
+
+=head2 sleep_until
+
+sleep_until(0.5) sleeps until half a second has passed since the last
+call to sleep_until. This example starts the next job excactly ten
+seconds after the last job started even if the last job lasted for a
+while (but not more than ten seconds):
+
+ for(@jobs){
+   sleep_until(10);
+   print localtime()."\n";
+   ...heavy job....
+ }
+
+Might print:
+
+ Thu Jan 12 16:00:00 2012
+ Thu Jan 12 16:00:10 2012
+ Thu Jan 12 16:00:20 2012
+
+...and so on even if the C<< ...heavy job... >>-part takes more than a
+second to complete. Whereas if sleep(10) was used, each job would
+spend more than ten seconds in average since the work time would be
+added to sleep(10).
+
+Note: sleep_until() will remember the time of ANY last call of this
+sub, not just the one on the same line in the source code (this might
+change in the future). The first call to sleep_until() will be the
+same as sleep_fp().
+
+=cut
+
+our $Time_last_sleep_until;
+sub sleep_until
+{
+  my $s=@_==1?shift():0;
+  my $time=time_fp();
+  my $sleep=$s-($time-nvl($Time_last_sleep_until,0));
+  $Time_last_sleep_until=time;
+  sleep_fp($sleep) if $sleep>0;
+}
+
+=head2 sys
+
+Call instead of C<system> if you want C<die> if something fails. Uses Carp::croak internally.
+
+ sub sys($){my$s=shift;system($s)==0 or croak"ERROR, sys($s) ($!) ($?)"}
+
+=cut
+
+sub sys($){my$s=shift;system($s)==0 or croak"ERROR, sys($s) ($!) ($?)"}
+
+=head2 recursed
+
+Returns true or false (actually 1 or 0) depending on whether the
+current sub has been called by itself or not.
+
+ sub xyz
+ {
+    xyz() if not recursed;
+
+ }
+
+=cut
+
+sub recursed {(caller(1))[3] eq (caller(2))[3]?1:0}
+
+=head2 md5sum
+
+B<Input:> a filename.
+
+B<Output:> a string of 32 hexadecimal chars from 0-9 or a-f.
+
+Example, the md5sum linux command without options could be implementet like this:
+
+ #!/usr/bin/perl
+ use Acme::Tools;
+ print md5sum($_)."  $_\n" for @ARGV;
+
+This sub requires L<Digest::MD5>, which is a core perl-module since
+version 5.?.?  It does not slurp the files or spawn new processes.
+
+=cut
+
+sub md5sum
+{
+  my $fn=shift;
+  open my $M, '<', $fn or croak "Could not open file $fn for md5sum() $!";
+  binmode($M);
+  require Digest::MD5;
+  return Digest::MD5->new->addfile($M)->hexdigest;
 }
 
 =head1 BLOOM FILTER SUBROUTINES
@@ -3741,9 +4366,9 @@ risking false positives, Bloom filters have a very strong space
 advantage over other data structures for representing sets.
 
 In the example below, a set of 100000 phone numbers (or any string of
-any length) can be "stored" in just 11992 bytes if you accept that you
+any length) can be "stored" in just 91230 bytes if you accept that you
 can only check the data structure for existence of a string and accept
-false positives with an error rate of 0.01 (that is one percent, error
+false positives with an error rate of 0.03 (that is three percent, error
 rates are given in numbers larger then 0 and smaller than 1).
 
 You can not retrieve the strings in the set without using "brute
@@ -3810,7 +4435,7 @@ Same as C<bfcheck> except it returns the keys that exists in the bloom filter
 
 =head2 bfgrepnot
 
-Same as C<bfgrep> except it returns the keys that NOT exists in the bloom filter:
+Same as C<bfgrep> except it returns the keys that do NOT exists in the bloom filter:
 
  @not_found = bfgrepnot($bf, @keys);          #or ...
  @not_found = bfgrepnot($bf, \@keys);         #better if @keys is large
@@ -3826,8 +4451,8 @@ for small filters with a small capacity (a small number of keys), but
 setting the number to 4 ensures that even very large filters with very
 small error rates would not overflow.
 
-Acme::Tools does not currently support C<< counting_bits => 3 >> so 4
-or 8 is the only practical alternatives.
+Acme::Tools do not currently support C<< counting_bits => 3 >> so 4
+and 8 are the only practical alternatives.
 
  my $bf=bfinit(
    error_rate=>0.001,
@@ -3873,10 +4498,12 @@ Even after the error_rate is changed from 0.001 to a percent of that, 0.00001, t
 In algorithmic terms the number of bits needed is C<ln of ln of n>.
 Thats why 4 bits (counters up to 15) is "always" good enough.
 
-(Except when adding the same key many times, Acme::Tools::bfadd does
-not check for that).
+(Except when adding the same key many times, which should be avoided, and Acme::Tools::bfadd don't check for that).
 
-Counting bloom filters are not very space efficient: The tables above shows that 84%-85% of the counters are 0 or 1. Most bits are zero-bits.
+Bloom filters of the counting type are not very space efficient: The tables above shows that 84%-85%
+of the counters are 0 or 1. This means most bits are zero-bits. This doesn't have to be a problem if
+a counting bloom filter is used to be sent over slow networks because they are very compressable by
+common compression tools like I<gzip> or L<Compress::Zlib> and such.
 
 Deletion of non-existing keys C<bfdelete> croaks on deletion of a non-existing key
 
@@ -3889,11 +4516,13 @@ Deletes from a counting bloom filter:
 
 Returns C<$bf> after deletion.
 
+Croaks (dies) on deleting a non-existing key or deleting from an previouly overflown counter in a counting bloom filter.
+
 =head2 bfaddbf
 
 Adds another bloom filter to a bloom filter.
 
-Bloom filters has the proberty that bit-wise I<or>-ing the bit-filters
+Bloom filters has the proberty that bit-wise I<OR>-ing the bit-filters
 of two filters with the same capacity and the same number and type of
 hash functions, adds the filters:
 
@@ -3908,7 +4537,7 @@ Prints yes since C<bfgrep> now returns an array of all the 1000 elements.
 
 Croaks if the filters are of different dimensions.
 
-Works for counting bloom filters as well (C<counting_bits=>4> e.g.)
+Works for counting bloom filters as well (C<< counting_bits=>4 >> e.g.)
 
 =head2 bfsum
 
@@ -4034,16 +4663,19 @@ The internal hash-functions are C<< md5( "$key$salt" ) >> from L<Digest::MD5>.
 Since C<md5> returns 128 bits and most medium to large sized bloom
 filters need only a 32 bit hash function, the result from md5() are
 split (C<unpack>-ed) into 4 parts 32 bits each and are treated as if 4
-hash functions was called. Using different salts to the key on each
-md5 results in different hash functions.
+hash functions was called at once (speedup). Using different salts to
+the key on each md5 results in different hash functions.
 
-Digest::SHA512 would have been better, but its slower than Digest::MD5.
+Digest::SHA512 would have been even better since it returns more bits,
+if it werent for the fact that it's much slower than Digest::MD5.
 
 String::CRC32::crc32 is faster than Digest::MD5, but not 4 times faster:
 
  time perl -e'use Digest::MD5 qw(md5);md5("asdf$_") for 1..10e6'       #5.56 sec
  time perl -e'use String::CRC32;crc32("asdf$_") for 1..10e6'           #2.79 sec, faster but not per bit
  time perl -e'use Digest::SHA qw(sha512);sha512("asdf$_") for 1..10e6' #36.10 sec, too slow (sha1, sha224, sha256 and sha384 too)
+
+Md5 seems to be an ok choice both for speed and avoiding collitions due to skewed data keys.
 
 =head2 Theory and math behind bloom filters
 
@@ -4053,7 +4685,7 @@ L<http://blogs.sun.com/jrose/entry/bloom_filters_in_a_nutshell>
 
 L<http://pages.cs.wisc.edu/~cao/papers/summary-cache/node8.html>
 
-See also Scaleable Bloom Filters: L<http://gsd.di.uminho.pt/members/cbm/ps/dbloom.pdf> (not implemented here)
+See also Scaleable Bloom Filters: L<http://gsd.di.uminho.pt/members/cbm/ps/dbloom.pdf> (not implemented in Acme::Tools)
 
 ...and perhaps L<http://intertrack.naist.jp/Matsumoto_IEICE-ED200805.pdf>
 
@@ -4253,7 +4885,7 @@ sub bfdelete
       vec($$bf{filter}, $pos, $cb);
       vec($$bf{filter}, $pos, $cb)=$c-1;
       $croak="Cannot delete a non-existing key $key" if $c==0;
-      $croak="Cannot delete with previously overflown position. Double counting_bits"
+      $croak="Cannot delete with previously overflown position. Try doubleing counting_bits"
 	if $c==1 and ++$ones and $$bf{overflow}{$pos};
     }
     if($croak){ #rollback
@@ -4344,6 +4976,13 @@ sub sum      {&Acme::Tools::bfsum}
 # + http://pause.perl.org/
 # http://en.wikipedia.org/wiki/Birthday_problem#Approximations
 
+# ~/test/deldup.pl #find duplicate files effiencently
+# memoize_expire()           http://perldoc.perl.org/Memoize/Expire.html
+# memoize_file_expire()
+# memoize_limit_size() #lru
+# memoize_file_limit_size()
+# memoize_memcached         http://search.cpan.org/~dtrischuk/Memoize-Memcached-0.03/lib/Memoize/Memcached.pm
+# hint on http://perl.jonallen.info/writing/articles/install-perl-modules-without-root
 
 __END__
 

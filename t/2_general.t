@@ -1,18 +1,26 @@
+# make test
+# or
+# perl Makefile.PL; make; perl -Iblib/lib t/2_general.t
+
 use strict;
 use warnings;
 
-use Test::More tests => 162;
+use Test::More tests => 174;
 BEGIN { use_ok('Acme::Tools') };
 
 my @empty;
 
 #-- min, max
-ok(min(1,2,3,4)==1);
-ok(max(1,4,3,4)==4);
+ok(min(1,2,3,undef,4)==1, 'min');
+ok(max(undef,1,4,3,4)==4, 'max');
 ok(not defined min());
 ok(not defined max());
 ok(not defined min(@empty));
 ok(not defined max(@empty));
+
+#-- mins, maxs
+ok(mins('2','4','10') eq '10', 'mins');
+ok(maxs(2,4,10) == 4, 'maxs');
 
 #--sum
 ok(sum(2)==2);
@@ -52,21 +60,25 @@ ok(join(", ",percentile([0,1,25,50,75,99,100], 1,4,6,7,8,9,22,24,39,49,555,992))
 
 #--random, mix
 for(                                 #|hmm|#
-  [ sub{random([1..5])},         2000, 1.5, 5],
-  [ sub{random(["head","tail"])},2000, 1.2, 2],
-  [ sub{random(1,6)},            2000, 1.7, 6],
-  [ sub{random(2)},              2000, 1.3, 3],
-  [ sub{join(",",mix(1..5))},   10000, 2.5, 5*4*3*2*1],
+  [ sub{random([1..5])},         2000, 1.0, 1.5, 5],
+  [ sub{random(["head","tail"])},2000, 1.0, 1.3, 2],
+  [ sub{random(1,6)},            2000, 1.0, 1.7, 6],
+  [ sub{random(2)},              2000, 1.0, 1.3, 3],
+  [ sub{join(",",mix(1..5))},   10000, 1.0, 2.5, 5*4*3*2*1],
+  [ sub{random({head=>0.48,tail=>0.48,edge=>0.04})}, 10000, 12-3,12+4, 3],
+  [ sub{random({qw/1 1 2 1 3 1 4 1 5 1 6 2/})},      5000, 1.7,2.3, 6],
 )
 {
-  my($sub,$times,$limit,$vals)=@$_;
+  my($sub,$times,$lim_from,$lim_to,$vals)=@$_;
   my %c;$c{&$sub()}++ for 1..$times;
   my @v=sort{$c{$a}<=>$c{$b}}keys%c;
  #print serialize(\%c,'c','',2),serialize(\@v,'v','',2);
   my $factor=$c{$v[-1]}/$c{$v[0]};
-  ok($factor < $limit, " $limit > $factor, count=".keys(%c));
+  ok( between($factor,$lim_from,$lim_to), " btw $lim_from $lim_to f=$factor, count=".keys(%c));
   ok($vals==keys%c);
 }
+ok(10==random({1,1,2,3},10),'random -> array');
+
 #--random_gauss
 #my $srg=time_fp;
 #my @IQ=map random_gauss(100,15), 1..10000;
@@ -84,6 +96,7 @@ my $percmensa=100*(grep{$_>100+15*2}@IQ)/@IQ;
 #$b[$_] && print STDERR sprintf "%3d - %3d %6d %s\n",$_*2,$_*2+1,$b[$_],'=' x ($b[$_]*1000/$num) for 1..200/2;
 ok( between($perc1sd,  68.2 - 3,    68.2 + 3) );   #hm, margin too small?
 ok( between($percmensa, 2.2 - 0.7,   2.2 + 0.7) ); #hm, margin too small?
+
 
 #--nvl
 ok(not defined nvl());
@@ -161,7 +174,11 @@ ok( join(" ", intersect( ["five", 1, 2, 3.0, 4], [4, 2+1, "five"] )) eq '4 3 fiv
 ok( join( " ", not_intersect( ["five", 1, 2, 3.0, 4], [4, 2+1, "five"] )) eq '1 2' );
 
 #--zip
-ok( join( " ", zip( [1,3,5], [2,4,6] ) ) eq '1 2 3 4 5 6' );
+ok( join( " ", zip( [1,3,5]          ) ) eq '1 3 5',       'zip 1' );
+ok( join( " ", zip( [1,3,5], [2,4,6] ) ) eq '1 2 3 4 5 6', 'zip 2' );
+ok( join( " ", zip( [1,4,7], [2,5,8], [3,6,9] ) ) eq '1 2 3 4 5 6 7 8 9', 'zip 3' );
+ok( do{eval{zip([1,2],[3,4],5)};$@=~/ERROR.*zip/}, 'zip err 1');
+ok( do{eval{zip([1,2],[3,4,5])};$@=~/ERROR.*zip/}, 'zip err 2');
 
 #--subhash
 my %pop = ( Norway=>4800000, Sweeden=>8900000, Finland=>5000000,
@@ -308,7 +325,12 @@ ok( $ss eq  "*1,10,100*1,10,200*1,10,300*1,10,400*1,20,100*1,20,200"
           ."*2,10,100*2,10,200*2,10,300*2,10,400*2,20,100*2,20,200"
           ."*2,20,300*2,20,400*2,30,100*2,30,200*2,30,300*2,30,400");
 $ss=join"",map "*".join(",",@$_), cart(\@a1,\@a2,\@a3,sub{sum(@$_)%3==0});
-ok( $ss eq "*1,10,100*1,10,400*1,20,300*1,30,200*2,10,300*2,20,200*2,30,100*2,30,400", 'cart');
+ok( $ss eq "*1,10,100*1,10,400*1,20,300*1,30,200*2,10,300*2,20,200*2,30,100*2,30,400", 'cart - array mode');
+
+my @ch=                                         cart(a=>[1..3],b=>[1..2],c=>[1..4]);
+my @ca=map{my($a,$b,$c)=@$_;{a=>$a,b=>$b,c=>$c}}cart(   [1..3],   [1..2],   [1..4]);
+my($sch,$sca)=(serialize(\@ch,'c'),serialize(\@ca,'c'));
+ok($sch eq $sca, 'cart - hash mode');
 
 #--int2roman
 ok( int2roman(1234) eq 'MCCXXXIV', 'int2roman');
