@@ -678,7 +678,7 @@ sub conv
      );
   my $f=$f{$from}/$f{$to};
   my $r=( $f>0 ? $num*$f : (1/-$num)*$f );
-  print STDERR "$num $from => $to    from=$f{$from}  to=$f{$to}  f=$f  r=$r\n";
+  #print STDERR "$num $from => $to    from=$f{$from}  to=$f{$to}  f=$f  r=$r\n";
   return $r;
 }
 
@@ -1676,13 +1676,13 @@ Math::BigInt::GMP and Math::BigFloat::GMP like this:
 
 sub bigi
 {
-  eval{q(use Math::BigInt try=>"GMP")} if not $INC{'Math/BigInt.pm'};
+  eval{no warnings;q(use Math::BigInt try=>"GMP")} if not $INC{'Math/BigInt.pm'};
   if (wantarray) { return (map Math::BigInt->new($_),@_)  }
   else           { return Math::BigInt->new($_[0])        }
 }
 sub bigf
 {
-  eval{q(use Math::BigFloat try=>"GMP")} if not $INC{'Math/BigFloat.pm'};
+  eval{no warnings;q(use Math::BigFloat try=>"GMP")} if not $INC{'Math/BigFloat.pm'};
   if (wantarray) { return (map Math::BigFloat->new($_),@_)  }
   else           { return Math::BigFloat->new($_[0])        }
 }
@@ -1696,8 +1696,8 @@ sub bigscale
 {
   @_==1 or croak "bigscale requires one and only one argument";
   my $scale=shift();
-  eval{q(use Math::BigInt    try=>"GMP")} if not $INC{'Math/BigInt.pm'};
-  eval{q(use Math::BigFloat  try=>"GMP")} if not $INC{'Math/BigFloat.pm'};
+  eval{no warnings;q(use Math::BigInt    try=>"GMP")} if not $INC{'Math/BigInt.pm'};
+  eval{no warnings;q(use Math::BigFloat  try=>"GMP")} if not $INC{'Math/BigFloat.pm'};
   Math::BigInt->div_scale($scale);
   Math::BigFloat->div_scale($scale);
   return;
