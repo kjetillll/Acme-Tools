@@ -2,7 +2,7 @@
 #perl Makefile.PL;make;ATDEBUG=1 perl -Iblib/lib t/9_rank_pushsort_binsearch.t
 use strict;
 use warnings;
-use Test::More tests => 35;
+use Test::More tests => 60;
 BEGIN { use_ok('Acme::Tools') };
 sub deb($){print STDERR @_ if $ENV{ATDEBUG}}
 ok(1);

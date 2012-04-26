@@ -9,9 +9,11 @@ writefile('/tmp/attest-md5sum',"asdf\cJ");
 my$m;ok(($m=md5sum('/tmp/attest-md5sum')) eq '2b00042f7481c7b056c4b410d28f33cf', "asdf $m");
 
 use Digest::MD5 'md5_hex';
-for(1..1e8){
-  my $md5=md5_hex($_);
-  print "$_ $md5\n" if $md5=~/^$_/;$md5=~/(.)\1\1\1\1\1\1\1/;# or $md5=~/0000000/ or $md5=~/000000$/;
+if($ENV{ATMD5TEST}){
+  for(1..1e8){
+    my $md5=md5_hex($_);
+    print "$_ $md5\n" if $md5=~/^$_/;$md5=~/(.)\1\1\1\1\1\1\1/;# or $md5=~/0000000/ or $md5=~/000000$/;
+  }
 }
 
 __END__
