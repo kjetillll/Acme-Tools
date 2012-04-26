@@ -3,7 +3,7 @@ use Acme::Tools;
 my $cool=resolve(sub{(bfdimensions(1e6,$_[0]))[0]/8-1e6},0,0.02);
 my(@tm1,@tm2);
 my @cap=map 10**$_,1..12;
-my @er=qw/0.99 0.5 0.1 0.01 0.001 0.0001 0.00001 0.000001 0.0000001 0.00000001 0.000000001/;splice@er,3,0,$cool;
+my @er=qw/0.99 0.5 0.1 0.01 0.001 0.0001 0.00001 0.000001 0.0000001 0.00000001 0.000000001/; splice@er,3,0,$cool;
 for my $cap (@cap){
   for my $er (@er){
     my($m1,$k1)=Acme::Tools::bfdimensions_old($cap,$er);
