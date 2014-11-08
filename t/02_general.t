@@ -1,15 +1,15 @@
 # make test
 # or
-# perl Makefile.PL; make; perl -Iblib/lib t/2_general.t
+# perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
 
 use strict;
 use warnings;
-
-use Test::More tests => 174;
+use Test::More tests => 177;
+use Digest::MD5 qw(md5_hex);
 BEGIN { use_ok('Acme::Tools') };
+sub ok_ref { ok( serialize($_[0]) eq serialize($_[1]), $_[2] ) }
 
 my @empty;
-
 #-- min, max
 ok(min(1,2,3,undef,4)==1, 'min');
 ok(max(undef,1,4,3,4)==4, 'max');
@@ -27,21 +27,26 @@ ok(sum(2)==2);
 ok(sum(2,2)==4);
 ok(sum(2,-2)==0);
 ok(sum(1..1000)==500500);
-ok(! defined sum(),      'def sum');
-ok(! defined sum(@empty),'def sum');
-ok(sum(undef)==0,        'def sum');
-ok(sum(undef,2)==2);
-ok(sum(3,undef)==3);
+ok(!defined sum(),              'def sum');
+ok(!defined sum(@empty),        'def sum');
+ok(!defined(sum(undef,undef)),  'def sum');
+ok(sum(undef,2)==2,             'def sum');
+ok(sum(3,undef)==3,             'def sum');
 
 #--avg, geomavg
-ok(avg(2,4,9)==5);
-ok(avg(2,4,9,undef)==3.75);
+ok(avg(2,4,9)==5,               'avg 2 4 9 is 5');
+ok(avg([2,4,9])==5,             'avg 2 4 9 is 5');
+ok(avg(2,4,9,undef)==5,         'avg ignore undef');
 ok(0==0+grep{abs(geomavg($_,$_)-$_)>1e-8}range(3,10000,13));
 ok(abs(geomavg(2,3,4,5)-3.30975091964687)<1e-11);
 ok(abs(geomavg(10,100,1000,10000,100000)-1000)<1e-8);
+ok(!defined(avg(undef)));
 
 #--stddev
+ok(stddev(12,13,14)>0);
 ok(between(stddev(map { avg(map rand(),1..100) } 1..100), 0.02, 0.04));
+ok(!defined(stddev()));
+for((1,10,100)){ my @a=map rand(),1..$_; ok(stddev(@a) == stddev(\@a),'stddev: not ref vs ref') }
 #print map"$_\n", sort {$a<=>$b} map stddev(map { avg(map rand(),1..100) } 1..100), 1..1000;
 
 #--median
@@ -57,45 +62,6 @@ ok(percentile(25, 1, 4, 6, 7, 8, 9, 22, 24, 39, 49, 555, 992 ) == 6.25);
 ok(percentile(75, 1, 4, 6, 7, 8, 9, 22, 24, 39, 49, 555, 992 ) == 46.5);
 ok(join(", ",percentile([0,1,25,50,75,99,100], 1,4,6,7,8,9,22,24,39,49,555,992))
 	    eq '-2, -1.61, 6.25, 15.5, 46.5, 1372.19, 1429');
-
-#--random, mix
-for(                                 #|hmm|#
-  [ sub{random([1..5])},         2000, 1.0, 1.5, 5],
-  [ sub{random(["head","tail"])},2000, 1.0, 1.3, 2],
-  [ sub{random(1,6)},            2000, 1.0, 1.7, 6],
-  [ sub{random(2)},              2000, 1.0, 1.3, 3],
-  [ sub{join(",",mix(1..5))},   10000, 1.0, 2.5, 5*4*3*2*1],
-  [ sub{random({head=>0.48,tail=>0.48,edge=>0.04})}, 10000, 12-3,12+4, 3],
-  [ sub{random({qw/1 1 2 1 3 1 4 1 5 1 6 2/})},      5000, 1.7,2.3, 6],
-)
-{
-  my($sub,$times,$lim_from,$lim_to,$vals)=@$_;
-  my %c;$c{&$sub()}++ for 1..$times;
-  my @v=sort{$c{$a}<=>$c{$b}}keys%c;
- #print serialize(\%c,'c','',2),serialize(\@v,'v','',2);
-  my $factor=$c{$v[-1]}/$c{$v[0]};
-  ok( between($factor,$lim_from,$lim_to), " btw $lim_from $lim_to f=$factor, count=".keys(%c));
-  ok($vals==keys%c);
-}
-ok(10==random({1,1,2,3},10),'random -> array');
-
-#--random_gauss
-#my $srg=time_fp;
-#my @IQ=map random_gauss(100,15), 1..10000;
-my @IQ=random_gauss(100,15,10000);
-#print STDERR "\n";
-#print STDERR "time     =".(time_fp()-$srg)."\n";
-#print STDERR "avg    IQ=".avg(@IQ)."\n";
-#print STDERR "stddev IQ=".stddev(@IQ)."\n";
-my $perc1sd=100*(grep{$_>100-15   && $_<100+15  }@IQ)/@IQ;
-my $percmensa=100*(grep{$_>100+15*2}@IQ)/@IQ;
-#print STDERR "percent within one stddev: $perc1sd\n"; # 2 * 34.1 % = 68.2 %
-#print STDERR "percent above two stddevs: $percmensa\n"; # 2.2 %
-#my $num=1e6;
-#my @b; $b[$_/2]++ for random_gauss(100,15, $num);
-#$b[$_] && print STDERR sprintf "%3d - %3d %6d %s\n",$_*2,$_*2+1,$b[$_],'=' x ($b[$_]*1000/$num) for 1..200/2;
-ok( between($perc1sd,  68.2 - 3,    68.2 + 3) );   #hm, margin too small?
-ok( between($percmensa, 2.2 - 0.7,   2.2 + 0.7) ); #hm, margin too small?
 
 
 #--nvl
@@ -130,12 +96,12 @@ ok( $str eq 'teeSt' );
 ok( replace("abc","a","b","b","c") eq "ccc" ); #not bcc
 
 #--decode, decode_num
-my $a=123;
-ok( decode($a, 123,3, 214,4, $a)           == 3 );
-ok( decode($a, 122=>3, 214=>7, $a)         == 123 );
-ok( not defined decode($a, '123.0'=>3, 214=>7) );                # prints nothing (undef)
-ok( decode($a, 123.0=>3, 214=>7)           == 3 );
-ok( decode_num($a, 121=>3, 221=>7, '123.0','b') eq 'b' );
+my $test=123;
+ok( decode($test, 123,3, 214,4, $test)           == 3 );
+ok( decode($test, 122=>3, 214=>7, $test)         == 123 );
+ok( not defined decode($test, '123.0'=>3, 214=>7) );                # prints nothing (undef)
+ok( decode($test, 123.0=>3, 214=>7)           == 3 );
+ok( decode_num($test, 121=>3, 221=>7, '123.0','b') eq 'b' );
 
 #--between
 my $n=7;
@@ -183,15 +149,16 @@ ok( do{eval{zip([1,2],[3,4,5])};$@=~/ERROR.*zip/}, 'zip err 2');
 #--subhash
 my %pop = ( Norway=>4800000, Sweeden=>8900000, Finland=>5000000,
             Denmark=>5100000, Iceland=>260000, India => 1e9 );
-ok( serialize({subhash(\%pop,qw/Norway Sweeden Denmark/)},'h')
-     eq qq{%h=('Denmark'=>'5100000','Norway'=>'4800000','Sweeden'=>'8900000');\n});
+ok_ref({subhash(\%pop,qw/Norway Sweeden Denmark/)},
+       {Denmark=>5100000,Norway=>4800000,Sweeden=>8900000}, 'subhash');
 
 #--hashtrans
 my%h = ( 1 => {a=>33,b=>55},
          2 => {a=>11,b=>22},
          3 => {a=>88,b=>99} );
-ok( serialize({hashtrans(\%h)},'h')
-   eq qq{%h=('a'=>{'1'=>'33','2'=>'11','3'=>'88'},'b'=>{'1'=>'55','2'=>'22','3'=>'99'});\n} );
+ok_ref( {hashtrans(\%h)},
+        {a=>{1=>33,2=>11,3=>88},
+         b=>{1=>55,2=>22,3=>99}}, 'hashtrans' );
 
 #--zipb64, zipbin, unzipb64, unzipbin, gzip, gunzip
 my $s=join"",map random([qw/hip hop and you dont stop/]), 1..1000;
@@ -234,27 +201,20 @@ if(defined $ipaddr){
   ok( $Acme::Tools::IPADDR_memo{$ipnum} eq 'www.uio.no' );
   ok( $Acme::Tools::IPNUM_memo{'www.uio.no'} eq $ipnum );
 }
-else{ ok(1) for 1..3 }
-
-
-
-
-
+else{ ok(1,'skip: no network') for 1..3 }
 
 #--webparams, urlenc, urldec
 my %in=("\n&pi=3.14+0\n\n"=>gzip($s x 5),123=>123321);
 my %out=webparams(join("&",map{urlenc($_)."=".urlenc($in{$_})}sort keys%in));
-ok( serialize(\%in) eq serialize(\%out) );
-ok( {webparams("b=123&a=1&b=222&a=2&a=3%20")}->{'a'} eq '1,2,3 ' );
+ok_ref( \%in, \%out, 'webparams 1' );
+ok_ref( $a={webparams("b=123&a=1&b=122&a=3&a=2%20")},{a=>'1,3,2 ',b=>'123,122'}, 'webparams 2' );
 
 #--ht2t
-my $ser;
-ok( ($ser=serialize([ht2t("
-not this <table> <tr><td>asdf</td><td>asdf</td><td>asdf</td></tr> <tr><td>asdf</td><td>asdf</td><td>asdf</td></tr></table>
-but this <table> <tr><td>1234</td><td>as\ndf</td><td>1234</td></tr> <tr><td>asdf</td><td>1234</td><td>as<b>df</b></td></tr></table>
-","but")],"t"))
- eq qq{\@t=(['1234 ','as\ndf ','1234  '],['asdf ','1234 ','as df   ']);\n} );
-#print "$ser\n";
+ok_ref( [ht2t(" not this <table> <tr><td>asdf</td><td>asdf</td><td>asdf</td></tr> <tr><td>asdf</td><td>asdf</td><td>asdf</td></tr></table>
+                but this <table> <tr><td>&#160;12&#160;34</td><td>as\ndf</td><td>1234</td></tr> <tr><td>asdf</td><td>1234</td><td>as<b>df</b></td></tr></table>
+              ","but")],
+	[[1234,"as\ndf",1234],
+	 ['asdf',1234,'as df']], 'ht2t' );
 
 #--chall
 if($^O eq 'linux'){
@@ -299,28 +259,35 @@ else{ok(1) for 1..3}     # not linux
 
 #--range
 
-ok( join( ",", range(11) )      eq '0,1,2,3,4,5,6,7,8,9,10', 'range' );
-ok( join( ",", range(2,11) )    eq '2,3,4,5,6,7,8,9,10',     'range' );
-ok( join( ",", range(11,2,-1) ) eq '11,10,9,8,7,6,5,4,3',    'range' );
-ok( join( ",", range(2,11,3) )  eq '2,5,8',                  'range' );
-ok( join( ",", range(11,2,-3) ) eq '11,8,5',                 'range' );
+ok_ref([range(11)],     [0,1,2,3,4,5,6,7,8,9,10], 'range' );
+ok_ref([range(2,11)],   [2,3,4,5,6,7,8,9,10],     'range' );
+ok_ref([range(11,2,-1)],[11,10,9,8,7,6,5,4,3],    'range' );
+ok_ref([range(2,11,3)], [2,5,8],                  'range' );
+ok_ref([range(11,2,-3)],[11,8,5],                 'range' );
 
 #--permutations
-
-ok(join("-", map join(",",@$_), permutations('a','b')) eq 'a,b-b,a', 'permutations 1');
-ok(join("-", map join(",",@$_), permutations('a','b','c')) eq 'a,b,c-a,c,b-b,a,c-b,c,a-c,a,b-c,b,a','permutations 2');
-
+ok(join("-", map join("",@$_), permutations('a','b')) eq 'ab-ba', 'permutations 1');
+ok(join("-", map join("",@$_), permutations('a','b','c')) eq 'abc-acb-bac-bca-cab-cba','permutations 2');
 
 #--trigram
-ok( join(", ",trigram("Kjetil Skotheim"))   eq 'Kje, jet, eti, til, il , l S,  Sk, Sko, kot, oth, the, hei, eim');
-ok( join(", ",trigram("Kjetil Skotheim", 4)) eq 'Kjet, jeti, etil, til , il S, l Sk,  Sko, Skot, koth, othe, thei, heim');
+ok( join(", ",trigram("Kjetil Skotheim"))   eq 'Kje, jet, eti, til, il , l S,  Sk, Sko, kot, oth, the, hei, eim',        'trigram');
+ok( join(", ",trigram("Kjetil Skotheim", 4)) eq 'Kjet, jeti, etil, til , il S, l Sk,  Sko, Skot, koth, othe, thei, heim','trigram');
+
+#--sliding
+ok_ref([sliding(["Reven","rasker","over","isen"],2)],
+       [['Reven','rasker'],['rasker','over'],['over','isen']], 'sliding' );
+
+#--chunks
+ok_ref( [chunks("Reven rasker over isen",7)],['Reven r','asker o','ver ise','n'] ,            'chunks string' );
+ok_ref( [chunks([qw/Og gubben satt i kveldinga og koste seg med skillinga/], 3)],
+           [['Og','gubben','satt'],['i','kveldinga','og'],['koste','seg','med'],['skillinga']] , 'chunks array' );
 
 #--cart
 my @a1 = (1,2);
 my @a2 = (10,20,30);
 my @a3 = (100,200,300,400);
 my $ss = join"", map "*".join(",",@$_), cart(\@a1,\@a2,\@a3);
-ok( $ss eq  "*1,10,100*1,10,200*1,10,300*1,10,400*1,20,100*1,20,200"
+ok( $ss eq "*1,10,100*1,10,200*1,10,300*1,10,400*1,20,100*1,20,200"
           ."*1,20,300*1,20,400*1,30,100*1,30,200*1,30,300*1,30,400"
           ."*2,10,100*2,10,200*2,10,300*2,10,400*2,20,100*2,20,200"
           ."*2,20,300*2,20,400*2,30,100*2,30,200*2,30,300*2,30,400");
@@ -329,12 +296,11 @@ ok( $ss eq "*1,10,100*1,10,400*1,20,300*1,30,200*2,10,300*2,20,200*2,30,100*2,30
 
 my @ch=                                         cart(a=>[1..3],b=>[1..2],c=>[1..4]);
 my @ca=map{my($a,$b,$c)=@$_;{a=>$a,b=>$b,c=>$c}}cart(   [1..3],   [1..2],   [1..4]);
-my($sch,$sca)=(serialize(\@ch,'c'),serialize(\@ca,'c'));
-ok($sch eq $sca, 'cart - hash mode');
+ok_ref(\@ch,\@ca, 'cart - hash mode');
 
 #--int2roman
-ok( int2roman(1234) eq 'MCCXXXIV', 'int2roman');
-ok( int2roman(1971) eq 'MCMLXXI', 'int2roman');
+my %rom=(MCCXXXIV=>1234,MCMLXXI=>1971,IV=>4,VI=>6,I=>1,V=>5,X=>10,L=>50,C=>100,D=>500,M=>1000,CDXCVII=>497);
+my$rom;ok( ($rom=int2roman($rom{$_})) eq $_, sprintf"int2roman %8d => %-10s   %-10s",$rom{$_},$_,"($rom)") for sort keys%rom;
 
 #--num2code, code2num
 
@@ -355,37 +321,37 @@ ok( gcd(2*3*3*5, 3*3*3*5, 3*3*5*7) == 45 );
 ok( lcm(45,120,75) == 1800 );
 #--pivot
  my @table=(
-               ["1997","Gina", "Weight", "Summer",66],
-               ["1997","Gina", "Height", "Summer",170],
-               ["1997","Per",  "Weight", "Summer",75],
-               ["1997","Per",  "Height", "Summer",182],
-               ["1997","Hilde","Weight", "Summer",62],
-               ["1997","Hilde","Height", "Summer",168],
-               ["1997","Tone", "Weight", "Summer",70],
+               [1997,"Gina", "Weight", "Summer",66],
+               [1997,"Gina", "Height", "Summer",170],
+               [1997,"Per",  "Weight", "Summer",75],
+               [1997,"Per",  "Height", "Summer",182],
+               [1997,"Hilde","Weight", "Summer",62],
+               [1997,"Hilde","Height", "Summer",168],
+               [1997,"Tone", "Weight", "Summer",70],
  
-               ["1997","Gina", "Weight", "Winter",64],
-               ["1997","Gina", "Height", "Winter",158],
-               ["1997","Per",  "Weight", "Winter",73],
-               ["1997","Per",  "Height", "Winter",180],
-               ["1997","Hilde","Weight", "Winter",61],
-               ["1997","Hilde","Height", "Winter",164],
-               ["1997","Tone", "Weight", "Winter",69],
+               [1997,"Gina", "Weight", "Winter",64],
+               [1997,"Gina", "Height", "Winter",158],
+               [1997,"Per",  "Weight", "Winter",73],
+               [1997,"Per",  "Height", "Winter",180],
+               [1997,"Hilde","Weight", "Winter",61],
+               [1997,"Hilde","Height", "Winter",164],
+               [1997,"Tone", "Weight", "Winter",69],
  
-               ["1998","Gina", "Weight", "Summer",64],
-               ["1998","Gina", "Height", "Summer",171],
-               ["1998","Per",  "Weight", "Summer",76],
-               ["1998","Per",  "Height", "Summer",182],
-               ["1998","Hilde","Weight", "Summer",62],
-               ["1998","Hilde","Height", "Summer",168],
-               ["1998","Tone", "Weight", "Summer",70],
+               [1998,"Gina", "Weight", "Summer",64],
+               [1998,"Gina", "Height", "Summer",171],
+               [1998,"Per",  "Weight", "Summer",76],
+               [1998,"Per",  "Height", "Summer",182],
+               [1998,"Hilde","Weight", "Summer",62],
+               [1998,"Hilde","Height", "Summer",168],
+               [1998,"Tone", "Weight", "Summer",70],
  
-               ["1998","Gina", "Weight", "Winter",64],
-               ["1998","Gina", "Height", "Winter",171],
-               ["1998","Per",  "Weight", "Winter",74],
-               ["1998","Per",  "Height", "Winter",183],
-               ["1998","Hilde","Weight", "Winter",62],
-               ["1998","Hilde","Height", "Winter",168],
-               ["1998","Tone", "Weight", "Winter",71],
+               [1998,"Gina", "Weight", "Winter",64],
+               [1998,"Gina", "Height", "Winter",171],
+               [1998,"Per",  "Weight", "Winter",74],
+               [1998,"Per",  "Height", "Winter",183],
+               [1998,"Hilde","Weight", "Winter",62],
+               [1998,"Hilde","Height", "Winter",168],
+               [1998,"Tone", "Weight", "Winter",71],
              );
 
 my @reportA=pivot(\@table,"Year","Name");
@@ -404,7 +370,7 @@ Year Name  Height Height Weight Weight
 END
 
 my @reportB=pivot([map{$_=[@$_[0,3,2,1,4]]}(@t=@table)],"Year","Season");
-ok(tablestring(\@reportB) eq <<'END', 'pivot B');
+ok(tablestring(\@reportB) eq <<'', 'pivot B');
 Year Season Height Height Height Weight Weight Weight Weight
             Gina   Hilde  Per    Gina   Hilde  Per    Tone
 ---- ------ ------ ------ ------ ------ ------ ------ ------ 
@@ -412,10 +378,9 @@ Year Season Height Height Height Weight Weight Weight Weight
 1997 Winter    158    164    180     64     61     73     69
 1998 Summer    171    168    182     64     62     76     70
 1998 Winter    171    168    183     64     62     74     71
-END
 
 my @reportC=pivot([map{$_=[@$_[1,2,0,3,4]]}(@t=@table)],"Name","Attribute");
-ok(tablestring(\@reportC) eq <<'END', 'pivot C');
+ok(tablestring(\@reportC) eq <<'', 'pivot C');
 Name  Attribute 1997   1997   1998   1998
                 Summer Winter Summer Winter
 ----- --------- ------ ------ ------ ------ 
@@ -426,9 +391,9 @@ Hilde Weight        62     61     62     62
 Per   Height       182    180    182    183
 Per   Weight        75     73     76     74
 Tone  Weight        70     69     70     71
-END
+
 my @reportD=pivot([map{$_=[@$_[1,2,0,3,4]]}(@t=@table)],"Name");
-ok(tablestring(\@reportD) eq <<'END', 'pivot D');
+ok(tablestring(\@reportD) eq <<'', 'pivot D');
 Name  Height Height Height Height Weight Weight Weight Weight
       1997   1997   1998   1998   1997   1997   1998   1998
       Summer Winter Summer Winter Summer Winter Summer Winter
@@ -437,7 +402,6 @@ Gina     170    158    171    171     66     64     64     64
 Hilde    168    164    168    168     62     61     62     62
 Per      182    180    182    183     75     73     76     74
 Tone                                  70     69     70     71
-END
 
 #--tablestring
 
@@ -460,7 +424,6 @@ ok(upper('a-zæøåäëïöüÿâêîôûãõàèìòùáéíóúýñ' x 3) eq 'A-ZÆØÅÄËÏÖÜÿÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓ
 ok(lower('A-ZÆØÅÄËÏÖÜ.ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑ' x 3) eq 'a-zæøåäëïöü.âêîôûãõàèìòùáéíóúýñ' x 3, 'lower'); #hmm .
 
 #-- easter
-use Digest::MD5 qw(md5_hex);
 ok( '384f0eefc22c35d412ff01b2088e9e05' eq  md5_hex( join",", map{easter($_)} 1..5000), 'easter');
 
 #--time_fp
@@ -478,12 +441,16 @@ my $diff=abs(time_fp()-$t-0.1);
 #: ok (1);
 
 #--bytes_readable
-my $br;
-ok(($br=bytes_readable(999)) eq '999 B', "bytes_readable -> $br");
-ok(($br=bytes_readable(1000)) eq '0.98 kB', "bytes_readable -> $br");
-ok(($br=bytes_readable(1024)) eq '1.00 kB', "bytes_readable -> $br");
-ok(($br=bytes_readable(1153433.6)) eq '1.10 MB', "bytes_readable -> $br");
-ok(($br=bytes_readable(1181116006.4)) eq '1.10 GB', "bytes_readable -> $br");
-ok(($br=bytes_readable(1209462790553.6)) eq '1.10 TB', "bytes_readable -> $br");
-ok(($br=bytes_readable(1088516511498.24*1000)) eq '990.00 TB', "bytes_readable -> $br");
+my %br=(
+   999                    => '999 B',
+   1000                   => '1000 B',
+   1024                   => '1.00 kB',
+   1153433                => '1.10 MB',
+   1181116006             => '1.10 GB',
+   1209462790553          => '1.10 TB',
+   1088516511498          => '0.99 TB'
+);
+my$br;
+ok(($br=bytes_readable($_)) eq $br{$_}, "bytes_readable($_) == $br (should be $br{$_})")
+  for sort {$a<=>$b} keys%br;
 

@@ -5,15 +5,8 @@ use Test::More tests => 4;
 BEGIN { use_ok('Acme::Tools') };
 sub deb($){print STDERR @_ if $ENV{ATDEBUG}}
 
-#my @oslo= (59.93942,   10.75122);
-#my @rio=  (59.939362,  10.751312);
-
-#--16.210 m iflg http://www.daftlogic.com/projects-google-maps-distance-calculator.htm
-#my @oslo= (59.967683994, 10.73019195);
-#my @rio=  (59.967517199, 10.73032472);
-
+#--oslo-rio = 16.210 meter iflg http://www.daftlogic.com/projects-google-maps-distance-calculator.htm
 my @oslo=(59.933983, 10.756037);
-#my @rio=  (59.939367,  10.751318);
 my @rio=(-22.97673,-43.19508);
 
 deb sprintf "%.9f km\n",   distance(@oslo,@rio)/1000;     # 10431.5 km
