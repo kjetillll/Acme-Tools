@@ -15,6 +15,11 @@ t/09_rank_pushsort_binsearch.t
 t/10_md5sum.t
 t/11_part.t
 t/12_ht2t.t
+<<<<<<< HEAD
+=======
+t/13_random.t
+t/14_brainfuck.t
+>>>>>>> c218daffa44044595b67e474dca69fc92b78b4ed
 test_k_m.pl
 test_fork_bloom.pl
 test_resolve_bigfloat.pl
