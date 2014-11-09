@@ -5,16 +5,16 @@ sub deb($){print STDERR @_ if $ENV{ATDEBUG}}
 use Test::More tests => 3;
 BEGIN { use_ok('Acme::Tools') };
 my $html=join"",<DATA>;
-$html.=readfile("/kjetilsk/test/Norske_kommuner.iso8859-1");
+#$html.=readfile("Norske_kommuner.iso8859-1");
 my %ent=(amp => '&', 160 => ' ');
 my $entqr=join"|",keys%ent;
 $html=~s,&#?($entqr);,$ent{$1},g;
 my @t1=ht2t($html,"Tab");
 my @t2=ht2t($html,"Table-2");
-my @k=ht2t($html,"Oslo fylke");
+#my @k=ht2t($html,"Oslo fylke");
 ok(  serialize(\@t1,'t1') eq q(@t1=(['123','Abc'],['997','XYZ']);)."\n"                  );
 ok(  serialize(\@t2,'t2') eq q(@t2=(['ZYX','SOS'],['SMS','OPP'],['WTF','BMW']);)."\n"    );
-print serialize(\@k,'k','',1);
+#print serialize(\@k,'k','',1);
 
 __DATA__
 <html><body>
