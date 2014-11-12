@@ -6,19 +6,20 @@ my $html=join"",<DATA>;
 my %ent=(amp => '&', 160 => ' ');
 my $entqr=join"|",keys%ent;
 #$html=~s,&#?($entqr);,$ent{$1},g;
-my @t1=ht2t($html,"Tab");
+my @t1=ht2t($html,"Tab"); #die serialize(\@t1,'t1','',1);
 my @t2=ht2t($html,"Table-2");
 #my @k=ht2t($html,"Oslo fylke");#print serialize(\@k,'k','',1);
-ok_ref( \@t1, [ ['123','Abc&def'],['997','XYZ']],           't1');
-ok_ref( \@t2, [ ['ZYX','SOS'],['SMS','OPP'],['WTF','BMW']], 't2');
-ok_ref( [ht2t(<<"","but")],[["12 34","as\ndf",1234],['asdf',1234,'as df']], 'ht2t' );
+ok_ref( \@t1, [ ['123','Abc&def'],['997','XYZ'] ],           't1');
+ok_ref( \@t2, [ ['ZYX','SOS'],['SMS','OPP'],['WTF','BMW'] ], 't2');
+ok_ref( [ht2t(<<"","but")], [["12 34","as\ndf",1234],['asdf',1234,'as df']], 'ht2t' );
   not this
   <table>
   <tr><td>asdf</td><td>asdf</td><td>asdf</td></tr> <tr><td>asdf</td><td>asdf</td><td>asdf</td></tr>
   </table>
   but this
   <table>
-  <tr><td>&#160;12&#160;34 </td><td>as\ndf</td><td>1234</td></tr> <tr><td>asdf</td><td>1234</td><td>as<b>df</b></td></tr>
+  <tr><td>&#160;12&#160;34</td><td>as\ndf</td><td>1234</td></tr>
+  <tr><td>asdf</td><td>1234</td><td>as<b>df</b></td></tr>
   </table>
 
 __DATA__
