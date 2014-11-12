@@ -3,7 +3,7 @@
 # perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
 
 BEGIN{require 't/common.pl'}
-use Test::More tests => 159;
+use Test::More tests => 158;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -167,13 +167,6 @@ my %in=("\n&pi=3.14+0\n\n"=>gzip($s x 5),123=>123321);
 my %out=webparams(join("&",map{urlenc($_)."=".urlenc($in{$_})}sort keys%in));
 ok_ref( \%in, \%out, 'webparams 1' );
 ok_ref( $a={webparams("b=123&a=1&b=122&a=3&a=2%20")},{a=>'1,3,2 ',b=>'123,122'}, 'webparams 2' );
-
-#--ht2t
-ok_ref( [ht2t(" not this <table> <tr><td>asdf</td><td>asdf</td><td>asdf</td></tr> <tr><td>asdf</td><td>asdf</td><td>asdf</td></tr></table>
-                but this <table> <tr><td>&#160;12&#160;34</td><td>as\ndf</td><td>1234</td></tr> <tr><td>asdf</td><td>1234</td><td>as<b>df</b></td></tr></table>
-              ","but")],
-	[[1234,"as\ndf",1234],
-	 ['asdf',1234,'as df']], 'ht2t' );
 
 #--chall
 if($^O eq 'linux'){
