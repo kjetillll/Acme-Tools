@@ -1,11 +1,9 @@
 # perl Makefile.PL;make;perl -Iblib/lib t/3_bloomfilter.t
 # perl Makefile.PL;make;ATDEBUG=1 perl -Iblib/lib t/3_bloomfilter.t
 # time ( perl Makefile.PL;make;ATDEBUG=1 perl -Iblib/lib t/3_bloomfilter.t )
-use strict;
-use warnings;
-use Test::More tests => 29;
-sub deb($){print STDERR @_ if $ENV{ATDEBUG}}
-BEGIN { use_ok('Acme::Tools') };
+
+BEGIN{require 't/common.pl'}
+use Test::More tests => 28;
 
 my $error_rate=0.02;
 my $capacity=10000;
@@ -30,7 +28,7 @@ ok(!(grep $c[$_]!=1, map $_*2, 0..$capacity-1), 'no false negatives');
 ok(
      $sum >= $capacity*$error_rate*80/100
   && $sum <= $capacity*$error_rate*120/100
-  , sprintf "real error rate (%.6f) vs wanted error_rate ($error_rate) within accepted ratio 80-120%% (%d%%)",
+  , sprintf "real error rate (%.6f) vs wanted error_rate ($error_rate) within ok ratio 80-120%% (%d%%)",
             $sum/$capacity,
             100*$sum/($capacity*$error_rate)
 );
@@ -60,7 +58,7 @@ ok(0+grep($_,bfcheck($cbf,1..$cap)) == $cap, 'cbf no false negatives');
 ok(bfgrepnot($cbf,[1..$cap]) == 0, 'cbf grepnot');
 my $errs=grep($_,bfcheck($cbf,$cap+1..$cap*2));
 deb "Errs $errs\n";
-ok(between($errs/$cap/$er,0.7,1.3),'error rate rating '.($errs/$cap/$er).' within accepted range 0.7-1.3');
+ok(between($errs/$cap/$er,0.7,1.3),'error rate rating '.($errs/$cap/$er).' within ok range 0.7-1.3');
 
 #---------- see doc about this example:
 #do{
@@ -106,7 +104,7 @@ if($^O eq 'linux'){
   ok(bfgrep($cbfr,[1..$cap]) == $cap, 'store+retrieve: cbf no false negatives');
   $errs=bfgrep($cbf,[$cap+1..$cap*2]);
   #deb "Errs $errs\n";
-  ok(between($errs/$cap/$er,0.7,1.3),'store+retrieve: error rate rating '.($errs/$cap/$er).' within accepted range 0.7-1.3');
+  ok(between($errs/$cap/$er,0.7,1.3),'store+retrieve: error rate rating '.($errs/$cap/$er).' within ok range 0.7-1.3');
   my $bf=Acme::Tools::BloomFilter->new($file);
   ok($$bf{key_count}==$cap,'store+retrieve, oo');
   unlink $file;
@@ -158,6 +156,6 @@ do{
   my $errs=bfgrep($bf1,[$cap+1..$cap*2]);
   deb "erate: ".($errs/$cap)."\n";
   my $p=100*$errs/$cap/$er;
-  ok(between($p,70,130),"Error rate ".($errs/$cap)." within 70%-130% of $er ($p%)");
+  ok(between($p,70,130),"error rate ".($errs/$cap)." within 70%-130% of $er ($p%)");
 #  deb "Error rate: ".(($errs=grep($_,bfcheck($bf1,$cap+1..$cap*2)))/$cap)."\n";
 };

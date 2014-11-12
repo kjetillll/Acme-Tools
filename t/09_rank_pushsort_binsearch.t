@@ -1,11 +1,7 @@
-#perl Makefile.PL;make;          perl -Iblib/lib t/9_rank_pushsort_binsearch.t
-#perl Makefile.PL;make;ATDEBUG=1 perl -Iblib/lib t/9_rank_pushsort_binsearch.t
-use strict;
-use warnings;
-use Test::More tests => 60;
-BEGIN { use_ok('Acme::Tools') };
-sub deb($){print STDERR @_ if $ENV{ATDEBUG}}
-ok(1);
+#perl Makefile.PL;make;          perl -Iblib/lib t/09_rank_pushsort_binsearch.t
+#perl Makefile.PL;make;ATDEBUG=1 perl -Iblib/lib t/09_rank_pushsort_binsearch.t
+BEGIN{require 't/common.pl'}
+use Test::More tests => 58;
 
 my @a=(1,10,20,50,70,90,120,130);
 testsearch(1,@a);

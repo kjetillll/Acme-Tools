@@ -1,10 +1,14 @@
 #perl Makefile.PL;make;perl -Iblib/lib t/06_conv.t
 #perl -I/ext t/06_conv.t
-use strict;
-use warnings;
+BEGIN{require 't/common.pl'}
 use Test::More tests => 25;
-BEGIN { use_ok('Acme::Tools') };
-sub deb($){print STDERR @_ if $ENV{ATDEBUG}}
+
+sub check {
+  my($n, $from, $to, $answer) = @_;
+  my $c=conv( $n, $from => $to );
+  my $eq=sub{$_[0]==$_[1] or abs(1-$_[0]/$_[1])<1e-6};
+  ok( &$eq($c,$answer),   sprintf("%10s %-10s  =>  %10s %-10s     should be %10s %s",$n,$from,$c,$to,$answer,$to) );
+}
 
 check( 1, 'cm', 'mm', 10);
 check( 2.1, 'km', 'm', 2100);
@@ -15,7 +19,7 @@ deb "mpg=$_  l/mil=".conv($_,'mpg','l/mil')."\n" for qw/30 40 50 60 70/;
 
 check(70,'mpg','l/mil',          23.5214584/70 );  # 70 miles per gallon = 0.335714285714286 liter_pr_mil
 check(40,'mpg','liter_pr_100km', 23.5214584*10/40 );
-ok( conv(50,'mpg','liter_pr_km')    == 2.35214584/50 );
+check(50,'mpg','liter_pr_km',    2.35214584/50 );
 
 check(1,'sqmi','km2', 2.589988110336 ); #http://en.wikipedia.org/wiki/Square_mile
 check(1,'sqmi','m2',  2.589988110336e6 ); #hmm
@@ -41,9 +45,4 @@ check( 10, "C", "F", 50 );
 check( 273.15, "K", "C", 0 );
 check( 0,      "C", "K", 273.15 );
 
-sub check {
-  my($n, $from, $to, $answer) = @_;
-  my $c=conv( $n, $from => $to );
-  my $eq=sub{$_[0]==$_[1] or between($_[0]/$_[1],1-1e-6,1+1e-6)};
-  ok( &$eq($c,$answer),   sprintf("%10s %-10s  =>  %10s %-10s     should be %10s %s",$n,$from,$c,$to,$answer,$to) );
-}
+check( 70, "hp", "kW",  52.22);

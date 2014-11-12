@@ -1,24 +1,17 @@
-#perl Makefile.PL;make;perl -Iblib/lib t/5_distance.t
-use strict;
-use warnings;
+#perl Makefile.PL;make;perl -Iblib/lib t/05_distance.t
+BEGIN{require 't/common.pl'}
 use Test::More tests => 4;
-BEGIN { use_ok('Acme::Tools') };
-sub deb($){print STDERR @_ if $ENV{ATDEBUG}}
 
-#--oslo-rio = 16.210 meter iflg http://www.daftlogic.com/projects-google-maps-distance-calculator.htm
+#--oslo-rio = 10434.047 meter iflg http://www.daftlogic.com/projects-google-maps-distance-calculator.htm
 my @oslo=(59.933983, 10.756037);
 my @rio=(-22.97673,-43.19508);
-
-deb sprintf "%.9f km\n",   distance(@oslo,@rio)/1000;     # 10431.5 km
-deb sprintf "%.1f km\n",   distance(@rio,@oslo)/1000;     # 10431.5 km
-deb sprintf "%.1f nmi\n",  distance(@oslo,@rio)/1852.000; # 5632.5 nmi   (nautical miles)
-deb sprintf "%.1f miles\n",distance(@oslo,@rio)/1609.344; # 6481.8 miles
-
-ok(between(distance(@oslo,@rio), 10_431_400, 10_431_500));
-ok(abs(distance(@oslo,@rio) - distance(@rio,@oslo))<=0.1);
-
-
-ok(1);
+my @london=(51.507726,-0.128079);   #1156
+my @jakarta=(-6.175381,106.828176); # 10936
+my @test=( ['@oslo,@rio',     10431.5],
+           ['@rio, @oslo',    10431.5],
+           ['@oslo,@london',   1153.6],
+           ['@oslo,@jakarta', 10936.0] );
+my $d; ok( between( ($d=distance(eval$$_[0])/1000)/$$_[1], 0.999, 1.001 ), "distance $$_[0], $$_[1] and $d" ) for @test;
 
 #eval{require Geo::Direction::Distance};
 #if($@ or $Geo::Direction::Distance::VERSION ne '0.0.2'){ok(1)}
@@ -32,4 +25,3 @@ ok(1);
 #  deb "distance=$d km  time=".(time_fp()-$t)."\n";
 #  ok(between($d, 10407.748, 10407.749));
 #}
-

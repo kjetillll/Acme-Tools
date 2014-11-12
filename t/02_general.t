@@ -2,12 +2,9 @@
 # or
 # perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
 
-use strict;
-use warnings;
-use Test::More tests => 177;
+BEGIN{require 't/common.pl'}
+use Test::More tests => 159;
 use Digest::MD5 qw(md5_hex);
-BEGIN { use_ok('Acme::Tools') };
-sub ok_ref { ok( serialize($_[0]) eq serialize($_[1]), $_[2] ) }
 
 my @empty;
 #-- min, max
@@ -139,13 +136,6 @@ ok( join(" ", intersect( ["five", 1, 2, 3.0, 4], [4, 2+1, "five"] )) eq '4 3 fiv
 #--not_intersect
 ok( join( " ", not_intersect( ["five", 1, 2, 3.0, 4], [4, 2+1, "five"] )) eq '1 2' );
 
-#--zip
-ok( join( " ", zip( [1,3,5]          ) ) eq '1 3 5',       'zip 1' );
-ok( join( " ", zip( [1,3,5], [2,4,6] ) ) eq '1 2 3 4 5 6', 'zip 2' );
-ok( join( " ", zip( [1,4,7], [2,5,8], [3,6,9] ) ) eq '1 2 3 4 5 6 7 8 9', 'zip 3' );
-ok( do{eval{zip([1,2],[3,4],5)};$@=~/ERROR.*zip/}, 'zip err 1');
-ok( do{eval{zip([1,2],[3,4,5])};$@=~/ERROR.*zip/}, 'zip err 2');
-
 #--subhash
 my %pop = ( Norway=>4800000, Sweeden=>8900000, Finland=>5000000,
             Denmark=>5100000, Iceland=>260000, India => 1e9 );
@@ -160,38 +150,6 @@ ok_ref( {hashtrans(\%h)},
         {a=>{1=>33,2=>11,3=>88},
          b=>{1=>55,2=>22,3=>99}}, 'hashtrans' );
 
-#--zipb64, zipbin, unzipb64, unzipbin, gzip, gunzip
-my $s=join"",map random([qw/hip hop and you dont stop/]), 1..1000;
-ok( length(zipb64($s)) / length($s) < 0.5 );
-ok( between(length(zipbin($s)) / length(zipb64($s)), 0.7, 0.8));
-ok( between(length(zipbin($s)) / length(zipb64($s)), 0.7, 0.8));
-ok( length(zipbin($s)) / length($s) < 0.4 );
-ok( $s eq unzipb64(zipb64($s)));
-ok( $s eq unzipbin(zipbin($s)));
-my $d=substr($s,1,1000);
-ok( length(zipb64($s,$d)) / length(zipb64($s)) < 0.8 );
-my $f;
-ok( ($f=length(zipb64($s,$d)) / length(zipb64($s))) < 0.73 , "0.73 > $f");
-#for(1..10){
-#  my $s=join"",map random([qw/hip hop and you dont stop/]), 1..1000;
-#  my $d=substr($s,1,1000);
-#  my $f= length(zipbin($s,$d)) / length(zipbin($s));
-#  print $f,"\n";
-#}
-
-#--gzip, gunzip
-$s=join"",map random([qw/hip hop and you do not everever stop/]), 1..10000;
-ok(length(gzip($s))/length($s) < 1/5);
-ok($s eq gunzip(gzip($s)));
-ok($s eq unzipbin(gunzip(gzip(zipbin($s)))));
-ok($s eq unzipb64(unzipbin(gunzip(gzip(zipbin(zipb64($s)))))));
-
-print length($s),"\n";
-print length(gzip($s)),"\n";
-print length(zipbin($s)),"\n";
-print length(zipbin($s,$d)),"\n";
-
-
 #--ipaddr, ipnum
 my $ipnum=ipnum('www.uio.no'); # !defined implies no network
 my $ipaddr=defined$ipnum?ipaddr($ipnum):undef;
@@ -204,6 +162,7 @@ if(defined $ipaddr){
 else{ ok(1,'skip: no network') for 1..3 }
 
 #--webparams, urlenc, urldec
+my $s=join"",map random([qw/hip hop and you dont stop/]), 1..1000;
 my %in=("\n&pi=3.14+0\n\n"=>gzip($s x 5),123=>123321);
 my %out=webparams(join("&",map{urlenc($_)."=".urlenc($in{$_})}sort keys%in));
 ok_ref( \%in, \%out, 'webparams 1' );

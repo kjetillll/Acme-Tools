@@ -1,22 +1,39 @@
 # perl Makefile.PL;make;perl -Iblib/lib t/10_md5sum.t
-use strict;
-use warnings;
-use Test::More tests => 2;
-sub deb($){print STDERR @_ if $ENV{ATDEBUG}}
-BEGIN { use_ok('Acme::Tools') };
+BEGIN{require 't/common.pl'}
+use Test::More tests => 1;
 
-writefile('/tmp/attest-md5sum',"asdf\cJ");
-my$m;ok(($m=md5sum('/tmp/attest-md5sum')) eq '2b00042f7481c7b056c4b410d28f33cf', "asdf $m");
+if($^O eq 'linux'){
+  writefile('/tmp/attest-md5sum',"asdf\cJ");
+  my$m;ok(($m=md5sum('/tmp/attest-md5sum')) eq '2b00042f7481c7b056c4b410d28f33cf', "asdf $m");
+}
+else {
+  ok(1);
+}
 
 use Digest::MD5 'md5_hex';
 if($ENV{ATMD5TEST}){
-  for(1..1e8){
+  for(1..1e7){
     my $md5=md5_hex($_);
-    print "$_ $md5\n" if $md5=~/^$_/;$md5=~/(.)\1\1\1\1\1\1\1/;# or $md5=~/0000000/ or $md5=~/000000$/;
+    print "$_ $md5\n"
+      if 1==0 #$md5=~/^$_/
+      or $md5=~/(.)\1\1\1\1\1\1/
+     #or $md5=~/0000000/
+      or $md5=~/000000$/
+      or $md5=~/^\d+$/
+     ;
   }
 }
 
 __END__
+
+ok 1 - asdf 2b00042f7481c7b056c4b410d28f33cf
+
+499514 b2f037d19b8daae468dd4866666668ff
+1518375 93240121540327474319550261818423
+
+6637317 50956907397762710525354231110429
+
+8473519 2377777775ae3127ddbc15daaef48162
 
 9554831 77777777245c265d57e8b1b78954fa1d
 
