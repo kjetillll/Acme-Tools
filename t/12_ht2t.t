@@ -1,26 +1,22 @@
 # perl Makefile.PL;make;perl -Iblib/lib t/12_ht2t.t
-use strict;
-use warnings;
-sub deb($){print STDERR @_ if $ENV{ATDEBUG}}
-use Test::More tests => 3;
-BEGIN { use_ok('Acme::Tools') };
+BEGIN{require 't/common.pl'}
+use Test::More tests => 2;
 my $html=join"",<DATA>;
-$html.=readfile("Norske_kommuner.iso8859-1");
+#$html.=readfile("Norske_kommuner.iso8859-1");
 my %ent=(amp => '&', 160 => ' ');
 my $entqr=join"|",keys%ent;
 #$html=~s,&#?($entqr);,$ent{$1},g;
 my @t1=ht2t($html,"Tab");
 my @t2=ht2t($html,"Table-2");
-#my @k=ht2t($html,"Oslo fylke");
-ok(  serialize(\@t1,'t1') eq q(@t1=(['123','Abc'],['997','XYZ']);)."\n"                  );
-ok(  serialize(\@t2,'t2') eq q(@t2=(['ZYX','SOS'],['SMS','OPP'],['WTF','BMW']);)."\n"    );
-#print serialize(\@k,'k','',1);
+#my @k=ht2t($html,"Oslo fylke");#print serialize(\@k,'k','',1);
+ok_ref( \@t1, [ ['123','Abc&def'],['997','XYZ']],           't1');
+ok_ref( \@t2, [ ['ZYX','SOS'],['SMS','OPP'],['WTF','BMW']], 't2');
 
 __DATA__
 <html><body>
 Table-1
 <table>
-<tr><td>123</td><td> Abc</td></tr>
+<tr><td>123</td><td> Abc&amp;def</td></tr>
 <tr><td>997</td><td>XYZ </td></tr>
 </table>
 Table-2 is here:

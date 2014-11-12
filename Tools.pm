@@ -2947,7 +2947,7 @@ sub ht2t {
   $f=~s/<t(d|r|h).*?>/\l$1$s/gsi;
   $f=~s/\s*<.*?>\s*/ /gsi;
   my @t=split("r$s",$f);shift @t;
-  $r||=sub{s/&#160;//g;s/^\s*(.*?)\s*$/$1/s};
+  $r||=sub{s/&#160;/ /g;s/&amp;/&/g;s/^\s*(.*?)\s*$/$1/s};
   for(@t){my @r=split/[dh]$s/;shift@r;$_=[map{&$r;$_}@r]}
   @t;
 }

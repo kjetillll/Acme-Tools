@@ -1,6 +1,6 @@
 #perl Makefile.PL;make;perl -Iblib/lib t/7_big.t
 BEGIN{require 't/common.pl'}
-use Test::More tests => 14;
+use Test::More tests => 15;
 eval{big(1)}; exit if $@ and print "<<$@>>\n" and map ok(1),1..13; #Math::BigInt or Math::BigFloat is missing
 
 my $num1 = big(3);      #returns a new Math::BigInt-object
@@ -32,7 +32,7 @@ ok( 1/bigf(7)    eq '0.142857142857142857142857142857142857142857142857142857142
 eval{bigscale()};    ok( $@=~/bigscale requires/ );
 eval{bigscale(1,2)}; ok( $@=~/bigscale requires/ );
 
-ok( bigr('1/41')==1/41 ); #hm
+ok( bigr('1/41')+1 eq '42/41' ); #hm
 print "".(2+bigr('1/41'))."\n";
 printf "$_:   %$_   %$_   %$_   %$_\n",1/41,bigr('1/41'),2+bigr('1/41'),1/41 for qw/s e f g E F G/;
 
