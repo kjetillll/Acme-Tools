@@ -1,6 +1,6 @@
 # perl Makefile.PL;make;perl -Iblib/lib t/12_ht2t.t
 BEGIN{require 't/common.pl'}
-use Test::More tests => 2;
+use Test::More tests => 3;
 my $html=join"",<DATA>;
 #$html.=readfile("Norske_kommuner.iso8859-1");
 my %ent=(amp => '&', 160 => ' ');
@@ -11,6 +11,15 @@ my @t2=ht2t($html,"Table-2");
 #my @k=ht2t($html,"Oslo fylke");#print serialize(\@k,'k','',1);
 ok_ref( \@t1, [ ['123','Abc&def'],['997','XYZ']],           't1');
 ok_ref( \@t2, [ ['ZYX','SOS'],['SMS','OPP'],['WTF','BMW']], 't2');
+ok_ref( [ht2t(<<"","but")],[["12 34","as\ndf",1234],['asdf',1234,'as df']], 'ht2t' );
+  not this
+  <table>
+  <tr><td>asdf</td><td>asdf</td><td>asdf</td></tr> <tr><td>asdf</td><td>asdf</td><td>asdf</td></tr>
+  </table>
+  but this
+  <table>
+  <tr><td>&#160;12&#160;34 </td><td>as\ndf</td><td>1234</td></tr> <tr><td>asdf</td><td>1234</td><td>as<b>df</b></td></tr>
+  </table>
 
 __DATA__
 <html><body>
