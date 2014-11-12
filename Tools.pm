@@ -1,10 +1,11 @@
+#!/usr/bin/perl
 package Acme::Tools;
 
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 
-use 5.008;
+use 5.008;     #released July 18th 2002
 use strict;
-#use warnings;
+use warnings;
 use Carp;
 
 require Exporter;
@@ -13,130 +14,135 @@ our @ISA = qw(Exporter);
 our %EXPORT_TAGS = ( 'all' => [ qw() ] );
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
 our @EXPORT = qw(
- min
- max
- mins
- maxs
- sum
- avg
- geomavg
- harmonicavg
- stddev
- median
- percentile
- $Resolve_iterations
- $Resolve_last_estimate
- resolve
- conv_old
- conv
- rank
- rankstr
- eqarr
- sorted
- sortedstr
- pushsort
- pushsortstr
- binsearch
- binsearchstr
- random
- random_gauss
- big
- bigi
- bigf
- bigscale
- nvl
- repl
- replace
- decode
- decode_num
- between
- distinct
- in
- in_num
- uniq
- union
- union_all
- minus
- minus_all
- intersect
- intersect_all
- not_intersect
- mix
- zip
- subhash
- hashtrans
- zipb64
- zipbin
- unzipb64
- unzipbin
- gzip
- gunzip
- bzip2
- bunzip2
- ipaddr
- ipnum
- webparams
- urlenc
- urldec
- ht2t
- chall
- makedir
- qrlist
- ansicolor
- ccn_ok
- KID_ok
- writefile
- readfile
- readdirectory
- range
- permutations
- trigram
- sliding
- chunks
- chars
- cart
- reduce
- int2roman
- num2code
- code2num
- gcd
- lcm
- pivot
- tablestring
- upper
- lower
- dserialize
- serialize
- bytes_readable
- distance
- easter
- time_fp
- sleep_fp
- eta
- sys
- recursed
- md5sum
- ldist
- part
- brainfuck
- brainfuck2perl
- brainfuck2perl_optimized
- bfinit
- bfsum
- bfaddbf
- bfadd
- bfcheck
- bfgrep
- bfgrepnot
- bfdelete
- bfstore
- bfretrieve
- bfclone
- bfdimensions
- $PI
+  min
+  max
+  mins
+  maxs
+  sum
+  avg
+  geomavg
+  harmonicavg
+  stddev
+  median
+  percentile
+  $Resolve_iterations
+  $Resolve_last_estimate
+  resolve
+  conv_old
+  conv
+  rank
+  rankstr
+  eqarr
+  sorted
+  sortedstr
+  pushsort
+  pushsortstr
+  binsearch
+  binsearchstr
+  random
+  random_gauss
+  big
+  bigi
+  bigf
+  bigr
+  bigscale
+  nvl
+  repl
+  replace
+  decode
+  decode_num
+  fractional
+  between
+  distinct
+  in
+  in_num
+  uniq
+  union
+  union_all
+  minus
+  minus_all
+  intersect
+  intersect_all
+  not_intersect
+  mix
+  zip
+  subhash
+  hashtrans
+  zipb64
+  zipbin
+  unzipb64
+  unzipbin
+  gzip
+  gunzip
+  bzip2
+  bunzip2
+  ipaddr
+  ipnum
+  webparams
+  urlenc
+  urldec
+  ht2t
+  chall
+  makedir
+  qrlist
+  ansicolor
+  ccn_ok
+  KID_ok
+  writefile
+  readfile
+  readdirectory
+  range
+  permutations
+  trigram
+  sliding
+  chunks
+  chars
+  cart
+  reduce
+  int2roman
+  num2code
+  code2num
+  gcd
+  lcm
+  pivot
+  tablestring
+  upper
+  lower
+  dserialize
+  serialize
+  bytes_readable
+  distance
+  easter
+  time_fp
+  sleep_fp
+  eta
+  sys
+  recursed
+  md5sum
+  ldist
+  part
+  brainfuck
+  brainfuck2perl
+  brainfuck2perl_optimized
+  bfinit
+  bfsum
+  bfaddbf
+  bfadd
+  bfcheck
+  bfgrep
+  bfgrepnot
+  bfdelete
+  bfstore
+  bfretrieve
+  bfclone
+  bfdimensions
+  $PI
 );
 
-our $PI = 3.141592653589793238462643383279502884197169399375105820974944592307816406286;
+our $PI = '3.141592653589793238462643383279502884197169399375105820974944592307816406286';
+
+cmd_atca() if $0 =~ /\b atca $/x;
+sub cmd_atca { print eval $_, "\n" for split ";", "@ARGV" }
 
 =head1 NAME
 
@@ -171,7 +177,7 @@ Acme::Tools - Lots of more or less useful subs lumped together and exported into
 
 =head1 ABSTRACT
 
-Useful subroutines for perl. About 90 of them.
+About 120 more or less useful perl subroutines lumped together and exported into your namespace.
 
 =head1 DESCRIPTION
 
@@ -605,7 +611,10 @@ L<Math::BigFloat>
 
 L<http://en.wikipedia.org/wiki/Golden_ratio>
 
-TODO: why this fails? perl -MAcme::Tools -le'for(map$_/10,-4..20){printf"%9.4f  %s\n",$_,3*$_+$_**4-12}print resolve(sub{$x=shift;3*$x+$x**4-12},0,1)'
+TODO: why these fail?
+
+ perl -MAcme::Tools -le'for(map$_/10,-4..20){printf"%9.4f  %s\n",$_,3*$_+$_**4-12}print resolve(sub{$x=shift;3*$x+$x**4-12},0,1)'
+ resolve(sub{ my $x=shift; $x**2 - 4*$x - 21 },undef,1.9)
 
 
 =cut
@@ -1038,6 +1047,7 @@ our %conv=(
                  'J/s'     => 1,
                   Jps      => 1,
                   hp       => 746,
+                  hk       => 746,  #norwegian hestekrefter
 		 'kWh/yr'  => 1000    * 3600/(24*365), #kWh annually
                   Whpy     =>           3600/(24*365), #kWh annually
                   kWhpy    => 1000    * 3600/(24*365), #kWh annually
@@ -1058,6 +1068,9 @@ our %conv=(
                    Ws           => 1,
                    Wps          => 1,
                   'W/s'         => 1,
+                   Nm           => 1,
+                   newtonmeter  => 1,
+                   newtonmeters => 1,
                    Wh           => 3600,
                    kWh          => 3600000, #3.6 million J
                    cal          => 4.1868,          # ~ 3600/860
@@ -1068,7 +1081,7 @@ our %conv=(
 		   kilocalories => 4.1868*1000,
 		   BTU          => 4.1868 * 252, # = 1055.0736 or is 1055.05585262 right?
 		   Btu          => 4.1868 * 252,
-		   ftlb         => 746/550,
+		   ftlb         => 746/550,      # ~ 1/0.7375621
 		  'foot-pound'  => 746/550,
 		  'foot-pounds' => 746/550,
 		   erg          => 1e-7,
@@ -1280,213 +1293,45 @@ sub conv_temperature { #http://en.wikipedia.org/wiki/Temperature#Conversion
   }->{"$from$to"}->($t);
 }
 
-=head2 pushsort
-
-Adds one or more element to a numerically sorted array and keeps it sorted.
-
-  pushsort @a, 13;                         # this...
-  push     @a, 13; @a = sort {$a<=>$b} @a; # is the same as this, but the former is faster if @a is large
-
-=head2 pushsortstr
-
-Same as pushsort except that the array is kept sorted alphanumerically (cmp) instead of numerically (<=>). See L</pushsort>.
-
-  pushsort @a, "abc";                      # this...
-  push     @a, "abc"; @a = sort @a;        # is the same as this, but the former is faster if @a is large
+=head2 fractional
 
 =cut
 
-our $Pushsort_cmpsub=undef;
-sub pushsort (\@@) {
-  my $ar=shift;
-
-  #not needed but often faster
-  if(not defined $Pushsort_cmpsub and @$ar+@_<100){ #hm speedup?
-    @$ar=(sort {$a<=>$b} (@$ar,@_));
-    return 0+@$ar;
-  }
-
-  for my $v (@_){
-
-    #not needed but often faster
-    if(not defined $Pushsort_cmpsub){ #faster rank() in most cases
-      push    @$ar, $v and next if $v>=$$ar[-1];
-      unshift @$ar, $v and next if $v< $$ar[0];
-    }
-
-    splice @$ar, binsearch($v,$ar,1,$Pushsort_cmpsub)+1, 0, $v;
-  }
-  0+@$ar
-}
-sub pushsortstr(\@@){ local $Pushsort_cmpsub=sub{$_[0]cmp$_[1]}; pushsort(@_) } #speedup: copy sub pushsort
-
-=head2 binsearch
-
-Returns the position of an element in a numerically sorted array. Returns undef if the element is not found.
-
-B<Input:> Two, three or four arguments
-
-B<First argument:> the element to find. Usually a number.
-
-B<Second argument:> a reference to the array to search in. The array should be sorted in ascending numerical order (se exceptions below).
-
-B<Third argument:>  Optional. Default false.
-
-If present, whether result I<not found> should return undef or a fractional position.
-
-If the third argument is false binsearcg returns undef if the element is not found.
-
-If the third argument is true binsearch returns 0.5 plus closest position below the searched value.
-
-Returns C< last position + 0.5 > if the searched element is greater than all elements in the sorted array.
-Returns C< -0.5 > if the searched element is less than all elements in the sorted array.
-
-Fourth argument: Optional. Default C<< sub { $_[0] <=> $_[1] } >>.
-
-If present, the fourth argument is a code-ref that alters the way binsearch compares two elements.
-
-Example:
-
- binsearch(10,[5,10,15,20]);                                # 1
- binsearch(10,[20,15,10,5],undef,sub{$_[1]<=>$_[0]});       # 2 search arrays sorted numerically in opposite order
- binsearch("c",["a","b","c","d"],undef,sub{$_[0]cmp$_[1]}); # 2 search arrays sorted alphanumerically
- binsearchstr("b",["a","b","c","d"]);                       # 1 search arrays sorted alphanumerically
-
-=head2 binsearchstr
-
-Same as binsearch except that the arrays is sorted alphanumerically (cmp) instead of numerically (<=>) and the searched element is a string, not a number. See L</binsearch>.
-
-=cut
-
-our $Binsearch_steps;
-our $Binsearch_maxsteps=100;
-sub binsearch {
-  my($search,$aref,$insertpos,$cmpsub)=@_; #search pos of search in array
-  croak "binsearch did not get arrayref as second arg" if ref($aref) ne 'ARRAY';
-  croak "binsearch got fourth arg which is not a code-ref" if $cmpsub and ref($cmpsub) ne 'CODE';
-  return $insertpos ? -0.5 : undef if not @$aref;
-  my($min,$max)=(0,$#$aref);
-  $Binsearch_steps=0;
-  while (++$Binsearch_steps <= $Binsearch_maxsteps) {
-    my $middle=int(($min+$max+0.5)/2);
-    my $middle_value=$$aref[$middle];
-
-    #croak "binsearch got non-sorted array" if !$cmpsub and $$aref[$min]>$$aref[$min]
-    #                                       or  $cmpsub and &$cmpsub($$aref[$min],$$aref[$min])>0;
-
-    if(   !$cmpsub and $search < $middle_value
-    or     $cmpsub and &$cmpsub($search,$middle_value) < 0  ) {      #print "<\n";
-      $max=$min, next                   if $middle == $max and $min != $max;
-      return $insertpos ? $middle-0.5 : undef if $middle == $max;
-      $max=$middle;
-    }
-    elsif( !$cmpsub and $search > $middle_value
-    or      $cmpsub and &$cmpsub($search,$middle_value) > 0 ) {      #print ">\n";
-      $min=$max, next                   if $middle == $min and $max != $min;
-      return $insertpos ? $middle+0.5 : undef if $middle == $min;
-      $min=$middle;
-    }
-    else {                                                           #print "=\n";
-      return $middle;
+sub fractional { #http://mathcentral.uregina.ca/QQ/database/QQ.09.06/h/lil1.html
+  my $n=shift;
+  print "----fractional n=$n\n";
+  my $nn=$n; my $des;
+  $nn=~s,\.(\d+)$,$des=length($1);$1.,;
+  my $l;
+  my $max=0;
+  my($te,$ne);
+  for(1..length($nn)/2){
+    if( $nn=~/^(\d*?)((.{$_})(\3)+)$/ ){
+      print "_ = $_ ".length($2)."\n";
+      if(length($2)>$max){
+        $l=$_;
+	$te="$1$3"-$1;
+        $max=length($2);
+      }
     }
   }
-  croak "binsearch exceded $Binsearch_maxsteps steps";
-}
-
-sub binsearchfast { # binary search routine finds index just below value
-  my ($x,$v)=@_;
-  my ($klo,$khi)=(0,$#{$x});
-  my $k;
-  while (($khi-$klo)>1) {
-    $k=int(($khi+$klo)/2);
-    if ($$x[$k]>$v) { $khi=$k; } else { $klo=$k; }
+  return fractional($n)
+    if not $l and not recursed() and $des>6 and substr($n,-1) and substr($n,-1)--;
+  print "l=$l max=$max\n";
+  $ne="9" x $l;
+  print log($n),"\n";
+  my $st=sub{print "status: ".($te/$ne)."   n=$n   ".($n/$te*$ne)."\n"};
+  while($n/$te*$ne<0.99){ &$st(); $ne*=10 }
+  while($te/$n/$ne<0.99){ &$st(); $te*=10 }
+  &$st();
+  while(1){
+    my $d=gcd($te,$ne); print "gcd=$d\n";
+    last if $d==1;
+    $te/=$d; $ne/=$d;
   }
-  return $klo;
+  &$st();
+  wantarray ? ($te,$ne) : "$te/$ne"; #gcd()
 }
-
-
-sub binsearchstr {binsearch(@_[0..2],sub{$_[0]cmp$_[1]})}
-
-sub rank
-{
-  my($rank,$aref,$cmpsub)=@_;
-  if($rank<0){
-    $cmpsub||=sub{$_[0]<=>$_[1]};
-    return rank(-$rank,$aref,sub{0-&$cmpsub});
-  }
-  my @sort;
-  local $Pushsort_cmpsub=$cmpsub;
-  for(@$aref){
-    pushsort @sort, $_;
-    pop @sort if @sort>$rank;
-  }
-  return wantarray ? @sort : $sort[$rank-1];
-}
-sub rankstr {wantarray?(rank(@_,sub{$_[0]cmp$_[1]})):rank(@_,sub{$_[0]cmp$_[1]})}
-
-=head2 eqarr
-
-B<Input:> Two or more references to arrays.
-
-B<Output:> True (1) or false (0) for whether or not the arrays are numerically I<and> alphanumerically equal.
-Comparing each element in each array with both C< == > and C< eq >.
-
-Examples:
-
- eqarr([1,2,3],[1,2,3],[1,2,3]); # 1 (true)
- eqarr([1,2,3],[1,2,3],[1,2,4]); # 0 (false)
- eqarr([1,2,3],[1,2,3,4]);       # undef (different size, false)
- eqarr([1,2,3]);                 # croak (should be two or more arrays)
- eqarr([1,2,3],1,2,3);           # croak (not arraysrefs)
-
-=cut
-
-sub eqarr {
-  my @arefs=@_;
-  croak if @arefs<2;
-  ref($_) ne 'ARRAY' and croak for @arefs;
-  @{$arefs[0]} != @{$arefs[$_]} and return undef for 1..$#arefs;
-  my $ant;
-  
-  for my $ar (@arefs[1..$#arefs]){
-    for(0..@$ar-1){
-      ++$ant and $ant>100 and croak ">100";
-      return 0 if $arefs[0][$_] ne $$ar[$_]
-   	       or $arefs[0][$_] != $$ar[$_];
-    }
-  }
-  return 1;
-}
-
-=head2 sorted
-
-Return true if the input array is numerically sorted.
-
-  @a=(1..10); print "array is sorted" if sorted @a;  #true
-
-Optionally the last argument can be a comparison sub:
-
-  @person=({Rank=>1,Name=>'Amy'}, {Rank=>2,Name=>'Paula'}, {Rank=>3,Name=>'Ruth'});
-  print "Persons are sorted" if sorted @person, sub{$_[0]{Rank}<=>$_[1]{Rank}};
-
-=head2 sortedstr
-
-Return true if the input array is I<alpha>numerically sorted.
-
-  @a=(1..10);      print "array is sorted" if sortedstr @a; #false
-  @a=("01".."10"); print "array is sorted" if sortedstr @a; #true
-
-=cut
-
-sub sorted (\@@) {
-  my($a,$cmpsub)=@_;
-  for(0..$#$a-1){
-    return 0 if !$cmpsub and $$a[$_]>$$a[$_+1]
-             or  $cmpsub and &$cmpsub($$a[$_],$$a[$_+1])>0;
-  }
-  return 1;
-}
-sub sortedstr { sorted(@_,sub{$_[0]cmp$_[1]}) }
 
 #=head1 SQL INSPIRED FUNCTIONS
 #Inspired from Oracles SQL.
@@ -1751,7 +1596,85 @@ sub distance {
 }
 
 
-sub leapyear{$_[0]%400?$_[0]%100?$_[0]%4?0:1:0:1} #bool
+=head2 big
+
+=head2 bigi
+
+=head2 bigf
+
+=head2 bigscale
+
+big, bigi, bigf and bigscale are just convenient shorthands for using
+L<Math::BigInt>->new() and L<Math::BigFloat>->new() preferably with
+the GMP for faster calculations. Use those modules instead of the real
+deal. Examples:
+
+  my $num1 = big(3);      #returns a new Math::BigInt-object
+  my $num2 = big('3.0');  #returns a new Math::BigFloat-object
+  my $num3 = big(3.0);    #returns a new Math::BigInt-object
+  my $num4 = big(3.1);    #returns a new Math::BigFloat-object
+  my($int1,$float1,$int2,$float2) = big(3,'3.0',3.0,3.1); #returns the four new numbers, as the above four lines
+                                                          #uses wantarray
+
+  print 2**1000;          # 1.60693804425899e+60
+  print big(2)**1000;     # 1606938044258990275541962092341162602522202993782792835301376
+  print 2**big(1000);     # 1606938044258990275541962092341162602522202993782792835301376
+
+  print 1/7;              # 0.142857142857143
+  print 1/big(7);         # 0      because of integer arithmetics
+  print 1/big(7.0);       # 0      because of integer arithmetics
+  print 1/big('7.0');     # 0.1428571428571428571428571428571428571429
+  print 1/bigf(7);        # 0.1428571428571428571428571428571428571429
+  print bigf(1/7);        # 0.142857142857143   probably not what you wanted
+
+  bigscale(60);           #increase precesion from the default 40
+  print 1/bigf(7);        #0.142857142857142857142857142857142857142857142857142857142857
+
+Instead of guessing on int or float by looking for a C<.> character
+like C<big> do, C<bigi> and C<bigf> explicitly orders int and float
+respectively.
+
+B<Note:> Acme::Tools does not itself require Math::BigInt and
+Math::BigFloat and GMP, but these four big*-subs do (by internal
+C<require>).  To use big, bigi and bigf effectively you should
+install Math::BigInt::GMP and Math::BigFloat::GMP like this:
+
+  sudo cpanm Math::BigFloat Math::GMP Math::BingInt::GMP         # or
+  sudo cpan  Math::BigFloat Math::GMP Math::BingInt::GMP         # or
+  sudo yum install perl-Math-BigInt-GMP perl-Math-GMP            # on RedHat, RHEL or
+  sudo apt-get install libmath-bigint-gmp-perl libmath-gmp-perl  # on Ubuntu or some other way
+
+=cut
+
+sub bigi {
+  eval q(use Math::BigInt try=>"GMP") if !$INC{'Math/BigInt.pm'};
+  if (wantarray) { return (map Math::BigInt->new($_),@_)  }
+  else           { return      Math::BigInt->new($_[0])   }
+}
+sub bigf {
+  eval q(use Math::BigFloat try=>"GMP") if !$INC{'Math/BigFloat.pm'};
+  if (wantarray) { return (map Math::BigFloat->new($_),@_)  }
+  else           { return      Math::BigFloat->new($_[0])   }
+}
+sub bigr {
+  eval q(use Math::BigRat try=>"GMP") if !$INC{'Math/BigRat.pm'};
+  if (wantarray) { return (map Math::BigRat->new($_),@_)  }
+  else           { return      Math::BigRat->new($_[0])   }
+}
+sub big {
+  wantarray 
+  ? (map     /\./ ? bigf($_)    :        /\// ? bigr($_)    : bigi($_), @_)
+  :   $_[0]=~/\./ ? bigf($_[0]) : $_[0]=~/\// ? bigr($_[0]) : bigi($_[0]);
+}
+sub bigscale {
+  @_==1 or croak "bigscale requires one and only one argument";
+  my $scale=shift();
+  eval{no warnings;q(use Math::BigInt    try=>"GMP")} if not $INC{'Math/BigInt.pm'};
+  eval{no warnings;q(use Math::BigFloat  try=>"GMP")} if not $INC{'Math/BigFloat.pm'};
+  Math::BigInt->div_scale($scale);
+  Math::BigFloat->div_scale($scale);
+  return;
+}
 
   #my $R_authalic=6371007.2; #earth radius in meters, mean, Authalic radius, real R varies 6353-6384km, http://en.wikipedia.org/wiki/Earth_radius
 #*)
@@ -1792,7 +1715,40 @@ sub leapyear{$_[0]%400?$_[0]%100?$_[0]%4?0:1:0:1} #bool
 #   $v & (2**$b-1)
 # }
 
-=head1 ARRAYS, HASHES
+=head2 int2roman
+
+Converts integers to roman numbers.
+
+B<Examples:>
+
+ print int2roman(1234);   # prints MCCXXXIV
+ print int2roman(1971);   # prints MCMLXXI
+
+Works for numbers up to 3999. Uses an adapted subroutine from Peter J. Acklam (jacklam(&)math.uio.no)
+
+ I = 1
+ V = 5
+ X = 10
+ L = 50
+ C = 100     (centum)
+ D = 500
+ M = 1000    (mille)
+
+See also L<Roman>.
+
+See L<http://en.wikipedia.org/wiki/Roman_numbers> for more.
+
+=cut
+
+sub int2roman {
+  my $n=shift;
+  croak 'int2roman: not integer 0-3999' if $n>3999 or $n<0 or int($n)!=$n;
+  my @p=([],[1],[1,1],[1,1,1],[1,2],[2],[2,1],[2,1,1],[2,1,1,1],[1,3],[3]);
+  join'',@{[qw/I V X L C D M/]}[map{my$i=$_;map($_+5-$i*2,@{$p[$n/10**(3-$i)%10]})}(0..3)];
+}
+
+
+=head1 ARRAYS
 
 =head2 distinct
 
@@ -1990,6 +1946,245 @@ sub zip
   return @res;
 }
 
+
+=head2 pushsort
+
+Adds one or more element to a numerically sorted array and keeps it sorted.
+
+  pushsort @a, 13;                         # this...
+  push     @a, 13; @a = sort {$a<=>$b} @a; # is the same as this, but the former is faster if @a is large
+
+=head2 pushsortstr
+
+Same as pushsort except that the array is kept sorted alphanumerically (cmp) instead of numerically (<=>). See L</pushsort>.
+
+  pushsort @a, "abc";                      # this...
+  push     @a, "abc"; @a = sort @a;        # is the same as this, but the former is faster if @a is large
+
+=cut
+
+our $Pushsort_cmpsub=undef;
+sub pushsort (\@@) {
+  my $ar=shift;
+
+  #not needed but often faster
+  if(not defined $Pushsort_cmpsub and @$ar+@_<100){ #hm speedup?
+    @$ar=(sort {$a<=>$b} (@$ar,@_));
+    return 0+@$ar;
+  }
+
+  for my $v (@_){
+
+    #not needed but often faster
+    if(not defined $Pushsort_cmpsub){ #faster rank() in most cases
+      push    @$ar, $v and next if $v>=$$ar[-1];
+      unshift @$ar, $v and next if $v< $$ar[0];
+    }
+
+    splice @$ar, binsearch($v,$ar,1,$Pushsort_cmpsub)+1, 0, $v;
+  }
+  0+@$ar
+}
+sub pushsortstr(\@@){ local $Pushsort_cmpsub=sub{$_[0]cmp$_[1]}; pushsort(@_) } #speedup: copy sub pushsort
+
+=head2 binsearch
+
+Returns the position of an element in a numerically sorted array. Returns undef if the element is not found.
+
+B<Input:> Two, three or four arguments
+
+B<First argument:> the element to find. Usually a number.
+
+B<Second argument:> a reference to the array to search in. The array
+should be sorted in ascending numerical order (se exceptions below).
+
+B<Third argument:>  Optional. Default false.
+
+If present, whether result I<not found> should return undef or a fractional position.
+
+If the third argument is false binsearcg returns undef if the element is not found.
+
+If the third argument is true binsearch returns 0.5 plus closest position below the searched value.
+
+Returns C< last position + 0.5 > if the searched element is greater than all elements in the sorted array.
+
+Returns C< -0.5 > if the searched element is less than all elements in the sorted array.
+
+Fourth argument: Optional. Default C<< sub { $_[0] <=> $_[1] } >>.
+
+If present, the fourth argument is a code-ref that alters the way binsearch compares two elements.
+
+B<Example:>
+
+ binsearch(10,[5,10,15,20]);                                # 1
+ binsearch(10,[20,15,10,5],undef,sub{$_[1]<=>$_[0]});       # 2 search arrays sorted numerically in opposite order
+ binsearch("c",["a","b","c","d"],undef,sub{$_[0]cmp$_[1]}); # 2 search arrays sorted alphanumerically
+ binsearchstr("b",["a","b","c","d"]);                       # 1 search arrays sorted alphanumerically
+
+=head2 binsearchstr
+
+Same as binsearch except that the arrays is sorted alphanumerically
+(cmp) instead of numerically (<=>) and the searched element is a
+string, not a number. See L</binsearch>.
+
+=cut
+
+our $Binsearch_steps;
+our $Binsearch_maxsteps=100;
+sub binsearch {
+  my($search,$aref,$insertpos,$cmpsub)=@_; #search pos of search in array
+  croak "binsearch did not get arrayref as second arg" if ref($aref) ne 'ARRAY';
+  croak "binsearch got fourth arg which is not a code-ref" if $cmpsub and ref($cmpsub) ne 'CODE';
+  return $insertpos ? -0.5 : undef if not @$aref;
+  my($min,$max)=(0,$#$aref);
+  $Binsearch_steps=0;
+  while (++$Binsearch_steps <= $Binsearch_maxsteps) {
+    my $middle=int(($min+$max+0.5)/2);
+    my $middle_value=$$aref[$middle];
+
+    #croak "binsearch got non-sorted array" if !$cmpsub and $$aref[$min]>$$aref[$min]
+    #                                       or  $cmpsub and &$cmpsub($$aref[$min],$$aref[$min])>0;
+
+    if(   !$cmpsub and $search < $middle_value
+    or     $cmpsub and &$cmpsub($search,$middle_value) < 0  ) {      #print "<\n";
+      $max=$min, next                   if $middle == $max and $min != $max;
+      return $insertpos ? $middle-0.5 : undef if $middle == $max;
+      $max=$middle;
+    }
+    elsif( !$cmpsub and $search > $middle_value
+    or      $cmpsub and &$cmpsub($search,$middle_value) > 0 ) {      #print ">\n";
+      $min=$max, next                   if $middle == $min and $max != $min;
+      return $insertpos ? $middle+0.5 : undef if $middle == $min;
+      $min=$middle;
+    }
+    else {                                                           #print "=\n";
+      return $middle;
+    }
+  }
+  croak "binsearch exceded $Binsearch_maxsteps steps";
+}
+
+sub binsearchfast { # binary search routine finds index just below value
+  my ($x,$v)=@_;
+  my ($klo,$khi)=(0,$#{$x});
+  my $k;
+  while (($khi-$klo)>1) {
+    $k=int(($khi+$klo)/2);
+    if ($$x[$k]>$v) { $khi=$k; } else { $klo=$k; }
+  }
+  return $klo;
+}
+
+
+sub binsearchstr {binsearch(@_[0..2],sub{$_[0]cmp$_[1]})}
+
+sub rank
+{
+  my($rank,$aref,$cmpsub)=@_;
+  if($rank<0){
+    $cmpsub||=sub{$_[0]<=>$_[1]};
+    return rank(-$rank,$aref,sub{0-&$cmpsub});
+  }
+  my @sort;
+  local $Pushsort_cmpsub=$cmpsub;
+  for(@$aref){
+    pushsort @sort, $_;
+    pop @sort if @sort>$rank;
+  }
+  return wantarray ? @sort : $sort[$rank-1];
+}
+sub rankstr {wantarray?(rank(@_,sub{$_[0]cmp$_[1]})):rank(@_,sub{$_[0]cmp$_[1]})}
+
+=head2 eqarr
+
+B<Input:> Two or more references to arrays.
+
+B<Output:> True (1) or false (0) for whether or not the arrays are numerically I<and> alphanumerically equal.
+Comparing each element in each array with both C< == > and C< eq >.
+
+Examples:
+
+ eqarr([1,2,3],[1,2,3],[1,2,3]); # 1 (true)
+ eqarr([1,2,3],[1,2,3],[1,2,4]); # 0 (false)
+ eqarr([1,2,3],[1,2,3,4]);       # undef (different size, false)
+ eqarr([1,2,3]);                 # croak (should be two or more arrays)
+ eqarr([1,2,3],1,2,3);           # croak (not arraysrefs)
+
+=cut
+
+sub eqarr {
+  my @arefs=@_;
+  croak if @arefs<2;
+  ref($_) ne 'ARRAY' and croak for @arefs;
+  @{$arefs[0]} != @{$arefs[$_]} and return undef for 1..$#arefs;
+  my $ant;
+  
+  for my $ar (@arefs[1..$#arefs]){
+    for(0..@$ar-1){
+      ++$ant and $ant>100 and croak ">100";
+      return 0 if $arefs[0][$_] ne $$ar[$_]
+   	       or $arefs[0][$_] != $$ar[$_];
+    }
+  }
+  return 1;
+}
+
+=head2 sorted
+
+Return true if the input array is numerically sorted.
+
+  @a=(1..10); print "array is sorted" if sorted @a;  #true
+
+Optionally the last argument can be a comparison sub:
+
+  @person=({Rank=>1,Name=>'Amy'}, {Rank=>2,Name=>'Paula'}, {Rank=>3,Name=>'Ruth'});
+  print "Persons are sorted" if sorted @person, sub{$_[0]{Rank}<=>$_[1]{Rank}};
+
+=head2 sortedstr
+
+Return true if the input array is I<alpha>numerically sorted.
+
+  @a=(1..10);      print "array is sorted" if sortedstr @a; #false
+  @a=("01".."10"); print "array is sorted" if sortedstr @a; #true
+
+=cut
+
+sub sorted (\@@) {
+  my($a,$cmpsub)=@_;
+  for(0..$#$a-1){
+    return 0 if !$cmpsub and $$a[$_]>$$a[$_+1]
+             or  $cmpsub and &$cmpsub($$a[$_],$$a[$_+1])>0;
+  }
+  return 1;
+}
+sub sortedstr { sorted(@_,sub{$_[0]cmp$_[1]}) }
+
+=head2 part
+
+B<Input:> A code-ref and a list
+
+B<Output:> Two array-refs
+
+Like C<grep> but returns the false list as well. Partitions a list
+into two lists where each element goes into the first or second list
+whether the predicate (a code-ref) is true or false for that element.
+
+ my( $odd, $even ) = part {$_%2} (1..8);
+ print for @$odd;   #prints 1 3 5 7
+ print for @$even;  #prints 2 4 6 8
+
+Works like C< partition() > in the Scala programming language. 
+
+=cut
+
+sub part (&@) {
+  my $code=shift();
+  my @r=([],[]);
+  push @{ $r[ &$code($_) ? 0 : 1 ] }, $_ for @_;
+  return @r;
+}
+
+=head1 HASHES
 
 =head2 subhash
 
@@ -2236,81 +2431,6 @@ sub random_gauss {
   return @r;
 }
 
-=head2 big
-
-=head2 bigi
-
-=head2 bigf
-
-=head2 bigscale
-
-big, bigi, bigf and bigscale are just convenient shorthands for using
-L<Math::BigInt>->new() and L<Math::BigFloat>->new() preferably with
-the GMP for faster calculations. Use those modules instead of the real
-deal. Examples:
-
-  my $num1 = big(3);      #returns a new Math::BigInt-object
-  my $num2 = big('3.0');  #returns a new Math::BigFloat-object
-  my $num3 = big(3.0);    #returns a new Math::BigInt-object
-  my $num4 = big(3.1);    #returns a new Math::BigFloat-object
-  my($int1,$float1,$int2,$float2) = big(3,'3.0',3.0,3.1); #returns the four new numbers, as the above four lines
-                                                          #uses wantarray
-
-  print 2**1000;          # 1.60693804425899e+60
-  print big(2)**1000;     # 1606938044258990275541962092341162602522202993782792835301376
-  print 2**big(1000);     # 1606938044258990275541962092341162602522202993782792835301376
-
-  print 1/7;              # 0.142857142857143
-  print 1/big(7);         # 0      because of integer arithmetics
-  print 1/big(7.0);       # 0      because of integer arithmetics
-  print 1/big('7.0');     # 0.1428571428571428571428571428571428571429
-  print 1/bigf(7);        # 0.1428571428571428571428571428571428571429
-  print bigf(1/7);        # 0.142857142857143   probably not what you wanted
-
-  bigscale(60);           #increase precesion from the default 40
-  print 1/bigf(7);        #0.142857142857142857142857142857142857142857142857142857142857
-
-Instead of guessing on int or float by looking for a C<.> character
-like C<big> do, C<bigi> and C<bigf> explicitly orders int and float
-respectively.
-
-B<Note:> Acme::Tools does not itself require Math::BigInt and
-Math::BigFloat and GMP, but these four big*-subs do (by internal
-C<require>).  To use big, bigi and bigf effectively you should
-install Math::BigInt::GMP and Math::BigFloat::GMP like this:
-
-  sudo cpanm Math::BigFloat Math::GMP Math::BingInt::GMP         # or
-  sudo cpan  Math::BigFloat Math::GMP Math::BingInt::GMP         # or
-  sudo yum install perl-Math-BigInt-GMP perl-Math-GMP            # on RedHat, RHEL or
-  sudo apt-get install libmath-bigint-gmp-perl libmath-gmp-perl  # on Ubuntu or some other way
-
-=cut
-
-sub bigi {
-  eval{no warnings;q(use Math::BigInt try=>"GMP")} if not $INC{'Math/BigInt.pm'};
-  if (wantarray) { return (map Math::BigInt->new($_),@_)  }
-  else           { return Math::BigInt->new($_[0])        }
-}
-sub bigf {
-  eval{no warnings;q(use Math::BigFloat try=>"GMP")} if not $INC{'Math/BigFloat.pm'};
-  if (wantarray) { return (map Math::BigFloat->new($_),@_)  }
-  else           { return Math::BigFloat->new($_[0])        }
-}
-sub big {
-  wantarray 
-  ? (map $_=~/\./ ? bigf($_)    : bigi($_), @_)
-  :   $_[0]=~/\./ ? bigf($_[0]) : bigi($_[0]);
-}
-sub bigscale {
-  @_==1 or croak "bigscale requires one and only one argument";
-  my $scale=shift();
-  eval{no warnings;q(use Math::BigInt    try=>"GMP")} if not $INC{'Math/BigInt.pm'};
-  eval{no warnings;q(use Math::BigFloat  try=>"GMP")} if not $INC{'Math/BigFloat.pm'};
-  Math::BigInt->div_scale($scale);
-  Math::BigFloat->div_scale($scale);
-  return;
-}
-
 =head2 mix
 
 Mixes an array in random order. In-place if given an array reference or not if given an array.
@@ -2466,7 +2586,7 @@ sub zipbin
 {
   require Compress::Zlib;
   my($data,$dict)=@_;
-  my $x=Compress::Zlib::deflateInit(-Dictionary=>$dict,-Level=>Compress::Zlib::Z_BEST_COMPRESSION()) or croak();
+  my $x=Compress::Zlib::deflateInit(-Dictionary=>$dict||'',-Level=>Compress::Zlib::Z_BEST_COMPRESSION()) or croak();
   my($output,$status)=$x->deflate($data); croak() if $status!=Compress::Zlib::Z_OK();
   my($out,$status2)=$x->flush(); croak() if $status2!=Compress::Zlib::Z_OK();
   return $output.$out;
@@ -2509,7 +2629,7 @@ sub unzipbin
   require Compress::Zlib;
   require Carp;
   my($data,$dict)=@_;
-  my $x=Compress::Zlib::inflateInit(-Dictionary=>$dict) or croak();
+  my $x=Compress::Zlib::inflateInit(-Dictionary=>$dict||'') or croak();
   my($output,$status)=$x->inflate($data);
   croak() if $status!=Compress::Zlib::Z_STREAM_END();
   return $output;
@@ -2834,279 +2954,6 @@ sub ht2t {
 
 =head1 FILES, DIRECTORIES
 
-=head2 chall
-
-Does chmod + utime + chown on one or more files.
-
-Returns the number of files of which those operations was successful.
-
-Mode, uid, gid, atime and mtime are set from the array ref in the first argument.
-
-The first argument references an array which is exactly like an array returned from perls internal C<stat($filename)> -function.
-
-Example:
-
- my @stat=stat($filenameA);
- chall( \@stat,       $filenameB, $filenameC, ... );  # by stat-array
- chall( $filenameA,   $filenameB, $filenameC, ... );  # by file name
-
-Copies the chmod, owner, group, access time and modify time from file A to file B and C.
-
-See C<perldoc -f stat>, C<perldoc -f chmod>, C<perldoc -f chown>, C<perldoc -f utime>
-
-=cut
-
-
-sub chall
-{
-  my($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,$blksize,$blocks )
-    = ref($_[0]) ? @{shift()} : stat(shift());
-  my $successful=0;
-  for(@_){ chmod($mode,$_) && utime($atime,$mtime,$_) && chown($uid,$gid,$_) && $successful++ }
-  return $successful;
-}
-
-=head2 makedir
-
-Input: One or two arguments.
-
-Works like perls C<mkdir()> except that C<makedir()> will create nesessary parent directories if they dont exists.
-
-First input argument: A directory name (absolute, starting with C< / > or relative).
-
-Second input argument: (optional) permission bits. Using the normal C<< 0777^umask() >> as the default if no second input argument is provided.
-
-Example:
-
- makedir("dirB/dirC")
-
-...will create directory C<dirB> if it does not already exists, to be able to create C<dirC> inside C<dirB>.
-
-Returns true on success, otherwise false.
-
-C<makedir()> memoizes directories it has checked for existence before (trading memory for speed).
-
-See also C<< perldoc -f mkdir >>, C<< man umask >>
-
-=cut
-
-our %MAKEDIR;
-
-sub makedir
-{
-  my($d,$p,$dd)=@_;
-  $p=0777^umask() if !defined$p;
-  (
-  $MAKEDIR{$d} or -d$d or mkdir($d,$p) #or croak("mkdir $d, $p")
-  or ($dd)=($d=~m,^(.+)/+([^/]+)$,) and makedir($dd,$p) and mkdir($d,$p) #or die;
-  ) and ++$MAKEDIR{$d};
-}
-
-=head1 OTHER
-
-=head2 qrlist
-
-Input: An array of values to be used to test againts for existence.
-
-Output: A reference to a regular expression. That is a C<qr//>
-
-The regex sets $1 if it match.
-
-Example:
-
-  my @list=qw/ABc XY DEF DEFG XYZ/;
-  my $filter=qrlist("ABC","DEF","XY.");         # makes a regex of it qr/^(\QABC\E|\QDEF\E|\QXY.\E)$/
-  my @filtered= grep { $_ =~ $filter } @list;   # returns DEF and XYZ, but not XYZ because the . char is taken literally
-
-Note: Filtering with hash lookups are WAY faster.
-
-Source:
-
- sub qrlist (@) { my $str=join"|",map quotemeta, @_; qr/^($str)$/ }
-
-=cut
-
-sub qrlist (@)
-{
-  my $str=join"|",map quotemeta,@_;
-  return qr/^($str)$/;
-}
-
-=head2 ansicolor
-
-Perhaps easier to use than L<Term::ANSIColor> ?
-
-B<Input:> One argument. A string where the char C<¤> have special
-meaning and is replaced by color codings depending on the letter
-following the C<¤>.
-
-B<Output:> The same string, but with C<¤letter> replaced by ANSI color codes respected by many types terminal windows. (xterm, telnet, ssh,
-telnet, rlog, vt100, cygwin, rxvt and such...).
-
-B<Codes for ansicolor():>
-
- ¤r red
- ¤g green
- ¤b blue
- ¤y yellow
- ¤m magenta
- ¤B bold
- ¤u underline
- ¤c clear
- ¤¤ reset, quits and returns to default text color.
-
-B<Example:>
-
- print ansicolor("This is maybe ¤ggreen¤¤?");
-
-Prints I<This is maybe green?> where the word I<green> is shown in green.
-
-If L<Term::ANSIColor> is not installed or not found, returns the input
-string with every C<¤> including the following code letters
-removed. (That is: ansicolor is safe to use even if Term::ANSIColor is
-not installed, you just don't get the colors).
-
-See also L<Term::ANSIColor>.
-
-=cut
-
-sub ansicolor
-{
-  my $txt=shift;
-  eval{require Term::ANSIColor} or return replace($txt,qr/¤./);
-  my %h=qw/r red  g green  b blue  y yellow  m magenta  B bold  u underline  c clear  ¤ reset/;
-  my $re=join"|",keys%h;
-  $txt=~s/¤($re)/Term::ANSIColor::color($h{$1})/ge;
-  return $txt;
-}
-
-=head2 ccn_ok
-
-Checks if a Credit Card number (CCN) has correct control digits according to the LUHN-algorithm from 1960.
-This method of control digits is used by MasterCard, Visa, American Express,
-Discover, Diners Club / Carte Blanche, JCB and others.
-
-B<Input:>
-
-A credit card number. Can contain non-digits, but they are removed internally before checking.
-
-B<Output:>
-
-Something true or false.
-
-Or more accurately:
-
-Returns C<undef> (false) if the input argument is missing digits.
-
-Returns 0 (zero, which is false) is the digits is not correct according to the LUHN algorithm.
-
-Returns 1 or the name of a credit card company (true either way) if the last digit is an ok control digit for this ccn.
-
-The name of the credit card company is returned like this (without the C<'> character)
-
- Returns (wo '')                Starts on                Number of digits
- ------------------------------ ------------------------ ----------------
- 'MasterCard'                   51-55                    16
- 'Visa'                         4                        13 eller 16
- 'American Express'             34 eller 37              15
- 'Discover'                     6011                     16
- 'Diners Club / Carte Blanche'  300-305, 36 eller 38     14
- 'JCB'                          3                        16
- 'JCB'                          2131 eller 1800          15
-
-And should perhaps have had:
-
- 'enRoute'                      2014 eller 2149          15
-
-...but that card uses either another control algorithm or no control
-digits at all. So C<enRoute> is never returned here.
-
-If the control digits is valid, but the input does not match anything in the column C<starts on>, 1 is returned.
-
-(This is also the same control digit mechanism used in Norwegian KID numbers on payment bills)
-
-The first digit in a credit card number is supposed to tell what "industry" the card is meant for:
-
- MII Digit Value             Issuer Category
- --------------------------- ----------------------------------------------------
- 0                           ISO/TC 68 and other industry assignments
- 1                           Airlines
- 2                           Airlines and other industry assignments
- 3                           Travel and entertainment
- 4                           Banking and financial
- 5                           Banking and financial
- 6                           Merchandizing and banking
- 7                           Petroleum
- 8                           Telecommunications and other industry assignments
- 9                           National assignment
-
-...although this has no meaning to C<Acme::Tools::ccn_ok()>.
-
-The first six digits is I<Issuer Identifier>, that is the bank
-(probably). The rest in the "account number", except the last digits,
-which is the control digit. Max length on credit card numbers are 19
-digits.
-
-=cut
-
-sub ccn_ok
-{
-    my $ccn=shift(); #credit card number
-    $ccn=~s/\D+//g;
-    if(KID_ok($ccn)){
-	return "MasterCard"                   if $ccn=~/^5[1-5]\d{14}$/;
-	return "Visa"                         if $ccn=~/^4\d{12}(?:\d{3})?$/;
-	return "American Express"             if $ccn=~/^3[47]\d{13}$/;
-	return "Discover"                     if $ccn=~/^6011\d{12}$/;
-	return "Diners Club / Carte Blanche"  if $ccn=~/^3(?:0[0-5]\d{11}|[68]\d{12})$/;
-	return "JCB"                          if $ccn=~/^(?:3\d{15}|(?:2131|1800)\d{11})$/;
-	return 1;
-    }
-    #return "enRoute"                        if $ccn=~/^(?:2014|2149)\d{11}$/; #ikke LUHN-krav?
-    return 0;
-}
-
-=head2 KID_ok
-
-Checks if a norwegian KID number has an ok control digit.
-
-To check if a customer has typed the number correctly.
-
-This uses the  LUHN algorithm (also known as mod-10) from 1960 which is also used
-internationally in control digits for credit card numbers, and Canadian social security ID numbers as well.
-
-The algorithm, as described in Phrack (47-8) (a long time hacker online publication):
-
- "For a card with an even number of digits, double every odd numbered
- digit and subtract 9 if the product is greater than 9. Add up all the
- even digits as well as the doubled-odd digits, and the result must be
- a multiple of 10 or it's not a valid card. If the card has an odd
- number of digits, perform the same addition doubling the even numbered
- digits instead."
-
-B<Input:> A KID-nummer. Must consist of digits 0-9 only, otherwise a die (croak) happens.
-
-B<Output:>
-
-- Returns undef if the input argument is missing.
-
-- Returns 0 if the control digit (the last digit) does not satify the LUHN/mod-10 algorithm.
-
-- Returns 1 if ok
-
-B<See also:> L</ccn_ok>
-
-=cut
-
-sub KID_ok
-{
-  croak "Non-numeric argument" if $_[0]=~/\D/;
-  my @k=split//,shift or return undef;
-  my $s;$s+=pop(@k)+[qw/0 2 4 6 8 1 3 5 7 9/]->[pop@k] while @k;
-  $s%10==0?1:0;
-}
-
-
 =head2 writefile
 
 Justification:
@@ -3329,6 +3176,281 @@ sub readdirectory
   closedir($D);
   return @filer;
 }
+
+=head2 chall
+
+Does chmod + utime + chown on one or more files.
+
+Returns the number of files of which those operations was successful.
+
+Mode, uid, gid, atime and mtime are set from the array ref in the first argument.
+
+The first argument references an array which is exactly like an array returned from perls internal C<stat($filename)> -function.
+
+Example:
+
+ my @stat=stat($filenameA);
+ chall( \@stat,       $filenameB, $filenameC, ... );  # by stat-array
+ chall( $filenameA,   $filenameB, $filenameC, ... );  # by file name
+
+Copies the chmod, owner, group, access time and modify time from file A to file B and C.
+
+See C<perldoc -f stat>, C<perldoc -f chmod>, C<perldoc -f chown>, C<perldoc -f utime>
+
+=cut
+
+
+sub chall
+{
+  my($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,$blksize,$blocks )
+    = ref($_[0]) ? @{shift()} : stat(shift());
+  my $successful=0;
+  for(@_){ chmod($mode,$_) && utime($atime,$mtime,$_) && chown($uid,$gid,$_) && $successful++ }
+  return $successful;
+}
+
+=head2 makedir
+
+Input: One or two arguments.
+
+Works like perls C<mkdir()> except that C<makedir()> will create nesessary parent directories if they dont exists.
+
+First input argument: A directory name (absolute, starting with C< / > or relative).
+
+Second input argument: (optional) permission bits. Using the normal C<< 0777^umask() >> as the default if no second input argument is provided.
+
+Example:
+
+ makedir("dirB/dirC")
+
+...will create directory C<dirB> if it does not already exists, to be able to create C<dirC> inside C<dirB>.
+
+Returns true on success, otherwise false.
+
+C<makedir()> memoizes directories it has checked for existence before (trading memory for speed).
+
+See also C<< perldoc -f mkdir >>, C<< man umask >>
+
+=cut
+
+our %MAKEDIR;
+
+sub makedir
+{
+  my($d,$p,$dd)=@_;
+  $p=0777^umask() if !defined$p;
+  (
+  $MAKEDIR{$d} or -d$d or mkdir($d,$p) #or croak("mkdir $d, $p")
+  or ($dd)=($d=~m,^(.+)/+([^/]+)$,) and makedir($dd,$p) and mkdir($d,$p) #or die;
+  ) and ++$MAKEDIR{$d};
+}
+
+=head1 OTHER
+
+=head2 qrlist
+
+Input: An array of values to be used to test againts for existence.
+
+Output: A reference to a regular expression. That is a C<qr//>
+
+The regex sets $1 if it match.
+
+Example:
+
+  my @list=qw/ABc XY DEF DEFG XYZ/;
+  my $filter=qrlist("ABC","DEF","XY.");         # makes a regex of it qr/^(\QABC\E|\QDEF\E|\QXY.\E)$/
+  my @filtered= grep { $_ =~ $filter } @list;   # returns DEF and XYZ, but not XYZ because the . char is taken literally
+
+Note: Filtering with hash lookups are WAY faster.
+
+Source:
+
+ sub qrlist (@) { my $str=join"|",map quotemeta, @_; qr/^($str)$/ }
+
+=cut
+
+sub qrlist (@)
+{
+  my $str=join"|",map quotemeta,@_;
+  return qr/^($str)$/;
+}
+
+=head2 ansicolor
+
+Perhaps easier to use than L<Term::ANSIColor> ?
+
+B<Input:> One argument. A string where the char C<¤> have special
+meaning and is replaced by color codings depending on the letter
+following the C<¤>.
+
+B<Output:> The same string, but with C<¤letter> replaced by ANSI color
+codes respected by many types terminal windows. (xterm, telnet, ssh,
+telnet, rlog, vt100, cygwin, rxvt and such...).
+
+B<Codes for ansicolor():>
+
+ ¤r red
+ ¤g green
+ ¤b blue
+ ¤y yellow
+ ¤m magenta
+ ¤B bold
+ ¤u underline
+ ¤c clear
+ ¤¤ reset, quits and returns to default text color.
+
+B<Example:>
+
+ print ansicolor("This is maybe ¤ggreen¤¤?");
+
+Prints I<This is maybe green?> where the word I<green> is shown in green.
+
+If L<Term::ANSIColor> is not installed or not found, returns the input
+string with every C<¤> including the following code letters
+removed. (That is: ansicolor is safe to use even if Term::ANSIColor is
+not installed, you just don't get the colors).
+
+See also L<Term::ANSIColor>.
+
+=cut
+
+sub ansicolor
+{
+  my $txt=shift;
+  eval{require Term::ANSIColor} or return replace($txt,qr/¤./);
+  my %h=qw/r red  g green  b blue  y yellow  m magenta  B bold  u underline  c clear  ¤ reset/;
+  my $re=join"|",keys%h;
+  $txt=~s/¤($re)/Term::ANSIColor::color($h{$1})/ge;
+  return $txt;
+}
+
+=head2 ccn_ok
+
+Checks if a Credit Card number (CCN) has correct control digits according to the LUHN-algorithm from 1960.
+This method of control digits is used by MasterCard, Visa, American Express,
+Discover, Diners Club / Carte Blanche, JCB and others.
+
+B<Input:>
+
+A credit card number. Can contain non-digits, but they are removed internally before checking.
+
+B<Output:>
+
+Something true or false.
+
+Or more accurately:
+
+Returns C<undef> (false) if the input argument is missing digits.
+
+Returns 0 (zero, which is false) is the digits is not correct according to the LUHN algorithm.
+
+Returns 1 or the name of a credit card company (true either way) if the last digit is an ok control digit for this ccn.
+
+The name of the credit card company is returned like this (without the C<'> character)
+
+ Returns (wo '')                Starts on                Number of digits
+ ------------------------------ ------------------------ ----------------
+ 'MasterCard'                   51-55                    16
+ 'Visa'                         4                        13 eller 16
+ 'American Express'             34 eller 37              15
+ 'Discover'                     6011                     16
+ 'Diners Club / Carte Blanche'  300-305, 36 eller 38     14
+ 'JCB'                          3                        16
+ 'JCB'                          2131 eller 1800          15
+
+And should perhaps have had:
+
+ 'enRoute'                      2014 eller 2149          15
+
+...but that card uses either another control algorithm or no control
+digits at all. So C<enRoute> is never returned here.
+
+If the control digits is valid, but the input does not match anything in the column C<starts on>, 1 is returned.
+
+(This is also the same control digit mechanism used in Norwegian KID numbers on payment bills)
+
+The first digit in a credit card number is supposed to tell what "industry" the card is meant for:
+
+ MII Digit Value             Issuer Category
+ --------------------------- ----------------------------------------------------
+ 0                           ISO/TC 68 and other industry assignments
+ 1                           Airlines
+ 2                           Airlines and other industry assignments
+ 3                           Travel and entertainment
+ 4                           Banking and financial
+ 5                           Banking and financial
+ 6                           Merchandizing and banking
+ 7                           Petroleum
+ 8                           Telecommunications and other industry assignments
+ 9                           National assignment
+
+...although this has no meaning to C<Acme::Tools::ccn_ok()>.
+
+The first six digits is I<Issuer Identifier>, that is the bank
+(probably). The rest in the "account number", except the last digits,
+which is the control digit. Max length on credit card numbers are 19
+digits.
+
+=cut
+
+sub ccn_ok
+{
+    my $ccn=shift(); #credit card number
+    $ccn=~s/\D+//g;
+    if(KID_ok($ccn)){
+	return "MasterCard"                   if $ccn=~/^5[1-5]\d{14}$/;
+	return "Visa"                         if $ccn=~/^4\d{12}(?:\d{3})?$/;
+	return "American Express"             if $ccn=~/^3[47]\d{13}$/;
+	return "Discover"                     if $ccn=~/^6011\d{12}$/;
+	return "Diners Club / Carte Blanche"  if $ccn=~/^3(?:0[0-5]\d{11}|[68]\d{12})$/;
+	return "JCB"                          if $ccn=~/^(?:3\d{15}|(?:2131|1800)\d{11})$/;
+	return 1;
+    }
+    #return "enRoute"                        if $ccn=~/^(?:2014|2149)\d{11}$/; #ikke LUHN-krav?
+    return 0;
+}
+
+=head2 KID_ok
+
+Checks if a norwegian KID number has an ok control digit.
+
+To check if a customer has typed the number correctly.
+
+This uses the  LUHN algorithm (also known as mod-10) from 1960 which is also used
+internationally in control digits for credit card numbers, and Canadian social security ID numbers as well.
+
+The algorithm, as described in Phrack (47-8) (a long time hacker online publication):
+
+ "For a card with an even number of digits, double every odd numbered
+ digit and subtract 9 if the product is greater than 9. Add up all the
+ even digits as well as the doubled-odd digits, and the result must be
+ a multiple of 10 or it's not a valid card. If the card has an odd
+ number of digits, perform the same addition doubling the even numbered
+ digits instead."
+
+B<Input:> A KID-nummer. Must consist of digits 0-9 only, otherwise a die (croak) happens.
+
+B<Output:>
+
+- Returns undef if the input argument is missing.
+
+- Returns 0 if the control digit (the last digit) does not satify the LUHN/mod-10 algorithm.
+
+- Returns 1 if ok
+
+B<See also:> L</ccn_ok>
+
+=cut
+
+sub KID_ok
+{
+  croak "Non-numeric argument" if $_[0]=~/\D/;
+  my @k=split//,shift or return undef;
+  my $s;$s+=pop(@k)+[qw/0 2 4 6 8 1 3 5 7 9/]->[pop@k] while @k;
+  $s%10==0?1:0;
+}
+
+
 
 =head2 range
 
@@ -3756,38 +3878,6 @@ sub reduce (&@) {
   no warnings;
   local ($a, $b) = ($first, reduce($proc, @rest));
   return $proc->();
-}
-
-=head2 int2roman
-
-Converts integers to roman numbers.
-
-B<Examples:>
-
- print int2roman(1234);   # prints MCCXXXIV
- print int2roman(1971);   # prints MCMLXXI
-
-Works for numbers up to 3999. Uses an adapted subroutine from Peter J. Acklam (jacklam(&)math.uio.no)
-
- I = 1
- V = 5
- X = 10
- L = 50
- C = 100     (centum)
- D = 500
- M = 1000    (mille)
-
-See also L<Roman>.
-
-See L<http://en.wikipedia.org/wiki/Roman_numbers> for more.
-
-=cut
-
-sub int2roman {
-  my $n=shift;
-  croak 'int2roman: not integer 0-3999' if $n>3999 or $n<0 or int($n)!=$n;
-  my @p=([],[1],[1,1],[1,1,1],[1,2],[2],[2,1],[2,1,1],[2,1,1,1],[1,3],[3]);
-  join'',@{[qw/I V X L C D M/]}[map{my$i=$_;map($_+5-$i*2,@{$p[$n/10**(3-$i)%10]})}(0..3)];
 }
 
 
@@ -4518,7 +4608,8 @@ sub serialize
     return "\\".serialize($$r,@r);
   }
   elsif(ref($r) eq 'LVALUE'){
-    return serialize(\"$$r",@r);
+    my $s="$$r";
+    return serialize(\$s,@r);
   }
   elsif(ref($$r) eq 'CODE'){
     #warn "Forsøk på å serialisere (serialize) CODE";
@@ -4549,7 +4640,7 @@ sub serialize
 =head1 TIME FUNCTIONS
 
 
-# =head2 timestr
+# = head2 timestr
 # 
 # Converts epoch or YYYYMMDD-HH24:MI:SS time string to other forms of time.
 # 
@@ -4881,7 +4972,6 @@ sub eta
   push @$a, [$pos,$time_fp];
   return undef if @$a<2;
 # print "$$a[-1][1] + ($end-$$a[-1][0]) * ($$a[-1][1]-$$a[-2][1])/($$a[-1][0]-$$a[-2][0])\n";
-  
   my @eta;
   for(2..@$a){
     push @eta, $$a[-1][1] + ($end-$$a[-1][0]) * ($$a[-1][1]-$$a[-$_][1])/($$a[-1][0]-$$a[-$_][0]);
@@ -5007,55 +5097,57 @@ sub ldist {
   };
 }
 
-=head2 part
+=head2 leapyear
 
-B<Input:> A code-ref and a list
+B<Input:> A year. A four digit number.
 
-B<Output:> Two array-refs
+B<Output:> True (1) or false (0) of weather the year is a leap year or
+not. (Uses current calendar even for period before it was used).
 
-Like C<grep> but returns the false list as well. Partitions a list
-into two lists where each element goes into the first or second list
-whether the predicate (a code-ref) is true or false for that element.
+ print join(", ",grep leapyear($_), 1900..2014)."\n";
 
- my( $odd, $even ) = part {$_%2} (1..8);
- print for @$odd;   #prints 1 3 5 7
- print for @$even;  #prints 2 4 6 8
+Prints: (note, 1900 is not a leap year, but 2000 is)
 
-Works like C< partition() > in the Scala programming language. 
+ 1904, 1908, 1912, 1916, 1920, 1924, 1928, 1932, 1936, 1940, 1944, 1948, 1952, 1956,
+ 1960, 1964, 1968, 1972, 1976, 1980, 1984, 1988, 1992, 1996, 2000, 2004, 2008, 2012
 
 =cut
 
-sub part (&@) {
-  my $code=shift();
-  my @r=([],[]);
-  push @{ $r[ &$code($_) ? 0 : 1 ] }, $_ for @_;
-  return @r;
-}
+sub leapyear{$_[0]%400?$_[0]%100?$_[0]%4?0:1:0:1} #bool
+
+=head1 JUST FOR FUN
 
 =head2 brainfuck
 
 B<Input:> one or two arguments
 
-First argument: source code in then brainfuck language as a string
+First argument: a string, source code of the brainfuck
+language. String containing the eight charachters + - < > [ ] . ,
+Every other char is ignored silently.
 
-Second argument: if the source code contains commas (,) the second argument is the input characters (as a 
+Second argument: if the source code contains commas (,) the second
+argument is the input characters in a string.
 
 B<Output:> The resulting output from the program.
 
 Example:
 
  print brainfuck(<<"");  #prints "Hallo Verden!\n"
- ++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>---.+++++++++++..+++.>++.<<++++++++++++++.>----------.+++++++++++++.--------------.+.+++++++++.>+.>.
+ ++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>---.+++++++++++..+++.>++.<<++++++++++++++
+ .>----------.+++++++++++++.--------------.+.+++++++++.>+.>.
 
 See L<http://en.wikipedia.org/wiki/Brainfuck>
 
 =head2 brainfuck2perl
 
-Just as L</brainfuck> but returns instead the perl code which the brainfuck code is converted to. Eval this perl code to run the original brainfuck code.
+Just as L</brainfuck> but instead it return the perl code to which the
+brainfuck code is translated. Just C<< eval() >> this perl code to run.
 
 Example:
 
  print brainfuck2perl('>++++++++[<++++++++>-]<++++++++.>++++++[<++++++>-]<---.');
+
+Prints this string:
 
  my($c,$o,@b)=(0); sub out{$o.=chr($b[$c]) for 1..$_[0]||1}
  ++$c;++$b[$c];++$b[$c];++$b[$c];++$b[$c];++$b[$c];++$b[$c];++$b[$c];++$b[$c];
@@ -5067,9 +5159,9 @@ Example:
 
 =head2 brainfuck2perl_optimized
 
-Just as L</brainfuck2perl> but returns instead shorter and optimized perl.
-
-Same example as above with brainfuck2perl_optimized now prints an equivalent but shorter perl code:
+Just as L</brainfuck2perl> but optimizes the perl code. The same
+example as above with brainfuck2perl_optimized returns this equivalent
+but shorter perl code:
 
  $b[++$c]+=8;while($b[$c]){$b[--$c]+=8;--$b[++$c]}$b[--$c]+=8;out;$b[++$c]+=6;
  while($b[$c]){$b[--$c]+=6;--$b[++$c]}$b[--$c]-=3;out;$o;
@@ -5080,7 +5172,7 @@ sub brainfuck { eval(brainfuck2perl(@_)) }
 
 sub brainfuck2perl {
   my($bf,$inp)=@_;
-  my $perl='my($c,$inp,$o,@b)=(0,\''.$inp.'\'); sub out{$o.=chr($b[$c]) for 1..$_[0]||1}'."\n";
+  my $perl='my($c,$inp,$o,@b)=(0,\''.$inp.'\'); no warnings; sub out{$o.=chr($b[$c]) for 1..$_[0]||1}'."\n";
   $perl.='sub inp{$inp=~s/(.)//s and $b[$c]=ord($1)}'."\n" if $inp and $bf=~/,/;
   $perl.=join("",map/\+/?'++$b[$c];':/\-/?'--$b[$c];':/\[/?'while($b[$c]){':/\]/?'}':/>/?'++$c;':/</?'--$c;':/\./?'out;':/\,/?'inp;':'',split//,$bf).'$o;';
   $perl;
@@ -5769,6 +5861,8 @@ sub mycrc32 {  #http://billauer.co.il/blog/2011/05/perl-crc32-crc-xs-module/  el
 
 Release history
 
+ 0.15  Nov 2014    Improved doc
+ 0.14  Nov 2014    New subs, improved tests and doc
  0.13   Oct 2010   Non-linux test issue, resolve. improved: bloom filter, tests, doc
  0.12   Oct 2010   Improved tests, doc, bloom filter, random_gauss, bytes_readable
  0.11   Dec 2008   Improved doc
@@ -5782,7 +5876,7 @@ Kjetil Skotheim, E<lt>kjetil.skotheim@gmail.comE<gt>, E<lt>kjetil.skotheim@usit.
 
 =head1 COPYRIGHT AND LICENSE
 
-1995-2010, Kjetil Skotheim
+1995-2014, Kjetil Skotheim
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

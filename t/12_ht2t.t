@@ -5,7 +5,7 @@ sub deb($){print STDERR @_ if $ENV{ATDEBUG}}
 use Test::More tests => 3;
 BEGIN { use_ok('Acme::Tools') };
 my $html=join"",<DATA>;
-#$html.=readfile("/kjetilsk/test/Norske_kommuner.iso8859-1");
+$html.=readfile("Norske_kommuner.iso8859-1");
 my %ent=(amp => '&', 160 => ' ');
 my $entqr=join"|",keys%ent;
 #$html=~s,&#?($entqr);,$ent{$1},g;
