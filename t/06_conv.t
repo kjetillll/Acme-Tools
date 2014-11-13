@@ -1,7 +1,7 @@
 #perl Makefile.PL;make;perl -Iblib/lib t/06_conv.t
 #perl -I/ext t/06_conv.t
 BEGIN{require 't/common.pl'}
-use Test::More tests => 25;
+use Test::More tests => 27;
 
 sub check {
   my($n, $from, $to, $answer) = @_;
@@ -10,6 +10,7 @@ sub check {
   ok( &$eq($c,$answer),   sprintf("%10s %-10s  =>  %10s %-10s     should be %10s %s",$n,$from,$c,$to,$answer,$to) );
 }
 
+check( 2000, 'meters', 'miles', 1.24274238447467);
 check( 1, 'cm', 'mm', 10);
 check( 2.1, 'km', 'm', 2100);
 check( 4, 'm', 's', 4*60 );
@@ -44,5 +45,6 @@ check( 5,  "C", "F", 41 );
 check( 10, "C", "F", 50 );
 check( 273.15, "K", "C", 0 );
 check( 0,      "C", "K", 273.15 );
+check( 41, "fahrenheit", "celsius", 5 );
 
 check( 70, "hp", "kW",  52.22);

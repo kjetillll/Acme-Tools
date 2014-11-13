@@ -3,7 +3,7 @@
 # perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
 
 BEGIN{require 't/common.pl'}
-use Test::More tests => 158;
+use Test::More tests => 146;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -249,10 +249,6 @@ ok( $ss eq "*1,10,100*1,10,400*1,20,300*1,30,200*2,10,300*2,20,200*2,30,100*2,30
 my @ch=                                         cart(a=>[1..3],b=>[1..2],c=>[1..4]);
 my @ca=map{my($a,$b,$c)=@$_;{a=>$a,b=>$b,c=>$c}}cart(   [1..3],   [1..2],   [1..4]);
 ok_ref(\@ch,\@ca, 'cart - hash mode');
-
-#--int2roman
-my %rom=(MCCXXXIV=>1234,MCMLXXI=>1971,IV=>4,VI=>6,I=>1,V=>5,X=>10,L=>50,C=>100,D=>500,M=>1000,CDXCVII=>497);
-my$rom;ok( ($rom=int2roman($rom{$_})) eq $_, sprintf"int2roman %8d => %-10s   %-10s",$rom{$_},$_,"($rom)") for sort keys%rom;
 
 #--num2code, code2num
 

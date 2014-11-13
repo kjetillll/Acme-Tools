@@ -28,7 +28,6 @@ our @EXPORT = qw(
   $Resolve_iterations
   $Resolve_last_estimate
   resolve
-  conv_old
   conv
   rank
   rankstr
@@ -51,7 +50,6 @@ our @EXPORT = qw(
   replace
   decode
   decode_num
-  fractional
   between
   distinct
   in
@@ -100,12 +98,14 @@ our @EXPORT = qw(
   cart
   reduce
   int2roman
+  roman2int
   num2code
   code2num
   gcd
   lcm
   pivot
   tablestring
+  trim
   upper
   lower
   dserialize
@@ -140,9 +140,6 @@ our @EXPORT = qw(
 );
 
 our $PI = '3.141592653589793238462643383279502884197169399375105820974944592307816406286';
-
-cmd_atca() if $0 =~ /\b atca $/x;
-sub cmd_atca { print eval $_, "\n" for split ";", "@ARGV" }
 
 =head1 NAME
 
@@ -309,8 +306,7 @@ C<< variance = ( sum (x[i]-Average)**2)/(n-1) >>
 
 =cut
 
-sub variance
-{
+sub variance {
   my $sumx2; $sumx2+=$_*$_ for @_;
   my $sumx; $sumx+=$_ for @_;
   (@_*$sumx2-$sumx*$sumx)/(@_*(@_-1));
@@ -331,8 +327,7 @@ or Bell shapes. L<https://en.wikipedia.org/wiki/Standard_deviation>
 
 =cut
 
-sub stddev
-{
+sub stddev {
   return undef        if @_==0;
   return stddev(\@_)  if @_>0 and !ref($_[0]);
   my $ar=shift;
@@ -363,8 +358,7 @@ Example 2, an even number of numbers:
 
 =cut
 
-sub median
-{
+sub median {
   no warnings;
   my @list = sort {$a<=>$b} @_;
   my $n=@list;
@@ -513,8 +507,7 @@ place. Instead the closest number from the data set is picked.)
 
 =cut
 
-sub percentile
-{
+sub percentile {
   my(@p,@t,@ret);
   if(ref($_[0]) eq 'ARRAY'){ @p=@{shift()} }
   elsif(not ref($_[0]))    { @p=(shift())  }
@@ -622,8 +615,7 @@ TODO: why these fail?
 our $Resolve_iterations;
 our $Resolve_last_estimate;
 
-sub resolve
-{
+sub resolve {
   my($f,$g,$start,$delta,$iters,$sec)=@_;
   
   $g=0        if not defined $g;
@@ -664,7 +656,25 @@ sub resolve
 
 =head2 conv
 
-Converts between units of:
+Converts between units of measurement.
+
+B<Examples:>
+
+ print conv( 2000, "meters", "miles" );  #prints 1.24274238447467
+ print conv( 2.1, 'km', 'm');            #prints 2100
+ print conv( 70,"cm","in");              #prints 27.5590551181102
+ print conv( 4,"USD","EUR");             #prints 2.93125810635538
+ print conv( 4000,"b","kb");             #prints 3.90625 (1 kb = 1024 bytes)
+ print conv( 4000,"b","Kb");             #prints 3.90625 (1 Kb = 1000 bytes)
+ print conv( 1000,"mb","kb");            #prints 1024000
+
+B<Units and types of measurement supported by C<conv> is:>
+
+Note: units starting with the symbol _ means that all metric
+prefixes from yocto 10^-24 to yotta 10^+24 is supported, so _m means
+km, mm, cm, µm and so on. And _N means kN, MN GN and so on.
+
+Note2: Many units have synonyms: m, meter, meters ...
 
  acceleration: g, g0, m/s2, mps2
 
@@ -681,13 +691,15 @@ Converts between units of:
                sqcm, sqft, sqkm, sqm, sqmi, sqmm
                stremmata, um2, µm2
 
- bytes:        Eb, Gb, Kb, KiB, Mb, Pb, Tb, Yb, Zb, b, byte, eb, exabyte,
-               gb, gigabyte, kb, kilobyte, mb, megabyte, pb, petabyte,
-               tb, terabyte, yb, yottabyte, zb, zettabyte
+ bytes:        Eb, Gb, Kb, KiB, Mb, Pb, Tb, Yb, Zb, b, byte,
+               kb, kilobyte,  mb, megabyte,
+               gb, gigabyte,  tb, terabyte,
+               pb, petabyte,  eb, exabyte,
+               zb, zettabyte, yb, yottabyte
 
  charge:       As, C, _e, coulomb, e
 
- current:      A, N/m2
+ current:      A, _A, N/m2
 
  energy:       BTU, Btu, J, Nm, W/s, Wh, Wps, Ws, _J, _eV,
                cal, calorie, calories, eV, electronvolt,
@@ -695,7 +707,7 @@ Converts between units of:
                kcal, kilocalorie, kilocalories,
                newtonmeter, newtonmeters, th, thermie
 
- force:        N,_N, dyn, dyne, dynes, lb, newton
+ force:        N, _N, dyn, dyne, dynes, lb, newton
 
  length:       NM, _m, _pc, astronomical unit, au, chain, ft, furlong,
                in, inch, inches, km, league, lightyear, ls, ly,
@@ -709,12 +721,14 @@ Converts between units of:
                pennyweight, pound, pound_av, pound_metric, pound_troy, pounds,
                pwt, seer, sl, slug, solar mass, st, stone, t, tonn, tonne, tonnes, u, wey
 
- milage:       l/100km, l/km, l/mil, liter_pr_100km, liter_pr_km, lp100km, mpg
+ milage:       mpg, l/100km, l/km, l/10km, lp10km, l/mil, liter_pr_100km, liter_pr_km, lp100km
 
  money:        AUD, BGN, BRL, BTC, BYR, CAD, CHF, CNY, CZK, DKK, EUR,
                GBP, HKD, HRK, HUF, I44, IDR, ILS, INR, ISK, JPY, KRW,
                LTC, LTL, MXN, MYR, NOK, NZD, PHP, PKR, PLN, RON, RUB,
                SEK, SGD, THB, TRY, TWD, TWI, USD, XDR, ZAR
+               ...note: Not yet updated each day, valuta exchange rates here
+               now are from some unknown day in sept. 2014
 
  power:        BTU, BTU/h, BTU/s, BTUph, GWhpy, J/s, Jps, MWhpy, TWhpy,
                W, Whpy, _W, ftlb/min, ftlb/s, hk, hp, kWh/yr, kWhpy
@@ -726,7 +740,7 @@ Converts between units of:
  speed:        _m/s, c, fps, ft/s, ftps, km/h, km/t, kmh, kmph, kmt,
                kn, knot, knots, kt, m/s, mach, machs, mi/h, mph, mps
 
- temperature:  C, F, K
+ temperature:  C, F, K, celsius, fahrenheit, kelvin
 
  time:         _s, biennium, century, d, day, days, decade, dy, fortnight,
                h, hour, hours, hr, indiction, jubilee, ke, lustrum, m,
@@ -735,102 +749,19 @@ Converts between units of:
                tp, triennium, w, week, weeks, y, y365, ySI, ycommon,
                year, years, ygregorian, yjulian, ysideral, ytropical
 
- volume:        L, _L, _l, cm3, floz, ft3, gal, gallon, gallon_imp, gallon_uk,
-               gallon_us, gallons, in3, l, liter, liters, m3, pint, pint_imp,
-               pint_uk, pint_us, tablespoon, teaspoon, therm, thm, tsp
+ volume:        l, L, _L, _l, cm3, m3, floz, ft3, in3,
+                gal, gallon, gallon_imp, gallon_uk, gallon_us, gallons,
+                liter, liters, litre, litres,
+                pint, pint_imp, pint_uk, pint_us,
+                tablespoon, teaspoon, therm, thm, tsp
 
-Examples:
-
-
- print conv(70,"cm","in");  #prints 27.5590551181102
-# See L<Math::Units>
-
- valuta: 1 NOK USD
- language codes: 
- talltekst: 10 NB => ti
-
- @arr2=conv(\@arr1,"from","to")         # is way faster than:
- @arr2=map conv($_,"from","to"),@arr1 
-
- conv(123456789,'b','h'); # h converts to something human-readable
-
+See: L<http://en.wikipedia.org/wiki/Units_of_measurement>
 
 =cut
 
-sub conv_old
-{
-  my($num,$from,$to)=@_;
-  my %f
-    =(
-      #length
-      m       => 1,
-      mil     => 10000,
-      inch    => 0.0254,
-      inches  => 0.0254,
-      ft      => 0.0254*12,               #0.3048 m
-      yard    => 0.0254*12*3,             #0.9144 m
-      chain   => 0.0254*12*3*22,          #20.1168 m
-      furlong => 0.0254*12*3*22*10,       #201.168 m
-      mile    => 0.0254*12*3*22*10*8,     #1609.344 m
-      miles   => 0.0254*12*3*22*10*8,
-      league  => 0.0254*12*3*22*10*8*3,   #4828.032 m
-
-      yard_imperical => 0.914398416,
-
-      #area
-      m2      => 1,
-      km2     => 1000*1000,
-      sqmi    => 0.0254*12*3*22*10*8 * 0.0254*12*3*22*10*8,
-      'sq mi' => 0.0254*12*3*22*10*8 * 0.0254*12*3*22*10*8,
-
-      #volume
-      m3=>1,
-      liter=>0.001,
-
-      #weight
-      g => 1,
-      #ounce=>
-      
-
-      #time
-      s  => 1,
-      m  => 60,
-      h  => 60*60,
-      d  => 60*60*24,
-      w  => 60*60*24*7,
-      mo => 60*60*24*30, #hm 30
-      y  => 60*60*24*365,#hm 365
-
-      #ampere
-
-      #temperature
-      C=>1,
-      F=>1234,
-
-      #force
-      W=>1,
-      hp=>1,
-
-      #fuel economy
-     'l/mil'         => 1,
-      liter_pr_mil   => 1,
-      liter_pr_km    => 10,
-      liter_pr_100km => 1/10,
-      lp100km        => 1/10,
-      mpg            => -23.5214584, # negative signals inverse
-
-      #valuta
-      NOK=>1,
-      SEK=>1,
-      EUR=>1,
-      USD=>1,
-
-     );
-  my $f=$f{$from}/$f{$to};
-  my $r=( $f>0 ? $num*$f : (1/-$num)*$f );
-  #print STDERR "$num $from => $to    from=$f{$from}  to=$f{$to}  f=$f  r=$r\n";
-  return $r;
-}
+#TODO:  @arr2=conv(\@arr1,"from","to")         # is way faster than:
+#TODO:  @arr2=map conv($_,"from","to"),@arr1 
+#TODO:  conv(123456789,'b','h'); # h converts to something human-readable
 
 our %conv=(
 	 length=>{
@@ -967,12 +898,14 @@ our %conv=(
                   earths  => 510072000*1000**2, #510072000 km2, surface area of earth
         	 },
 	 volume=>{
-		  L         => 1,
 		  l         => 1,
+		  L         => 1,
 		  _L        => 1,
 		  _l        => 1,
 		  liter     => 1,
 		  liters    => 1,
+		  litre     => 1,
+		  litres    => 1,
 		  gal       => 3.785411784, #231 cubic inches
 		  gallon    => 3.785411784,
 		  gallons   => 3.785411784,
@@ -1076,7 +1009,7 @@ our %conv=(
                   #0-100kmh or ca 0-60 mph x seconds...
                  },
          temperature=>{  #http://en.wikipedia.org/wiki/Temperature#Conversion
-                  C=>1, F=>1, K=>1
+                  C=>1, F=>1, K=>1, celsius=>1, fahrenheit=>1, kelvin=>1
                  },
          radioactivity=>{
                   Bq          => 1,
@@ -1085,6 +1018,7 @@ our %conv=(
                  },
          current=> {
                   A     => 1,
+                  _A    => 1,
                  'N/m2' => 2e-7,
 	         },
          charge=>{
@@ -1101,7 +1035,7 @@ our %conv=(
                  'J/s'     => 1,
                   Jps      => 1,
                   hp       => 746,
-                  hk       => 746,  #norwegian hestekrefter
+                  hk       => 746,  #hestekrefter (norwegian, scandinavian)
 		 'kWh/yr'  => 1000    * 3600/(24*365), #kWh annually
                   Whpy     =>           3600/(24*365), #kWh annually
                   kWhpy    => 1000    * 3600/(24*365), #kWh annually
@@ -1205,6 +1139,8 @@ our %conv=(
                  },
          milage=>{                                #fuel consumption
                  'l/mil'          => 1,
+                 'l/10km'         => 1,
+                 'lp10km'         => 1,
                  'l/km'           => 10,
                  'l/100km'        => 1/10,
                   lp100km         => 1/10,
@@ -1286,10 +1222,13 @@ our %conv=(
 		  BTC => 650*6.215,      #Bitcoins
 		  LTC => 7.9*6.215,      #Litecoins
 		 },
+          numbers =>{
+	    des=>1,hex=>1,bin=>1,oct=>1,roman=>1,
+            dusin=>1,dozen=>1,doz=>1,dz=>1,gross=>144,gr=>144,gro=>144,great_gross=>12*144,small_gross=>10*12,
+          }
 	);
-my $conv_prepared=0;
+my $conv_prepared;
 sub conv_prepare {
-  return if $conv_prepared++;
   my %b    =(da  =>1e+1, h    =>1e+2, k    =>1e+3, M     =>1e+6,          G   =>1e+9, T   =>1e+12, P    =>1e+15, E   =>1e+18, Z    =>1e+21, Y    =>1e+24, H    =>1e+27);
   my %big  =(deca=>1e+1, hecto=>1e+2, kilo =>1e+3, mega  =>1e+6,          giga=>1e+9, tera=>1e+12, peta =>1e+15, exa =>1e+18, zetta=>1e+21, yotta=>1e+24, hella=>1e+27);
   my %s    =(d   =>1e-1, c    =>1e-2, m    =>1e-3,'µ'    =>1e-6, u=>1e-6, n   =>1e-9, p   =>1e-12, f    =>1e-15, a   =>1e-18, z    =>1e-21, y    =>1e-24);
@@ -1306,6 +1245,12 @@ sub conv_prepare {
       $conv{$type}{$_.$unit}=$x{$_}*$c for keys%x;
     }
   }
+  conv_prepare_money();
+  $conv_prepared=time();
+}
+
+sub conv_prepare_money {
+  1; #not yet
 }
 
 sub conv {
@@ -1324,8 +1269,10 @@ sub conv {
   push @err, "from=$from (".join(",",@{$types[0]}||'?').") and "
               ."to=$to   (".join(",",@{$types[1]}||'?').") has no known common unit type: ".join(", ", @type) if @type<1;
   croak join"\n",map"conv: $_",@err if @err;
-  my($type)=@type;
+  my $type=$type[0];
+  conv_prepare()              if $type eq 'money' and $conv_prepared<time()-24*3600; #1day
   return conv_temperature(@_) if $type eq 'temperature';
+  return conv_numbers(@_)     if $type eq 'numbers';
   my $c=$conv{$type};
   my($cf,$ct)=@{$conv{$type}}{$from,$to};
   my $r= $cf>0 && $ct<0 ? -$ct/$num/$cf
@@ -1344,204 +1291,33 @@ sub conv_temperature { #http://en.wikipedia.org/wiki/Temperature#Conversion
    CF=>sub{$t*9/5+32},
    FK=>sub{($t-32)*5/9+273.15},
    KF=>sub{($t-273.15)*9/5+32},
-  }->{"$from$to"}->($t);
+#  }->{uc(substr($from,0,1).substr($to,0,1))}->($t);
+  }->{uc(substr($from,0,1).substr($to,0,1))}->($t);
 }
 
-=head2 fractional
-
-=cut
-
-sub fractional { #http://mathcentral.uregina.ca/QQ/database/QQ.09.06/h/lil1.html
-  my $n=shift;
-  print "----fractional n=$n\n";
-  my $nn=$n; my $des;
-  $nn=~s,\.(\d+)$,$des=length($1);$1.,;
-  my $l;
-  my $max=0;
-  my($te,$ne);
-  for(1..length($nn)/2){
-    if( $nn=~/^(\d*?)((.{$_})(\3)+)$/ ){
-      print "_ = $_ ".length($2)."\n";
-      if(length($2)>$max){
-        $l=$_;
-	$te="$1$3"-$1;
-        $max=length($2);
-      }
-    }
-  }
-  return fractional($n)
-    if not $l and not recursed() and $des>6 and substr($n,-1) and substr($n,-1)--;
-  print "l=$l max=$max\n";
-  $ne="9" x $l;
-  print log($n),"\n";
-  my $st=sub{print "status: ".($te/$ne)."   n=$n   ".($n/$te*$ne)."\n"};
-  while($n/$te*$ne<0.99){ &$st(); $ne*=10 }
-  while($te/$n/$ne<0.99){ &$st(); $te*=10 }
-  &$st();
-  while(1){
-    my $d=gcd($te,$ne); print "gcd=$d\n";
-    last if $d==1;
-    $te/=$d; $ne/=$d;
-  }
-  &$st();
-  wantarray ? ($te,$ne) : "$te/$ne"; #gcd()
-}
-
-#=head1 SQL INSPIRED FUNCTIONS
-#Inspired from Oracles SQL.
-
-=head2 nvl
-
-The I<no value> function (or I<null value> function)
-
-C<nvl()> takes two or more arguments. (Oracles nvl-function take just two)
-
-Returns the value of the first input argument with length() > 0.
-
-Return I<undef> if there is no such input argument.
-
-In perl 5.10 and perl 6 this will most often be easier with the C< //
-> operator, although C<nvl()> and C<< // >> treats empty strings C<"">
-differently. Sub nvl here considers empty strings and undef the same.
-
-=cut
-
-sub nvl {
-  return $_[0] if defined $_[0] and length($_[0]) or @_==1;
-  return $_[1] if @_==2;
-  return nvl(@_[1..$#_]) if @_>2;
-  return undef;
-}
-
-=head2 repl
-
-Synonym for replace().
-
-=head2 replace
-
-Return the string in the first input argument, but where pairs of search-replace strings (or rather regexes) has been run.
-
-Works as C<replace()> in Oracle, or rather regexp_replace() in Oracle 10 and onward. Except that this C<replace()> accepts more than three arguments.
-
-Examples:
-
- print replace("water","ater","ine");  # Turns water into wine
- print replace("water","ater");        # w
- print replace("water","at","eath");   # weather
- print replace("water","wa","ju",
-                       "te","ic",
-                       "x","y",        # No x is found, no y is returned
-                       'r$',"e");      # Turns water into juice. 'r$' says that the r it wants
-                                       # to change should be the last letters. This reveals that
-                                       # second, fourth, sixth and so on argument is really regexs,
-                                       # not normal strings. So use \ (or \\ inside "") to protect
-                                       # the special characters of regexes. You probably also
-                                       # should write qr/regexp/ instead of 'regexp' if you make
-                                       # use of regexps here, just to make it more clear that
-                                       # these are really regexps, not strings.
-
- print replace('JACK and JUE','J','BL'); # prints BLACK and BLUE
- print replace('JACK and JUE','J');      # prints ACK and UE
- print replace("abc","a","b","b","c");   # prints ccc           (not bcc)
-
-If the first argument is a reference to a scalar variable, that variable is changed "in place".
-
-Example:
-
- my $str="test";
- replace(\$str,'e','ee','s','S');
- print $str;                         # prints teeSt
-
-=cut
-
-sub replace { repl(@_) }
-sub repl {
-  my $str=shift;
-  return $$str=replace($$str,@_) if ref($str) eq 'SCALAR';
- #return ? if ref($str) eq 'ARRAY';
- #return ? if ref($str) eq 'HASH';
-  while(@_){
-    my($fra,$til)=(shift,shift);
-    defined $til ? $str=~s/$fra/$til/g : $str=~s/$fra//g;
-  }
-  return $str;
-}
-
-=head2 decode_num
-
-See L</decode>.
-
-=head2 decode
-
-C<decode()> and C<decode_num()> works just as Oracles C<decode()>.
-
-C<decode()> and C<decode_num()> accordingly uses perl operators C<eq> and C<==> for comparison.
-
-Examples:
-
- my $a=123;
- print decode($a, 123,3,  214,4, $a);     # prints 3
- print decode($a, 123=>3, 214=>4, $a);    # prints 3, same thing since => is synonymous to comma in Perl
-
-The first argument is tested against the second, fourth, sixth and so on,
-and then the third, fifth, seventh and so on is
-returned if decode() finds an equal string or number.
-
-In the above example: 123 maps to 3, 124 maps to 4 and the last argument $a is returned elsewise.
-
-More examples:
-
- my $a=123;
- print decode($a, 123=>3, 214=>7, $a);              # also 3,  note that => is synonym for , (comma) in perl
- print decode($a, 122=>3, 214=>7, $a);              # prints 123
- print decode($a,  123.0 =>3, 214=>7);              # prints 3
- print decode($a, '123.0'=>3, 214=>7);              # prints nothing (undef), no last argument default value here
- print decode_num($a, 121=>3, 221=>7, '123.0','b'); # prints b
-
-Sort of:
-
- decode($string, %conversion, $default);
-
-The last argument is returned as a default if none of the keys in the keys/value-pairs matched.
-
-A more perl-ish and often faster way of doing the same:
-
- {123=>3, 214=>7}->{$a} || $a                       # (beware of 0)
-
-=cut
-
-sub decode
-{
-  croak "Must have a mimimum of two arguments" if @_<2;
-  my $uttrykk=shift;
-  if(defined$uttrykk){ shift eq $uttrykk and return shift or shift for 1..@_/2 }
-  else               { not defined shift and return shift or shift for 1..@_/2 }
-  return shift;
-}
-
-sub decode_num
-{
-  croak "Must have a mimimum of two arguments" if @_<2;
-  my $uttrykk=shift;
-  if(defined$uttrykk){ shift == $uttrykk and return shift or shift for 1..@_/2 }
-  else               { not defined shift and return shift or shift for 1..@_/2 }
-  return shift;
-}
-
-=head2 between
-
-Input: Three arguments.
-
-Returns: Something I<true> if the first argument is numerically between the two next.
-
-=cut
-
-sub between
-{
-  my($test,$fom,$tom)=@_;
-  no warnings;
-  return $fom<$tom ? $test>=$fom&&$test<=$tom
-                   : $test>=$tom&&$test<=$fom;
+sub conv_numbers {
+  my($n,$fr,$to)=@_;
+  my $des=$fr eq 'des'                    ? $n
+         :$fr eq 'hex'                    ? hex($n)
+         :$fr eq 'oct'                    ? oct($n)
+         :$fr eq 'bin'                    ? oct("0b$n")
+         :$fr =~ /^(dusin|dozen|doz|dz)$/ ? $n*12
+         :$fr =~ /^(gross|gr|gro)$/       ? $n*144
+         :$fr eq 'great_gross'            ? $n*12*144
+         :$fr eq 'small_gross'            ? $n*12*10
+         :$fr eq 'roman'                  ? roman2int($n)
+         :croak "Conv from $fr not supported yet";
+  my $ret=$to eq 'des'                    ? $des
+         :$to eq 'hex'                    ? sprintf("%x",$des)
+         :$to eq 'oct'                    ? sprintf("%o",$des)
+         :$to eq 'bin'                    ? sprintf("%b",$des)
+         :$to =~ /^(dusin|dozen|doz|dz)$/ ? $des/12
+         :$to =~ /^(gross|gr|gro)$/       ? $des/144
+         :$to eq 'great_gross'            ? $des/(12*144)
+         :$to eq 'small_gross'            ? $des/(12*10)
+         :$to eq 'roman'                  ? int2roman($des)
+         :croak "Conv to $to not suppoerted yet";
+  $ret;
 }
 
 =head2 bytes_readable
@@ -1573,8 +1349,7 @@ Examples:
 
 =cut
 
-sub bytes_readable
-{
+sub bytes_readable {
   my $bytes=shift();
   return undef if not defined $bytes;
   return "$bytes B"                      if abs($bytes)<=2** 0*1000; #bytes
@@ -1584,6 +1359,90 @@ sub bytes_readable
   return sprintf("%.2f TB",$bytes/2**40) if abs($bytes)<2**40*1000; #terrabyte
   return sprintf("%.2f PB",$bytes/2**50); #petabyte, exabyte, zettabyte, yottabyte
 }
+
+=head2 int2roman
+
+Converts integers to roman numbers.
+
+B<Examples:>
+
+ print int2roman(1234);   # prints MCCXXXIV
+ print int2roman(1971);   # prints MCMLXXI
+
+Works for numbers up to 3999. Uses an adapted subroutine from Peter J. Acklam (jacklam(&)math.uio.no)
+
+ I = 1
+ V = 5
+ X = 10
+ L = 50
+ C = 100     (centum)
+ D = 500
+ M = 1000    (mille)
+
+See also L<Roman>.
+
+See L<http://en.wikipedia.org/wiki/Roman_numbers> for more.
+
+=head2 roman2int
+
+ roman2int("MCMLXXI") == 1971
+
+=cut
+
+#alternative algorithm: http://www.rapidtables.com/convert/number/how-number-to-roman-numerals.htm
+sub int2roman {
+  my $n=shift;
+  return "-".int2roman(-$n) if $n<0;
+  return "M".int2roman($n) if $n>3999 and $n-=1000; #hm
+  croak "int2roman: $n is not an integer" if int($n)!=$n;
+  my @p=([],[1],[1,1],[1,1,1],[1,2],[2],[2,1],[2,1,1],[2,1,1,1],[1,3],[3]);
+  join'',@{[qw/I V X L C D M/]}[map{my$i=$_;map($_+5-$i*2,@{$p[$n/10**(3-$i)%10]})}(0..3)];
+}
+
+sub roman2int_old {
+  my $r=shift;
+     $r=~s,^\-,,  ?    0-roman2int($r)
+   : $r=~s,^M,,i  ? 1000+roman2int($r)
+   : $r=~s,^CM,,i ?  900+roman2int($r)
+   : $r=~s,^D,,i  ?  500+roman2int($r)
+   : $r=~s,^CD,,i ?  400+roman2int($r)
+   : $r=~s,^C,,i  ?  100+roman2int($r)
+   : $r=~s,^XC,,i ?   90+roman2int($r)
+   : $r=~s,^L,,i  ?   50+roman2int($r)
+   : $r=~s,^XL,,i ?   40+roman2int($r)
+   : $r=~s,^X,,i  ?   10+roman2int($r)
+   : $r=~s,^IX,,i ?    9+roman2int($r)
+   : $r=~s,^V,,i  ?    5+roman2int($r)
+   : $r=~s,^IV,,i ?    4+roman2int($r)
+   : $r=~s,^I,,i  ?    1+roman2int($r) 
+   : !length($r)  ?    0
+   : croak "Invalid roman number $r";
+}
+
+sub roman2int {
+  my $r=shift;
+  return -roman2int($r) if $r=~s,^-,,;
+  my %c=(qw/I 1 V 5 X 10 L 50 C 100 D 500 M 1000/,''=>0);
+  my $n=0;
+  $r=~s{^ (
+           (C?)([DM])
+         | (X?)([LCDM])
+         | (I?)([VXLCDM])
+         |     (I)
+         | (.)
+          )?
+       }{
+         $n +=    $3 ? $c{$3}-$c{$2}
+                : $5 ? $c{$5}-$c{$4}
+                : $7 ? $c{$7}-$c{$6}
+                : $8 ? 1
+                : $9 ? croak "Invalid roman number $r"
+                : 0 ;
+         '';
+       }exi while $r;
+  $n;
+}
+
 
 =head2 distance
 
@@ -1745,6 +1604,199 @@ sub bigscale {
     #$a * (1 - $e**2) / ((1 - $e**2 * sin(($lat1+$lat2)/2)**2)**1.5); #hmm avg lat
     #$R=$a * $t/$n;
 
+#=head2 fractional
+#=cut
+
+sub fractional { #http://mathcentral.uregina.ca/QQ/database/QQ.09.06/h/lil1.html
+  carp "NOT FINISHED";
+  my $n=shift;
+  print "----fractional n=$n\n";
+  my $nn=$n; my $des;
+  $nn=~s,\.(\d+)$,$des=length($1);$1.,;
+  my $l;
+  my $max=0;
+  my($te,$ne);
+  for(1..length($nn)/2){
+    if( $nn=~/^(\d*?)((.{$_})(\3)+)$/ ){
+      print "_ = $_ ".length($2)."\n";
+      if(length($2)>$max){
+        $l=$_;
+	$te="$1$3"-$1;
+        $max=length($2);
+      }
+    }
+  }
+  return fractional($n)
+    if not $l and not recursed() and $des>6 and substr($n,-1) and substr($n,-1)--;
+  print "l=$l max=$max\n";
+  $ne="9" x $l;
+  print log($n),"\n";
+  my $st=sub{print "status: ".($te/$ne)."   n=$n   ".($n/$te*$ne)."\n"};
+  while($n/$te*$ne<0.99){ &$st(); $ne*=10 }
+  while($te/$n/$ne<0.99){ &$st(); $te*=10 }
+  &$st();
+  while(1){
+    my $d=gcd($te,$ne); print "gcd=$d\n";
+    last if $d==1;
+    $te/=$d; $ne/=$d;
+  }
+  &$st();
+  wantarray ? ($te,$ne) : "$te/$ne"; #gcd()
+}
+
+=head1 ORACLE-SQL INSPIRED FUNCTIONS
+
+=head2 nvl
+
+The I<no value> function (or I<null value> function)
+
+C<nvl()> takes two or more arguments. (Oracles nvl-function take just two)
+
+Returns the value of the first input argument with length() > 0.
+
+Return I<undef> if there is no such input argument.
+
+In perl 5.10 and perl 6 this will most often be easier with the C< //
+> operator, although C<nvl()> and C<< // >> treats empty strings C<"">
+differently. Sub nvl here considers empty strings and undef the same.
+
+=cut
+
+sub nvl {
+  return $_[0] if defined $_[0] and length($_[0]) or @_==1;
+  return $_[1] if @_==2;
+  return nvl(@_[1..$#_]) if @_>2;
+  return undef;
+}
+
+=head2 repl
+
+Synonym for replace().
+
+=head2 replace
+
+Return the string in the first input argument, but where pairs of search-replace strings (or rather regexes) has been run.
+
+Works as C<replace()> in Oracle, or rather regexp_replace() in Oracle 10 and onward. Except that this C<replace()> accepts more than three arguments.
+
+Examples:
+
+ print replace("water","ater","ine");  # Turns water into wine
+ print replace("water","ater");        # w
+ print replace("water","at","eath");   # weather
+ print replace("water","wa","ju",
+                       "te","ic",
+                       "x","y",        # No x is found, no y is returned
+                       'r$',"e");      # Turns water into juice. 'r$' says that the r it wants
+                                       # to change should be the last letters. This reveals that
+                                       # second, fourth, sixth and so on argument is really regexs,
+                                       # not normal strings. So use \ (or \\ inside "") to protect
+                                       # the special characters of regexes. You probably also
+                                       # should write qr/regexp/ instead of 'regexp' if you make
+                                       # use of regexps here, just to make it more clear that
+                                       # these are really regexps, not strings.
+
+ print replace('JACK and JUE','J','BL'); # prints BLACK and BLUE
+ print replace('JACK and JUE','J');      # prints ACK and UE
+ print replace("abc","a","b","b","c");   # prints ccc           (not bcc)
+
+If the first argument is a reference to a scalar variable, that variable is changed "in place".
+
+Example:
+
+ my $str="test";
+ replace(\$str,'e','ee','s','S');
+ print $str;                         # prints teeSt
+
+=cut
+
+sub replace { repl(@_) }
+sub repl {
+  my $str=shift;
+  return $$str=replace($$str,@_) if ref($str) eq 'SCALAR';
+ #return ? if ref($str) eq 'ARRAY';
+ #return ? if ref($str) eq 'HASH';
+  while(@_){
+    my($fra,$til)=(shift,shift);
+    defined $til ? $str=~s/$fra/$til/g : $str=~s/$fra//g;
+  }
+  return $str;
+}
+
+=head2 decode_num
+
+See L</decode>.
+
+=head2 decode
+
+C<decode()> and C<decode_num()> works just as Oracles C<decode()>.
+
+C<decode()> and C<decode_num()> accordingly uses perl operators C<eq> and C<==> for comparison.
+
+Examples:
+
+ my $a=123;
+ print decode($a, 123,3,  214,4, $a);     # prints 3
+ print decode($a, 123=>3, 214=>4, $a);    # prints 3, same thing since => is synonymous to comma in Perl
+
+The first argument is tested against the second, fourth, sixth and so on,
+and then the third, fifth, seventh and so on is
+returned if decode() finds an equal string or number.
+
+In the above example: 123 maps to 3, 124 maps to 4 and the last argument $a is returned elsewise.
+
+More examples:
+
+ my $a=123;
+ print decode($a, 123=>3, 214=>7, $a);              # also 3,  note that => is synonym for , (comma) in perl
+ print decode($a, 122=>3, 214=>7, $a);              # prints 123
+ print decode($a,  123.0 =>3, 214=>7);              # prints 3
+ print decode($a, '123.0'=>3, 214=>7);              # prints nothing (undef), no last argument default value here
+ print decode_num($a, 121=>3, 221=>7, '123.0','b'); # prints b
+
+Sort of:
+
+ decode($string, %conversion, $default);
+
+The last argument is returned as a default if none of the keys in the keys/value-pairs matched.
+
+A more perl-ish and often faster way of doing the same:
+
+ {123=>3, 214=>7}->{$a} || $a                       # (beware of 0)
+
+=cut
+
+sub decode {
+  croak "Must have a mimimum of two arguments" if @_<2;
+  my $uttrykk=shift;
+  if(defined$uttrykk){ shift eq $uttrykk and return shift or shift for 1..@_/2 }
+  else               { not defined shift and return shift or shift for 1..@_/2 }
+  return shift;
+}
+
+sub decode_num {
+  croak "Must have a mimimum of two arguments" if @_<2;
+  my $uttrykk=shift;
+  if(defined$uttrykk){ shift == $uttrykk and return shift or shift for 1..@_/2 }
+  else               { not defined shift and return shift or shift for 1..@_/2 }
+  return shift;
+}
+
+=head2 between
+
+Input: Three arguments.
+
+Returns: Something I<true> if the first argument is numerically between the two next.
+
+=cut
+
+sub between {
+  my($test,$fom,$tom)=@_;
+  no warnings;
+  return $fom<$tom ? $test>=$fom&&$test<=$tom
+                   : $test>=$tom&&$test<=$fom;
+}
+
 
 # =head1 veci
 # 
@@ -1756,8 +1808,7 @@ sub bigscale {
 # 
 # =cut
 # 
-# sub vecibs ($)
-# {
+# sub vecibs ($) {
 #   my($s,$o,$b,$new)=@_;
 #   if($b=~/^(1|2|4|8|16|32|64)$/){
 #     return vec($s,$o,$b)=$new if @_==4;
@@ -1768,38 +1819,6 @@ sub bigscale {
 #   my $v=vec($s,$ob,$bb)*2**$bb+vec($s,$ob+1,$bb);
 #   $v & (2**$b-1)
 # }
-
-=head2 int2roman
-
-Converts integers to roman numbers.
-
-B<Examples:>
-
- print int2roman(1234);   # prints MCCXXXIV
- print int2roman(1971);   # prints MCMLXXI
-
-Works for numbers up to 3999. Uses an adapted subroutine from Peter J. Acklam (jacklam(&)math.uio.no)
-
- I = 1
- V = 5
- X = 10
- L = 50
- C = 100     (centum)
- D = 500
- M = 1000    (mille)
-
-See also L<Roman>.
-
-See L<http://en.wikipedia.org/wiki/Roman_numbers> for more.
-
-=cut
-
-sub int2roman {
-  my $n=shift;
-  croak 'int2roman: not integer 0-3999' if $n>3999 or $n<0 or int($n)!=$n;
-  my @p=([],[1],[1,1],[1,1,1],[1,2],[2],[2,1],[2,1,1],[2,1,1,1],[1,3],[3]);
-  join'',@{[qw/I V X L C D M/]}[map{my$i=$_;map($_+5-$i*2,@{$p[$n/10**(3-$i)%10]})}(0..3)];
-}
 
 
 =head1 ARRAYS
@@ -1843,16 +1862,14 @@ Just as sub L</in>, but for numbers. Internally uses the perl operator C<< == >>
 
 =cut
 
-sub in
-{
+sub in {
   no warnings 'uninitialized';
   my $val=shift;
   for(@_){ return 1 if $_ eq $val }
   return 0;
 }
 
-sub in_num
-{
+sub in_num {
   no warnings 'uninitialized';
   my $val=shift;
   for(@_){ return 1 if $_ == $val }
@@ -1871,8 +1888,7 @@ Example, prints 1,2,3,4:
 
 =cut
 
-sub union
-{
+sub union {
   my %seen;
   return grep{!$seen{$_}++}(@{shift()},@{shift()});
 }
@@ -1891,8 +1907,7 @@ Output is C<< five 1 2 >>.
 
 =cut
 
-sub minus
-{
+sub minus {
   my %seen;
   my %notme=map{($_=>1)}@{$_[1]};
   return grep{!$notme{$_}&&!$seen{$_}++}@{$_[0]};
@@ -1912,8 +1927,7 @@ Output: C<< 4 3 five >>
 
 =cut
 
-sub intersect
-{
+sub intersect {
   my %first=map{($_=>1)}@{$_[0]};
   my %seen;
   return grep{$first{$_}&&!$seen{$_}++}@{$_[1]};
@@ -1933,8 +1947,7 @@ The output is C<< 1 2 >>.
 
 =cut
 
-sub not_intersect
-{
+sub not_intersect {
   my %code;
   my %seen;
   for(@{$_[0]}){$code{$_}|=1}
@@ -1957,8 +1970,7 @@ Example:
 
 =cut
 
-sub uniq(@)
-{
+sub uniq(@) {
   my %seen;
   return grep{!$seen{$_}++}@_;
 }
@@ -1988,8 +2000,7 @@ Dies (croaks) if the two lists are of different sizes
 
 =cut
 
-sub zip
-{
+sub zip {
   my @t=@_;
   ref($_) ne 'ARRAY' and croak "ERROR: zip should have arrayrefs as arguments" for @t;
   @{$t[$_]} != @{$t[0]} and croak "ERROR: zip should have equal sized arrays" for 1..$#t;
@@ -2132,8 +2143,7 @@ sub binsearchfast { # binary search routine finds index just below value
 
 sub binsearchstr {binsearch(@_[0..2],sub{$_[0]cmp$_[1]})}
 
-sub rank
-{
+sub rank {
   my($rank,$aref,$cmpsub)=@_;
   if($rank<0){
     $cmpsub||=sub{$_[0]<=>$_[1]};
@@ -2263,9 +2273,9 @@ Example:
 
 Note: The values are NOT deep copied when they are references. (Use C<< Storable::dclone() >> to do that).
 
-Note2: For perl version 5.20+ subhashes is built in like this:
+Note2: For perl version 5.20+ subhashes (hash slices returning keys as well as values) is built in like this:
 
- %scandinavia = %population{'Norway','Sweden','Denmark'}; # this and
+ %scandinavia = %population{'Norway','Sweden','Denmark'};
 
 =cut
 
@@ -2620,8 +2630,7 @@ zipb64() and zipbin() is really just wrappers around L<Compress::Zlib> and C<inf
 
 =cut
 
-sub zipb64
-{
+sub zipb64 {
   require MIME::Base64;
   return MIME::Base64::encode_base64(zipbin(@_));
 }
@@ -2636,8 +2645,7 @@ See L</zip> for documentation.
 
 =cut
 
-sub zipbin
-{
+sub zipbin {
   require Compress::Zlib;
   my($data,$dict)=@_;
   my $x=Compress::Zlib::deflateInit(-Dictionary=>$dict||'',-Level=>Compress::Zlib::Z_BEST_COMPRESSION()) or croak();
@@ -2662,8 +2670,7 @@ See L</zipb64>.
 
 =cut
 
-sub unzipb64
-{
+sub unzipb64 {
   my($data,$dict)=@_;
   require MIME::Base64;
   unzipbin(MIME::Base64::decode_base64($data),$dict);
@@ -2678,8 +2685,7 @@ See L</unzipb64> for documentation.
 
 =cut
 
-sub unzipbin
-{
+sub unzipbin {
   require Compress::Zlib;
   require Carp;
   my($data,$dict)=@_;
@@ -2703,8 +2709,7 @@ C<gzip()> uses the same compression algorithm as the well known GNU program gzip
 
 =cut
 
-sub gzip
-{
+sub gzip {
   my $s=shift();
   eval{     # tries gzip, if it works it works, else returns the input
     require Compress::Zlib;
@@ -2722,8 +2727,7 @@ B<Output:> The original larger non-compressed string. Text or binary.
 
 =cut
 
-sub gunzip
-{
+sub gunzip {
   my $s=shift();
   eval {
     require Compress::Zlib;
@@ -2744,14 +2748,9 @@ See also C<man bzip2>, C<man bunzip2> and L<Compress::Bzip2>
 
 =cut
 
-sub bzip2
-{
+sub bzip2 {
   my $s=shift();
-  eval{
-    require Compress::Bzip2;
-    $s=Compress::Bzip2::memBzip($s);
-  };
-  undef$@;
+  eval { require Compress::Bzip2; $s=Compress::Bzip2::memBzip($s) }; undef$@;
   return $s;
 }
 
@@ -2761,13 +2760,9 @@ Decompressed something compressed by bzip2() or the data from a C<.bz2> file. Se
 
 =cut
 
-sub bunzip2
-{
+sub bunzip2 {
   my $s=shift();
-  eval{
-    require Compress::Bzip2;
-    $s=Compress::Bzip2::memBunzip($s);
-  };undef$@;
+  eval { require Compress::Bzip2; $s=Compress::Bzip2::memBunzip($s) }; undef$@;
   return $s;
 }
 
@@ -2799,8 +2794,7 @@ C<HostnameLookups Off> in Apache C<httpd.conf> and then use I<ipaddr> afterwards
 =cut
 
 our %IPADDR_memo;
-sub ipaddr
-{
+sub ipaddr {
   my $ipnr=shift;
   #NB, 2-tallet pÂ neste kodelinje er ikke det samme pÂ alle os,
   #men ser ut til Â funke i linux og hpux. Den Riktige MÂten(tm)
@@ -2823,8 +2817,7 @@ Does internal memoization via the hash C<%Acme::Tools::IPNUM_memo>.
 =cut
 
 our %IPNUM_memo;
-sub ipnum
-{
+sub ipnum {
   my $ipaddr=shift;
   #croak "No $ipaddr" if not length($ipaddr);
   return $IPNUM_memo{$ipaddr} if exists $IPNUM_memo{$ipaddr};
@@ -2882,8 +2875,7 @@ L<http://some.server.somewhere/cgi-bin/script?name=Bond&name=+James+Bond> will p
 
 =cut
 
-sub webparams
-{
+sub webparams {
   my $query=shift();
   $query=$ENV{QUERY_STRING} if not defined $query;
   if(not defined $query  and  $ENV{REQUEST_METHOD} eq "POST"){
@@ -2922,8 +2914,7 @@ Prints C<< http://machine.somewhere.com/search?q=%D8stdal%2C%20%C5ge >>
 
 =cut
 
-sub urlenc
-{
+sub urlenc {
   my $str=shift;
   $str=~s/([^\w\-\.\/\,\[\]])/sprintf("%%%02x",ord($1))/eg; #more chars is probably legal...
   return $str;
@@ -2939,7 +2930,7 @@ Example, this returns 'C< ¯>'. That is space and C<< ¯ >>.
 
 =cut
 
-sub urldec{
+sub urldec {
   my $str=shift;
   $str=~s/\+/ /gs;
   $str=~s/%([a-f\d]{2})/pack("C", hex($1))/egi;
@@ -3062,8 +3053,7 @@ B<Output:> Nothing (for the time being). C<die()>s (C<croak($!)> really) if some
 
 =cut
 
-sub writefile
-{
+sub writefile {
     my($filename,$text)=@_;
     if(ref($filename) eq 'ARRAY'){
 	writefile(@$_) for @$filename;
@@ -3129,8 +3119,7 @@ With two input arguments, nothing (undef) is returned from C<readfile()>.
 
 #http://blogs.perl.org/users/leon_timmermans/2013/05/why-you-dont-need-fileslurp.html
 
-sub readfile
-{
+sub readfile {
   my($filename,$ref)=@_;
   if(not defined $ref){  #-- one argument
       if(wantarray){
@@ -3222,8 +3211,7 @@ How to get all files in the C</tmp> directory including all subdirectories below
 
 =cut
 
-sub readdirectory
-{
+sub readdirectory {
   my $dir=shift;
   opendir(my $D,$dir);
   my @filer=map "$dir/$_", grep {!/^\.\.?$/} readdir($D);
@@ -3254,8 +3242,7 @@ See C<perldoc -f stat>, C<perldoc -f chmod>, C<perldoc -f chown>, C<perldoc -f u
 =cut
 
 
-sub chall
-{
+sub chall {
   my($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,$mtime,$ctime,$blksize,$blocks )
     = ref($_[0]) ? @{shift()} : stat(shift());
   my $successful=0;
@@ -3281,7 +3268,8 @@ Example:
 
 Returns true on success, otherwise false.
 
-C<makedir()> memoizes directories it has checked for existence before (trading memory for speed).
+C<makedir()> memoizes directories it has checked for existence before (trading memory and for speed).
+Thus directories removed during running the script is not discovered by makedir.
 
 See also C<< perldoc -f mkdir >>, C<< man umask >>
 
@@ -3289,8 +3277,7 @@ See also C<< perldoc -f mkdir >>, C<< man umask >>
 
 our %MAKEDIR;
 
-sub makedir
-{
+sub makedir {
   my($d,$p,$dd)=@_;
   $p=0777^umask() if !defined$p;
   (
@@ -3323,8 +3310,7 @@ Source:
 
 =cut
 
-sub qrlist (@)
-{
+sub qrlist (@) {
   my $str=join"|",map quotemeta,@_;
   return qr/^($str)$/;
 }
@@ -3368,8 +3354,7 @@ See also L<Term::ANSIColor>.
 
 =cut
 
-sub ansicolor
-{
+sub ansicolor {
   my $txt=shift;
   eval{require Term::ANSIColor} or return replace($txt,qr/§./);
   my %h=qw/r red  g green  b blue  y yellow  m magenta  B bold  u underline  c clear  § reset/;
@@ -3447,8 +3432,7 @@ digits.
 
 =cut
 
-sub ccn_ok
-{
+sub ccn_ok {
     my $ccn=shift(); #credit card number
     $ccn=~s/\D+//g;
     if(KID_ok($ccn)){
@@ -3496,8 +3480,7 @@ B<See also:> L</ccn_ok>
 
 =cut
 
-sub KID_ok
-{
+sub KID_ok {
   croak "Non-numeric argument" if $_[0]=~/\D/;
   my @k=split//,shift or return undef;
   my $s;$s+=pop(@k)+[qw/0 2 4 6 8 1 3 5 7 9/]->[pop@k] while @k;
@@ -3535,8 +3518,7 @@ In the Python language, C<range> is a build in and an iterator instead of an arr
 
 =cut
 
-sub range
-{
+sub range {
   my($x,$y,$jump)=@_;
   return (  0 .. $x-1 ) if @_==1;
   return ( $x .. $y-1 ) if @_==2;
@@ -3653,8 +3635,7 @@ know that.
 
 =cut
 
-sub permutations
-{
+sub permutations {
   my $code=ref($_[0]) eq 'CODE' ? shift() : undef;
   $code and @_<6 and return map &$code(@$_),permutations(@_);
 
@@ -3889,8 +3870,7 @@ Hash-mode returns hashrefs instead of arrayrefs:
 
 =cut
 
-sub cart
-{
+sub cart {
   my @ars=@_;
   if(!ref($_[0])){ #if hash-mode detected
     my(@k,@v); push@k,shift@ars and push@v,shift@ars while @ars;
@@ -3969,8 +3949,7 @@ C<num2code()> can be used to compress numeric IDs to something shorter:
 
 =cut
 
-sub num2code
-{
+sub num2code {
   my($num,$sifre,$lovligetegn,$start)=@_;
   my $antlovligetegn=length($lovligetegn);
   my $key;
@@ -3985,8 +3964,7 @@ sub num2code
   return $key;
 }
 
-sub code2num
-{
+sub code2num {
   my($code,$lovligetegn,$start)=@_; $start=0 if not defined $start;
   my $antlovligetegn=length($lovligetegn);
   my $num=0;
@@ -4214,8 +4192,7 @@ See also L<Data::Pivot>
 
 =cut
 
-sub pivot
-{
+sub pivot {
   my($tabref,@vertikalefelt)=@_;
   my %opt=ref($vertikalefelt[-1]) eq 'HASH' ? %{pop(@vertikalefelt)} : ();
   my $opt_sum=1 if $opt{sum};
@@ -4342,8 +4319,7 @@ As you can see, rows containing multi-lined cells gets an empty line before and 
 
 =cut
 
-sub tablestring
-{
+sub tablestring {
   my $tab=shift;
   my %o=$_[0] ? %{shift()} : ();
   my $fjern_tom=$o{fjern_tomme_kolonner};
@@ -4469,6 +4445,10 @@ sub tablestring
   return join("\n",@tabut)."\n";
 }
 
+=head2 trim
+
+ trim(" asdf \t\n    123 ") eq "asdf 123"
+
 =head2 upper
 
 Returns input string as uppercase.
@@ -4491,9 +4471,18 @@ See also C<< perldoc -f lc >>
 
 =cut
 
-sub upper {no warnings;my $str=@_?shift:$_;$str=~tr/a-zÊ¯Â‰ÎÔˆ¸ˇ‚ÍÓÙ˚„ı‡ËÏÚ˘·ÈÌÛ˙˝Ò/A-Z∆ÿ≈ƒÀœ÷‹ˇ¬ Œ‘€√’¿»Ã“Ÿ¡…Õ”⁄›—–/;$str}
-sub lower {no warnings;my $str=@_?shift:$_;$str=~tr/A-Z∆ÿ≈ƒÀœ÷‹ˇ¬ Œ‘€√’¿»Ã“Ÿ¡…Õ”⁄›—–/a-zÊ¯Â‰ÎÔˆ¸ˇ‚ÍÓÙ˚„ı‡ËÏÚ˘·ÈÌÛ˙˝Ò/;$str}
+#hm UTF-8?
+sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-zÊ¯Â‰ÎÔˆ¸ˇ‚ÍÓÙ˚„ı‡ËÏÚ˘·ÈÌÛ˙˝Ò/A-Z∆ÿ≈ƒÀœ÷‹ˇ¬ Œ‘€√’¿»Ã“Ÿ¡…Õ”⁄›—–/;$s}
+sub lower {no warnings;my $s=@_?shift:$_;$s=~tr/A-Z∆ÿ≈ƒÀœ÷‹ˇ¬ Œ‘€√’¿»Ã“Ÿ¡…Õ”⁄›—–/a-zÊ¯Â‰ÎÔˆ¸ˇ‚ÍÓÙ˚„ı‡ËÏÚ˘·ÈÌÛ˙˝Ò/;$s}
 
+sub trim {
+  return trim($_) if !@_;
+  my $s=shift;
+  if(ref($s) eq 'SCALAR'){ $$s=~s,^\s+|(?<=\s)\s+|\s+$,,g; return $$s}
+  if(ref($s) eq 'ARRAY') { trim(\$_) for @$s; return $s }
+  $s=~s,^\s+|(?<=\s)\s+|\s+$,,g;
+  $s;
+}
 
 =head2 serialize
 
@@ -4580,8 +4569,7 @@ Same as C<serialize()> but the output is given a newline every 80th character.
 
 our $Dserialize_width=80;
 sub dserialize{join "\n",serialize(@_)=~/(.{1,$Dserialize_width})/gs}
-sub serialize
-{
+sub serialize {
   no warnings;
   my($r,$navn,$filnavn,$nivaa)=@_;
   my @r=(undef,undef,($nivaa||0)-1);
@@ -4984,8 +4972,7 @@ Or just:
 
 =cut
 
-sub time_fp    # {return 0+gettimeofday} is just as well?
-{
+sub time_fp {  # {return 0+gettimeofday} is just as well?
     eval{ require Time::HiRes } or return time();
     my($sec,$mic)=Time::HiRes::gettimeofday();
     return $sec+$mic/1e6; #1e6 not portable?
@@ -5017,8 +5004,7 @@ Estimated time of arrival. ...NOT IMPLEMENTED YET...
 #http://en.wikipedia.org/wiki/Kalman_filter god idÈ?
 our %Eta;
 our $Eta_forgetfulness=2;
-sub eta
-{
+sub eta {
   my($id,$pos,$end,$time_fp)=(@_==2?(join(";",caller()),@_):@_);
   #@_==2 ? ("",@_) : @_==3 ? (@_) : croak"Two or three arguments to eta()";
   $time_fp||=time_fp();
@@ -5067,16 +5053,15 @@ second to complete. Whereas if sleep(10) was used, each job would
 spend more than ten seconds in average since the work time would be
 added to sleep(10).
 
-Note: sleep_until() will remember the time of ANY last call of this
-sub, not just the one on the same line in the source code (this might
-change in the future). The first call to sleep_until() will be the
-same as sleep_fp() or Perl's own sleep() if the argument is an integer.
+Note: sleep_until() will remember the time of ANY last call of this sub,
+not just the one on the same line in the source code (this might change
+in the future). The first call to sleep_until() will be the same as
+sleep_fp() or Perl's own sleep() if the argument is an integer.
 
 =cut
 
 our $Time_last_sleep_until;
-sub sleep_until
-{
+sub sleep_until {
   my $s=@_==1?shift():0;
   my $time=time_fp();
   my $sleep=$s-($time-nvl($Time_last_sleep_until,0));
@@ -5092,7 +5077,7 @@ Call instead of C<system> if you want C<die> if something fails. Uses Carp::croa
 
 =cut
 
-sub sys($){my$s=shift;system($s)==0 or croak"ERROR, sys($s) ($!) ($?)"}
+sub sys($){ my$s=shift;system($s)==0 or croak"ERROR, sys($s) ($!) ($?)" }
 
 =head2 recursed
 
@@ -5126,8 +5111,7 @@ version 5.?.?  It does not slurp the files or spawn new processes.
 
 =cut
 
-sub md5sum
-{
+sub md5sum {
   my $fn=shift;
   open my $M, '<', $fn or croak "Could not open file $fn for md5sum() $!";
   binmode($M);
@@ -5579,8 +5563,7 @@ See also Scaleable Bloom Filters: L<http://gsd.di.uminho.pt/members/cbm/ps/dbloo
 
 =cut
 
-sub bfinit
-{
+sub bfinit {
   return bfretrieve(@_)                             if @_==1;
   return bfinit(error_rate=>$_[0], capacity=>$_[1]) if @_==2 and 0<$_[0] and $_[0]<1 and $_[1]>1;
   return bfinit(error_rate=>$_[1], capacity=>$_[0]) if @_==2 and 0<$_[1] and $_[1]<1 and $_[0]>1;
@@ -5657,8 +5640,8 @@ sub bfsum {
   $sum+=vec($$bf{filter},$_,$cb) for 0..$$bf{filterlength}-1;
   return $sum;
 }
-sub bfadd
-{ require Digest::MD5;
+sub bfadd {
+  require Digest::MD5;
   my($bf,@keys)=@_;
   return if not @keys;
   my $keysref=@keys==1 && ref($keys[0]) eq 'ARRAY' ? $keys[0] : \@keys;
@@ -5698,8 +5681,8 @@ sub bfadd
   }
   return 1;
 }
-sub bfcheck
-{ require Digest::MD5;
+sub bfcheck {
+  require Digest::MD5;
   my($bf,@keys)=@_;
   return if not @keys;
   my $keysref=@keys==1 && ref($keys[0]) eq 'ARRAY' ? $keys[0] : \@keys;
@@ -5730,8 +5713,8 @@ sub bfcheck
     } @$keysref;
   }
 }
-sub bfgrep # just a copy of bfcheck with map replaced by grep
-{ require Digest::MD5;
+sub bfgrep { # just a copy of bfcheck with map replaced by grep
+  require Digest::MD5;
   my($bf,@keys)=@_;
   return if not @keys;
   my $keysref=@keys==1 && ref($keys[0]) eq 'ARRAY' ? $keys[0] : \@keys;
@@ -5743,8 +5726,8 @@ sub bfgrep # just a copy of bfcheck with map replaced by grep
     $match;
   } @$keysref;
 }
-sub bfgrepnot # just a copy of bfgrep with $match replaced by not $match
-{ require Digest::MD5;
+sub bfgrepnot { # just a copy of bfgrep with $match replaced by not $match
+  require Digest::MD5;
   my($bf,@keys)=@_;
   return if not @keys;
   my $keysref=@keys==1 && ref($keys[0]) eq 'ARRAY' ? $keys[0] : \@keys;
@@ -5756,8 +5739,8 @@ sub bfgrepnot # just a copy of bfgrep with $match replaced by not $match
     not $match;
   } @$keysref;
 }
-sub bfdelete
-{ require Digest::MD5;
+sub bfdelete {
+  require Digest::MD5;
   my($bf,@keys)=@_;
   return if not @keys;
   my $keysref=@keys==1 && ref($keys[0]) eq 'ARRAY' ? $keys[0] : \@keys;
@@ -5784,25 +5767,21 @@ sub bfdelete
   }
   return $bf;
 }
-sub bfstore
-{
+sub bfstore {
   require Storable;
   Storable::store(@_);
 }
-sub bfretrieve
-{
+sub bfretrieve {
   require Storable;
   my $bf=Storable::retrieve(@_);
   carp  "Retrieved bloom filter was stored in version $$bf{version}, this is version $VERSION" if $$bf{version}>$VERSION;
   return $bf;
 }
-sub bfclone
-{
+sub bfclone {
   require Storable;
   return Storable::dclone(@_); #could be faster
 }
-sub bfdimensions_old
-{
+sub bfdimensions_old {
   my($n,$p,$mink,$maxk, $k,$flen,$m)=
     @_==1 ? (@{$_[0]}{'capacity','error_rate','min_hashfuncs','max_hashfuncs'},1)
    :@_==2 ? (@_,1,100,1)
@@ -5812,8 +5791,7 @@ sub bfdimensions_old
   $flen = int(1+$flen);
   return ($flen,$k);
 }
-sub bfdimensions
-{
+sub bfdimensions {
   my($n,$p,$mink,$maxk)=
     @_==1 ? (@{$_[0]}{'capacity','error_rate','min_hashfuncs','max_hashfuncs'})
    :@_==2 ? (@_,1,100)
@@ -5823,29 +5801,24 @@ sub bfdimensions
   return ($m+0.5,min($maxk,max($mink,int($k+0.5))));
 }
 
+cmd_atca() if $0 =~ /\b atca $/x;
+sub cmd_atca { print eval $_, "\n" for split ";", "@ARGV" } #$@&&warn$@
+
 1;
 
 package Acme::Tools::BloomFilter;
-use 5.008;
-use strict;
-#use warnings;
-use Carp;
-sub new 
-{
-  my($class,@p)=@_;
-  my $self=Acme::Tools::bfinit(@p);
-  return bless $self, $class;
-}
-sub add      {&Acme::Tools::bfadd}
-sub addbf    {&Acme::Tools::bfaddbf}
-sub check    {&Acme::Tools::bfcheck}
-sub grep     {&Acme::Tools::bfgrep}
-sub grepnot  {&Acme::Tools::bfgrepnot}
-sub delete   {&Acme::Tools::bfdelete}
-sub store    {&Acme::Tools::bfstore}
-sub retrieve {&Acme::Tools::bfretrieve}
-sub clone    {&Acme::Tools::bfclone}
-sub sum      {&Acme::Tools::bfsum}
+use 5.008; use strict; use warnings; use Carp;
+sub new      { my($class,@p)=@_; my $self=Acme::Tools::bfinit(@p); bless $self, $class }
+sub add      { &Acme::Tools::bfadd      }
+sub addbf    { &Acme::Tools::bfaddbf    }
+sub check    { &Acme::Tools::bfcheck    }
+sub grep     { &Acme::Tools::bfgrep     }
+sub grepnot  { &Acme::Tools::bfgrepnot  }
+sub delete   { &Acme::Tools::bfdelete   }
+sub store    { &Acme::Tools::bfstore    }
+sub retrieve { &Acme::Tools::bfretrieve }
+sub clone    { &Acme::Tools::bfclone    }
+sub sum      { &Acme::Tools::bfsum      }
 1;
 
 # Ny versjon:
@@ -5857,6 +5830,8 @@ sub sum      {&Acme::Tools::bfsum}
 # + perl            Makefile.PL;make test
 # + /local/bin/perl Makefile.PL;make test
 # + /usr/bin/perl   Makefile.PL;make test
+# + perlbrew exec "perl ~/Acme-Tools/Makefile.PL ; time make test"
+# + perlbrew use perl-5.10.1; perl Makefile.PL; make test; perlbrew off
 # + test evt i cygwin og mingw-perl
 # + make dist
 # + cp -p *tar.gz /htdocs/
@@ -5872,55 +5847,44 @@ sub sum      {&Acme::Tools::bfsum}
 # memoize_memcached         http://search.cpan.org/~dtrischuk/Memoize-Memcached-0.03/lib/Memoize/Memcached.pm
 # hint on http://perl.jonallen.info/writing/articles/install-perl-modules-without-root
 
-__END__
-
-
-sub lpad
-sub rpad
-
-sub mycrc32 {  #http://billauer.co.il/blog/2011/05/perl-crc32-crc-xs-module/  eller String::CRC32::crc32 som er 100 x raskere enn Digest::CRC::crc32
- my ($input, $init_value, $polynomial) = @_;
-
- $init_value = 0 unless (defined $init_value);
- $polynomial = 0xedb88320 unless (defined $polynomial);
-
- my @lookup_table;
-
- for (my $i=0; $i<256; $i++) {
-   my $x = $i;
-   for (my $j=0; $j<8; $j++) {
-     if ($x & 1) {
-       $x = ($x >> 1) ^ $polynomial;
-     } else {
-       $x = $x >> 1;
-     }
-   }
-   push @lookup_table, $x;
- }
-
- my $crc = $init_value ^ 0xffffffff;
-
- foreach my $x (unpack ('C*', $input)) {
-   $crc = (($crc >> 8) & 0xffffff) ^ $lookup_table[ ($crc ^ $x) & 0xff ];
- }
-
- $crc = $crc ^ 0xffffffff;
-
- return $crc;
-}
-
-
+# sub lpad
+# sub rpad
+# 
+# sub mycrc32 {  #http://billauer.co.il/blog/2011/05/perl-crc32-crc-xs-module/  eller String::CRC32::crc32 som er 100 x raskere enn Digest::CRC::crc32
+#  my ($input, $init_value, $polynomial) = @_;
+#  $init_value = 0 unless (defined $init_value);
+#  $polynomial = 0xedb88320 unless (defined $polynomial);
+#  my @lookup_table;
+#  for (my $i=0; $i<256; $i++) {
+#    my $x = $i;
+#    for (my $j=0; $j<8; $j++) {
+#      if ($x & 1) {
+#        $x = ($x >> 1) ^ $polynomial;
+#      } else {
+#        $x = $x >> 1;
+#      }
+#    }
+#    push @lookup_table, $x;
+#  }
+#  my $crc = $init_value ^ 0xffffffff;
+#  foreach my $x (unpack ('C*', $input)) {
+#    $crc = (($crc >> 8) & 0xffffff) ^ $lookup_table[ ($crc ^ $x) & 0xff ];
+#  }
+#  $crc = $crc ^ 0xffffffff;
+#  return $crc;
+# }
+# 
 
 =head1 HISTORY
 
 Release history
 
- 0.15  Nov 2014    Improved doc
- 0.14  Nov 2014    New subs, improved tests and doc
- 0.13   Oct 2010   Non-linux test issue, resolve. improved: bloom filter, tests, doc
- 0.12   Oct 2010   Improved tests, doc, bloom filter, random_gauss, bytes_readable
- 0.11   Dec 2008   Improved doc
- 0.10   Dec 2008
+ 0.15  Nov 2014   Improved doc
+ 0.14  Nov 2014   New subs, improved tests and doc
+ 0.13  Oct 2010   Non-linux test issue, resolve. improved: bloom filter, tests, doc
+ 0.12  Oct 2010   Improved tests, doc, bloom filter, random_gauss, bytes_readable
+ 0.11  Dec 2008   Improved doc
+ 0.10  Dec 2008
 
 =head1 SEE ALSO
 
