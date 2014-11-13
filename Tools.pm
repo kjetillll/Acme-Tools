@@ -1369,7 +1369,7 @@ B<Examples:>
  print int2roman(1234);   # prints MCCXXXIV
  print int2roman(1971);   # prints MCMLXXI
 
-Works for numbers up to 3999. Uses an adapted subroutine from Peter J. Acklam (jacklam(&)math.uio.no)
+(Adapted subroutine from Peter J. Acklam, jacklam(&)math.uio.no)
 
  I = 1
  V = 5
@@ -1391,41 +1391,43 @@ See L<http://en.wikipedia.org/wiki/Roman_numbers> for more.
 
 #alternative algorithm: http://www.rapidtables.com/convert/number/how-number-to-roman-numerals.htm
 sub int2roman {
-  my $n=shift;
-  return "-".int2roman(-$n)     if $n<0;
-  return "M".int2roman($n-1000) if $n>3999;
-  croak "int2roman: $n is not an integer" if int($n)!=$n;
-  my @p=([],[1],[1,1],[1,1,1],[1,2],[2],[2,1],[2,1,1],[2,1,1,1],[1,3],[3]);
-  join'',@{[qw/I V X L C D M/]}[map{my$i=$_;map($_+5-$i*2,@{$p[$n/10**(3-$i)%10]})}(0..3)];
+  my($n,@p)=(shift,[],[1],[1,1],[1,1,1],[1,2],[2],[2,1],[2,1,1],[2,1,1,1],[1,3],[3]);
+    !defined($n)? undef
+  : !length($n) ? ""
+  : int($n)!=$n ? croak"int2roman: $n is not an integer"
+  : $n==0       ? ""
+  : $n<0        ? "-".int2roman(-$n)
+  : $n>3999     ? "M".int2roman($n-1000)
+  : join'',@{[qw/I V X L C D M/]}[map{my$i=$_;map($_+5-$i*2,@{$p[$n/10**(3-$i)%10]})}(0..3)];
 }
 
 sub roman2int {
   my($r,$n,%c)=(shift,0,'',0,qw/I 1 V 5 X 10 L 50 C 100 D 500 M 1000/);
-  return -roman2int($r) if $r=~s,^-,,;
-  my $i="Invalid roman number $r";
-  $r=~s/((C?)([DM])|(X?)([LCDM])|(I?)([VXLCDM])|(I)|(.))/$n+=$c{$3||$5||$7||$8||''}-$c{$2||$4||$6||''};$9&&croak($i);''/eg;
-  $n;
+  $r=~s/^-//?-roman2int($r): 
+  $r=~s/(C?)([DM])|(X?)([LCDM])|(I?)([VXLCDM])|(I)|(.)/
+        croak "roman2int: Invalid number $r" if $8;
+        $n += $c{$2||$4||$6||$7} - $c{$1||$3||$5||''}; ''/eg && $n
 }
 
-sub roman2int_slow {
-  my $r=shift;
-     $r=~s,^\-,,  ?    0-roman2int($r)
-   : $r=~s,^M,,i  ? 1000+roman2int($r)
-   : $r=~s,^CM,,i ?  900+roman2int($r)
-   : $r=~s,^D,,i  ?  500+roman2int($r)
-   : $r=~s,^CD,,i ?  400+roman2int($r)
-   : $r=~s,^C,,i  ?  100+roman2int($r)
-   : $r=~s,^XC,,i ?   90+roman2int($r)
-   : $r=~s,^L,,i  ?   50+roman2int($r)
-   : $r=~s,^XL,,i ?   40+roman2int($r)
-   : $r=~s,^X,,i  ?   10+roman2int($r)
-   : $r=~s,^IX,,i ?    9+roman2int($r)
-   : $r=~s,^V,,i  ?    5+roman2int($r)
-   : $r=~s,^IV,,i ?    4+roman2int($r)
-   : $r=~s,^I,,i  ?    1+roman2int($r) 
-   : !length($r)  ?    0
-   : croak "Invalid roman number $r";
-}
+#sub roman2int_slow {
+#  my $r=shift;
+#     $r=~s,^\-,,  ?    0-roman2int($r)
+#   : $r=~s,^M,,i  ? 1000+roman2int($r)
+#   : $r=~s,^CM,,i ?  900+roman2int($r)
+#   : $r=~s,^D,,i  ?  500+roman2int($r)
+#   : $r=~s,^CD,,i ?  400+roman2int($r)
+#   : $r=~s,^C,,i  ?  100+roman2int($r)
+#   : $r=~s,^XC,,i ?   90+roman2int($r)
+#   : $r=~s,^L,,i  ?   50+roman2int($r)
+#   : $r=~s,^XL,,i ?   40+roman2int($r)
+#   : $r=~s,^X,,i  ?   10+roman2int($r)
+#   : $r=~s,^IX,,i ?    9+roman2int($r)
+#   : $r=~s,^V,,i  ?    5+roman2int($r)
+#   : $r=~s,^IV,,i ?    4+roman2int($r)
+#   : $r=~s,^I,,i  ?    1+roman2int($r) 
+#   : !length($r)  ?    0
+#   : croak "Invalid roman number $r";
+#}
 
 =head2 distance
 
