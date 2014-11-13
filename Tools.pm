@@ -1392,14 +1392,22 @@ See L<http://en.wikipedia.org/wiki/Roman_numbers> for more.
 #alternative algorithm: http://www.rapidtables.com/convert/number/how-number-to-roman-numerals.htm
 sub int2roman {
   my $n=shift;
-  return "-".int2roman(-$n) if $n<0;
-  return "M".int2roman($n) if $n>3999 and $n-=1000; #hm
+  return "-".int2roman(-$n)     if $n<0;
+  return "M".int2roman($n-1000) if $n>3999;
   croak "int2roman: $n is not an integer" if int($n)!=$n;
   my @p=([],[1],[1,1],[1,1,1],[1,2],[2],[2,1],[2,1,1],[2,1,1,1],[1,3],[3]);
   join'',@{[qw/I V X L C D M/]}[map{my$i=$_;map($_+5-$i*2,@{$p[$n/10**(3-$i)%10]})}(0..3)];
 }
 
-sub roman2int_old {
+sub roman2int {
+  my($r,$n,%c)=(shift,0,'',0,qw/I 1 V 5 X 10 L 50 C 100 D 500 M 1000/);
+  return -roman2int($r) if $r=~s,^-,,;
+  my $i="Invalid roman number $r";
+  $r=~s/((C?)([DM])|(X?)([LCDM])|(I?)([VXLCDM])|(I)|(.))/$n+=$c{$3||$5||$7||$8||''}-$c{$2||$4||$6||''};$9&&croak($i);''/eg;
+  $n;
+}
+
+sub roman2int_slow {
   my $r=shift;
      $r=~s,^\-,,  ?    0-roman2int($r)
    : $r=~s,^M,,i  ? 1000+roman2int($r)
@@ -1418,31 +1426,6 @@ sub roman2int_old {
    : !length($r)  ?    0
    : croak "Invalid roman number $r";
 }
-
-sub roman2int {
-  my $r=shift;
-  return -roman2int($r) if $r=~s,^-,,;
-  my %c=(qw/I 1 V 5 X 10 L 50 C 100 D 500 M 1000/,''=>0);
-  my $n=0;
-  $r=~s{^ (
-           (C?)([DM])
-         | (X?)([LCDM])
-         | (I?)([VXLCDM])
-         |     (I)
-         | (.)
-          )?
-       }{
-         $n +=    $3 ? $c{$3}-$c{$2}
-                : $5 ? $c{$5}-$c{$4}
-                : $7 ? $c{$7}-$c{$6}
-                : $8 ? 1
-                : $9 ? croak "Invalid roman number $r"
-                : 0 ;
-         '';
-       }exi while $r;
-  $n;
-}
-
 
 =head2 distance
 
