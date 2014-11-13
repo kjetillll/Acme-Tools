@@ -666,24 +666,78 @@ sub resolve
 
 Converts between units of:
 
- lenght:                  m, km, mil, dm, cm, mm, µm, nm, in, ft, yd, chain, furlong, mi, league, yard_imperical, NM
- length synonyms allowed: meter, meters, um (µm), inch, inches, feet, yard, mile, miles, nmi (NM), 'nautical miles'
+ acceleration: g, g0, m/s2, mps2
 
- mass:                    g, kg, t, lbs, seer
-                          gram, grams, kilo, kilos, tonne, tonn, pound(s), 
+ angle:        binary_degree, binary_radian, brad, deg, degree, degrees,
+               gon, grad, grade, gradian, gradians, hexacontade, hour,
+               new_degree, nygrad, point, quadrant, rad, radian, radians,
+               sextant, turn
 
- area:
- volume:
- time:
- speed:
- accelleration:
- weight:
- #temperature:
- current:
- power:
- bytes:
- milage:
- monetary (currency):
+ area:         a, ar, are, ares, bunder, ca, centiare, cho, cm2,
+               daa, decare, decares, deciare, dekar,
+               djerib, m2, dunam, dönüm, earths, feddan, ft2, gongqing, ha
+               ha, hectare, hectares, hektar, jerib, km2, m2, manzana,
+               mi2, mm2, mu, qing, rai, sotka,
+               sqcm, sqft, sqkm, sqm, sqmi, sqmm
+               stremmata, um2, µm2
+
+ bytes:        Eb, Gb, Kb, KiB, Mb, Pb, Tb, Yb, Zb, b, byte, eb, exabyte,
+               gb, gigabyte, kb, kilobyte, mb, megabyte, pb, petabyte,
+               tb, terabyte, yb, yottabyte, zb, zettabyte
+
+ charge:       As, C, _e, coulomb, e
+
+ current:      A, N/m2
+
+ energy:       BTU, Btu, J, Nm, W/s, Wh, Wps, Ws, _J, _eV,
+               cal, calorie, calories, eV, electronvolt,
+               erg, ergs, foot-pound, foot-pounds, ftlb, joule, kWh,
+               kcal, kilocalorie, kilocalories,
+               newtonmeter, newtonmeters, th, thermie
+
+ force:        N,_N, dyn, dyne, dynes, lb, newton
+
+ length:       NM, _m, _pc, astronomical unit, au, chain, ft, furlong,
+               in, inch, inches, km, league, lightyear, ls, ly,
+               m, meter, meters, mi, mil, mile, miles,
+               nautical mile, nautical miles, nmi,
+               parsec, pc, planck, yard, yard_imperical, yd, Å, ångstrøm
+
+ mass:         Da, _eV, _g, bag, carat, ct, dwt, eV, electronvolt, g,
+               grain, grains, gram, grams, kilo, kilos, kt, lb, lb_av,
+               lb_t, lb_troy, lbs, ounce, ounce_av, ounce_troy, oz, oz_av, oz_t,
+               pennyweight, pound, pound_av, pound_metric, pound_troy, pounds,
+               pwt, seer, sl, slug, solar mass, st, stone, t, tonn, tonne, tonnes, u, wey
+
+ milage:       l/100km, l/km, l/mil, liter_pr_100km, liter_pr_km, lp100km, mpg
+
+ money:        AUD, BGN, BRL, BTC, BYR, CAD, CHF, CNY, CZK, DKK, EUR,
+               GBP, HKD, HRK, HUF, I44, IDR, ILS, INR, ISK, JPY, KRW,
+               LTC, LTL, MXN, MYR, NOK, NZD, PHP, PKR, PLN, RON, RUB,
+               SEK, SGD, THB, TRY, TWD, TWI, USD, XDR, ZAR
+
+ power:        BTU, BTU/h, BTU/s, BTUph, GWhpy, J/s, Jps, MWhpy, TWhpy,
+               W, Whpy, _W, ftlb/min, ftlb/s, hk, hp, kWh/yr, kWhpy
+
+ pressure:     N/m2, Pa, _Pa, at, atm, bar, mbar, pascal, psi, torr
+
+ radioactivity: Bq, becquerel, curie
+
+ speed:        _m/s, c, fps, ft/s, ftps, km/h, km/t, kmh, kmph, kmt,
+               kn, knot, knots, kt, m/s, mach, machs, mi/h, mph, mps
+
+ temperature:  C, F, K
+
+ time:         _s, biennium, century, d, day, days, decade, dy, fortnight,
+               h, hour, hours, hr, indiction, jubilee, ke, lustrum, m,
+               millennium, min, minute, minutes, mo, moment, mon, month,
+               olympiad, quarter, s, season, sec, second, seconds, shake,
+               tp, triennium, w, week, weeks, y, y365, ySI, ycommon,
+               year, years, ygregorian, yjulian, ysideral, ytropical
+
+ volume:        L, _L, _l, cm3, floz, ft3, gal, gallon, gallon_imp, gallon_uk,
+               gallon_us, gallons, in3, l, liter, liters, m3, pint, pint_imp,
+               pint_uk, pint_us, tablespoon, teaspoon, therm, thm, tsp
 
 Examples:
 
