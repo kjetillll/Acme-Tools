@@ -3,7 +3,7 @@ package Acme::Tools;
 
 our $VERSION = '0.15';
 
-use 5.008;     #released July 18th 2002
+use 5.008;     #5.8 from July 18th 2002
 use strict;
 use warnings;
 use Carp;
@@ -195,7 +195,7 @@ Almost every sub, about 90 of them.
 
 Beware of namespace pollution. But what did you expect from an Acme module?
 
-=head1 NUMBERS, SETS, ARRAYS, STATISTICS
+=head1 NUMBERS, SETS, ARRAYS
 
 =head2 min
 
@@ -239,295 +239,6 @@ sub min  {my $min;for(@_){ $min=$_ if defined($_) and !defined($min) || $_ < $mi
 sub mins {my $min;for(@_){ $min=$_ if defined($_) and !defined($min) || $_ lt $min} $min }
 sub max  {my $max;for(@_){ $max=$_ if defined($_) and !defined($max) || $_ > $max } $max }
 sub maxs {my $max;for(@_){ $max=$_ if defined($_) and !defined($max) || $_ gt $max} $max }
-
-=head2 sum
-
-Returns the sum of a list of numbers. Undef is ignored.
-
- print sum(1,3,undef,8);   # 12
- print sum(1..1000);       # 500500
- print sum(undef);         # undef
-
-=cut
-
-sub sum { my $sum; no warnings; defined($_) and $sum+=$_ for @_; $sum }
-
-=head2 avg
-
-Returns the I<average> number of a list of numbers. That is C<sum / count>
-
- print avg(  2, 4, 9);   # 5      (2+4+9) / 3 = 5
- print avg( [2, 4, 9] ); # 5      pass by reference, same result but faster for large arrays
-
-Also known as I<arithmetic mean>.
-
-Pass by reference: If one argument is given and it is a reference to an array,
-this array is taken as the list of numbers. This mode is about twice as fast
-for 10000 numbers or more. It most likely also saves memory.
-
-=cut
-
-sub avg {
-  my($sum,$n,@a)=(0,0);
-  no warnings;
-  if( @_==0 )                          { return undef             }
-  if( @_==1 and ref($_[0]) eq 'ARRAY' ){ @a=grep defined,@{$_[0]} }
-  else                                 { @a=grep defined,@_       }
-  if( @a==0 )                          { return undef             }
-  $sum+=$_ for @a;
-  return $sum/@a
-}
-
-=head2 geomavg
-
-Returns the I<geometric average> (a.k.a I<geometric mean>) of a list of numbers.
-
- print geomavg(10,100,1000,10000,100000);               # 1000
- print 0+ (10*100*1000*10000*100000) ** (1/5);          # 1000 same thing
- print exp(avg(map log($_),10,100,1000,10000,100000));  # 1000 same thing, this is how geomavg() works internally
-
-=cut
-
-sub geomavg { exp(avg(map log($_), @_)) }
-
-=head2 harmonicavg
-
-Returns the I<harmonic average> (a.k.a I<geometric mean>) of a list of numbers. L<http://en.wikipedia.org/wiki/Harmonic_mean>
-
- print harmonicavg(10,11,12);               # 3 / ( 1/10 + 1/11 + 1/12) = 10.939226519337
-
-=cut
-
-sub harmonicavg { my $s; $s+=1/$_ for @_; @_/$s }
-
-=head2 variance
-
-C<< variance = ( sum (x[i]-Average)**2)/(n-1) >>
-
-=cut
-
-sub variance {
-  my $sumx2; $sumx2+=$_*$_ for @_;
-  my $sumx; $sumx+=$_ for @_;
-  (@_*$sumx2-$sumx*$sumx)/(@_*(@_-1));
-}
-
-=head2 stddev
-
-C<< Standard_Deviation = sqrt(variance) >>
-
-Standard deviation (stddev) is a measurement of the width of a normal
-distribution where one stddev on each side of the mean covers 68% and
-two stddevs 95%.  Normal distributions are sometimes called Gauss curves
-or Bell shapes. L<https://en.wikipedia.org/wiki/Standard_deviation>
-
- stddev(4,5,6,5,6,4,3,5,5,6,7,6,5,7,5,6,4)             # = 1.0914103126635
- avg(@IQtestscores) + stddev(@IQtestscores)            # = the score for IQ = 115 (by one definition)
- avg(@IQtestscores) - stddev(@IQtestscores)            # = the score for IQ = 85
-
-=cut
-
-sub stddev {
-  return undef        if @_==0;
-  return stddev(\@_)  if @_>0 and !ref($_[0]);
-  my $ar=shift;
-  return undef        if @$ar==0;
-  return 0            if @$ar==1;
-  my $sumx2; $sumx2 += $_*$_ for @$ar;
-  my $sumx;  $sumx  += $_    for @$ar;
-  sqrt( (@$ar*$sumx2-$sumx*$sumx)/(@$ar*(@$ar-1)) );
-}
-
-
-=head2 median
-
-Returns the median value of a list of numbers. The list do not have to
-be sorted.
-
-Example 1, list having an odd number of numbers:
-
- print median(1, 100, 101);   # 100
-
-100 is the middlemost number after sorting.
-
-Example 2, an even number of numbers:
-
- print median(1005, 100, 101, 99);   # 100.5
-
-100.5 is the average of the two middlemost numbers.
-
-=cut
-
-sub median {
-  no warnings;
-  my @list = sort {$a<=>$b} @_;
-  my $n=@list;
-  $n%2
-    ? $list[($n-1)/2]
-    : ($list[$n/2-1] + $list[$n/2])/2;
-}
-
-
-=head2 percentile
-
-Returns one or more percentiles of a list of numbers.
-
-Percentile 50 is the same as the I<median>, percentile 25 is the first
-quartile, 75 is the third quartile.
-
-B<Input:>
-
-First argument is your wanted percentile, or a refrence to a list of percentiles you want from the dataset.
-
-If the first argument to percentile() is a scalar, this percentile is returned.
-
-If the first argument is a reference to an array, then all those percentiles are returned as an array.
-
-Second, third, fourth and so on argument are the numbers from which you want to find the percentile(s).
-
-B<Examples:>
-
-This finds the 50-percentile (the median) to the four numbers 1, 2, 3 and 4:
-
- print "Median = " . percentile(50, 1,2,3,4);   # 2.5
-
-This:
-
- @data=(11, 5, 3, 5, 7, 3, 1, 17, 4, 2, 6, 4, 12, 9, 0, 5);
- @p = map percentile($_,@data), (25, 50, 75);
-
-Is the same as this:
-
- @p = percentile([25, 50, 75], @data);
-
-But the latter is faster, especially if @data is large since it sorts
-the numbers only once internally.
-
-B<Example:>
-
-Data: 1, 4, 6, 7, 8, 9, 22, 24, 39, 49, 555, 992
-
-Average (or mean) is 143
-
-Median is 15.5 (which is the average of 9 and 22 who both equally lays in the middle)
-
-The 25-percentile is 6.25 which are between 6 and 7, but closer to 6.
-
-The 75-percentile is 46.5, which are between 39 and 49 but close to 49.
-
-Linear interpolation is used to find the 25- and 75-percentile and any
-other x-percentile which doesn't fall exactly on one of the numbers in
-the set.
-
-B<Interpolation:>
-
-As you saw, 6.25 are closer to 6 than to 7 because 25% along the set of
-the twelve numbers is closer to the third number (6) than to he fourth
-(7). The median (50-percentile) is also really interpolated, but it is
-always in the middle of the two center numbers if there are an even count
-of numbers.
-
-However, there is two methods of interpolation:
-
-Example, we have only three numbers: 5, 6 and 7.
-
-Method 1: The most common is to say that 5 and 7 lays on the 25- and
-75-percentile. This method is used in Acme::Tools.
-
-Method 2: In Oracle databases the least and greatest numbers
-always lay on the 0- and 100-percentile.
-
-As an argument on why Oracles (and others?) definition is not the best way is to
-look at your data as for instance temperature measurements.  If you
-place the highest temperature on the 100-percentile you are sort of
-saying that there can never be a higher temperatures in future measurements.
-
-A quick non-exhaustive Google survey suggests that method 1 here is most used.
-
-The larger the data sets, the less difference there is between the two methods.
-
-B<Extrapolation:>
-
-In method one, when you want a percentile outside of any possible
-interpolation, you use the smallest and second smallest to extrapolate
-from. For instance in the data set C<5, 6, 7>, if you want an
-x-percentile of x < 25, this is below 5.
-
-If you feel tempted to go below 0 or above 100, C<percentile()> will
-I<die> (or I<croak> to be more precise)
-
-Another method could be to use "soft curves" instead of "straight
-lines" in interpolation. Maybe B-splines or Bezier curves. This is not
-used here.
-
-For large sets of data Hoares algorithm would be faster than the
-simple straightforward implementation used in C<percentile()>
-here. Hoares don't sort all the numbers fully.
-
-B<Differences between the two main methods described above:>
-
- Data: 1, 4, 6, 7, 8, 9, 22, 24, 39, 49, 555, 992
-
- Percentile  Method 1                    Method 2
-             (Acme::Tools::percentile  (Oracle)
-             and others)
- ----------- --------------------------- ---------
- 0           -2                          1
- 1           -1.61                       1.33
- 25          6.25                        6.75
- 50 (median) 15.5                        15.5
- 75          46.5                        41.5
- 99          1372.19                     943.93
- 100         1429                        992
-
-Found like this:
-
- perl -MAcme::Tools -le 'print for percentile([0,1,25,50,75,99,100], 1,4,6,7,8,9,22,24,39,49,555,992)'
-
-And like this in Oracle-databases:
-
- create table tmp (n number);
- insert into tmp values (1); insert into tmp values (4); insert into tmp values (6);
- insert into tmp values (7); insert into tmp values (8); insert into tmp values (9);
- insert into tmp values (22); insert into tmp values (24); insert into tmp values (39);
- insert into tmp values (49); insert into tmp values (555); insert into tmp values (992);
- select
-   percentile_cont(0.00) within group(order by n) per0,
-   percentile_cont(0.01) within group(order by n) per1,
-   percentile_cont(0.25) within group(order by n) per25,
-   percentile_cont(0.50) within group(order by n) per50,
-   percentile_cont(0.75) within group(order by n) per75,
-   percentile_cont(0.99) within group(order by n) per99,
-   percentile_cont(1.00) within group(order by n) per100
- from tmp;
-
-(Oracle also provides a similar function: C<percentile_disc> where I<disc>
-is short for I<discrete>, meaning no interpolation is taking
-place. Instead the closest number from the data set is picked.)
-
-=cut
-
-sub percentile {
-  my(@p,@t,@ret);
-  if(ref($_[0]) eq 'ARRAY'){ @p=@{shift()} }
-  elsif(not ref($_[0]))    { @p=(shift())  }
-  else{croak()}
-  @t=@_;
-  return if not @p;
-  croak if not @t;
-  @t=sort{$a<=>$b}@t;
-  push@t,$t[0] if @t==1;
-  for(@p){
-    croak if $_<0 or $_>100;
-    my $i=(@t+1)*$_/100-1;
-    push@ret,
-      $i<0       ? $t[0]+($t[1]-$t[0])*$i:
-      $i>$#t     ? $t[-1]+($t[-1]-$t[-2])*($i-$#t):
-      $i==int($i)? $t[$i]:
-                   $t[$i]*(int($i+1)-$i) + $t[$i+1]*($i-int($i));
-  }
-  return @p==1 ? $ret[0] : @ret;
-}
 
 =head2 resolve
 
@@ -1500,47 +1211,56 @@ sub distance {
 
 =head2 bigf
 
+=head2 bigr
+
 =head2 bigscale
 
-big, bigi, bigf and bigscale are just convenient shorthands for using
-L<Math::BigInt>->new() and L<Math::BigFloat>->new() preferably with
-the GMP for faster calculations. Use those modules instead of the real
-deal. Examples:
+big, bigi, bigf, bigr and bigscale are just convenient shorthands for using
+L<Math::BigInt>->new(), L<Math::BigFloat>->new() and L<Math::BigRat>-new()
+preferably with the GMP for faster calculations. Use those modules instead
+of the real deal. Examples:
 
   my $num1 = big(3);      #returns a new Math::BigInt-object
   my $num2 = big('3.0');  #returns a new Math::BigFloat-object
   my $num3 = big(3.0);    #returns a new Math::BigInt-object
   my $num4 = big(3.1);    #returns a new Math::BigFloat-object
-  my($int1,$float1,$int2,$float2) = big(3,'3.0',3.0,3.1); #returns the four new numbers, as the above four lines
-                                                          #uses wantarray
+  my $num5 = big('2/7');  #returns a new Math::BigRat-object
+  my($i1,$f1,$i2,$f2) = big(3,'3.0',3.0,3.1); #returns the four new numbers, as the above four lines
+                                              #uses wantarray
 
-  print 2**1000;          # 1.60693804425899e+60
-  print big(2)**1000;     # 1606938044258990275541962092341162602522202993782792835301376
-  print 2**big(1000);     # 1606938044258990275541962092341162602522202993782792835301376
+  print 2**200;       # 1.60693804425899e+60
+  print big(2)**200;  # 1606938044258990275541962092341162602522202993782792835301376
+  print 2**big(200);  # 1606938044258990275541962092341162602522202993782792835301376
+  print big(2**200);  # 1606938044258990000000000000000000000000000000000000000000000 
 
-  print 1/7;              # 0.142857142857143
-  print 1/big(7);         # 0      because of integer arithmetics
-  print 1/big(7.0);       # 0      because of integer arithmetics
-  print 1/big('7.0');     # 0.1428571428571428571428571428571428571429
-  print 1/bigf(7);        # 0.1428571428571428571428571428571428571429
-  print bigf(1/7);        # 0.142857142857143   probably not what you wanted
+  print 1/7;          # 0.142857142857143
+  print 1/big(7);     # 0      because of integer arithmetics
+  print 1/big(7.0);   # 0      because 7.0 is viewed as an integer
+  print 1/big('7.0'); # 0.1428571428571428571428571428571428571429
+  print 1/bigf(7);    # 0.1428571428571428571428571428571428571429
+  print bigf(1/7);    # 0.142857142857143   probably not what you wanted
 
-  bigscale(60);           #increase precesion from the default 40
-  print 1/bigf(7);        #0.142857142857142857142857142857142857142857142857142857142857
+  print 1/bigf(7);    # 0.1428571428571428571428571428571428571429
+  bigscale(80);       # for increased precesion (default is 40)
+  print 1/bigf(7);    # 0.14285714285714285714285714285714285714285714285714285714285714285714285714285714
 
-Instead of guessing on int or float by looking for a C<.> character
-like C<big> do, C<bigi> and C<bigf> explicitly orders int and float
-respectively.
+In C<big()> the characters C<< . >> and C<< / >> will make it return a
+Math::BigFloat- and Math::BigRat-object accordingly. Or else a Math::BigInt-object is returned.
 
-B<Note:> Acme::Tools does not itself require Math::BigInt and
-Math::BigFloat and GMP, but these four big*-subs do (by internal
-C<require>).  To use big, bigi and bigf effectively you should
+Instead of guessing, use C<bigi>, C<bigf> and C<bigr> to return what you want.
+
+B<Note:> Acme::Tools does not depend on Math::BigInt and
+Math::BigFloat and GMP, but these four big*-subs do (by C<require>).
+To use big, bigi, bigf and bigr effectively you should
 install Math::BigInt::GMP and Math::BigFloat::GMP like this:
 
   sudo cpanm Math::BigFloat Math::GMP Math::BingInt::GMP         # or
   sudo cpan  Math::BigFloat Math::GMP Math::BingInt::GMP         # or
   sudo yum install perl-Math-BigInt-GMP perl-Math-GMP            # on RedHat, RHEL or
   sudo apt-get install libmath-bigint-gmp-perl libmath-gmp-perl  # on Ubuntu or some other way
+
+Unless GMP is installed for perl like this, the Math::Big*-modules
+will fall back to using similar but slower built in modules. See: L<https://gmplib.org/>
 
 =cut
 
@@ -1567,10 +1287,12 @@ sub big {
 sub bigscale {
   @_==1 or croak "bigscale requires one and only one argument";
   my $scale=shift();
-  eval{no warnings;q(use Math::BigInt    try=>"GMP")} if not $INC{'Math/BigInt.pm'};
-  eval{no warnings;q(use Math::BigFloat  try=>"GMP")} if not $INC{'Math/BigFloat.pm'};
+  eval q(use Math::BigInt    try=>"GMP") if not $INC{'Math/BigInt.pm'};
+  eval q(use Math::BigFloat  try=>"GMP") if not $INC{'Math/BigFloat.pm'};
+  eval q(use Math::BigRat    try=>"GMP") if not $INC{'Math/BigRat.pm'};
   Math::BigInt->div_scale($scale);
   Math::BigFloat->div_scale($scale);
+  Math::BigRat->div_scale($scale);
   return;
 }
 
@@ -1627,6 +1349,539 @@ sub fractional { #http://mathcentral.uregina.ca/QQ/database/QQ.09.06/h/lil1.html
   }
   &$st();
   wantarray ? ($te,$ne) : "$te/$ne"; #gcd()
+}
+
+=head1 STATISTICS
+
+=head2 sum
+
+Returns the sum of a list of numbers. Undef is ignored.
+
+ print sum(1,3,undef,8);   # 12
+ print sum(1..1000);       # 500500
+ print sum(undef);         # undef
+
+=cut
+
+sub sum { my $sum; no warnings; defined($_) and $sum+=$_ for @_; $sum }
+
+=head2 avg
+
+Returns the I<average> number of a list of numbers. That is C<sum / count>
+
+ print avg(  2, 4, 9);   # 5      (2+4+9) / 3 = 5
+ print avg( [2, 4, 9] ); # 5      pass by reference, same result but faster for large arrays
+
+Also known as I<arithmetic mean>.
+
+Pass by reference: If one argument is given and it is a reference to an array,
+this array is taken as the list of numbers. This mode is about twice as fast
+for 10000 numbers or more. It most likely also saves memory.
+
+=cut
+
+sub avg {
+  my($sum,$n,@a)=(0,0);
+  no warnings;
+  if( @_==0 )                          { return undef             }
+  if( @_==1 and ref($_[0]) eq 'ARRAY' ){ @a=grep defined,@{$_[0]} }
+  else                                 { @a=grep defined,@_       }
+  if( @a==0 )                          { return undef             }
+  $sum+=$_ for @a;
+  return $sum/@a
+}
+
+=head2 geomavg
+
+Returns the I<geometric average> (a.k.a I<geometric mean>) of a list of numbers.
+
+ print geomavg(10,100,1000,10000,100000);               # 1000
+ print 0+ (10*100*1000*10000*100000) ** (1/5);          # 1000 same thing
+ print exp(avg(map log($_),10,100,1000,10000,100000));  # 1000 same thing, this is how geomavg() works internally
+
+=cut
+
+sub geomavg { exp(avg(map log($_), @_)) }
+
+=head2 harmonicavg
+
+Returns the I<harmonic average> (a.k.a I<geometric mean>) of a list of numbers. L<http://en.wikipedia.org/wiki/Harmonic_mean>
+
+ print harmonicavg(10,11,12);               # 3 / ( 1/10 + 1/11 + 1/12) = 10.939226519337
+
+=cut
+
+sub harmonicavg { my $s; $s+=1/$_ for @_; @_/$s }
+
+=head2 variance
+
+C<< variance = ( sum (x[i]-Average)**2)/(n-1) >>
+
+=cut
+
+sub variance {
+  my $sumx2; $sumx2+=$_*$_ for @_;
+  my $sumx; $sumx+=$_ for @_;
+  (@_*$sumx2-$sumx*$sumx)/(@_*(@_-1));
+}
+
+=head2 stddev
+
+C<< Standard_Deviation = sqrt(variance) >>
+
+Standard deviation (stddev) is a measurement of the width of a normal
+distribution where one stddev on each side of the mean covers 68% and
+two stddevs 95%.  Normal distributions are sometimes called Gauss curves
+or Bell shapes. L<https://en.wikipedia.org/wiki/Standard_deviation>
+
+ stddev(4,5,6,5,6,4,3,5,5,6,7,6,5,7,5,6,4)             # = 1.0914103126635
+ avg(@IQtestscores) + stddev(@IQtestscores)            # = the score for IQ = 115 (by one definition)
+ avg(@IQtestscores) - stddev(@IQtestscores)            # = the score for IQ = 85
+
+=cut
+
+sub stddev {
+  return undef        if @_==0;
+  return stddev(\@_)  if @_>0 and !ref($_[0]);
+  my $ar=shift;
+  return undef        if @$ar==0;
+  return 0            if @$ar==1;
+  my $sumx2; $sumx2 += $_*$_ for @$ar;
+  my $sumx;  $sumx  += $_    for @$ar;
+  sqrt( (@$ar*$sumx2-$sumx*$sumx)/(@$ar*(@$ar-1)) );
+}
+
+
+=head2 median
+
+Returns the median value of a list of numbers. The list do not have to
+be sorted.
+
+Example 1, list having an odd number of numbers:
+
+ print median(1, 100, 101);   # 100
+
+100 is the middlemost number after sorting.
+
+Example 2, an even number of numbers:
+
+ print median(1005, 100, 101, 99);   # 100.5
+
+100.5 is the average of the two middlemost numbers.
+
+=cut
+
+sub median {
+  no warnings;
+  my @list = sort {$a<=>$b} @_;
+  my $n=@list;
+  $n%2
+    ? $list[($n-1)/2]
+    : ($list[$n/2-1] + $list[$n/2])/2;
+}
+
+
+=head2 percentile
+
+Returns one or more percentiles of a list of numbers.
+
+Percentile 50 is the same as the I<median>, percentile 25 is the first
+quartile, 75 is the third quartile.
+
+B<Input:>
+
+First argument is your wanted percentile, or a refrence to a list of percentiles you want from the dataset.
+
+If the first argument to percentile() is a scalar, this percentile is returned.
+
+If the first argument is a reference to an array, then all those percentiles are returned as an array.
+
+Second, third, fourth and so on argument are the numbers from which you want to find the percentile(s).
+
+B<Examples:>
+
+This finds the 50-percentile (the median) to the four numbers 1, 2, 3 and 4:
+
+ print "Median = " . percentile(50, 1,2,3,4);   # 2.5
+
+This:
+
+ @data=(11, 5, 3, 5, 7, 3, 1, 17, 4, 2, 6, 4, 12, 9, 0, 5);
+ @p = map percentile($_,@data), (25, 50, 75);
+
+Is the same as this:
+
+ @p = percentile([25, 50, 75], @data);
+
+But the latter is faster, especially if @data is large since it sorts
+the numbers only once internally.
+
+B<Example:>
+
+Data: 1, 4, 6, 7, 8, 9, 22, 24, 39, 49, 555, 992
+
+Average (or mean) is 143
+
+Median is 15.5 (which is the average of 9 and 22 who both equally lays in the middle)
+
+The 25-percentile is 6.25 which are between 6 and 7, but closer to 6.
+
+The 75-percentile is 46.5, which are between 39 and 49 but close to 49.
+
+Linear interpolation is used to find the 25- and 75-percentile and any
+other x-percentile which doesn't fall exactly on one of the numbers in
+the set.
+
+B<Interpolation:>
+
+As you saw, 6.25 are closer to 6 than to 7 because 25% along the set of
+the twelve numbers is closer to the third number (6) than to he fourth
+(7). The median (50-percentile) is also really interpolated, but it is
+always in the middle of the two center numbers if there are an even count
+of numbers.
+
+However, there is two methods of interpolation:
+
+Example, we have only three numbers: 5, 6 and 7.
+
+Method 1: The most common is to say that 5 and 7 lays on the 25- and
+75-percentile. This method is used in Acme::Tools.
+
+Method 2: In Oracle databases the least and greatest numbers
+always lay on the 0- and 100-percentile.
+
+As an argument on why Oracles (and others?) definition is not the best way is to
+look at your data as for instance temperature measurements.  If you
+place the highest temperature on the 100-percentile you are sort of
+saying that there can never be a higher temperatures in future measurements.
+
+A quick non-exhaustive Google survey suggests that method 1 here is most used.
+
+The larger the data sets, the less difference there is between the two methods.
+
+B<Extrapolation:>
+
+In method one, when you want a percentile outside of any possible
+interpolation, you use the smallest and second smallest to extrapolate
+from. For instance in the data set C<5, 6, 7>, if you want an
+x-percentile of x < 25, this is below 5.
+
+If you feel tempted to go below 0 or above 100, C<percentile()> will
+I<die> (or I<croak> to be more precise)
+
+Another method could be to use "soft curves" instead of "straight
+lines" in interpolation. Maybe B-splines or Bezier curves. This is not
+used here.
+
+For large sets of data Hoares algorithm would be faster than the
+simple straightforward implementation used in C<percentile()>
+here. Hoares don't sort all the numbers fully.
+
+B<Differences between the two main methods described above:>
+
+ Data: 1, 4, 6, 7, 8, 9, 22, 24, 39, 49, 555, 992
+
+ Percentile  Method 1                    Method 2
+             (Acme::Tools::percentile  (Oracle)
+             and others)
+ ----------- --------------------------- ---------
+ 0           -2                          1
+ 1           -1.61                       1.33
+ 25          6.25                        6.75
+ 50 (median) 15.5                        15.5
+ 75          46.5                        41.5
+ 99          1372.19                     943.93
+ 100         1429                        992
+
+Found like this:
+
+ perl -MAcme::Tools -le 'print for percentile([0,1,25,50,75,99,100], 1,4,6,7,8,9,22,24,39,49,555,992)'
+
+And like this in Oracle-databases:
+
+ create table tmp (n number);
+ insert into tmp values (1); insert into tmp values (4); insert into tmp values (6);
+ insert into tmp values (7); insert into tmp values (8); insert into tmp values (9);
+ insert into tmp values (22); insert into tmp values (24); insert into tmp values (39);
+ insert into tmp values (49); insert into tmp values (555); insert into tmp values (992);
+ select
+   percentile_cont(0.00) within group(order by n) per0,
+   percentile_cont(0.01) within group(order by n) per1,
+   percentile_cont(0.25) within group(order by n) per25,
+   percentile_cont(0.50) within group(order by n) per50,
+   percentile_cont(0.75) within group(order by n) per75,
+   percentile_cont(0.99) within group(order by n) per99,
+   percentile_cont(1.00) within group(order by n) per100
+ from tmp;
+
+(Oracle also provides a similar function: C<percentile_disc> where I<disc>
+is short for I<discrete>, meaning no interpolation is taking
+place. Instead the closest number from the data set is picked.)
+
+=cut
+
+sub percentile {
+  my(@p,@t,@ret);
+  if(ref($_[0]) eq 'ARRAY'){ @p=@{shift()} }
+  elsif(not ref($_[0]))    { @p=(shift())  }
+  else{croak()}
+  @t=@_;
+  return if not @p;
+  croak if not @t;
+  @t=sort{$a<=>$b}@t;
+  push@t,$t[0] if @t==1;
+  for(@p){
+    croak if $_<0 or $_>100;
+    my $i=(@t+1)*$_/100-1;
+    push@ret,
+      $i<0       ? $t[0]+($t[1]-$t[0])*$i:
+      $i>$#t     ? $t[-1]+($t[-1]-$t[-2])*($i-$#t):
+      $i==int($i)? $t[$i]:
+                   $t[$i]*(int($i+1)-$i) + $t[$i+1]*($i-int($i));
+  }
+  return @p==1 ? $ret[0] : @ret;
+}
+
+=head1 RANDOM
+
+=head2 random
+
+B<Input:> One or two arguments.
+
+B<Output:>
+
+If two integer arguments: returns a random integer between the integers in argument one and two.
+
+If the first argument is an arrayref: returns a random member of that array without changing the array.
+
+If the first argument is an arrayref and there is a second arg: return that many random members of that array
+
+If the first argument is an hashref and there is no second arg: return a random key weighted by the values of that hash
+
+If the first argument is an hashref and there is a second arg: return that many random keys weighted by the values of that hash
+
+If there is no second argument and the first is an integer, a random integer between 0 and that number is returned. Including 0 and the number itself.
+
+B<Examples:>
+
+ $dice=random(1,6);                                      # 1, 2, 3, 4, 5 or 6
+ $dice=random([1..6]);                                   # same as previous
+ @dice=random([1..6],10);                                # 10 dice tosses
+ $dice=random({1=>1, 2=>1, 3=>1, 4=>1, 5=>1, 6=>2});     # weighted dice with 6 being twice as likely as the others
+ @dice=random({1=>1, 2=>1, 3=>1, 4=>1, 5=>1, 6=>2},10);  # 10 weighted dice tosses
+ print random({head=>0.4999,tail=>0.4999,edge=>0.0002}); # coin toss (sum 1 here but not required to be)
+ print random(2);                                        # prints 0, 1 or 2
+ print 2**random(7);                                     # prints 1, 2, 4, 8, 16, 32, 64 or 128
+ @dice=map random([1..6]), 1..10;                        # as third example above, but much slower
+ perl -MAcme::Tools -le 'print for random({head=>0.499,tail=>0.499,edge=>0.002},10000);' | sort | uniq -c
+
+=cut
+
+sub random {
+  my($from,$to)=@_;
+  my $ref=ref($from);
+  if($ref eq 'ARRAY'){
+    my @r=map $$from[rand@$from], 1..$to||1;
+    return @_>1?@r:$r[0];
+  }
+  elsif($ref eq 'HASH') {
+    my @k=keys%$from;
+    my $max;do{no warnings 'uninitialized';$_>$max and $max=$_ or $_<0 and croak"negative weight" for values%$from};
+    my @r=map {my$r;1 while $$from{$r=$k[rand@k]}<rand($max);$r} 1..$to||1;
+    return @_>1?@r:$r[0];
+  }
+  ($from,$to)=(0,$from) if @_==1;
+  ($from,$to)=($to,$from) if $from>$to;
+  return int($from+rand(1+$to-$from));
+}
+
+=head2 random_gauss
+
+Returns an pseudo-random number with a Gaussian distribution instead
+of the uniform distribution of perls C<rand()> or C<random()> in this
+module.  The algorithm is a variation of the one at
+L<http://www.taygeta.com/random/gaussian.html> which is both faster
+and better than adding a long series of C<rand()>.
+
+Uses perls C<rand> function internally.
+
+B<Input:> 0 - 3 arguments.
+
+First argument: the average of the distribution. Default 0.
+
+Second argument: the standard deviation of the distribution. Default 1.
+
+Third argument: If a third argument is present, C<random_gauss>
+returns an array of that many pseudo-random numbers. If there is no
+third argument, a number (a scalar) is returned.
+
+B<Output:> One or more pseudo-random numbers with a Gaussian distribution. Also known as a Bell curve or Normal distribution.
+
+Example:
+
+ my @I=random_gauss(100, 15, 100000);         # produces 100000 pseudo-random numbers, average=100, stddev=15
+ #my @I=map random_gauss(100, 15), 1..100000; # same but more than three times slower
+ print "Average is:    ".avg(@I)."\n";        # prints a number close to 100
+ print "Stddev  is:    ".stddev(@I)."\n";     # prints a number close to 15
+
+ my @M=grep $_>100+15*2, @I;                  # those above 130
+ print "Percent above two stddevs: ".(100*@M/@I)."%\n"; #prints a number close to 2.2%
+
+Example 2:
+
+ my $num=1e6;
+ my @h; $h[$_/2]++ for random_gauss(100,15, $num);
+ $h[$_] and printf "%3d - %3d %6d %s\n",
+   $_*2,$_*2+1,$h[$_],'=' x ($h[$_]*1000/$num)
+     for 1..200/2;
+
+...prints an example of the famous Bell curve:
+
+  44 -  45     70 
+  46 -  47    114 
+  48 -  49    168 
+  50 -  51    250 
+  52 -  53    395 
+  54 -  55    588 
+  56 -  57    871 
+  58 -  59   1238 =
+  60 -  61   1807 =
+  62 -  63   2553 ==
+  64 -  65   3528 ===
+  66 -  67   4797 ====
+  68 -  69   6490 ======
+  70 -  71   8202 ========
+  72 -  73  10577 ==========
+  74 -  75  13319 =============
+  76 -  77  16283 ================
+  78 -  79  20076 ====================
+  80 -  81  23742 =======================
+  82 -  83  27726 ===========================
+  84 -  85  32205 ================================
+  86 -  87  36577 ====================================
+  88 -  89  40684 ========================================
+  90 -  91  44515 ============================================
+  92 -  93  47575 ===============================================
+  94 -  95  50098 ==================================================
+  96 -  97  52062 ====================================================
+  98 -  99  53338 =====================================================
+ 100 - 101  52834 ====================================================
+ 102 - 103  52185 ====================================================
+ 104 - 105  50472 ==================================================
+ 106 - 107  47551 ===============================================
+ 108 - 109  44471 ============================================
+ 110 - 111  40704 ========================================
+ 112 - 113  36642 ====================================
+ 114 - 115  32171 ================================
+ 116 - 117  28166 ============================
+ 118 - 119  23618 =======================
+ 120 - 121  19873 ===================
+ 122 - 123  16360 ================
+ 124 - 125  13452 =============
+ 126 - 127  10575 ==========
+ 128 - 129   8283 ========
+ 130 - 131   6224 ======
+ 132 - 133   4661 ====
+ 134 - 135   3527 ===
+ 136 - 137   2516 ==
+ 138 - 139   1833 =
+ 140 - 141   1327 =
+ 142 - 143    860 
+ 144 - 145    604 
+ 146 - 147    428 
+ 148 - 149    275 
+ 150 - 151    184 
+ 152 - 153    111 
+ 154 - 155     67 
+
+=cut
+
+sub random_gauss {
+  my($avg,$stddev,$num)=@_;
+  $avg=0    if not defined $avg;
+  $stddev=1 if not defined $stddev;
+  $num=1    if not defined $num;
+  croak "random_gauss should not have more than 3 arguments" if @_>3;
+  my @r;
+  while (@r<$num) {
+    my($x1,$x2,$w);
+    do {
+      $x1=2.0*rand()-1.0;
+      $x2=2.0*rand()-1.0;
+      $w=$x1*$x1+$x2*$x2;
+    } while $w>=1.0;
+    $w=sqrt(-2.0*log($w)/$w) * $stddev;
+    push @r,  $x1*$w + $avg,
+              $x2*$w + $avg;
+  }
+  pop @r if @r > $num;
+  return $r[0] if @_<3;
+  return @r;
+}
+
+=head2 mix
+
+Mixes an array in random order. In-place if given an array reference or not if given an array.
+
+C<mix()> could also have been named C<shuffle()>, as in shuffling a deck of cards.
+
+Example:
+
+This:
+
+ print mix("a".."z"),"\n" for 1..3;
+
+...could write something like:
+
+ trgoykzfqsduphlbcmxejivnwa
+ qycatilmpgxbhrdezfwsovujkn
+ ytogrjialbewcpvndhkxfzqsmu
+
+B<Input:>
+
+=over 4
+
+=item 1.
+Either a reference to an array as the only input. This array will then be mixed I<in-place>. The array will be changed:
+
+This: C<< @a=mix(@a) >> is the same as:  C<< mix(\@a) >>.
+
+=item 2.
+Or an array of zero, one or more elements.
+
+=back
+
+Note that an input-array which COINCIDENTLY SOME TIMES has one element
+(but more other times), and that element is an array-ref, you will
+probably not get the expected result.
+
+To check distribution:
+
+ perl -MAcme::Tools -le 'print mix("a".."z") for 1..26000'|cut -c1|sort|uniq -c|sort -n
+
+The letters a-z should occur around 1000 times each.
+
+Shuffles a deck of cards: (s=spaces, h=hearts, c=clubs, d=diamonds)
+
+ perl -MAcme::Tools -le '@cards=map join("",@$_),cart([qw/s h c d/],[2..10,qw/J Q K A/]); print join " ",mix(@cards)'
+
+(Uses L</cart>, which is not a typo, see further down here)
+
+Note: C<List::Util::shuffle()> is approximately four times faster. Both respects the Perl built-in C<srand()>.
+
+=cut
+
+sub mix {
+  if(@_==1 and ref($_[0]) eq 'ARRAY'){ #kun ett arg, og det er ref array
+    my $r=$_[0];
+    push@$r,splice(@$r,rand(@$r-$_),1) for 0..(@$r-1);
+    return $r;
+  }
+  else{
+    my@e=@_;
+    push@e,splice(@e,rand(@e-$_),1) for 0..$#e;
+    return @e;
+  }
 }
 
 =head1 ORACLE-SQL INSPIRED FUNCTIONS
@@ -2301,248 +2556,6 @@ sub hashtrans {
 	}
     }
     return %new;
-}
-
-=head1 RANDOM
-
-=head2 random
-
-B<Input:> One or two arguments.
-
-B<Output:>
-
-If two integer arguments: returns a random integer between the integers in argument one and two.
-
-If the first argument is an arrayref: returns a random member of that array without changing the array.
-
-If the first argument is an arrayref and there is a second arg: return that many random members of that array
-
-If the first argument is an hashref and there is no second arg: return a random key weighted by the values of that hash
-
-If the first argument is an hashref and there is a second arg: return that many random keys weighted by the values of that hash
-
-If there is no second argument and the first is an integer, a random integer between 0 and that number is returned. Including 0 and the number itself.
-
-B<Examples:>
-
- $dice=random(1,6);                                      # 1, 2, 3, 4, 5 or 6
- $dice=random([1..6]);                                   # same as previous
- @dice=random([1..6],10);                                # 10 dice tosses
- $dice=random({1=>1, 2=>1, 3=>1, 4=>1, 5=>1, 6=>2});     # weighted dice with 6 being twice as likely as the others
- @dice=random({1=>1, 2=>1, 3=>1, 4=>1, 5=>1, 6=>2},10);  # 10 weighted dice tosses
- print random({head=>0.4999,tail=>0.4999,edge=>0.0002}); # coin toss (sum 1 here but not required to be)
- print random(2);                                        # prints 0, 1 or 2
- print 2**random(7);                                     # prints 1, 2, 4, 8, 16, 32, 64 or 128
- @dice=map random([1..6]), 1..10;                        # as third example above, but much slower
- perl -MAcme::Tools -le 'print for random({head=>0.499,tail=>0.499,edge=>0.002},10000);' | sort | uniq -c
-
-=cut
-
-sub random {
-  my($from,$to)=@_;
-  my $ref=ref($from);
-  if($ref eq 'ARRAY'){
-    my @r=map $$from[rand@$from], 1..$to||1;
-    return @_>1?@r:$r[0];
-  }
-  elsif($ref eq 'HASH') {
-    my @k=keys%$from;
-    my $max;do{no warnings 'uninitialized';$_>$max and $max=$_ or $_<0 and croak"negative weight" for values%$from};
-    my @r=map {my$r;1 while $$from{$r=$k[rand@k]}<rand($max);$r} 1..$to||1;
-    return @_>1?@r:$r[0];
-  }
-  ($from,$to)=(0,$from) if @_==1;
-  ($from,$to)=($to,$from) if $from>$to;
-  return int($from+rand(1+$to-$from));
-}
-
-=head2 random_gauss
-
-Returns an pseudo-random number with a Gaussian distribution instead
-of the uniform distribution of perls C<rand()> or C<random()> in this
-module.  The algorithm is a variation of the one at
-L<http://www.taygeta.com/random/gaussian.html> which is both faster
-and better than adding a long series of C<rand()>.
-
-Uses perls C<rand> function internally.
-
-B<Input:> 0 - 3 arguments.
-
-First argument: the average of the distribution. Default 0.
-
-Second argument: the standard deviation of the distribution. Default 1.
-
-Third argument: If a third argument is present, C<random_gauss>
-returns an array of that many pseudo-random numbers. If there is no
-third argument, a number (a scalar) is returned.
-
-B<Output:> One or more pseudo-random numbers with a Gaussian distribution. Also known as a Bell curve or Normal distribution.
-
-Example:
-
- my @I=random_gauss(100, 15, 100000);         # produces 100000 pseudo-random numbers, average=100, stddev=15
- #my @I=map random_gauss(100, 15), 1..100000; # same but more than three times slower
- print "Average is:    ".avg(@I)."\n";        # prints a number close to 100
- print "Stddev  is:    ".stddev(@I)."\n";     # prints a number close to 15
-
- my @M=grep $_>100+15*2, @I;                  # those above 130
- print "Percent above two stddevs: ".(100*@M/@I)."%\n"; #prints a number close to 2.2%
-
-Example 2:
-
- my $num=1e6;
- my @h; $h[$_/2]++ for random_gauss(100,15, $num);
- $h[$_] and printf "%3d - %3d %6d %s\n",
-   $_*2,$_*2+1,$h[$_],'=' x ($h[$_]*1000/$num)
-     for 1..200/2;
-
-...prints an example of the famous Bell curve:
-
-  44 -  45     70 
-  46 -  47    114 
-  48 -  49    168 
-  50 -  51    250 
-  52 -  53    395 
-  54 -  55    588 
-  56 -  57    871 
-  58 -  59   1238 =
-  60 -  61   1807 =
-  62 -  63   2553 ==
-  64 -  65   3528 ===
-  66 -  67   4797 ====
-  68 -  69   6490 ======
-  70 -  71   8202 ========
-  72 -  73  10577 ==========
-  74 -  75  13319 =============
-  76 -  77  16283 ================
-  78 -  79  20076 ====================
-  80 -  81  23742 =======================
-  82 -  83  27726 ===========================
-  84 -  85  32205 ================================
-  86 -  87  36577 ====================================
-  88 -  89  40684 ========================================
-  90 -  91  44515 ============================================
-  92 -  93  47575 ===============================================
-  94 -  95  50098 ==================================================
-  96 -  97  52062 ====================================================
-  98 -  99  53338 =====================================================
- 100 - 101  52834 ====================================================
- 102 - 103  52185 ====================================================
- 104 - 105  50472 ==================================================
- 106 - 107  47551 ===============================================
- 108 - 109  44471 ============================================
- 110 - 111  40704 ========================================
- 112 - 113  36642 ====================================
- 114 - 115  32171 ================================
- 116 - 117  28166 ============================
- 118 - 119  23618 =======================
- 120 - 121  19873 ===================
- 122 - 123  16360 ================
- 124 - 125  13452 =============
- 126 - 127  10575 ==========
- 128 - 129   8283 ========
- 130 - 131   6224 ======
- 132 - 133   4661 ====
- 134 - 135   3527 ===
- 136 - 137   2516 ==
- 138 - 139   1833 =
- 140 - 141   1327 =
- 142 - 143    860 
- 144 - 145    604 
- 146 - 147    428 
- 148 - 149    275 
- 150 - 151    184 
- 152 - 153    111 
- 154 - 155     67 
-
-=cut
-
-sub random_gauss {
-  my($avg,$stddev,$num)=@_;
-  $avg=0    if not defined $avg;
-  $stddev=1 if not defined $stddev;
-  $num=1    if not defined $num;
-  croak "random_gauss should not have more than 3 arguments" if @_>3;
-  my @r;
-  while (@r<$num) {
-    my($x1,$x2,$w);
-    do {
-      $x1=2.0*rand()-1.0;
-      $x2=2.0*rand()-1.0;
-      $w=$x1*$x1+$x2*$x2;
-    } while $w>=1.0;
-    $w=sqrt(-2.0*log($w)/$w) * $stddev;
-    push @r,  $x1*$w + $avg,
-              $x2*$w + $avg;
-  }
-  pop @r if @r > $num;
-  return $r[0] if @_<3;
-  return @r;
-}
-
-=head2 mix
-
-Mixes an array in random order. In-place if given an array reference or not if given an array.
-
-C<mix()> could also have been named C<shuffle()>, as in shuffling a deck of cards.
-
-Example:
-
-This:
-
- print mix("a".."z"),"\n" for 1..3;
-
-...could write something like:
-
- trgoykzfqsduphlbcmxejivnwa
- qycatilmpgxbhrdezfwsovujkn
- ytogrjialbewcpvndhkxfzqsmu
-
-B<Input:>
-
-=over 4
-
-=item 1.
-Either a reference to an array as the only input. This array will then be mixed I<in-place>. The array will be changed:
-
-This: C<< @a=mix(@a) >> is the same as:  C<< mix(\@a) >>.
-
-=item 2.
-Or an array of zero, one or more elements.
-
-=back
-
-Note that an input-array which COINCIDENTLY SOME TIMES has one element
-(but more other times), and that element is an array-ref, you will
-probably not get the expected result.
-
-To check distribution:
-
- perl -MAcme::Tools -le 'print mix("a".."z") for 1..26000'|cut -c1|sort|uniq -c|sort -n
-
-The letters a-z should occur around 1000 times each.
-
-Shuffles a deck of cards: (s=spaces, h=hearts, c=clubs, d=diamonds)
-
- perl -MAcme::Tools -le '@cards=map join("",@$_),cart([qw/s h c d/],[2..10,qw/J Q K A/]); print join " ",mix(@cards)'
-
-(Uses L</cart>, which is not a typo, see further down here)
-
-Note: C<List::Util::shuffle()> is approximately four times faster. Both respects the Perl built-in C<srand()>.
-
-=cut
-
-sub mix {
-  if(@_==1 and ref($_[0]) eq 'ARRAY'){ #kun ett arg, og det er ref array
-    my $r=$_[0];
-    push@$r,splice(@$r,rand(@$r-$_),1) for 0..(@$r-1);
-    return $r;
-  }
-  else{
-    my@e=@_;
-    push@e,splice(@e,rand(@e-$_),1) for 0..$#e;
-    return @e;
-  }
 }
 
 =head1 COMPRESSION
