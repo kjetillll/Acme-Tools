@@ -3944,13 +3944,13 @@ Estimated time of arrival. ...NOT IMPLEMENTED YET...
 our %Eta;
 our $Eta_forgetfulness=2;
 sub eta {
-  my($id,$pos,$end,$time_fp)=(@_==2?(join(";",caller()),@_):@_);
-  #@_==2 ? ("",@_) : @_==3 ? (@_) : croak"Two or three arguments to eta()";
+  my($id,$pos,$end,$time_fp)=( @_==2 ? (join(";",caller()),@_) : @_ );
   $time_fp||=time_fp();
   my $a=$Eta{$id}||=[];
   push @$a, [$pos,$time_fp];
+  @$a=@$a[map$_*2,0..@$a/2] if @$a>20;  #hm 20
+  splice(@$a,-2,1) if @$a>1 and $$a[-2][0]==$$a[-1][0]; #same pos as last
   return undef if @$a<2;
-# print "$$a[-1][1] + ($end-$$a[-1][0]) * ($$a[-1][1]-$$a[-2][1])/($$a[-1][0]-$$a[-2][0])\n";
   my @eta;
   for(2..@$a){
     push @eta, $$a[-1][1] + ($end-$$a[-1][0]) * ($$a[-1][1]-$$a[-$_][1])/($$a[-1][0]-$$a[-$_][0]);
