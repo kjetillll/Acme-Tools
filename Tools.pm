@@ -2726,15 +2726,9 @@ Works on C<< $_ >> if no argument i given:
 
 =head2 rpad
 
-"Pads" a string to the given length by adding one or more spaces at the end (right, rpad) or at the start (left, lpad).
+"Pads" a string to the given length by adding one or more spaces at the end (right, I<rpad>) or at the start (left, I<lpad>).
 
-B<Input:>
-
-First argument: string to be padded
-
-Second argument: length of the output
-
-Optional third argument: character(s) used to pad. Default is space.
+B<Input:> First argument: string to be padded. Second argument: length of the output. Optional third argument: character(s) used to pad. Default is space.
 
  rpad('gomle',9);         # 'gomle    '
  lpad('gomle',9);         # '    gomle'
@@ -3589,6 +3583,480 @@ sub makedir {
   or ($dd)=($d=~m,^(.+)/+([^/]+)$,) and makedir($dd,$p) and mkdir($d,$p) #or die;
   ) and ++$MAKEDIR{$d};
 }
+
+=head1 TIME FUNCTIONS
+
+
+# = head2 timestr
+# 
+# Converts epoch or YYYYMMDD-HH24:MI:SS time string to other forms of time.
+# 
+# B<Input:> One, two or three arguments.
+# 
+# B<First argument:> A format string.
+# 
+# B<Second argument: (optional)> An epock C<time()> number or a time
+# string of the form YYYYMMDD-HH24:MI:SS. I no second argument is gives,
+# picks the current C<time()>.
+# 
+# B<Thirs argument: (optional> True eller false. If true and first argument is eight digits:
+# Its interpreted as a YYYYMMDD time string, not an epoch time.
+# If true and first argument is six digits its interpreted as a DDMMYY date.
+# 
+# B<Output:> a date or clock string on the wanted form.
+# 
+# B<Exsamples:>
+# 
+# Prints C<< 3. july 1997 >> if thats the dato today:
+# 
+#  perl -MAcme::Tools -le 'print timestr("D. month YYYY")'
+# 
+#  print timestr"HH24:MI");              # prints 23:55 if thats the time now
+#  print timestr"HH24:MI",time());       # ...same,since time() is the default
+#  print timestr"HH:MI",time()-5*60);    # prints 23:50 if that was the time 5 minutes ago
+#  print timestr"HH:MI",time()-5*60*60); # print 18:55 if thats the time 5 hours ago
+#  timestr"Day D. month YYYY HH:MI");    # Saturday  juli 2004 23:55       (stor L liten j)
+#  timestr"dag D. Måned ÅÅÅÅ HH:MI");    # lørdag 3. Juli 2004 23:55       (omvendt)
+#  timestr"DG DD. MONTH YYYY HH24:MI");  # LØR 03. JULY 2004 23:55         (HH24 = HH, month=engelsk)
+#  timestr"DD-MON-YYYY");                # 03-MAY-2004                     (mon engelsk)
+#  timestr"DD-MÅN-YYYY");                # 03-MAI-2004                     (mån norsk)
+# 
+# B<Formatstrengen i argument to:>
+# 
+# Formatstrengen kan innholde en eller flere av følgende koder.
+# 
+# Formatstrengen kan inneholde tekst, som f.eks. C<< tid('Klokken er: HH:MI') >>.
+# Teksten her vil ikke bli konvertert. Men det anbefales å holde tekst utenfor
+# formatstrengen, siden framtidige koder kan erstatte noen tegn i teksten med tall.
+# 
+# Der det ikke står annet: bruk store bokstaver.
+# 
+#  YYYY    Årstallet med fire sifre
+#  ÅÅÅÅ    Samme som YYYY (norsk)
+#  YY      Årstallet med to sifre, f.eks. 04 for 2004 (anbefaler ikke å bruke tosifrede år)
+#  ÅÅ      Samme som YY (norsk)
+#  yyyy    Årtallet med fire sifre, men skriver ingenting dersom årstallet er årets (plass-sparing, ala tidstrk() ).
+#  åååå    Samme som yyyy
+#  MM      Måned, to sifre. F.eks. 08 for august.
+#  DD      Dato, alltid to sifer. F.eks 01 for første dag i en måned.
+#  D       Dato, ett eller to sifre. F.eks. 1 for første dag i en måned.
+#  HH      Time. Fra 00, 01, 02 osv opp til 23.
+#  HH24    Samme som HH. Ingen forskjell. Tatt med for å fjerne tvil om det er 00-12-11 eller 00-23
+#  HH12    NB: Kl 12 blir 12, kl 13 blir 01, kl 14 blir 02 osv .... 23 blir 11,
+#          MEN 00 ETTER MIDNATT BLIR 12 ! Oracle er også slik.
+#  TT      Samme som HH. Ingen forskjell. Fra 00 til 23. TT24 og TT12 finnes ikke.
+#  MI      Minutt. Fra 00 til 59.
+#  SS      Sekund. Fra 00 til 59.
+#  
+#  Måned   Skriver månedens fulle navn på norsk. Med stor førstebokstav, resten små.
+#          F.eks. Januar, Februar osv. NB: Vær oppmerksom på at måneder på norsk normal
+#          skrives med liten førstebokstav (om ikke i starten av setning). Alt for mange
+#          gjør dette feil. På engelsk skrives de ofte med stor førstebokstav.
+#  Måne    Skriver månedens navn forkortet og uten punktum. På norsk. De med tre eller
+#          fire bokstaver forkortes ikke: Jan Feb Mars Apr Mai Juni Juli Aug Sep Okt Nov Des
+#  Måne.   Samme som Måne, men bruker punktum der det forkortes. Bruker alltid fire tegn.
+#          Jan. Feb. Mars Apr. Mai Juni Juli Aug. Sep. Okt. Nov. Des.
+#  Mån     Tre bokstaver, norsk: Jan Feb Mar Apr Mai Jun Jul Aug Sep Okt Nov Des
+#  
+#  Month   Engelsk: January February May June July October December, ellers = norsk.
+#  Mont    Engelsk: Jan Feb Mars Apr May June July Aug Sep Oct Nov Dec
+#  Mont.   Engelsk: Jan. Feb. Mars Apr. May June July Aug. Sep. Oct. Nov. Dec.
+#  Mon     Engelsk: Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
+#  
+#  måned måne måne. mån       Samme, men med liten førstebokstav. På norsk.
+#  month mont mont. mon       Samme, men med liten førstebokstav. På engelsk.
+#  MÅNED MÅNE MÅNE. MÅN       Samme, men med alle bokstaver store. På norsk.
+#  MONTH MONT MONT. MON       Samme, men med alle bokstaver store. På engelsk.
+#  
+#  Dag     Dagens navn på norsk. Stor førstebokstav, resten små. Mandag Tirsdag Onsdag Torsdag
+#          Fredag Lørdag Søndag.
+#  Dg      Dagens navn på norsk forkortet. Stor førstebokstav, resten små.
+#          Alltid tre bokstaver: Man Tir Ons Tor Fre Lør Søn
+#  Day     Samme som Dag, men på engelsk. Monday Tuesday Wednesday Thursday Friday Saturday Sunday
+#  Dy      Samme som Dg, men på engelsk. Alltid tre bokstaver: Mon Tue Wed Thu Fri Sat Sun
+#  
+#  dag dg day dy DAG DG DAY DY       ....du klarer sikkert å gjette...
+#  
+#  UKE     Ukenr ett eller to siffer. Bruker ISO-definisjonen som brukes stort sett i hele verden unntatt USA.
+#  UKENR   Ukenr, alltid to siffer, 01 02 osv. Se uke() et annet sted i SO::Bibl for mer om dette.
+# 
+# 
+#  Gjenstår:  Dag- og månedsnavn på nynorsk og samisk.
+# 
+#  Gjenstår:  Dth => 1st eller 2nd hvis dato er den første eller andre
+#   
+#  Gjenstår:  M => Måned ett eller to sifre, slik D er dato med ett eller to. Vanskelig/umulig(?)
+#   
+#  Gjenstår:  J => "julian day"....
+#   
+#  Gjenstår:  Sjekke om den takler tidspunkt for svært lenge siden eller om svært lenge...
+#             Kontroll med kanskje die ved input
+#   
+#  Gjenstår:  sub dit() (tid baklengs... eller et bedre navn) for å konvertere andre veien.
+#             Som med to_date og to_char i Oracle. Se evt L<Date::Parse> isteden.
+#   
+#  Gjenstår:  Hvis formatstrengen er DDMMYY (evt DDMMÅÅ), og det finnes en tredje argument,
+#             så vil den tredje argumenten sees på som personnummer og DD vil bli DD+40
+#             eller MM vil bli MM+50 hvis personnummeret medfører D- eller S-type fødselsnr.
+#             Hmm, kanskje ikke. Se heller  sub foedtdato  og  sub fnr  m.fl.
+#  
+#  Gjenstår:  Testing på tidspunkter på mer enn hundre år framover eller tilbake i tid.
+# 
+# Se også L</tidstrk> og L</tidstr>
+# 
+# =cut
+# 
+# our %SObibl_tid_strenger;
+# our $SObibl_tid_pattern;
+# 
+# sub tid
+# {
+#   return undef if @_>1 and not defined $_[1];
+#   return 1900+(localtime())[5] if $_[0]=~/^(?:ÅÅÅÅ|YYYY)$/ and @_==1; # kjappis for tid("ÅÅÅÅ") og tid("YYYY")
+# 
+#   my($format,$time,$er_dato)=@_;
+#   
+# 
+#   $time=time() if @_==1;
+# 
+#   ($time,$format)=($format,$time)
+#     if $format=~/^[\d+\:\-]+$/; #swap hvis format =~ kun tall og : og -
+# 
+#   $format=~s,([Mm])aa,$1å,;
+#   $format=~s,([Mm])AA,$1Å,;
+# 
+#   $time = yyyymmddhh24miss_time("$1$2$3$4$5$6")
+#     if $time=~/^((?:19|20|18)\d\d)          #yyyy
+#                 (0[1-9]|1[012])             #mm
+#                 (0[1-9]|[12]\d|3[01]) \-?   #dd
+#                 ([01]\d|2[0-3])       \:?   #hh24
+#                 ([0-5]\d)             \:?   #mi
+#                 ([0-5]\d)             $/x;  #ss
+# 
+#   $time = yyyymmddhh24miss_time(dato_ok("$1$2$3")."000000")
+#     if $time=~/^(\d\d)(\d\d)(\d\d)$/ and $er_dato;
+# 
+#   $time = yyyymmddhh24miss_time("$1$2${3}000000")
+#     if $time=~/^((?:18|19|20)\d\d)(\d\d)(\d\d)$/ and $er_dato;
+# 
+#   my @lt=localtime($time);
+#   if($format){
+#     unless(defined %SObibl_tid_strenger){
+#       %SObibl_tid_strenger=
+# 	  ('MÅNED' => [4, 'JANUAR','FEBRUAR','MARS','APRIL','MAI','JUNI','JULI',
+# 		          'AUGUST','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER' ],
+# 	   'Måned' => [4, 'Januar','Februar','Mars','April','Mai','Juni','Juli',
+# 		          'August','September','Oktober','November','Desember'],
+# 	   'måned' => [4, 'januar','februar','mars','april','mai','juni','juli',
+# 		          'august','september','oktober','november','desember'],
+# 	   'MÅNE.' => [4, 'JAN.','FEB.','MARS','APR.','MAI','JUNI','JULI','AUG.','SEP.','OKT.','NOV.','DES.'],
+# 	   'Måne.' => [4, 'Jan.','Feb.','Mars','Apr.','Mai','Juni','Juli','Aug.','Sep.','Okt.','Nov.','Des.'],
+# 	   'måne.' => [4, 'jan.','feb.','mars','apr.','mai','juni','juli','aug.','sep.','okt.','nov.','des.'],
+# 	   'MÅNE'  => [4, 'JAN','FEB','MARS','APR','MAI','JUNI','JULI','AUG','SEP','OKT','NOV','DES'],
+# 	   'Måne'  => [4, 'Jan','Feb','Mars','Apr','Mai','Juni','Juli','Aug','Sep','Okt','Nov','Des'],
+# 	   'måne'  => [4, 'jan','feb','mars','apr','mai','juni','juli','aug','sep','okt','nov','des'],
+# 	   'MÅN'   => [4, 'JAN','FEB','MAR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DES'],
+# 	   'Mån'   => [4, 'Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'],
+# 	   'mån'   => [4, 'jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'],
+# 
+# 	   'MONTH' => [4, 'JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY',
+# 		          'AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'],
+# 	   'Month' => [4, 'January','February','March','April','May','June','July',
+# 		          'August','September','October','November','December'],
+# 	   'month' => [4, 'january','february','march','april','may','june','july',
+# 		          'august','september','october','november','december'],
+# 	   'MONT.' => [4, 'JAN.','FEB.','MAR.','APR.','MAY','JUNE','JULY','AUG.','SEP.','OCT.','NOV.','DEC.'],
+# 	   'Mont.' => [4, 'Jan.','Feb.','Mar.','Apr.','May','June','July','Aug.','Sep.','Oct.','Nov.','Dec.'],
+# 	   'mont.' => [4, 'jan.','feb.','mar.','apr.','may','june','july','aug.','sep.','oct.','nov.','dec.'],
+# 	   'MONT'  => [4, 'JAN','FEB','MAR','APR','MAY','JUNE','JULY','AUG','SEP','OCT','NOV','DEC'],
+# 	   'Mont'  => [4, 'Jan','Feb','Mar','Apr','May','June','July','Aug','Sep','Oct','Nov','Dec'],
+# 	   'mont'  => [4, 'jan','feb','mar','apr','may','june','july','aug','sep','oct','nov','dec'],
+# 	   'MON'   => [4, 'JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],
+# 	   'Mon'   => [4, 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+# 	   'mon'   => [4, 'jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'],
+# 	   'DAY'   => [6, 'SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'],
+# 	   'Day'   => [6, 'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
+# 	   'day'   => [6, 'sunday','monday','tuesday','wednesday','thursday','friday','saturday'],
+# 	   'DY'    => [6, 'SUN','MON','TUE','WED','THU','FRI','SAT'],
+# 	   'Dy'    => [6, 'Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+# 	   'dy'    => [6, 'sun','mon','tue','wed','thu','fri','sat'],
+# 	   'DAG'   => [6, 'SØNDAG','MANDAG','TIRSDAG','ONSDAG','TORSDAG','FREDAG','LØRDAG'],
+# 	   'Dag'   => [6, 'Søndag','Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag'],
+# 	   'dag'   => [6, 'søndag','mandag','tirsdag','onsdag','torsdag','fredag','lørdag'],
+# 	   'DG'    => [6, 'SØN','MAN','TIR','ONS','TOR','FRE','LØR'],
+# 	   'Dg'    => [6, 'Søn','Man','Tir','Ons','Tor','Fre','Lør'],
+# 	   'dg'    => [6, 'søn','man','tir','ons','tor','fre','lør'],
+# 	   );
+#       for(qw(MAANED Maaned maaned MAAN Maan maan),'MAANE.','Maane.','maane.'){
+# 	$SObibl_tid_strenger{$_}=$SObibl_tid_strenger{replace($_,"aa","å","AA","Å")};
+#       }
+#       $SObibl_tid_pattern=join("|",map{quotemeta($_)}
+#  	                           sort{length($b)<=>length($a)}
+#                                    keys %SObibl_tid_strenger);
+#       #uten sort kan "måned" bli "mared", fordi "mån"=>"mar"
+#     }
+#     $format=~s/($SObibl_tid_pattern)/$SObibl_tid_strenger{$1}[1+$lt[$SObibl_tid_strenger{$1}[0]]]/g;
+# 
+#     $format=~s/TT|tt/HH/;
+#     $format=~s/ÅÅ/YY/g;$format=~s/åå/yy/g;
+#     $format=~s/YYYY             /1900+$lt[5]                  /gxe;
+#     $format=~s/(\s?)yyyy        /$lt[5]==(localtime)[5]?"":$1.(1900+$lt[5])/gxe;
+#     $format=~s/YY               /sprintf("%02d",$lt[5]%100)   /gxei;
+#     $format=~s/MM               /sprintf("%02d",$lt[4]+1)     /gxe;
+#     $format=~s/mm               /sprintf("%d",$lt[4]+1)       /gxe;
+#     $format=~s/DD               /sprintf("%02d",$lt[3])       /gxe;
+#     $format=~s/D(?![AaGgYyEeNn])/$lt[3]                       /gxe; #EN pga desember og wednesday
+#     $format=~s/dd               /sprintf("%d",$lt[3])         /gxe;
+#     $format=~s/hh12|HH12        /sprintf("%02d",$lt[2]<13?$lt[2]||12:$lt[2]-12)/gxe;
+#     $format=~s/HH24|HH24|HH|hh  /sprintf("%02d",$lt[2])       /gxe;
+#     $format=~s/MI               /sprintf("%02d",$lt[1])       /gxei;
+#     $format=~s/SS               /sprintf("%02d",$lt[0])       /gxei;
+#     $format=~s/UKENR            /sprintf("%02d",ukenr($time)) /gxei;
+#     $format=~s/UKE              /ukenr($time)                 /gxei;
+#     $format=~s/SS               /sprintf("%02d",$lt[0])       /gxei;
+# 
+#     return $format;
+#   }
+#   else{
+#     return sprintf("%04d%02d%02d%02d%02d%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]);
+#   }
+# }
+
+=head2 easter
+
+Input: A year (a four digit number)
+
+Output: array of two numbers: day and month of Easter Sunday that year. Month 3 means March and 4 means April.
+
+ sub easter { use integer;my$Y=shift;my$C=$Y/100;my$L=($C-$C/4-($C-($C-17)/25)/3+$Y%19*19+15)%30;
+             (($L-=$L>28||($L>27?1-(21-$Y%19)/11:0))-=($Y+$Y/4+$L+2-$C+$C/4)%7)<4?($L+28,3):($L-3,4) }
+
+...is a "golfed" version of Oudins algorithm (1940) L<http://astro.nmsu.edu/~lhuber/leaphist.html>
+(see also http://www.smart.net/~mmontes/ec-cal.html )
+
+Valid for any Gregorian year. Dates repeat themselves after 70499183
+lunations = 2081882250 days = ca 5699845 years. However, our planet will
+by then have a different rotation and spin time...
+
+Example:
+
+ ( $day, $month ) = easter( 2012 ); # $day == 8 and $month == 4
+
+Example 2:
+
+ my @e=map sprintf("%02d%02d", reverse(easter($_))), 1800..300000;
+ print "First: ".min(@e)." Last: ".max(@e)."\n"; # First: 0322 Last: 0425
+
+=cut
+
+sub easter { use integer;my$Y=shift;my$C=$Y/100;my$L=($C-$C/4-($C-($C-17)/25)/3+$Y%19*19+15)%30;
+             (($L-=$L>28||($L>27?1-(21-$Y%19)/11:0))-=($Y+$Y/4+$L+2-$C+$C/4)%7)<4?($L+28,3):($L-3,4) }
+
+
+=head2 time_fp
+
+No input arguments.
+
+Return the same number as perls C<time()> except with decimals (fractions of a second, _fp as in floating point number).
+
+ print time_fp(),"\n";
+ print time(),"\n";
+
+Could write:
+
+ 1116776232.38632
+
+...if that is the time now.
+
+Or just:
+
+ 1116776232
+
+...from perl's internal C<time()> if C<Time::HiRes> isn't installed and available.
+
+
+=cut
+
+sub time_fp {  # {return 0+gettimeofday} is just as well?
+    eval{ require Time::HiRes } or return time();
+    my($sec,$mic)=Time::HiRes::gettimeofday();
+    return $sec+$mic/1e6; #1e6 not portable?
+}
+
+=head2 sleep_fp
+
+sleep_fp() work as the built in C<< sleep() >>, but accepts fractional seconds:
+
+ sleep_fp(0.02);  # sleeps for 20 milliseconds
+
+Sub sleep_fp do a C<require Time::HiRes>, thus it might take some
+extra time the first call. To avoid that, add C<< use Time::HiRes >>
+to your code. Sleep_fp should not be trusted for accuracy to more than
+a tenth of a second. Virtual machines tend to be less accurate (sleep
+longer) than physical ones. This was tested on VMware and RHEL
+(Linux). See also L<Time::HiRes>.
+
+=cut
+
+sub sleep_fp { eval{require Time::HiRes} or (sleep(shift()),return);Time::HiRes::sleep(shift()) }
+
+=head2 eta
+
+Estimated time of arrival. ...NOT IMPLEMENTED YET...
+
+=cut
+
+#http://en.wikipedia.org/wiki/Kalman_filter god idé?
+our %Eta;
+our $Eta_forgetfulness=2;
+sub eta {
+  my($id,$pos,$end,$time_fp)=(@_==2?(join(";",caller()),@_):@_);
+  #@_==2 ? ("",@_) : @_==3 ? (@_) : croak"Two or three arguments to eta()";
+  $time_fp||=time_fp();
+  my $a=$Eta{$id}||=[];
+  push @$a, [$pos,$time_fp];
+  return undef if @$a<2;
+# print "$$a[-1][1] + ($end-$$a[-1][0]) * ($$a[-1][1]-$$a[-2][1])/($$a[-1][0]-$$a[-2][0])\n";
+  my @eta;
+  for(2..@$a){
+    push @eta, $$a[-1][1] + ($end-$$a[-1][0]) * ($$a[-1][1]-$$a[-$_][1])/($$a[-1][0]-$$a[-$_][0]);
+  }
+  my($sum,$sumw,$w)=(0,0,1);
+  for(@eta){
+    $sum+=$w*$_;
+    $sumw+=$w;
+    $w/=$Eta_forgetfulness;
+  }
+  my $avg=$sum/$sumw;
+  return $avg;
+#  return avg(@eta);
+ #return $$a[-1][1] + ($end-$$a[-1][0]) * ($$a[-1][1]-$$a[-2][1])/($$a[-1][0]-$$a[-2][0]);
+  1;
+}
+
+=head2 sleep_until
+
+sleep_until(0.5) sleeps until half a second has passed since the last
+call to sleep_until. This example starts the next job excactly ten
+seconds after the last job started even if the last job lasted for a
+while (but not more than ten seconds):
+
+ for(@jobs){
+   sleep_until(10);
+   print localtime()."\n";
+   ...heavy job....
+ }
+
+Might print:
+
+ Thu Jan 12 16:00:00 2012
+ Thu Jan 12 16:00:10 2012
+ Thu Jan 12 16:00:20 2012
+
+...and so on even if the C<< ...heavy job... >>-part takes more than a
+second to complete. Whereas if sleep(10) was used, each job would
+spend more than ten seconds in average since the work time would be
+added to sleep(10).
+
+Note: sleep_until() will remember the time of ANY last call of this sub,
+not just the one on the same line in the source code (this might change
+in the future). The first call to sleep_until() will be the same as
+sleep_fp() or Perl's own sleep() if the argument is an integer.
+
+=cut
+
+our $Time_last_sleep_until;
+sub sleep_until {
+  my $s=@_==1?shift():0;
+  my $time=time_fp();
+  my $sleep=$s-($time-nvl($Time_last_sleep_until,0));
+  $Time_last_sleep_until=time;
+  sleep_fp($sleep) if $sleep>0;
+}
+
+=head2 sys
+
+Call instead of C<system> if you want C<die> if something fails. Uses Carp::croak internally.
+
+ sub sys($){my$s=shift;system($s)==0 or croak"ERROR, sys($s) ($!) ($?)"}
+
+=cut
+
+sub sys($){ my$s=shift;system($s)==0 or croak"ERROR, sys($s) ($!) ($?)" }
+
+=head2 recursed
+
+Returns true or false (actually 1 or 0) depending on whether the
+current sub has been called by itself or not.
+
+ sub xyz
+ {
+    xyz() if not recursed;
+
+ }
+
+=cut
+
+sub recursed {(caller(1))[3] eq (caller(2))[3]?1:0}
+
+=head2 md5sum
+
+B<Input:> a filename.
+
+B<Output:> a string of 32 hexadecimal chars from 0-9 or a-f.
+
+Example, the md5sum linux command without options could be implementet like this:
+
+ #!/usr/bin/perl
+ use Acme::Tools;
+ print md5sum($_)."  $_\n" for @ARGV;
+
+This sub requires L<Digest::MD5>, which is a core perl-module since
+version 5.?.?  It does not slurp the files or spawn new processes.
+
+=cut
+
+sub md5sum {
+  my $fn=shift;
+  open my $M, '<', $fn or croak "Could not open file $fn for md5sum() $!";
+  binmode($M);
+  require Digest::MD5;
+  return Digest::MD5->new->addfile($M)->hexdigest;
+}
+
+#http://rosettacode.org/wiki/Levenshtein_distance#Perl
+our %ldist_cache;
+sub ldist {
+  my($s,$t,$l) = @_;
+  return length($t) if !$s;
+  return length($s) if !$t;
+  %ldist_cache=() if not $l and 1000<0+%ldist_cache;
+  $ldist_cache{$s,$t} ||=
+  do {
+    my($s1,$t1) = ( substr($s,1), substr($t,1) );
+    substr($s,0,1) eq substr($t,0,1)
+      ? ldist($s1,$t1)
+      : 1 + min( ldist($s1,$t1,1+$l), ldist($s,$t1,1+$l), ldist($s1,$t,1+$l) );
+  };
+}
+
+=head2 leapyear
+
+B<Input:> A year. A four digit number.
+
+B<Output:> True (1) or false (0) of weather the year is a leap year or
+not. (Uses current calendar even for period before it was used).
+
+ print join(", ",grep leapyear($_), 1900..2014)."\n";
+
+Prints: (note, 1900 is not a leap year, but 2000 is)
+
+ 1904, 1908, 1912, 1916, 1920, 1924, 1928, 1932, 1936, 1940, 1944, 1948, 1952, 1956,
+ 1960, 1964, 1968, 1972, 1976, 1980, 1984, 1988, 1992, 1996, 2000, 2004, 2008, 2012
+
+=cut
+
+sub leapyear{$_[0]%400?$_[0]%100?$_[0]%4?0:1:0:1} #bool
 
 =head1 OTHER
 
@@ -4725,480 +5193,6 @@ sub serialize {
 #todo: ...og: Acme::Damn sin damn()
 #todo? sub swap($$) http://www.idg.no/computerworld/article242008.ece
 
-
-=head1 TIME FUNCTIONS
-
-
-# = head2 timestr
-# 
-# Converts epoch or YYYYMMDD-HH24:MI:SS time string to other forms of time.
-# 
-# B<Input:> One, two or three arguments.
-# 
-# B<First argument:> A format string.
-# 
-# B<Second argument: (optional)> An epock C<time()> number or a time
-# string of the form YYYYMMDD-HH24:MI:SS. I no second argument is gives,
-# picks the current C<time()>.
-# 
-# B<Thirs argument: (optional> True eller false. If true and first argument is eight digits:
-# Its interpreted as a YYYYMMDD time string, not an epoch time.
-# If true and first argument is six digits its interpreted as a DDMMYY date.
-# 
-# B<Output:> a date or clock string on the wanted form.
-# 
-# B<Exsamples:>
-# 
-# Prints C<< 3. july 1997 >> if thats the dato today:
-# 
-#  perl -MAcme::Tools -le 'print timestr("D. month YYYY")'
-# 
-#  print timestr"HH24:MI");              # prints 23:55 if thats the time now
-#  print timestr"HH24:MI",time());       # ...same,since time() is the default
-#  print timestr"HH:MI",time()-5*60);    # prints 23:50 if that was the time 5 minutes ago
-#  print timestr"HH:MI",time()-5*60*60); # print 18:55 if thats the time 5 hours ago
-#  timestr"Day D. month YYYY HH:MI");    # Saturday  juli 2004 23:55       (stor L liten j)
-#  timestr"dag D. Måned ÅÅÅÅ HH:MI");    # lørdag 3. Juli 2004 23:55       (omvendt)
-#  timestr"DG DD. MONTH YYYY HH24:MI");  # LØR 03. JULY 2004 23:55         (HH24 = HH, month=engelsk)
-#  timestr"DD-MON-YYYY");                # 03-MAY-2004                     (mon engelsk)
-#  timestr"DD-MÅN-YYYY");                # 03-MAI-2004                     (mån norsk)
-# 
-# B<Formatstrengen i argument to:>
-# 
-# Formatstrengen kan innholde en eller flere av følgende koder.
-# 
-# Formatstrengen kan inneholde tekst, som f.eks. C<< tid('Klokken er: HH:MI') >>.
-# Teksten her vil ikke bli konvertert. Men det anbefales å holde tekst utenfor
-# formatstrengen, siden framtidige koder kan erstatte noen tegn i teksten med tall.
-# 
-# Der det ikke står annet: bruk store bokstaver.
-# 
-#  YYYY    Årstallet med fire sifre
-#  ÅÅÅÅ    Samme som YYYY (norsk)
-#  YY      Årstallet med to sifre, f.eks. 04 for 2004 (anbefaler ikke å bruke tosifrede år)
-#  ÅÅ      Samme som YY (norsk)
-#  yyyy    Årtallet med fire sifre, men skriver ingenting dersom årstallet er årets (plass-sparing, ala tidstrk() ).
-#  åååå    Samme som yyyy
-#  MM      Måned, to sifre. F.eks. 08 for august.
-#  DD      Dato, alltid to sifer. F.eks 01 for første dag i en måned.
-#  D       Dato, ett eller to sifre. F.eks. 1 for første dag i en måned.
-#  HH      Time. Fra 00, 01, 02 osv opp til 23.
-#  HH24    Samme som HH. Ingen forskjell. Tatt med for å fjerne tvil om det er 00-12-11 eller 00-23
-#  HH12    NB: Kl 12 blir 12, kl 13 blir 01, kl 14 blir 02 osv .... 23 blir 11,
-#          MEN 00 ETTER MIDNATT BLIR 12 ! Oracle er også slik.
-#  TT      Samme som HH. Ingen forskjell. Fra 00 til 23. TT24 og TT12 finnes ikke.
-#  MI      Minutt. Fra 00 til 59.
-#  SS      Sekund. Fra 00 til 59.
-#  
-#  Måned   Skriver månedens fulle navn på norsk. Med stor førstebokstav, resten små.
-#          F.eks. Januar, Februar osv. NB: Vær oppmerksom på at måneder på norsk normal
-#          skrives med liten førstebokstav (om ikke i starten av setning). Alt for mange
-#          gjør dette feil. På engelsk skrives de ofte med stor førstebokstav.
-#  Måne    Skriver månedens navn forkortet og uten punktum. På norsk. De med tre eller
-#          fire bokstaver forkortes ikke: Jan Feb Mars Apr Mai Juni Juli Aug Sep Okt Nov Des
-#  Måne.   Samme som Måne, men bruker punktum der det forkortes. Bruker alltid fire tegn.
-#          Jan. Feb. Mars Apr. Mai Juni Juli Aug. Sep. Okt. Nov. Des.
-#  Mån     Tre bokstaver, norsk: Jan Feb Mar Apr Mai Jun Jul Aug Sep Okt Nov Des
-#  
-#  Month   Engelsk: January February May June July October December, ellers = norsk.
-#  Mont    Engelsk: Jan Feb Mars Apr May June July Aug Sep Oct Nov Dec
-#  Mont.   Engelsk: Jan. Feb. Mars Apr. May June July Aug. Sep. Oct. Nov. Dec.
-#  Mon     Engelsk: Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
-#  
-#  måned måne måne. mån       Samme, men med liten førstebokstav. På norsk.
-#  month mont mont. mon       Samme, men med liten førstebokstav. På engelsk.
-#  MÅNED MÅNE MÅNE. MÅN       Samme, men med alle bokstaver store. På norsk.
-#  MONTH MONT MONT. MON       Samme, men med alle bokstaver store. På engelsk.
-#  
-#  Dag     Dagens navn på norsk. Stor førstebokstav, resten små. Mandag Tirsdag Onsdag Torsdag
-#          Fredag Lørdag Søndag.
-#  Dg      Dagens navn på norsk forkortet. Stor førstebokstav, resten små.
-#          Alltid tre bokstaver: Man Tir Ons Tor Fre Lør Søn
-#  Day     Samme som Dag, men på engelsk. Monday Tuesday Wednesday Thursday Friday Saturday Sunday
-#  Dy      Samme som Dg, men på engelsk. Alltid tre bokstaver: Mon Tue Wed Thu Fri Sat Sun
-#  
-#  dag dg day dy DAG DG DAY DY       ....du klarer sikkert å gjette...
-#  
-#  UKE     Ukenr ett eller to siffer. Bruker ISO-definisjonen som brukes stort sett i hele verden unntatt USA.
-#  UKENR   Ukenr, alltid to siffer, 01 02 osv. Se uke() et annet sted i SO::Bibl for mer om dette.
-# 
-# 
-#  Gjenstår:  Dag- og månedsnavn på nynorsk og samisk.
-# 
-#  Gjenstår:  Dth => 1st eller 2nd hvis dato er den første eller andre
-#   
-#  Gjenstår:  M => Måned ett eller to sifre, slik D er dato med ett eller to. Vanskelig/umulig(?)
-#   
-#  Gjenstår:  J => "julian day"....
-#   
-#  Gjenstår:  Sjekke om den takler tidspunkt for svært lenge siden eller om svært lenge...
-#             Kontroll med kanskje die ved input
-#   
-#  Gjenstår:  sub dit() (tid baklengs... eller et bedre navn) for å konvertere andre veien.
-#             Som med to_date og to_char i Oracle. Se evt L<Date::Parse> isteden.
-#   
-#  Gjenstår:  Hvis formatstrengen er DDMMYY (evt DDMMÅÅ), og det finnes en tredje argument,
-#             så vil den tredje argumenten sees på som personnummer og DD vil bli DD+40
-#             eller MM vil bli MM+50 hvis personnummeret medfører D- eller S-type fødselsnr.
-#             Hmm, kanskje ikke. Se heller  sub foedtdato  og  sub fnr  m.fl.
-#  
-#  Gjenstår:  Testing på tidspunkter på mer enn hundre år framover eller tilbake i tid.
-# 
-# Se også L</tidstrk> og L</tidstr>
-# 
-# =cut
-# 
-# our %SObibl_tid_strenger;
-# our $SObibl_tid_pattern;
-# 
-# sub tid
-# {
-#   return undef if @_>1 and not defined $_[1];
-#   return 1900+(localtime())[5] if $_[0]=~/^(?:ÅÅÅÅ|YYYY)$/ and @_==1; # kjappis for tid("ÅÅÅÅ") og tid("YYYY")
-# 
-#   my($format,$time,$er_dato)=@_;
-#   
-# 
-#   $time=time() if @_==1;
-# 
-#   ($time,$format)=($format,$time)
-#     if $format=~/^[\d+\:\-]+$/; #swap hvis format =~ kun tall og : og -
-# 
-#   $format=~s,([Mm])aa,$1å,;
-#   $format=~s,([Mm])AA,$1Å,;
-# 
-#   $time = yyyymmddhh24miss_time("$1$2$3$4$5$6")
-#     if $time=~/^((?:19|20|18)\d\d)          #yyyy
-#                 (0[1-9]|1[012])             #mm
-#                 (0[1-9]|[12]\d|3[01]) \-?   #dd
-#                 ([01]\d|2[0-3])       \:?   #hh24
-#                 ([0-5]\d)             \:?   #mi
-#                 ([0-5]\d)             $/x;  #ss
-# 
-#   $time = yyyymmddhh24miss_time(dato_ok("$1$2$3")."000000")
-#     if $time=~/^(\d\d)(\d\d)(\d\d)$/ and $er_dato;
-# 
-#   $time = yyyymmddhh24miss_time("$1$2${3}000000")
-#     if $time=~/^((?:18|19|20)\d\d)(\d\d)(\d\d)$/ and $er_dato;
-# 
-#   my @lt=localtime($time);
-#   if($format){
-#     unless(defined %SObibl_tid_strenger){
-#       %SObibl_tid_strenger=
-# 	  ('MÅNED' => [4, 'JANUAR','FEBRUAR','MARS','APRIL','MAI','JUNI','JULI',
-# 		          'AUGUST','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER' ],
-# 	   'Måned' => [4, 'Januar','Februar','Mars','April','Mai','Juni','Juli',
-# 		          'August','September','Oktober','November','Desember'],
-# 	   'måned' => [4, 'januar','februar','mars','april','mai','juni','juli',
-# 		          'august','september','oktober','november','desember'],
-# 	   'MÅNE.' => [4, 'JAN.','FEB.','MARS','APR.','MAI','JUNI','JULI','AUG.','SEP.','OKT.','NOV.','DES.'],
-# 	   'Måne.' => [4, 'Jan.','Feb.','Mars','Apr.','Mai','Juni','Juli','Aug.','Sep.','Okt.','Nov.','Des.'],
-# 	   'måne.' => [4, 'jan.','feb.','mars','apr.','mai','juni','juli','aug.','sep.','okt.','nov.','des.'],
-# 	   'MÅNE'  => [4, 'JAN','FEB','MARS','APR','MAI','JUNI','JULI','AUG','SEP','OKT','NOV','DES'],
-# 	   'Måne'  => [4, 'Jan','Feb','Mars','Apr','Mai','Juni','Juli','Aug','Sep','Okt','Nov','Des'],
-# 	   'måne'  => [4, 'jan','feb','mars','apr','mai','juni','juli','aug','sep','okt','nov','des'],
-# 	   'MÅN'   => [4, 'JAN','FEB','MAR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DES'],
-# 	   'Mån'   => [4, 'Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'],
-# 	   'mån'   => [4, 'jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'],
-# 
-# 	   'MONTH' => [4, 'JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY',
-# 		          'AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'],
-# 	   'Month' => [4, 'January','February','March','April','May','June','July',
-# 		          'August','September','October','November','December'],
-# 	   'month' => [4, 'january','february','march','april','may','june','july',
-# 		          'august','september','october','november','december'],
-# 	   'MONT.' => [4, 'JAN.','FEB.','MAR.','APR.','MAY','JUNE','JULY','AUG.','SEP.','OCT.','NOV.','DEC.'],
-# 	   'Mont.' => [4, 'Jan.','Feb.','Mar.','Apr.','May','June','July','Aug.','Sep.','Oct.','Nov.','Dec.'],
-# 	   'mont.' => [4, 'jan.','feb.','mar.','apr.','may','june','july','aug.','sep.','oct.','nov.','dec.'],
-# 	   'MONT'  => [4, 'JAN','FEB','MAR','APR','MAY','JUNE','JULY','AUG','SEP','OCT','NOV','DEC'],
-# 	   'Mont'  => [4, 'Jan','Feb','Mar','Apr','May','June','July','Aug','Sep','Oct','Nov','Dec'],
-# 	   'mont'  => [4, 'jan','feb','mar','apr','may','june','july','aug','sep','oct','nov','dec'],
-# 	   'MON'   => [4, 'JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],
-# 	   'Mon'   => [4, 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
-# 	   'mon'   => [4, 'jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'],
-# 	   'DAY'   => [6, 'SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'],
-# 	   'Day'   => [6, 'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
-# 	   'day'   => [6, 'sunday','monday','tuesday','wednesday','thursday','friday','saturday'],
-# 	   'DY'    => [6, 'SUN','MON','TUE','WED','THU','FRI','SAT'],
-# 	   'Dy'    => [6, 'Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
-# 	   'dy'    => [6, 'sun','mon','tue','wed','thu','fri','sat'],
-# 	   'DAG'   => [6, 'SØNDAG','MANDAG','TIRSDAG','ONSDAG','TORSDAG','FREDAG','LØRDAG'],
-# 	   'Dag'   => [6, 'Søndag','Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag'],
-# 	   'dag'   => [6, 'søndag','mandag','tirsdag','onsdag','torsdag','fredag','lørdag'],
-# 	   'DG'    => [6, 'SØN','MAN','TIR','ONS','TOR','FRE','LØR'],
-# 	   'Dg'    => [6, 'Søn','Man','Tir','Ons','Tor','Fre','Lør'],
-# 	   'dg'    => [6, 'søn','man','tir','ons','tor','fre','lør'],
-# 	   );
-#       for(qw(MAANED Maaned maaned MAAN Maan maan),'MAANE.','Maane.','maane.'){
-# 	$SObibl_tid_strenger{$_}=$SObibl_tid_strenger{replace($_,"aa","å","AA","Å")};
-#       }
-#       $SObibl_tid_pattern=join("|",map{quotemeta($_)}
-#  	                           sort{length($b)<=>length($a)}
-#                                    keys %SObibl_tid_strenger);
-#       #uten sort kan "måned" bli "mared", fordi "mån"=>"mar"
-#     }
-#     $format=~s/($SObibl_tid_pattern)/$SObibl_tid_strenger{$1}[1+$lt[$SObibl_tid_strenger{$1}[0]]]/g;
-# 
-#     $format=~s/TT|tt/HH/;
-#     $format=~s/ÅÅ/YY/g;$format=~s/åå/yy/g;
-#     $format=~s/YYYY             /1900+$lt[5]                  /gxe;
-#     $format=~s/(\s?)yyyy        /$lt[5]==(localtime)[5]?"":$1.(1900+$lt[5])/gxe;
-#     $format=~s/YY               /sprintf("%02d",$lt[5]%100)   /gxei;
-#     $format=~s/MM               /sprintf("%02d",$lt[4]+1)     /gxe;
-#     $format=~s/mm               /sprintf("%d",$lt[4]+1)       /gxe;
-#     $format=~s/DD               /sprintf("%02d",$lt[3])       /gxe;
-#     $format=~s/D(?![AaGgYyEeNn])/$lt[3]                       /gxe; #EN pga desember og wednesday
-#     $format=~s/dd               /sprintf("%d",$lt[3])         /gxe;
-#     $format=~s/hh12|HH12        /sprintf("%02d",$lt[2]<13?$lt[2]||12:$lt[2]-12)/gxe;
-#     $format=~s/HH24|HH24|HH|hh  /sprintf("%02d",$lt[2])       /gxe;
-#     $format=~s/MI               /sprintf("%02d",$lt[1])       /gxei;
-#     $format=~s/SS               /sprintf("%02d",$lt[0])       /gxei;
-#     $format=~s/UKENR            /sprintf("%02d",ukenr($time)) /gxei;
-#     $format=~s/UKE              /ukenr($time)                 /gxei;
-#     $format=~s/SS               /sprintf("%02d",$lt[0])       /gxei;
-# 
-#     return $format;
-#   }
-#   else{
-#     return sprintf("%04d%02d%02d%02d%02d%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]);
-#   }
-# }
-
-=head2 easter
-
-Input: A year (a four digit number)
-
-Output: array of two numbers: day and month of Easter Sunday that year. Month 3 means March and 4 means April.
-
- sub easter { use integer;my$Y=shift;my$C=$Y/100;my$L=($C-$C/4-($C-($C-17)/25)/3+$Y%19*19+15)%30;
-             (($L-=$L>28||($L>27?1-(21-$Y%19)/11:0))-=($Y+$Y/4+$L+2-$C+$C/4)%7)<4?($L+28,3):($L-3,4) }
-
-...is a "golfed" version of Oudins algorithm (1940) L<http://astro.nmsu.edu/~lhuber/leaphist.html>
-(see also http://www.smart.net/~mmontes/ec-cal.html )
-
-Valid for any Gregorian year. Dates repeat themselves after 70499183
-lunations = 2081882250 days = ca 5699845 years. However, our planet will
-by then have a different rotation and spin time...
-
-Example:
-
- ( $day, $month ) = easter( 2012 ); # $day == 8 and $month == 4
-
-Example 2:
-
- my @e=map sprintf("%02d%02d", reverse(easter($_))), 1800..300000;
- print "First: ".min(@e)." Last: ".max(@e)."\n"; # First: 0322 Last: 0425
-
-=cut
-
-sub easter { use integer;my$Y=shift;my$C=$Y/100;my$L=($C-$C/4-($C-($C-17)/25)/3+$Y%19*19+15)%30;
-             (($L-=$L>28||($L>27?1-(21-$Y%19)/11:0))-=($Y+$Y/4+$L+2-$C+$C/4)%7)<4?($L+28,3):($L-3,4) }
-
-
-=head2 time_fp
-
-No input arguments.
-
-Return the same number as perls C<time()> except with decimals (fractions of a second, _fp as in floating point number).
-
- print time_fp(),"\n";
- print time(),"\n";
-
-Could write:
-
- 1116776232.38632
-
-...if that is the time now.
-
-Or just:
-
- 1116776232
-
-...from perl's internal C<time()> if C<Time::HiRes> isn't installed and available.
-
-
-=cut
-
-sub time_fp {  # {return 0+gettimeofday} is just as well?
-    eval{ require Time::HiRes } or return time();
-    my($sec,$mic)=Time::HiRes::gettimeofday();
-    return $sec+$mic/1e6; #1e6 not portable?
-}
-
-=head2 sleep_fp
-
-sleep_fp() work as the built in C<< sleep() >>, but accepts fractional seconds:
-
- sleep_fp(0.02);  # sleeps for 20 milliseconds
-
-Sub sleep_fp do a C<require Time::HiRes>, thus it might take some
-extra time the first call. To avoid that, add C<< use Time::HiRes >>
-to your code. Sleep_fp should not be trusted for accuracy to more than
-a tenth of a second. Virtual machines tend to be less accurate (sleep
-longer) than physical ones. This was tested on VMware and RHEL
-(Linux). See also L<Time::HiRes>.
-
-=cut
-
-sub sleep_fp { eval{require Time::HiRes} or (sleep(shift()),return);Time::HiRes::sleep(shift()) }
-
-=head2 eta
-
-Estimated time of arrival. ...NOT IMPLEMENTED YET...
-
-=cut
-
-#http://en.wikipedia.org/wiki/Kalman_filter god idé?
-our %Eta;
-our $Eta_forgetfulness=2;
-sub eta {
-  my($id,$pos,$end,$time_fp)=(@_==2?(join(";",caller()),@_):@_);
-  #@_==2 ? ("",@_) : @_==3 ? (@_) : croak"Two or three arguments to eta()";
-  $time_fp||=time_fp();
-  my $a=$Eta{$id}||=[];
-  push @$a, [$pos,$time_fp];
-  return undef if @$a<2;
-# print "$$a[-1][1] + ($end-$$a[-1][0]) * ($$a[-1][1]-$$a[-2][1])/($$a[-1][0]-$$a[-2][0])\n";
-  my @eta;
-  for(2..@$a){
-    push @eta, $$a[-1][1] + ($end-$$a[-1][0]) * ($$a[-1][1]-$$a[-$_][1])/($$a[-1][0]-$$a[-$_][0]);
-  }
-  my($sum,$sumw,$w)=(0,0,1);
-  for(@eta){
-    $sum+=$w*$_;
-    $sumw+=$w;
-    $w/=$Eta_forgetfulness;
-  }
-  my $avg=$sum/$sumw;
-  return $avg;
-#  return avg(@eta);
- #return $$a[-1][1] + ($end-$$a[-1][0]) * ($$a[-1][1]-$$a[-2][1])/($$a[-1][0]-$$a[-2][0]);
-  1;
-}
-
-=head2 sleep_until
-
-sleep_until(0.5) sleeps until half a second has passed since the last
-call to sleep_until. This example starts the next job excactly ten
-seconds after the last job started even if the last job lasted for a
-while (but not more than ten seconds):
-
- for(@jobs){
-   sleep_until(10);
-   print localtime()."\n";
-   ...heavy job....
- }
-
-Might print:
-
- Thu Jan 12 16:00:00 2012
- Thu Jan 12 16:00:10 2012
- Thu Jan 12 16:00:20 2012
-
-...and so on even if the C<< ...heavy job... >>-part takes more than a
-second to complete. Whereas if sleep(10) was used, each job would
-spend more than ten seconds in average since the work time would be
-added to sleep(10).
-
-Note: sleep_until() will remember the time of ANY last call of this sub,
-not just the one on the same line in the source code (this might change
-in the future). The first call to sleep_until() will be the same as
-sleep_fp() or Perl's own sleep() if the argument is an integer.
-
-=cut
-
-our $Time_last_sleep_until;
-sub sleep_until {
-  my $s=@_==1?shift():0;
-  my $time=time_fp();
-  my $sleep=$s-($time-nvl($Time_last_sleep_until,0));
-  $Time_last_sleep_until=time;
-  sleep_fp($sleep) if $sleep>0;
-}
-
-=head2 sys
-
-Call instead of C<system> if you want C<die> if something fails. Uses Carp::croak internally.
-
- sub sys($){my$s=shift;system($s)==0 or croak"ERROR, sys($s) ($!) ($?)"}
-
-=cut
-
-sub sys($){ my$s=shift;system($s)==0 or croak"ERROR, sys($s) ($!) ($?)" }
-
-=head2 recursed
-
-Returns true or false (actually 1 or 0) depending on whether the
-current sub has been called by itself or not.
-
- sub xyz
- {
-    xyz() if not recursed;
-
- }
-
-=cut
-
-sub recursed {(caller(1))[3] eq (caller(2))[3]?1:0}
-
-=head2 md5sum
-
-B<Input:> a filename.
-
-B<Output:> a string of 32 hexadecimal chars from 0-9 or a-f.
-
-Example, the md5sum linux command without options could be implementet like this:
-
- #!/usr/bin/perl
- use Acme::Tools;
- print md5sum($_)."  $_\n" for @ARGV;
-
-This sub requires L<Digest::MD5>, which is a core perl-module since
-version 5.?.?  It does not slurp the files or spawn new processes.
-
-=cut
-
-sub md5sum {
-  my $fn=shift;
-  open my $M, '<', $fn or croak "Could not open file $fn for md5sum() $!";
-  binmode($M);
-  require Digest::MD5;
-  return Digest::MD5->new->addfile($M)->hexdigest;
-}
-
-#http://rosettacode.org/wiki/Levenshtein_distance#Perl
-our %ldist_cache;
-sub ldist {
-  my($s,$t,$l) = @_;
-  return length($t) if !$s;
-  return length($s) if !$t;
-  %ldist_cache=() if not $l and 1000<0+%ldist_cache;
-  $ldist_cache{$s,$t} ||=
-  do {
-    my($s1,$t1) = ( substr($s,1), substr($t,1) );
-    substr($s,0,1) eq substr($t,0,1)
-      ? ldist($s1,$t1)
-      : 1 + min( ldist($s1,$t1,1+$l), ldist($s,$t1,1+$l), ldist($s1,$t,1+$l) );
-  };
-}
-
-=head2 leapyear
-
-B<Input:> A year. A four digit number.
-
-B<Output:> True (1) or false (0) of weather the year is a leap year or
-not. (Uses current calendar even for period before it was used).
-
- print join(", ",grep leapyear($_), 1900..2014)."\n";
-
-Prints: (note, 1900 is not a leap year, but 2000 is)
-
- 1904, 1908, 1912, 1916, 1920, 1924, 1928, 1932, 1936, 1940, 1944, 1948, 1952, 1956,
- 1960, 1964, 1968, 1972, 1976, 1980, 1984, 1988, 1992, 1996, 2000, 2004, 2008, 2012
-
-=cut
-
-sub leapyear{$_[0]%400?$_[0]%100?$_[0]%4?0:1:0:1} #bool
 
 =head1 JUST FOR FUN
 
