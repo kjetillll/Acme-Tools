@@ -105,9 +105,11 @@ our @EXPORT = qw(
   lcm
   pivot
   tablestring
-  trim
   upper
   lower
+  trim
+  rpad
+  lpad
   dserialize
   serialize
   bytes_readable
@@ -239,6 +241,137 @@ sub min  {my $min;for(@_){ $min=$_ if defined($_) and !defined($min) || $_ < $mi
 sub mins {my $min;for(@_){ $min=$_ if defined($_) and !defined($min) || $_ lt $min} $min }
 sub max  {my $max;for(@_){ $max=$_ if defined($_) and !defined($max) || $_ > $max } $max }
 sub maxs {my $max;for(@_){ $max=$_ if defined($_) and !defined($max) || $_ gt $max} $max }
+
+=head2 num2code
+
+See L</code2num>
+
+=head2 code2num
+
+C<num2code()> convert numbers (integers) from the normal decimal system to some arbitrary other number system.
+That can be binary (2), oct (8), hex (16) or others.
+
+Example:
+
+ print num2code(255,2,"0123456789ABCDEF");  # prints FF
+ print num2code(14,2,"0123456789ABCDEF");   # prints 0E
+
+...because 255 are converted to hex FF (base C<< length("0123456789ABCDEF") >> ) with is 2 digits 0-9 or characters A-F.
+...and 14 are converted to 0E, with leading 0 because of the second argument 2.
+
+Example:
+
+ print num2code(1234,16,"01")
+
+Prints the 16 binary digits 0000010011010010 which is 1234 converted to binary zeros and ones.
+
+To convert back:
+
+ print code2num("0000010011010010","01");  #prints 1234
+
+C<num2code()> can be used to compress numeric IDs to something shorter:
+
+ $chars='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_';
+ $code=num2code("241274432",5,$chars);
+
+=cut
+
+sub num2code {
+  my($num,$sifre,$lovligetegn,$start)=@_;
+  my $antlovligetegn=length($lovligetegn);
+  my $key;
+  no warnings;
+  croak if $num<$start;
+  $num-=$start;
+  for(1..$sifre){
+    $key=substr($lovligetegn,$num%$antlovligetegn,1).$key;
+    $num=int($num/$antlovligetegn);
+  }
+  croak if $num>0;
+  return $key;
+}
+
+sub code2num {
+  my($code,$lovligetegn,$start)=@_; $start=0 if not defined $start;
+  my $antlovligetegn=length($lovligetegn);
+  my $num=0;
+  $num=$num*$antlovligetegn+index($lovligetegn,$_) for split//,$code;
+  return $num+$start;
+}
+
+
+=head2 gcd
+
+I< C<">The Euclidean algorithm (also called Euclid's algorithm) is an
+algorithm to determine the greatest common divisor (gcd) of two
+integers. It is one of the oldest algorithms known, since it appeared
+in the classic Euclid's Elements around 300 BC. The algorithm does not
+require factoring.C<"> >
+
+B<Input:> two or more positive numbers (integers, without decimals that is)
+
+B<Output:> an integer
+
+B<Example:>
+
+  print gcd(12, 8);   # prints 4
+
+Because the (prime number) factors of  12  is  2 * 2 * 3 and the factors of 8 is 2 * 2 * 2
+and the common ('overlapping') factors for both 12 and 8 is then 2 * 2 and the result becomes 4.
+
+B<Example two>:
+
+  print gcd(90, 135, 315);               # prints 45
+  print gcd(2*3*3*5, 3*3*3*5, 3*3*5*7);  # prints 45 ( = 3*3*5 which exists for all three)
+
+Implementation:
+
+ sub gcd { my($a,$b,@r)=@_; @r ? gcd($a,gcd($b,@r)) : $b==0 ? $a : gcd($b, $a % $b) }
+
+L<http://en.wikipedia.org/wiki/Greatest_common_divisor>
+
+L<http://en.wikipedia.org/wiki/Euclidean_algorithm>
+
+=cut
+
+sub gcd { my($a,$b,@r)=@_; @r ? gcd($a,gcd($b,@r)) : $b==0 ? $a : gcd($b, $a % $b) }
+
+=head2 lcm
+
+C<lcm()> finds the Least Common Multiple of two or more numbers (integers).
+
+B<Input:> two or more positive numbers (integers)
+
+B<Output:> an integer number
+
+Example: C< 2/21 + 1/6 = 4/42 + 7/42 = 11/42>
+
+Where 42 = lcm(21,6).
+
+B<Example:>
+
+  print lcm(45,120,75);   # prints 1800
+
+Because the factors are:
+
+  45 = 2^0 * 3^2 * 5^1
+ 120 = 2^3 * 3^1 * 5^1
+  75 = 2^0 * 3^1 * 5^2
+
+Take the bigest power of each primary number (2, 3 and 5 here).
+Which is 2^3, 3^2 and 5^2. Multiplied this is 8 * 9 * 25 = 1800.
+
+ sub lcm { my($a,$b,@r)=@_; @r ? lcm($a,lcm($b,@r)) : $a*$b/gcd($a,$b) }
+
+Seems to works with L<Math::BigInt> as well: (C<lcm> of all integers from 1 to 200)
+
+ perl -MAcme::Tools -MMath::BigInt -le'print lcm(map Math::BigInt->new($_),1..200)'
+
+ 337293588832926264639465766794841407432394382785157234228847021917234018060677390066992000
+
+=cut
+
+sub lcm { my($a,$b,@r)=@_; @r ? lcm($a,lcm($b,@r)) : $a*$b/gcd($a,$b) }
 
 =head2 resolve
 
@@ -2558,6 +2691,179 @@ sub hashtrans {
     return %new;
 }
 
+=head1 STRINGS
+
+=head2 upper
+
+Returns input string as uppercase.
+
+Can be used if perls build in C<uc()> for some reason does not convert Ê¯Â and other letters outsize a-z.
+
+C<< Ê¯Â‰ÎÔˆ¸ˇ‚ÍÓÙ˚„ı‡ËÏÚ˘·ÈÌÛ˙˝Ò => ∆ÿ≈ƒÀœ÷‹?¬ Œ‘€√’¿»Ã“Ÿ¡…Õ”⁄›—– >>
+
+See also C<< perldoc -f uc >> and C<< perldoc -f lc >>
+
+=head2 lower
+
+Same as L</upper>, only lower...
+
+=head2 trim
+
+Removes space from the beginning and end of a string. Whitespace (C<< \s >>) that is.
+And removes any whitespace inside the string of more than one char, leaving the first whitespace char. Thus:
+
+ trim(" asdf \t\n    123 ") eq "asdf 123"
+ trim(" asdf\t\n    123 ")  eq "asdf\t123"
+
+Works on C<< $_ >> if no argument i given:
+
+ print join",", map trim, " please ", " remove ", " my ", " spaces ";   # please,remove,my,spaces
+ print join",", trim(" please ", " remove ", " my ", " spaces ");       # works on arrays as well
+ my $s=' please '; trim(\$s);                                           # now  $s eq 'please'
+ trim(\@untrimmedstrings);                                              # trims array strings inplace
+
+=head2 lpad
+
+=head2 rpad
+
+"Pads" a string to the given length by adding one or more spaces at the end (right, rpad) or at the start (left, lpad).
+
+B<Input:>
+
+First argument: string to be padded
+
+Second argument: length of the output
+
+Optional third argument: character(s) used to pad. Default is space.
+
+ rpad('gomle',9);         # 'gomle    '
+ lpad('gomle',9);         # '    gomle'
+ rpad('gomle',9,'-');     # 'gomle----'
+ lpad('gomle',9,'+');     # '++++gomle'
+ rpad('gomle',4);         # 'goml'
+ lpad('gomle',4);         # 'goml'
+ rpad('gomle',7,'xyz');   # 'gomlxy'
+ lpad('gomle',10,'xyz');  # 'xyzxygoml'
+ 
+=cut
+
+sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-zÊ¯Â‰ÎÔˆ¸ˇ‚ÍÓÙ˚„ı‡ËÏÚ˘·ÈÌÛ˙˝Ò/A-Z∆ÿ≈ƒÀœ÷‹ˇ¬ Œ‘€√’¿»Ã“Ÿ¡…Õ”⁄›—–/;$s}
+sub lower {no warnings;my $s=@_?shift:$_;$s=~tr/A-Z∆ÿ≈ƒÀœ÷‹ˇ¬ Œ‘€√’¿»Ã“Ÿ¡…Õ”⁄›—–/a-zÊ¯Â‰ÎÔˆ¸ˇ‚ÍÓÙ˚„ı‡ËÏÚ˘·ÈÌÛ˙˝Ò/;$s}
+
+sub trim {
+  return trim($_) if !@_;
+  return map trim($_), @_ if @_>1;
+  my $s=shift;
+  if(ref($s) eq 'SCALAR'){ $$s=~s,^\s+|(?<=\s)\s+|\s+$,,g; return $$s}
+  if(ref($s) eq 'ARRAY') { trim(\$_) for @$s; return $s }
+  $s=~s,^\s+|(?<=\s)\s+|\s+$,,g;
+  $s;
+}
+
+sub rpad {
+  my($s,$l,$p)=@_;
+  $p=' ' if !length($p);
+  $s.=$p while length($s)<$l;
+  substr($s,0,$l);
+}
+
+sub lpad {
+  my($s,$l,$p)=@_;
+  $p=' ' if !length($p);
+ $l<length($s)
+ ? substr($s,0,$l)
+ : substr($p x (1+$l/length($p)), 0, $l-length($s)).$s;
+}
+
+
+=head2 trigram
+
+B<Input:> A string (i.e. a name). And an optional x (see example 2)
+
+B<Output:> A list of this strings trigrams (See examlpe)
+
+B<Example 1:>
+
+ print join ", ", trigram("Kjetil Skotheim");
+
+Prints:
+
+ Kje, jet, eti, til, il , l S,  Sk, Sko, kot, oth, the, hei, eim
+
+B<Example 2:>
+
+Default is 3, but here 4 is used instead in the second optional input argument:
+
+ print join ", ", trigram("Kjetil Skotheim", 4);
+
+And this prints:
+
+ Kjet, jeti, etil, til , il S, l Sk,  Sko, Skot, koth, othe, thei, heim
+
+C<trigram()> was created for "fuzzy" name searching. If you have a database of many names,
+addresses, phone numbers, customer numbers etc. You can use trigram() to search
+among all of those at the same time. If the search form only has one input field.
+One general search box.
+
+Store all of the trigrams of the trigram-indexed input fields coupled
+with each person, and when you search, you take each trigram of you
+query string and adds the list of people that has that trigram. The
+search result should then be sorted so that the persons with most hits
+are listed first. Both the query strings and the indexed database
+fields should have a space added first and last before C<trigram()>-ing
+them.
+
+This search algorithm is not includes here yet...
+
+C<trigram()> should perhaps have been named ngram for obvious reasons.
+
+=head2 sliding
+
+Same as trigram (except there is no default width). Works also with arrayref instead of string.
+
+Example:
+
+ sliding( ["Reven","rasker","over","isen"], 2 )
+
+Result:
+
+  ( ['Reven','rasker'], ['rasker','over'], ['over','isen'] )
+
+=head2 chunks
+
+Splits strings and arrays into chunks of given size:
+
+ my @a = chunks("Reven rasker over isen",7);
+ my @b = chunks([qw/Og gubben satt i kveldinga og koste seg med skillinga/], 3);
+
+Resulting arrays:
+
+ ( 'Reven r', 'asker o', 'ver ise', 'n' )
+ ( ['Og','gubben','satt'], ['i','kveldinga','og'], ['koste','seg','med'], ['skillinga'] )
+
+=head2 chars
+
+ chars("Tittentei");     # ('T','i','t','t','e','n','t','e','i')
+
+=cut
+
+sub trigram { sliding($_[0],$_[1]||3) }
+
+sub sliding {
+  my($s,$w)=@_;
+  return map substr($s,$_,$w),   0..length($s)-$w  if !ref($s);
+  return map [@$s[$_..$_+$w-1]], 0..@$s-$w         if ref($s) eq 'ARRAY';
+}
+
+sub chunks {
+  my($s,$w)=@_;
+  return $s=~/(.{1,$w})/g                                      if !ref($s);
+  return map [@$s[$_*$w .. min($_*$w+$w-1,$#$s)]], 0..$#$s/$w  if ref($s) eq 'ARRAY';
+}
+
+sub chars { split//, shift }
+
+
 =head1 COMPRESSION
 
 L</zipb64>, L</unzipb64>, L</zipbin>, L</unzipbin>, L</gzip>, and L</gunzip>
@@ -3685,93 +3991,6 @@ sub permutations {
   }
 }
 
-=head2 trigram
-
-B<Input:> A string (i.e. a name). And an optional x (see example 2)
-
-B<Output:> A list of this strings trigrams (See examlpe)
-
-B<Example 1:>
-
- print join ", ", trigram("Kjetil Skotheim");
-
-Prints:
-
- Kje, jet, eti, til, il , l S,  Sk, Sko, kot, oth, the, hei, eim
-
-B<Example 2:>
-
-Default is 3, but here 4 is used instead in the second optional input argument:
-
- print join ", ", trigram("Kjetil Skotheim", 4);
-
-And this prints:
-
- Kjet, jeti, etil, til , il S, l Sk,  Sko, Skot, koth, othe, thei, heim
-
-C<trigram()> was created for "fuzzy" name searching. If you have a database of many names,
-addresses, phone numbers, customer numbers etc. You can use trigram() to search
-among all of those at the same time. If the search form only has one input field.
-One general search box.
-
-Store all of the trigrams of the trigram-indexed input fields coupled
-with each person, and when you search, you take each trigram of you
-query string and adds the list of people that has that trigram. The
-search result should then be sorted so that the persons with most hits
-are listed first. Both the query strings and the indexed database
-fields should have a space added first and last before C<trigram()>-ing
-them.
-
-This search algorithm is not includes here yet...
-
-C<trigram()> should perhaps have been named ngram for obvious reasons.
-
-=head2 sliding
-
-Same as trigram (except there is no default width). Works also with arrayref instead of string.
-
-Example:
-
- sliding( ["Reven","rasker","over","isen"], 2 )
-
-Result:
-
-  ( ['Reven','rasker'], ['rasker','over'], ['over','isen'] )
-
-=head2 chunks
-
-Splits strings and arrays into chunks of given size:
-
- my @a = chunks("Reven rasker over isen",7);
- my @b = chunks([qw/Og gubben satt i kveldinga og koste seg med skillinga/], 3);
-
-Resulting arrays:
-
- ( 'Reven r', 'asker o', 'ver ise', 'n' )
- ( ['Og','gubben','satt'], ['i','kveldinga','og'], ['koste','seg','med'], ['skillinga'] )
-
-=head2 chars
-
- chars("Tittentei");     # ('T','i','t','t','e','n','t','e','i')
-
-=cut
-
-sub trigram { sliding($_[0],$_[1]||3) }
-
-sub sliding {
-  my($s,$w)=@_;
-  return map substr($s,$_,$w),   0..length($s)-$w  if !ref($s);
-  return map [@$s[$_..$_+$w-1]], 0..@$s-$w         if ref($s) eq 'ARRAY';
-}
-
-sub chunks {
-  my($s,$w)=@_;
-  return $s=~/(.{1,$w})/g                                      if !ref($s);
-  return map [@$s[$_*$w .. min($_*$w+$w-1,$#$s)]], 0..$#$s/$w  if ref($s) eq 'ARRAY';
-}
-
-sub chars { split//, shift }
-
 =head2 cart
 
 Cartesian product
@@ -3912,137 +4131,6 @@ sub reduce (&@) {
   return $proc->();
 }
 
-
-=head2 num2code
-
-See L</code2num>
-
-=head2 code2num
-
-C<num2code()> convert numbers (integers) from the normal decimal system to some arbitrary other number system.
-That can be binary (2), oct (8), hex (16) or others.
-
-Example:
-
- print num2code(255,2,"0123456789ABCDEF");  # prints FF
- print num2code(14,2,"0123456789ABCDEF");   # prints 0E
-
-...because 255 are converted to hex FF (base C<< length("0123456789ABCDEF") >> ) with is 2 digits 0-9 or characters A-F.
-...and 14 are converted to 0E, with leading 0 because of the second argument 2.
-
-Example:
-
- print num2code(1234,16,"01")
-
-Prints the 16 binary digits 0000010011010010 which is 1234 converted to binary zeros and ones.
-
-To convert back:
-
- print code2num("0000010011010010","01");  #prints 1234
-
-C<num2code()> can be used to compress numeric IDs to something shorter:
-
- $chars='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_';
- $code=num2code("241274432",5,$chars);
-
-=cut
-
-sub num2code {
-  my($num,$sifre,$lovligetegn,$start)=@_;
-  my $antlovligetegn=length($lovligetegn);
-  my $key;
-  no warnings;
-  croak if $num<$start;
-  $num-=$start;
-  for(1..$sifre){
-    $key=substr($lovligetegn,$num%$antlovligetegn,1).$key;
-    $num=int($num/$antlovligetegn);
-  }
-  croak if $num>0;
-  return $key;
-}
-
-sub code2num {
-  my($code,$lovligetegn,$start)=@_; $start=0 if not defined $start;
-  my $antlovligetegn=length($lovligetegn);
-  my $num=0;
-  $num=$num*$antlovligetegn+index($lovligetegn,$_) for split//,$code;
-  return $num+$start;
-}
-
-
-=head2 gcd
-
-I< C<">The Euclidean algorithm (also called Euclid's algorithm) is an
-algorithm to determine the greatest common divisor (gcd) of two
-integers. It is one of the oldest algorithms known, since it appeared
-in the classic Euclid's Elements around 300 BC. The algorithm does not
-require factoring.C<"> >
-
-B<Input:> two or more positive numbers (integers, without decimals that is)
-
-B<Output:> an integer
-
-B<Example:>
-
-  print gcd(12, 8);   # prints 4
-
-Because the (prime number) factors of  12  is  2 * 2 * 3 and the factors of 8 is 2 * 2 * 2
-and the common ('overlapping') factors for both 12 and 8 is then 2 * 2 and the result becomes 4.
-
-B<Example two>:
-
-  print gcd(90, 135, 315);               # prints 45
-  print gcd(2*3*3*5, 3*3*3*5, 3*3*5*7);  # prints 45 ( = 3*3*5 which exists for all three)
-
-Implementation:
-
- sub gcd { my($a,$b,@r)=@_; @r ? gcd($a,gcd($b,@r)) : $b==0 ? $a : gcd($b, $a % $b) }
-
-L<http://en.wikipedia.org/wiki/Greatest_common_divisor>
-
-L<http://en.wikipedia.org/wiki/Euclidean_algorithm>
-
-=cut
-
-sub gcd { my($a,$b,@r)=@_; @r ? gcd($a,gcd($b,@r)) : $b==0 ? $a : gcd($b, $a % $b) }
-
-=head2 lcm
-
-C<lcm()> finds the Least Common Multiple of two or more numbers (integers).
-
-B<Input:> two or more positive numbers (integers)
-
-B<Output:> an integer number
-
-Example: C< 2/21 + 1/6 = 4/42 + 7/42 = 11/42>
-
-Where 42 = lcm(21,6).
-
-B<Example:>
-
-  print lcm(45,120,75);   # prints 1800
-
-Because the factors are:
-
-  45 = 2^0 * 3^2 * 5^1
- 120 = 2^3 * 3^1 * 5^1
-  75 = 2^0 * 3^1 * 5^2
-
-Take the bigest power of each primary number (2, 3 and 5 here).
-Which is 2^3, 3^2 and 5^2. Multiplied this is 8 * 9 * 25 = 1800.
-
- sub lcm { my($a,$b,@r)=@_; @r ? lcm($a,lcm($b,@r)) : $a*$b/gcd($a,$b) }
-
-Seems to works with L<Math::BigInt> as well: (C<lcm> of all integers from 1 to 200)
-
- perl -MAcme::Tools -MMath::BigInt -le'print lcm(map Math::BigInt->new($_),1..200)'
-
- 337293588832926264639465766794841407432394382785157234228847021917234018060677390066992000
-
-=cut
-
-sub lcm { my($a,$b,@r)=@_; @r ? lcm($a,lcm($b,@r)) : $a*$b/gcd($a,$b) }
 
 =head2 pivot
 
@@ -4441,45 +4529,6 @@ sub tablestring {
     }
   }#for x 
   return join("\n",@tabut)."\n";
-}
-
-=head2 trim
-
- trim(" asdf \t\n    123 ") eq "asdf 123"
-
-=head2 upper
-
-Returns input string as uppercase.
-
-Used if perls build in C<uc()> for some reason does not convert Ê¯Â and other letters outsize a-z.
-
-C<< Ê¯Â‰ÎÔˆ¸ˇ‚ÍÓÙ˚„ı‡ËÏÚ˘·ÈÌÛ˙˝Ò => ∆ÿ≈ƒÀœ÷‹?¬ Œ‘€√’¿»Ã“Ÿ¡…Õ”⁄›—– >>
-
-See also C<< perldoc -f uc >>
-
-=head2 lower
-
-Returns input string as lowercase.
-
-Used if perls build in C<lc()> for some reason does not convert ∆ÿ≈ and other letters outsize A-Z.
-
-C<< ∆ÿ≈ƒÀœ÷‹?¬ Œ‘€√’¿»Ã“Ÿ¡…Õ”⁄›—– => Ê¯Â‰ÎÔˆ¸?‚ÍÓÙ˚„ı‡ËÏÚ˘·ÈÌÛ˙˝Ò >>
-
-See also C<< perldoc -f lc >>
-
-=cut
-
-#hm UTF-8?
-sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-zÊ¯Â‰ÎÔˆ¸ˇ‚ÍÓÙ˚„ı‡ËÏÚ˘·ÈÌÛ˙˝Ò/A-Z∆ÿ≈ƒÀœ÷‹ˇ¬ Œ‘€√’¿»Ã“Ÿ¡…Õ”⁄›—–/;$s}
-sub lower {no warnings;my $s=@_?shift:$_;$s=~tr/A-Z∆ÿ≈ƒÀœ÷‹ˇ¬ Œ‘€√’¿»Ã“Ÿ¡…Õ”⁄›—–/a-zÊ¯Â‰ÎÔˆ¸ˇ‚ÍÓÙ˚„ı‡ËÏÚ˘·ÈÌÛ˙˝Ò/;$s}
-
-sub trim {
-  return trim($_) if !@_;
-  my $s=shift;
-  if(ref($s) eq 'SCALAR'){ $$s=~s,^\s+|(?<=\s)\s+|\s+$,,g; return $$s}
-  if(ref($s) eq 'ARRAY') { trim(\$_) for @$s; return $s }
-  $s=~s,^\s+|(?<=\s)\s+|\s+$,,g;
-  $s;
 }
 
 =head2 serialize

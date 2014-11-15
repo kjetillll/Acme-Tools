@@ -1,9 +1,8 @@
 # make test
-# or
 # perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
 
 BEGIN{require 't/common.pl'}
-use Test::More tests => 146;
+use Test::More tests => 161;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -367,9 +366,32 @@ es     fdsa
     22 adf
 END
 
-#-- upper, lower
+#--rpad and lpad
+my $pad;
+ok( ($pad=rpad('gomle',9)) eq 'gomle    '             ,'rpad9'.   "    <$pad>"     );
+ok( ($pad=lpad('gomle',9)) eq '    gomle'             ,'lpad9'.   "    <$pad>"     );
+ok( ($pad=rpad('gomle',9,'-')) eq 'gomle----'         ,'rpad9-'.   "    <$pad>"    );
+ok( ($pad=lpad('gomle',9,'+')) eq '++++gomle'         ,'lpad9+'.   "    <$pad>"    );
+ok( ($pad=rpad('gomle',4)) eq 'goml'                  ,'rpad4'.   "    <$pad>"     );
+ok( ($pad=lpad('gomle',4)) eq 'goml'                  ,'lpad4'.   "    <$pad>"     );
+ok( ($pad=rpad('gomle',7,'xyz')) eq 'gomlexy'          ,'rpad7xyz'.   "    <$pad>"  );
+ok( ($pad=lpad('gomle',10,'xyz')) eq 'xyzxygomle'      ,'lpad10xyx'.   "    <$pad>" );
+ok( ($pad=lpad('gomle',100,'-xyz')) eq '-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xygomle' ,'lpad100-xyx' );
+
+#-- upper, lower (utf8?)
 ok(upper('a-zæøåäëïöüÿâêîôûãõàèìòùáéíóúıñ' x 3) eq 'A-ZÆØÅÄËÏÖÜÿÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚİÑ' x 3, 'upper'); #hmm ÿ
 ok(lower('A-ZÆØÅÄËÏÖÜ.ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚİÑ' x 3) eq 'a-zæøåäëïöü.âêîôûãõàèìòùáéíóúıñ' x 3, 'lower'); #hmm .
+
+#--trim
+ok( trim(" asdf \t\n    123 ") eq "asdf 123",  'trim 1');
+ok( trim(" asdf\t\n    123 ") eq "asdf\t123",  'trim 2');
+ok( trim(" asdf\n\t    123\n") eq "asdf\n123", 'trim 3');
+my($trimstr,@trim)=(' please ', ' please ', ' remove ', ' my ', ' spaces ');
+ok( join('',map"<$_>",trim(@trim)) eq '<please><remove><my><spaces>', 'trim array');
+trim(\$trimstr);
+ok($trimstr eq 'please', 'trim inplace');
+trim(\@trim);
+ok_ref(\@trim,[qw/please remove my spaces/], 'trim inplace array');
 
 #-- easter
 ok( '384f0eefc22c35d412ff01b2088e9e05' eq  md5_hex( join",", map{easter($_)} 1..5000), 'easter');
