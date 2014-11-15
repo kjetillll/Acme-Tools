@@ -18,6 +18,11 @@ t/12_ht2t.t
 t/13_random.t
 t/14_brainfuck.t
 t/15_zip.t
+t/15_zip.t
+t/16_fractional.t
+t/17_roman.t
+t/18_pad.t
+t/common.pl
 test_k_m.pl
 test_fork_bloom.pl
 test_resolve_bigfloat.pl

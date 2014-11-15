@@ -2,7 +2,7 @@
 # perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
 
 BEGIN{require 't/common.pl'}
-use Test::More tests => 161;
+use Test::More tests => 152;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -365,18 +365,6 @@ es     fdsa
 
     22 adf
 END
-
-#--rpad and lpad
-my $pad;
-ok( ($pad=rpad('gomle',9)) eq 'gomle    '             ,'rpad9'.   "    <$pad>"     );
-ok( ($pad=lpad('gomle',9)) eq '    gomle'             ,'lpad9'.   "    <$pad>"     );
-ok( ($pad=rpad('gomle',9,'-')) eq 'gomle----'         ,'rpad9-'.   "    <$pad>"    );
-ok( ($pad=lpad('gomle',9,'+')) eq '++++gomle'         ,'lpad9+'.   "    <$pad>"    );
-ok( ($pad=rpad('gomle',4)) eq 'goml'                  ,'rpad4'.   "    <$pad>"     );
-ok( ($pad=lpad('gomle',4)) eq 'goml'                  ,'lpad4'.   "    <$pad>"     );
-ok( ($pad=rpad('gomle',7,'xyz')) eq 'gomlexy'          ,'rpad7xyz'.   "    <$pad>"  );
-ok( ($pad=lpad('gomle',10,'xyz')) eq 'xyzxygomle'      ,'lpad10xyx'.   "    <$pad>" );
-ok( ($pad=lpad('gomle',100,'-xyz')) eq '-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xyz-xygomle' ,'lpad100-xyx' );
 
 #-- upper, lower (utf8?)
 ok(upper('a-zæøåäëïöüÿâêîôûãõàèìòùáéíóúıñ' x 3) eq 'A-ZÆØÅÄËÏÖÜÿÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚİÑ' x 3, 'upper'); #hmm ÿ

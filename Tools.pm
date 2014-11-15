@@ -110,6 +110,7 @@ our @EXPORT = qw(
   trim
   rpad
   lpad
+  cpad
   dserialize
   serialize
   bytes_readable
@@ -2738,7 +2739,18 @@ B<Input:> First argument: string to be padded. Second argument: length of the ou
  lpad('gomle',4);         # 'goml'
  rpad('gomle',7,'xyz');   # 'gomlxy'
  lpad('gomle',10,'xyz');  # 'xyzxygoml'
- 
+
+=head2 cpad
+
+Center pads. Pads the string both on left and right equal to the given length. Centers the string. Pads right side first.
+
+ cpad('mat',5)            eq ' mat '
+ cpad('mat',4)            eq 'mat '
+ cpad('mat',6)            eq ' mat  '
+ cpad('mat',9)            eq '   mat   '
+ cpad('mat',5,'+')        eq '+mat+'
+ cpad('MMMM',20,'xyzXYZ') eq 'xyzXYZxyMMMMxyzXYZxy'
+
 =cut
 
 sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-zæøåäëïöüÿâêîôûãõàèìòùáéíóúıñğ/A-ZÆØÅÄËÏÖÜÿÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚİÑĞ/;$s}
@@ -2764,11 +2776,33 @@ sub rpad {
 sub lpad {
   my($s,$l,$p)=@_;
   $p=' ' if !length($p);
- $l<length($s)
- ? substr($s,0,$l)
- : substr($p x (1+$l/length($p)), 0, $l-length($s)).$s;
+  $l<length($s)
+  ? substr($s,0,$l)
+  : substr($p x (1+$l/length($p)), 0, $l-length($s)).$s;
 }
 
+sub cpad {
+  my($s,$l,$p)=@_;
+  $p=' ' if !length($p);
+  my $ls=length($s);
+  return substr($s,0,$l) if $l<$ls;
+  $p=$p x (($l-$ls+2)/length($p));
+  substr($p, 0, ($l-$ls  )/2) . $s .
+  substr($p, 0, ($l-$ls+1)/2);
+}
+
+sub cpad_old {
+  my($s,$l,$p)=@_;
+  $p=' ' if !length($p);
+  return substr($s,0,$l) if $l<length($s);
+  my $i=0;
+  while($l>length($s)){
+    my $pc=substr($p,($i==int($i)?1:-1)*($i%length($p)),1);
+    $i==int($i) ? ($s.=$pc) : ($s=$pc.$s);
+    $i+=1/2;
+  }
+  $s;
+}
 
 =head2 trigram
 
