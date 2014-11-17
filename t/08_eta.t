@@ -1,6 +1,11 @@
 #perl Makefile.PL;make;perl -Iblib/lib t/08_eta.t
 BEGIN{require 't/common.pl'}
 use Test::More tests => 5;
+eta(1,100);
+warn serialize(\%Acme::Tools::Eta,'Eta','',1);
+my $k=(keys%Acme::Tools::Eta)[0];
+ok( @{$Acme::Tools::Eta{$k}}==1, 'ok aref');
+
 ok(!defined eta("x",6,10,70)                ,'!def');
 ok(         eta("x",8,10,80) == 90          ,'ok 90');
 ok(         eta("x",8,10,80) == 90          ,'ok 90');
