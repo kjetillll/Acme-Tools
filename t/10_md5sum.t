@@ -1,13 +1,15 @@
 # perl Makefile.PL;make;perl -Iblib/lib t/10_md5sum.t
 BEGIN{require 't/common.pl'}
-use Test::More tests => 1;
+use Test::More tests => 2;
 
 if($^O eq 'linux'){
   writefile('/tmp/attest-md5sum',"asdf\cJ");
   my$m;ok(($m=md5sum('/tmp/attest-md5sum')) eq '2b00042f7481c7b056c4b410d28f33cf', "asdf $m");
+  eval{md5sum('/tmp')};
+  ok( $@=~m{md5sum: /tmp is a directory.*$0}, $@ );
 }
 else {
-  ok(1);
+  ok(1) for 1..2;
 }
 
 use Digest::MD5 'md5_hex';

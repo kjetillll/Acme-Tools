@@ -1,8 +1,8 @@
 #perl Makefile.PL;make;perl -Iblib/lib t/08_eta.t
 BEGIN{require 't/common.pl'}
-use Test::More tests => 5;
+use Test::More tests => 6;
 eta(1,100);
-warn serialize(\%Acme::Tools::Eta,'Eta','',1);
+#warn serialize(\%Acme::Tools::Eta,'Eta','',1);
 my $k=(keys%Acme::Tools::Eta)[0];
 ok( @{$Acme::Tools::Eta{$k}}==1, 'ok aref');
 

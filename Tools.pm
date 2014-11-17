@@ -3936,7 +3936,13 @@ sub sleep_fp { eval{require Time::HiRes} or (sleep(shift()),return);Time::HiRes:
 
 =head2 eta
 
-Estimated time of arrival. ...NOT IMPLEMENTED YET...
+Estimated time of arrival (ETA).
+
+ for(@files){
+    ...do work on file...
+    my $eta = eta( ++$i, 0+@files ); # file now, number of files
+    print "" . localtime($eta);
+ }
 
 =cut
 
@@ -4039,7 +4045,7 @@ B<Input:> a filename.
 
 B<Output:> a string of 32 hexadecimal chars from 0-9 or a-f.
 
-Example, the md5sum linux command without options could be implementet like this:
+Example, the md5sum gnu/linux command without options could be implementet like this:
 
  #!/usr/bin/perl
  use Acme::Tools;
@@ -4050,12 +4056,15 @@ version 5.?.?  It does not slurp the files or spawn new processes.
 
 =cut
 
+use Digest::MD5;
 sub md5sum {
   my $fn=shift;
-  open my $M, '<', $fn or croak "Could not open file $fn for md5sum() $!";
-  binmode($M);
-  require Digest::MD5;
-  return Digest::MD5->new->addfile($M)->hexdigest;
+  open( my $FH, '<', $fn ) or croak "Could not open file $fn for md5sum() $!";
+  binmode($FH);
+  my $r = eval { Digest::MD5->new->addfile($FH)->hexdigest };
+  croak "md5sum: $fn is a directory (no md5sum)" if $@ and -d $fn;
+  croak "md5sum on $fn failed ($@)\n" if $@;
+  return $r;
 }
 
 #http://rosettacode.org/wiki/Levenshtein_distance#Perl
