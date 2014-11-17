@@ -4049,17 +4049,17 @@ Example, the md5sum gnu/linux command without options could be implementet like 
 
  #!/usr/bin/perl
  use Acme::Tools;
- print md5sum($_)."  $_\n" for @ARGV;
+ print eval{ md5sum($_)."  $_\n" } || $@ for @ARGV;
 
 This sub requires L<Digest::MD5>, which is a core perl-module since
 version 5.?.?  It does not slurp the files or spawn new processes.
 
 =cut
 
-use Digest::MD5;
 sub md5sum {
+  require Digest::MD5;
   my $fn=shift;
-  open( my $FH, '<', $fn ) or croak "Could not open file $fn for md5sum() $!";
+  open my $FH, '<', $fn or croak "Could not open file $fn for md5sum() $!";
   binmode($FH);
   my $r = eval { Digest::MD5->new->addfile($FH)->hexdigest };
   croak "md5sum: $fn is a directory (no md5sum)" if $@ and -d $fn;
