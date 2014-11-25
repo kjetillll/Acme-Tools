@@ -1931,11 +1931,11 @@ Example 2:
 =cut
 
 sub random_gauss {
-  my($avg,$stddev,$num)=@_;
-  $avg=0    if not defined $avg;
-  $stddev=1 if not defined $stddev;
-  $num=1    if not defined $num;
   croak "random_gauss should not have more than 3 arguments" if @_>3;
+  my($avg,$stddev,$num)=@_;
+  $avg=0    if !defined $avg;     # //=
+  $stddev=1 if !defined $stddev;
+  $num=1    if !defined $num;
   my @r;
   while (@r<$num) {
     my($x1,$x2,$w);
@@ -3944,6 +3944,12 @@ Estimated time of arrival (ETA).
     print "" . localtime($eta);
  }
 
+ ..DOC MISSING..
+
+=head2 etahhmm
+
+ ...NOT YET
+
 =cut
 
 #http://en.wikipedia.org/wiki/Kalman_filter god idé?
@@ -3954,7 +3960,7 @@ sub eta {
   $time_fp||=time_fp();
   my $a=$Eta{$id}||=[];
   push @$a, [$pos,$time_fp];
-  @$a=@$a[map$_*2,0..@$a/2] if @$a>20;  #hm 20
+  @$a=@$a[map$_*2,0..@$a/2] if @$a>40;  #hm 40
   splice(@$a,-2,1) if @$a>1 and $$a[-2][0]==$$a[-1][0]; #same pos as last
   return undef if @$a<2;
   my @eta;
