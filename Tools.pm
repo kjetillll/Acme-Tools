@@ -124,6 +124,7 @@ our @EXPORT = qw(
   md5sum
   ldist
   part
+  parth
   brainfuck
   brainfuck2perl
   brainfuck2perl_optimized
@@ -1949,7 +1950,23 @@ whether the predicate (a code-ref) is true or false for that element.
  print for @$odd;   #prints 1 3 5 7
  print for @$even;  #prints 2 4 6 8
 
-Works like C< partition() > in the Scala programming language. 
+(Works like C< partition() > in the Scala programming language)
+
+=head2 parth
+
+B<Input:> A code-ref and a list
+
+B<Output:> A hash where the returned values from the code-ref are keys and the values are arrayrefs to the list elements which gave those keys.
+
+ my %hash = parth { uc(substr($_,0,1)) } qw/These are the words of this array/;
+ print serialize(\%hash);
+
+Result:
+
+ %hash = (  T=>['These','the','this'],
+            A=>['are','array'],
+            O=>['of'],
+            W=>['words']                )
 
 =cut
 
@@ -1958,6 +1975,13 @@ sub part (&@) {
   my @r=([],[]);
   push @{ $r[ &$code($_) ? 0 : 1 ] }, $_ for @_;
   return @r;
+}
+
+sub parth (&@) {
+  my $code=shift();
+  my %r=();
+  push @{ $r{ &$code($_) } }, $_ for @_;
+  return %r;
 }
 
 
