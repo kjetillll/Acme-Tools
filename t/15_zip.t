@@ -1,5 +1,4 @@
 # make test
-# or
 # perl Makefile.PL; make; perl -Iblib/lib t/15_zip.t
 
 BEGIN{require 't/common.pl'}

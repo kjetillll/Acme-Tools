@@ -1,7 +1,9 @@
 # make test
 # perl Makefile.PL; make; perl -Iblib/lib t/18_pad.t
+
 BEGIN{require 't/common.pl'}
 use Test::More tests => 20;
+
 for(
   ['rpad','gomle',9,undef,'gomle    '],
   ['lpad','gomle',9,undef,'    gomle'],

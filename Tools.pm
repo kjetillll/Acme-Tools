@@ -1808,25 +1808,6 @@ string, not a number. See L</binsearch>.
 
 =cut
 
-<<<<<<< HEAD
-sub random_gauss {
-  croak "random_gauss should not have more than 3 arguments" if @_>3;
-  my($avg,$stddev,$num)=@_;
-  $avg=0    if !defined $avg;     # //=
-  $stddev=1 if !defined $stddev;
-  $num=1    if !defined $num;
-  my @r;
-  while (@r<$num) {
-    my($x1,$x2,$w);
-    do {
-      $x1=2.0*rand()-1.0;
-      $x2=2.0*rand()-1.0;
-      $w=$x1*$x1+$x2*$x2;
-    } while $w>=1.0;
-    $w=sqrt(-2.0*log($w)/$w) * $stddev;
-    push @r,  $x1*$w + $avg,
-              $x2*$w + $avg;
-=======
 our $Binsearch_steps;
 our $Binsearch_maxsteps=100;
 sub binsearch {
@@ -1858,7 +1839,6 @@ sub binsearch {
     else {                                                           #print "=\n";
       return $middle;
     }
->>>>>>> 031a912fc389c6c8f430f5e8cbaa3923f5b679d1
   }
   croak "binsearch exceded $Binsearch_maxsteps steps";
 }

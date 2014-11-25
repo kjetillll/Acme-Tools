@@ -1,12 +1,8 @@
 # make test
-# or
-# perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
+# perl Makefile.PL; make; perl -Iblib/lib t/13_random.t
 
-use strict;
-use warnings;
-
-use Test::More tests => 19;
-BEGIN { use_ok('Acme::Tools') };
+BEGIN{require 't/common.pl'}
+use Test::More tests => 18;
 
 #--random, mix
 for(                                 #|hmm|#
@@ -16,7 +12,7 @@ for(                                 #|hmm|#
   [ sub{random(2)},              2000, 1.0, 1.3, 3],
   [ sub{join(",",mix(1..5))},   10000, 1.0, 2.5, 5*4*3*2*1],
   [ sub{random({head=>0.48,tail=>0.48,edge=>0.04})}, 10000, 12-3,12+4, 3],
-  [ sub{random({qw/1 1 2 1 3 1 4 1 5 1 6 2/})},      5000, 1.7,2.3, 6],
+  [ sub{random({qw/1 1 2 1 3 1 4 1 5 1 6 2/})},      5000, 1.6,2.4, 6],
 )
 {
   my($sub,$times,$lim_from,$lim_to,$vals)=@$_;

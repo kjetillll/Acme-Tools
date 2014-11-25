@@ -1,11 +1,8 @@
 # make test
-# or
 # perl Makefile.PL; make; perl -Iblib/lib t/14_brainfuck.t
 
-use strict;
-use warnings;
-use Test::More tests => 4;
-BEGIN { use_ok('Acme::Tools') };
+BEGIN{require 't/common.pl'}
+use Test::More tests => 3;
 
 my @test=(
    '>++++++++[<++++++++>-]<++++++++.>++++++[<++++++>-]<---.',
