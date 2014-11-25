@@ -1520,14 +1520,14 @@ sub trim {
 
 sub rpad {
   my($s,$l,$p)=@_;
-  $p=' ' if !length($p);
+  $p=' ' if @_<3 or !length($p);
   $s.=$p while length($s)<$l;
   substr($s,0,$l);
 }
 
 sub lpad {
   my($s,$l,$p)=@_;
-  $p=' ' if !length($p);
+  $p=' ' if @_<3 or !length($p);
   $l<length($s)
   ? substr($s,0,$l)
   : substr($p x (1+$l/length($p)), 0, $l-length($s)).$s;
@@ -1535,7 +1535,7 @@ sub lpad {
 
 sub cpad {
   my($s,$l,$p)=@_;
-  $p=' ' if !length($p);
+  $p=' ' if @_<3 or !length($p);
   my $ls=length($s);
   return substr($s,0,$l) if $l<$ls;
   $p=$p x (($l-$ls+2)/length($p));
