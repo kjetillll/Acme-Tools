@@ -13,7 +13,7 @@ ok(         @{$Acme::Tools::Eta{'x'}} == 2  ,'ok len' );
 #my $s=time_fp;
 my @err;
 for(1..2000){
-  $t=1e6+$_/100; #time_fp
+  #$t=1e6+$_/100; #time_fp
   my $e=eta("id",$_,2000,1e6+$_/100);
   push @err,$_ if defined $e and abs(1-$e/1000020)>1e-5;
   #printf "%4d   %-20s   %-20s\n", $_, $t, $e if $_%100==0;

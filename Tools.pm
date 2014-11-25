@@ -124,6 +124,8 @@ our @EXPORT = qw(
   md5sum
   ldist
   part
+  parth
+  parta
   brainfuck
   brainfuck2perl
   brainfuck2perl_optimized
@@ -198,50 +200,7 @@ Almost every sub, about 90 of them.
 
 Beware of namespace pollution. But what did you expect from an Acme module?
 
-=head1 NUMBERS, SETS, ARRAYS
-
-=head2 min
-
-Returns the smallest number in a list. Undef is ignored.
-
- @lengths=(2,3,5,2,10,undef,5,4);
- $shortest = min(@lengths);   # returns 2
-
-Note: The comparison operator is perls C<< < >>> which means empty strings is treated as C<0>, the number zero. The same goes for C<max()>, except of course C<< > >> is used instead.
-
- min(3,4,5)       # 3
- min(3,4,5,undef) # 3
- min(3,4,5,'')    # returns the empty string
-
-=head2 max
-
-Returns the largest number in a list. Undef is ignored.
-
- @heights=(123,90,134,undef,132);
- $highest = max(@heights);   # 134
-
-=head2 mins
-
-Just as L</min>, except for strings.
-
- print min(2,7,10);          # 2
- print mins("2","7","10");   # 10
- print mins(2,7,10);         # 10
-
-=head2 maxs
-
-Just as L</mix>, except for strings.
-
- print max(2,7,10);          # 10
- print maxs("2","7","10");   # 7
- print maxs(2,7,10);         # 7
-
-=cut
-
-sub min  {my $min;for(@_){ $min=$_ if defined($_) and !defined($min) || $_ < $min } $min }
-sub mins {my $min;for(@_){ $min=$_ if defined($_) and !defined($min) || $_ lt $min} $min }
-sub max  {my $max;for(@_){ $max=$_ if defined($_) and !defined($max) || $_ > $max } $max }
-sub maxs {my $max;for(@_){ $max=$_ if defined($_) and !defined($max) || $_ gt $max} $max }
+=head1 NUMBERS
 
 =head2 num2code
 
@@ -1485,6 +1444,571 @@ sub fractional { #http://mathcentral.uregina.ca/QQ/database/QQ.09.06/h/lil1.html
   wantarray ? ($te,$ne) : "$te/$ne"; #gcd()
 }
 
+=head1 STRINGS
+
+=head2 upper
+
+Returns input string as uppercase.
+
+Can be used if perls build in C<uc()> for some reason does not convert æøå and other letters outsize a-z.
+
+C<< æøåäëïöüÿâêîôûãõàèìòùáéíóúýñð => ÆØÅÄËÏÖÜ?ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ >>
+
+See also C<< perldoc -f uc >> and C<< perldoc -f lc >>
+
+=head2 lower
+
+Same as L</upper>, only lower...
+
+=head2 trim
+
+Removes space from the beginning and end of a string. Whitespace (C<< \s >>) that is.
+And removes any whitespace inside the string of more than one char, leaving the first whitespace char. Thus:
+
+ trim(" asdf \t\n    123 ") eq "asdf 123"
+ trim(" asdf\t\n    123 ")  eq "asdf\t123"
+
+Works on C<< $_ >> if no argument i given:
+
+ print join",", map trim, " please ", " remove ", " my ", " spaces ";   # please,remove,my,spaces
+ print join",", trim(" please ", " remove ", " my ", " spaces ");       # works on arrays as well
+ my $s=' please '; trim(\$s);                                           # now  $s eq 'please'
+ trim(\@untrimmedstrings);                                              # trims array strings inplace
+
+=head2 lpad
+
+=head2 rpad
+
+"Pads" a string to the given length by adding one or more spaces at the end (right, I<rpad>) or at the start (left, I<lpad>).
+
+B<Input:> First argument: string to be padded. Second argument: length of the output. Optional third argument: character(s) used to pad. Default is space.
+
+ rpad('gomle',9);         # 'gomle    '
+ lpad('gomle',9);         # '    gomle'
+ rpad('gomle',9,'-');     # 'gomle----'
+ lpad('gomle',9,'+');     # '++++gomle'
+ rpad('gomle',4);         # 'goml'
+ lpad('gomle',4);         # 'goml'
+ rpad('gomle',7,'xyz');   # 'gomlxy'
+ lpad('gomle',10,'xyz');  # 'xyzxygoml'
+
+=head2 cpad
+
+Center pads. Pads the string both on left and right equal to the given length. Centers the string. Pads right side first.
+
+ cpad('mat',5)            eq ' mat '
+ cpad('mat',4)            eq 'mat '
+ cpad('mat',6)            eq ' mat  '
+ cpad('mat',9)            eq '   mat   '
+ cpad('mat',5,'+')        eq '+mat+'
+ cpad('MMMM',20,'xyzXYZ') eq 'xyzXYZxyMMMMxyzXYZxy'
+
+=cut
+
+sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-zæøåäëïöüÿâêîôûãõàèìòùáéíóúýñð/A-ZÆØÅÄËÏÖÜÿÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ/;$s}
+sub lower {no warnings;my $s=@_?shift:$_;$s=~tr/A-ZÆØÅÄËÏÖÜÿÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ/a-zæøåäëïöüÿâêîôûãõàèìòùáéíóúýñð/;$s}
+
+sub trim {
+  return trim($_) if !@_;
+  return map trim($_), @_ if @_>1;
+  my $s=shift;
+  if(ref($s) eq 'SCALAR'){ $$s=~s,^\s+|(?<=\s)\s+|\s+$,,g; return $$s}
+  if(ref($s) eq 'ARRAY') { trim(\$_) for @$s; return $s }
+  $s=~s,^\s+|(?<=\s)\s+|\s+$,,g;
+  $s;
+}
+
+sub rpad {
+  my($s,$l,$p)=@_;
+  $p=' ' if @_<3 or !length($p);
+  $s.=$p while length($s)<$l;
+  substr($s,0,$l);
+}
+
+sub lpad {
+  my($s,$l,$p)=@_;
+  $p=' ' if @_<3 or !length($p);
+  $l<length($s)
+  ? substr($s,0,$l)
+  : substr($p x (1+$l/length($p)), 0, $l-length($s)).$s;
+}
+
+sub cpad {
+  my($s,$l,$p)=@_;
+  $p=' ' if @_<3 or !length($p);
+  my $ls=length($s);
+  return substr($s,0,$l) if $l<$ls;
+  $p=$p x (($l-$ls+2)/length($p));
+  substr($p, 0, ($l-$ls  )/2) . $s .
+  substr($p, 0, ($l-$ls+1)/2);
+}
+
+sub cpad_old {
+  my($s,$l,$p)=@_;
+  $p=' ' if !length($p);
+  return substr($s,0,$l) if $l<length($s);
+  my $i=0;
+  while($l>length($s)){
+    my $pc=substr($p,($i==int($i)?1:-1)*($i%length($p)),1);
+    $i==int($i) ? ($s.=$pc) : ($s=$pc.$s);
+    $i+=1/2;
+  }
+  $s;
+}
+
+=head2 trigram
+
+B<Input:> A string (i.e. a name). And an optional x (see example 2)
+
+B<Output:> A list of this strings trigrams (See examlpe)
+
+B<Example 1:>
+
+ print join ", ", trigram("Kjetil Skotheim");
+
+Prints:
+
+ Kje, jet, eti, til, il , l S,  Sk, Sko, kot, oth, the, hei, eim
+
+B<Example 2:>
+
+Default is 3, but here 4 is used instead in the second optional input argument:
+
+ print join ", ", trigram("Kjetil Skotheim", 4);
+
+And this prints:
+
+ Kjet, jeti, etil, til , il S, l Sk,  Sko, Skot, koth, othe, thei, heim
+
+C<trigram()> was created for "fuzzy" name searching. If you have a database of many names,
+addresses, phone numbers, customer numbers etc. You can use trigram() to search
+among all of those at the same time. If the search form only has one input field.
+One general search box.
+
+Store all of the trigrams of the trigram-indexed input fields coupled
+with each person, and when you search, you take each trigram of you
+query string and adds the list of people that has that trigram. The
+search result should then be sorted so that the persons with most hits
+are listed first. Both the query strings and the indexed database
+fields should have a space added first and last before C<trigram()>-ing
+them.
+
+This search algorithm is not includes here yet...
+
+C<trigram()> should perhaps have been named ngram for obvious reasons.
+
+=head2 sliding
+
+Same as trigram (except there is no default width). Works also with arrayref instead of string.
+
+Example:
+
+ sliding( ["Reven","rasker","over","isen"], 2 )
+
+Result:
+
+  ( ['Reven','rasker'], ['rasker','over'], ['over','isen'] )
+
+=head2 chunks
+
+Splits strings and arrays into chunks of given size:
+
+ my @a = chunks("Reven rasker over isen",7);
+ my @b = chunks([qw/Og gubben satt i kveldinga og koste seg med skillinga/], 3);
+
+Resulting arrays:
+
+ ( 'Reven r', 'asker o', 'ver ise', 'n' )
+ ( ['Og','gubben','satt'], ['i','kveldinga','og'], ['koste','seg','med'], ['skillinga'] )
+
+=head2 chars
+
+ chars("Tittentei");     # ('T','i','t','t','e','n','t','e','i')
+
+=cut
+
+sub trigram { sliding($_[0],$_[1]||3) }
+
+sub sliding {
+  my($s,$w)=@_;
+  return map substr($s,$_,$w),   0..length($s)-$w  if !ref($s);
+  return map [@$s[$_..$_+$w-1]], 0..@$s-$w         if ref($s) eq 'ARRAY';
+}
+
+sub chunks {
+  my($s,$w)=@_;
+  return $s=~/(.{1,$w})/g                                      if !ref($s);
+  return map [@$s[$_*$w .. min($_*$w+$w-1,$#$s)]], 0..$#$s/$w  if ref($s) eq 'ARRAY';
+}
+
+sub chars { split//, shift }
+
+
+=head1 ARRAYS
+
+=head2 min
+
+Returns the smallest number in a list. Undef is ignored.
+
+ @lengths=(2,3,5,2,10,undef,5,4);
+ $shortest = min(@lengths);   # returns 2
+
+Note: The comparison operator is perls C<< < >>> which means empty strings is treated as C<0>, the number zero. The same goes for C<max()>, except of course C<< > >> is used instead.
+
+ min(3,4,5)       # 3
+ min(3,4,5,undef) # 3
+ min(3,4,5,'')    # returns the empty string
+
+=head2 max
+
+Returns the largest number in a list. Undef is ignored.
+
+ @heights=(123,90,134,undef,132);
+ $highest = max(@heights);   # 134
+
+=head2 mins
+
+Just as L</min>, except for strings.
+
+ print min(2,7,10);          # 2
+ print mins("2","7","10");   # 10
+ print mins(2,7,10);         # 10
+
+=head2 maxs
+
+Just as L</mix>, except for strings.
+
+ print max(2,7,10);          # 10
+ print maxs("2","7","10");   # 7
+ print maxs(2,7,10);         # 7
+
+=cut
+
+sub min  {my $min;for(@_){ $min=$_ if defined($_) and !defined($min) || $_ < $min } $min }
+sub mins {my $min;for(@_){ $min=$_ if defined($_) and !defined($min) || $_ lt $min} $min }
+sub max  {my $max;for(@_){ $max=$_ if defined($_) and !defined($max) || $_ > $max } $max }
+sub maxs {my $max;for(@_){ $max=$_ if defined($_) and !defined($max) || $_ gt $max} $max }
+
+=head2 zip
+
+B<Input:> Two or more arrayrefs. A number of equal sized arrays
+containing numbers, strings or anything really.
+
+B<Output:> An array of those input arrays zipped (interlocked, merged) into each other.
+
+ print join " ", zip( [1,3,5], [2,4,6] );               # 1 2 3 4 5 6
+ print join " ", zip( [1,4,7], [2,5,8], [3,6,9] );      # 1 2 3 4 5 6 7 8 9
+
+Example:
+
+zip() creates a hash where the keys are found in the first array and values in the secord in the correct order:
+
+ my @media = qw/CD DVD VHS LP Blueray/;
+ my @count = qw/20 12  2   4  3/;
+ my %count = zip(\@media,\@count);                 # or zip( [@media], [@count] )
+ print "I got $count{DVD} DVDs\n";                 # I got 12 DVDs
+
+Dies (croaks) if the two lists are of different sizes
+
+...or any input argument is not an array ref.
+
+=cut
+
+sub zip {
+  my @t=@_;
+  ref($_) ne 'ARRAY' and croak "ERROR: zip should have arrayrefs as arguments" for @t;
+  @{$t[$_]} != @{$t[0]} and croak "ERROR: zip should have equal sized arrays" for 1..$#t;
+  my @res;
+  for my $i (0..@{$t[0]}-1){
+    push @res, $$_[$i] for @t;
+  }
+  return @res;
+}
+
+
+=head2 pushsort
+
+Adds one or more element to a numerically sorted array and keeps it sorted.
+
+  pushsort @a, 13;                         # this...
+  push     @a, 13; @a = sort {$a<=>$b} @a; # is the same as this, but the former is faster if @a is large
+
+=head2 pushsortstr
+
+Same as pushsort except that the array is kept sorted alphanumerically (cmp) instead of numerically (<=>). See L</pushsort>.
+
+  pushsort @a, "abc";                      # this...
+  push     @a, "abc"; @a = sort @a;        # is the same as this, but the former is faster if @a is large
+
+=cut
+
+our $Pushsort_cmpsub=undef;
+sub pushsort (\@@) {
+  my $ar=shift;
+
+  #not needed but often faster
+  if(not defined $Pushsort_cmpsub and @$ar+@_<100){ #hm speedup?
+    @$ar=(sort {$a<=>$b} (@$ar,@_));
+    return 0+@$ar;
+  }
+
+  for my $v (@_){
+
+    #not needed but often faster
+    if(not defined $Pushsort_cmpsub){ #faster rank() in most cases
+      push    @$ar, $v and next if $v>=$$ar[-1];
+      unshift @$ar, $v and next if $v< $$ar[0];
+    }
+
+    splice @$ar, binsearch($v,$ar,1,$Pushsort_cmpsub)+1, 0, $v;
+  }
+  0+@$ar
+}
+sub pushsortstr(\@@){ local $Pushsort_cmpsub=sub{$_[0]cmp$_[1]}; pushsort(@_) } #speedup: copy sub pushsort
+
+=head2 binsearch
+
+Returns the position of an element in a numerically sorted array. Returns undef if the element is not found.
+
+B<Input:> Two, three or four arguments
+
+B<First argument:> the element to find. Usually a number.
+
+B<Second argument:> a reference to the array to search in. The array
+should be sorted in ascending numerical order (se exceptions below).
+
+B<Third argument:>  Optional. Default false.
+
+If present, whether result I<not found> should return undef or a fractional position.
+
+If the third argument is false binsearcg returns undef if the element is not found.
+
+If the third argument is true binsearch returns 0.5 plus closest position below the searched value.
+
+Returns C< last position + 0.5 > if the searched element is greater than all elements in the sorted array.
+
+Returns C< -0.5 > if the searched element is less than all elements in the sorted array.
+
+Fourth argument: Optional. Default C<< sub { $_[0] <=> $_[1] } >>.
+
+If present, the fourth argument is a code-ref that alters the way binsearch compares two elements.
+
+B<Example:>
+
+ binsearch(10,[5,10,15,20]);                                # 1
+ binsearch(10,[20,15,10,5],undef,sub{$_[1]<=>$_[0]});       # 2 search arrays sorted numerically in opposite order
+ binsearch("c",["a","b","c","d"],undef,sub{$_[0]cmp$_[1]}); # 2 search arrays sorted alphanumerically
+ binsearchstr("b",["a","b","c","d"]);                       # 1 search arrays sorted alphanumerically
+
+=head2 binsearchstr
+
+Same as binsearch except that the arrays is sorted alphanumerically
+(cmp) instead of numerically (<=>) and the searched element is a
+string, not a number. See L</binsearch>.
+
+=cut
+
+<<<<<<< HEAD
+sub random_gauss {
+  croak "random_gauss should not have more than 3 arguments" if @_>3;
+  my($avg,$stddev,$num)=@_;
+  $avg=0    if !defined $avg;     # //=
+  $stddev=1 if !defined $stddev;
+  $num=1    if !defined $num;
+  my @r;
+  while (@r<$num) {
+    my($x1,$x2,$w);
+    do {
+      $x1=2.0*rand()-1.0;
+      $x2=2.0*rand()-1.0;
+      $w=$x1*$x1+$x2*$x2;
+    } while $w>=1.0;
+    $w=sqrt(-2.0*log($w)/$w) * $stddev;
+    push @r,  $x1*$w + $avg,
+              $x2*$w + $avg;
+=======
+our $Binsearch_steps;
+our $Binsearch_maxsteps=100;
+sub binsearch {
+  my($search,$aref,$insertpos,$cmpsub)=@_; #search pos of search in array
+  croak "binsearch did not get arrayref as second arg" if ref($aref) ne 'ARRAY';
+  croak "binsearch got fourth arg which is not a code-ref" if $cmpsub and ref($cmpsub) ne 'CODE';
+  return $insertpos ? -0.5 : undef if not @$aref;
+  my($min,$max)=(0,$#$aref);
+  $Binsearch_steps=0;
+  while (++$Binsearch_steps <= $Binsearch_maxsteps) {
+    my $middle=int(($min+$max+0.5)/2);
+    my $middle_value=$$aref[$middle];
+
+    #croak "binsearch got non-sorted array" if !$cmpsub and $$aref[$min]>$$aref[$min]
+    #                                       or  $cmpsub and &$cmpsub($$aref[$min],$$aref[$min])>0;
+
+    if(   !$cmpsub and $search < $middle_value
+    or     $cmpsub and &$cmpsub($search,$middle_value) < 0  ) {      #print "<\n";
+      $max=$min, next                   if $middle == $max and $min != $max;
+      return $insertpos ? $middle-0.5 : undef if $middle == $max;
+      $max=$middle;
+    }
+    elsif( !$cmpsub and $search > $middle_value
+    or      $cmpsub and &$cmpsub($search,$middle_value) > 0 ) {      #print ">\n";
+      $min=$max, next                   if $middle == $min and $max != $min;
+      return $insertpos ? $middle+0.5 : undef if $middle == $min;
+      $min=$middle;
+    }
+    else {                                                           #print "=\n";
+      return $middle;
+    }
+>>>>>>> 031a912fc389c6c8f430f5e8cbaa3923f5b679d1
+  }
+  croak "binsearch exceded $Binsearch_maxsteps steps";
+}
+
+sub binsearchfast { # binary search routine finds index just below value
+  my ($x,$v)=@_;
+  my ($klo,$khi)=(0,$#{$x});
+  my $k;
+  while (($khi-$klo)>1) {
+    $k=int(($khi+$klo)/2);
+    if ($$x[$k]>$v) { $khi=$k; } else { $klo=$k; }
+  }
+  return $klo;
+}
+
+
+sub binsearchstr {binsearch(@_[0..2],sub{$_[0]cmp$_[1]})}
+
+sub rank {
+  my($rank,$aref,$cmpsub)=@_;
+  if($rank<0){
+    $cmpsub||=sub{$_[0]<=>$_[1]};
+    return rank(-$rank,$aref,sub{0-&$cmpsub});
+  }
+  my @sort;
+  local $Pushsort_cmpsub=$cmpsub;
+  for(@$aref){
+    pushsort @sort, $_;
+    pop @sort if @sort>$rank;
+  }
+  return wantarray ? @sort : $sort[$rank-1];
+}
+sub rankstr {wantarray?(rank(@_,sub{$_[0]cmp$_[1]})):rank(@_,sub{$_[0]cmp$_[1]})}
+
+=head2 eqarr
+
+B<Input:> Two or more references to arrays.
+
+B<Output:> True (1) or false (0) for whether or not the arrays are numerically I<and> alphanumerically equal.
+Comparing each element in each array with both C< == > and C< eq >.
+
+Examples:
+
+ eqarr([1,2,3],[1,2,3],[1,2,3]); # 1 (true)
+ eqarr([1,2,3],[1,2,3],[1,2,4]); # 0 (false)
+ eqarr([1,2,3],[1,2,3,4]);       # undef (different size, false)
+ eqarr([1,2,3]);                 # croak (should be two or more arrays)
+ eqarr([1,2,3],1,2,3);           # croak (not arraysrefs)
+
+=cut
+
+sub eqarr {
+  my @arefs=@_;
+  croak if @arefs<2;
+  ref($_) ne 'ARRAY' and croak for @arefs;
+  @{$arefs[0]} != @{$arefs[$_]} and return undef for 1..$#arefs;
+  my $ant;
+  
+  for my $ar (@arefs[1..$#arefs]){
+    for(0..@$ar-1){
+      ++$ant and $ant>100 and croak ">100";
+      return 0 if $arefs[0][$_] ne $$ar[$_]
+   	       or $arefs[0][$_] != $$ar[$_];
+    }
+  }
+  return 1;
+}
+
+=head2 sorted
+
+Return true if the input array is numerically sorted.
+
+  @a=(1..10); print "array is sorted" if sorted @a;  #true
+
+Optionally the last argument can be a comparison sub:
+
+  @person=({Rank=>1,Name=>'Amy'}, {Rank=>2,Name=>'Paula'}, {Rank=>3,Name=>'Ruth'});
+  print "Persons are sorted" if sorted @person, sub{$_[0]{Rank}<=>$_[1]{Rank}};
+
+=head2 sortedstr
+
+Return true if the input array is I<alpha>numerically sorted.
+
+  @a=(1..10);      print "array is sorted" if sortedstr @a; #false
+  @a=("01".."10"); print "array is sorted" if sortedstr @a; #true
+
+=cut
+
+sub sorted (\@@) {
+  my($a,$cmpsub)=@_;
+  for(0..$#$a-1){
+    return 0 if !$cmpsub and $$a[$_]>$$a[$_+1]
+             or  $cmpsub and &$cmpsub($$a[$_],$$a[$_+1])>0;
+  }
+  return 1;
+}
+sub sortedstr { sorted(@_,sub{$_[0]cmp$_[1]}) }
+
+=head2 part
+
+B<Input:> A code-ref and a list
+
+B<Output:> Two array-refs
+
+Like C<grep> but returns the false list as well. Partitions a list
+into two lists where each element goes into the first or second list
+whether the predicate (a code-ref) is true or false for that element.
+
+ my( $odd, $even ) = part {$_%2} (1..8);
+ print for @$odd;   #prints 1 3 5 7
+ print for @$even;  #prints 2 4 6 8
+
+(Works like C< partition() > in the Scala programming language)
+
+=head2 parth
+
+Like C<part> but returns any number of lists.
+
+B<Input:> A code-ref and a list
+
+B<Output:> A hash where the returned values from the code-ref are keys and the values are arrayrefs to the list elements which gave those keys.
+
+ my %hash = parth { uc(substr($_,0,1)) } ('These','are','the','words','of','this','array');
+ print serialize(\%hash);
+
+Result:
+
+ %hash = (  T=>['These','the','this'],
+            A=>['are','array'],
+            O=>['of'],
+            W=>['words']                )
+
+=head2 parta
+
+Like <parth> but returns an array of lists.
+
+ my @a = parta { length } qw/These are the words of this array/;
+
+Result:
+
+ @a = ( undef, undef, ['of'], ['are','the'], ['this'], ['These','words','array'] )
+
+Two undefs at first (index positions 0 and 1) since there are no words of length 0 or 1 in the input array.
+
+=cut
+
+sub part  (&@) { my($c,@r)=(shift,[],[]); push @{ $r[ &$c?0:1 ] }, $_ for @_; @r }
+sub parth (&@) { my($c,%r)=(shift);       push @{ $r{ &$c     } }, $_ for @_; %r }
+sub parta (&@) { my($c,@r)=(shift);       push @{ $r[ &$c     ] }, $_ for @_; @r }
+
 =head1 STATISTICS
 
 =head2 sum
@@ -1931,11 +2455,11 @@ Example 2:
 =cut
 
 sub random_gauss {
-  croak "random_gauss should not have more than 3 arguments" if @_>3;
   my($avg,$stddev,$num)=@_;
-  $avg=0    if !defined $avg;     # //=
-  $stddev=1 if !defined $stddev;
-  $num=1    if !defined $num;
+  $avg=0    if not defined $avg;
+  $stddev=1 if not defined $stddev;
+  $num=1    if not defined $num;
+  croak "random_gauss should not have more than 3 arguments" if @_>3;
   my @r;
   while (@r<$num) {
     my($x1,$x2,$w);
@@ -2017,8 +2541,6 @@ sub mix {
     return @e;
   }
 }
-
-=head1 ORACLE-SQL INSPIRED FUNCTIONS
 
 =head2 nvl
 
@@ -2195,7 +2717,7 @@ sub between {
 # }
 
 
-=head1 ARRAYS
+=head1 SETS
 
 =head2 distinct
 
@@ -2349,279 +2871,6 @@ sub uniq(@) {
   return grep{!$seen{$_}++}@_;
 }
 
-=head2 zip
-
-B<Input:> Two or more arrayrefs. A number of equal sized arrays
-containing numbers, strings or anything really.
-
-B<Output:> An array of those input arrays zipped (interlocked, merged) into each other.
-
- print join " ", zip( [1,3,5], [2,4,6] );               # 1 2 3 4 5 6
- print join " ", zip( [1,4,7], [2,5,8], [3,6,9] );      # 1 2 3 4 5 6 7 8 9
-
-Example:
-
-zip() creates a hash where the keys are found in the first array and values in the secord in the correct order:
-
- my @media = qw/CD DVD VHS LP Blueray/;
- my @count = qw/20 12  2   4  3/;
- my %count = zip(\@media,\@count);                 # or zip( [@media], [@count] )
- print "I got $count{DVD} DVDs\n";                 # I got 12 DVDs
-
-Dies (croaks) if the two lists are of different sizes
-
-...or any input argument is not an array ref.
-
-=cut
-
-sub zip {
-  my @t=@_;
-  ref($_) ne 'ARRAY' and croak "ERROR: zip should have arrayrefs as arguments" for @t;
-  @{$t[$_]} != @{$t[0]} and croak "ERROR: zip should have equal sized arrays" for 1..$#t;
-  my @res;
-  for my $i (0..@{$t[0]}-1){
-    push @res, $$_[$i] for @t;
-  }
-  return @res;
-}
-
-
-=head2 pushsort
-
-Adds one or more element to a numerically sorted array and keeps it sorted.
-
-  pushsort @a, 13;                         # this...
-  push     @a, 13; @a = sort {$a<=>$b} @a; # is the same as this, but the former is faster if @a is large
-
-=head2 pushsortstr
-
-Same as pushsort except that the array is kept sorted alphanumerically (cmp) instead of numerically (<=>). See L</pushsort>.
-
-  pushsort @a, "abc";                      # this...
-  push     @a, "abc"; @a = sort @a;        # is the same as this, but the former is faster if @a is large
-
-=cut
-
-our $Pushsort_cmpsub=undef;
-sub pushsort (\@@) {
-  my $ar=shift;
-
-  #not needed but often faster
-  if(not defined $Pushsort_cmpsub and @$ar+@_<100){ #hm speedup?
-    @$ar=(sort {$a<=>$b} (@$ar,@_));
-    return 0+@$ar;
-  }
-
-  for my $v (@_){
-
-    #not needed but often faster
-    if(not defined $Pushsort_cmpsub){ #faster rank() in most cases
-      push    @$ar, $v and next if $v>=$$ar[-1];
-      unshift @$ar, $v and next if $v< $$ar[0];
-    }
-
-    splice @$ar, binsearch($v,$ar,1,$Pushsort_cmpsub)+1, 0, $v;
-  }
-  0+@$ar
-}
-sub pushsortstr(\@@){ local $Pushsort_cmpsub=sub{$_[0]cmp$_[1]}; pushsort(@_) } #speedup: copy sub pushsort
-
-=head2 binsearch
-
-Returns the position of an element in a numerically sorted array. Returns undef if the element is not found.
-
-B<Input:> Two, three or four arguments
-
-B<First argument:> the element to find. Usually a number.
-
-B<Second argument:> a reference to the array to search in. The array
-should be sorted in ascending numerical order (se exceptions below).
-
-B<Third argument:>  Optional. Default false.
-
-If present, whether result I<not found> should return undef or a fractional position.
-
-If the third argument is false binsearcg returns undef if the element is not found.
-
-If the third argument is true binsearch returns 0.5 plus closest position below the searched value.
-
-Returns C< last position + 0.5 > if the searched element is greater than all elements in the sorted array.
-
-Returns C< -0.5 > if the searched element is less than all elements in the sorted array.
-
-Fourth argument: Optional. Default C<< sub { $_[0] <=> $_[1] } >>.
-
-If present, the fourth argument is a code-ref that alters the way binsearch compares two elements.
-
-B<Example:>
-
- binsearch(10,[5,10,15,20]);                                # 1
- binsearch(10,[20,15,10,5],undef,sub{$_[1]<=>$_[0]});       # 2 search arrays sorted numerically in opposite order
- binsearch("c",["a","b","c","d"],undef,sub{$_[0]cmp$_[1]}); # 2 search arrays sorted alphanumerically
- binsearchstr("b",["a","b","c","d"]);                       # 1 search arrays sorted alphanumerically
-
-=head2 binsearchstr
-
-Same as binsearch except that the arrays is sorted alphanumerically
-(cmp) instead of numerically (<=>) and the searched element is a
-string, not a number. See L</binsearch>.
-
-=cut
-
-our $Binsearch_steps;
-our $Binsearch_maxsteps=100;
-sub binsearch {
-  my($search,$aref,$insertpos,$cmpsub)=@_; #search pos of search in array
-  croak "binsearch did not get arrayref as second arg" if ref($aref) ne 'ARRAY';
-  croak "binsearch got fourth arg which is not a code-ref" if $cmpsub and ref($cmpsub) ne 'CODE';
-  return $insertpos ? -0.5 : undef if not @$aref;
-  my($min,$max)=(0,$#$aref);
-  $Binsearch_steps=0;
-  while (++$Binsearch_steps <= $Binsearch_maxsteps) {
-    my $middle=int(($min+$max+0.5)/2);
-    my $middle_value=$$aref[$middle];
-
-    #croak "binsearch got non-sorted array" if !$cmpsub and $$aref[$min]>$$aref[$min]
-    #                                       or  $cmpsub and &$cmpsub($$aref[$min],$$aref[$min])>0;
-
-    if(   !$cmpsub and $search < $middle_value
-    or     $cmpsub and &$cmpsub($search,$middle_value) < 0  ) {      #print "<\n";
-      $max=$min, next                   if $middle == $max and $min != $max;
-      return $insertpos ? $middle-0.5 : undef if $middle == $max;
-      $max=$middle;
-    }
-    elsif( !$cmpsub and $search > $middle_value
-    or      $cmpsub and &$cmpsub($search,$middle_value) > 0 ) {      #print ">\n";
-      $min=$max, next                   if $middle == $min and $max != $min;
-      return $insertpos ? $middle+0.5 : undef if $middle == $min;
-      $min=$middle;
-    }
-    else {                                                           #print "=\n";
-      return $middle;
-    }
-  }
-  croak "binsearch exceded $Binsearch_maxsteps steps";
-}
-
-sub binsearchfast { # binary search routine finds index just below value
-  my ($x,$v)=@_;
-  my ($klo,$khi)=(0,$#{$x});
-  my $k;
-  while (($khi-$klo)>1) {
-    $k=int(($khi+$klo)/2);
-    if ($$x[$k]>$v) { $khi=$k; } else { $klo=$k; }
-  }
-  return $klo;
-}
-
-
-sub binsearchstr {binsearch(@_[0..2],sub{$_[0]cmp$_[1]})}
-
-sub rank {
-  my($rank,$aref,$cmpsub)=@_;
-  if($rank<0){
-    $cmpsub||=sub{$_[0]<=>$_[1]};
-    return rank(-$rank,$aref,sub{0-&$cmpsub});
-  }
-  my @sort;
-  local $Pushsort_cmpsub=$cmpsub;
-  for(@$aref){
-    pushsort @sort, $_;
-    pop @sort if @sort>$rank;
-  }
-  return wantarray ? @sort : $sort[$rank-1];
-}
-sub rankstr {wantarray?(rank(@_,sub{$_[0]cmp$_[1]})):rank(@_,sub{$_[0]cmp$_[1]})}
-
-=head2 eqarr
-
-B<Input:> Two or more references to arrays.
-
-B<Output:> True (1) or false (0) for whether or not the arrays are numerically I<and> alphanumerically equal.
-Comparing each element in each array with both C< == > and C< eq >.
-
-Examples:
-
- eqarr([1,2,3],[1,2,3],[1,2,3]); # 1 (true)
- eqarr([1,2,3],[1,2,3],[1,2,4]); # 0 (false)
- eqarr([1,2,3],[1,2,3,4]);       # undef (different size, false)
- eqarr([1,2,3]);                 # croak (should be two or more arrays)
- eqarr([1,2,3],1,2,3);           # croak (not arraysrefs)
-
-=cut
-
-sub eqarr {
-  my @arefs=@_;
-  croak if @arefs<2;
-  ref($_) ne 'ARRAY' and croak for @arefs;
-  @{$arefs[0]} != @{$arefs[$_]} and return undef for 1..$#arefs;
-  my $ant;
-  
-  for my $ar (@arefs[1..$#arefs]){
-    for(0..@$ar-1){
-      ++$ant and $ant>100 and croak ">100";
-      return 0 if $arefs[0][$_] ne $$ar[$_]
-   	       or $arefs[0][$_] != $$ar[$_];
-    }
-  }
-  return 1;
-}
-
-=head2 sorted
-
-Return true if the input array is numerically sorted.
-
-  @a=(1..10); print "array is sorted" if sorted @a;  #true
-
-Optionally the last argument can be a comparison sub:
-
-  @person=({Rank=>1,Name=>'Amy'}, {Rank=>2,Name=>'Paula'}, {Rank=>3,Name=>'Ruth'});
-  print "Persons are sorted" if sorted @person, sub{$_[0]{Rank}<=>$_[1]{Rank}};
-
-=head2 sortedstr
-
-Return true if the input array is I<alpha>numerically sorted.
-
-  @a=(1..10);      print "array is sorted" if sortedstr @a; #false
-  @a=("01".."10"); print "array is sorted" if sortedstr @a; #true
-
-=cut
-
-sub sorted (\@@) {
-  my($a,$cmpsub)=@_;
-  for(0..$#$a-1){
-    return 0 if !$cmpsub and $$a[$_]>$$a[$_+1]
-             or  $cmpsub and &$cmpsub($$a[$_],$$a[$_+1])>0;
-  }
-  return 1;
-}
-sub sortedstr { sorted(@_,sub{$_[0]cmp$_[1]}) }
-
-=head2 part
-
-B<Input:> A code-ref and a list
-
-B<Output:> Two array-refs
-
-Like C<grep> but returns the false list as well. Partitions a list
-into two lists where each element goes into the first or second list
-whether the predicate (a code-ref) is true or false for that element.
-
- my( $odd, $even ) = part {$_%2} (1..8);
- print for @$odd;   #prints 1 3 5 7
- print for @$even;  #prints 2 4 6 8
-
-Works like C< partition() > in the Scala programming language. 
-
-=cut
-
-sub part (&@) {
-  my $code=shift();
-  my @r=([],[]);
-  push @{ $r[ &$code($_) ? 0 : 1 ] }, $_ for @_;
-  return @r;
-}
-
 =head1 HASHES
 
 =head2 subhash
@@ -2691,206 +2940,6 @@ sub hashtrans {
     }
     return %new;
 }
-
-=head1 STRINGS
-
-=head2 upper
-
-Returns input string as uppercase.
-
-Can be used if perls build in C<uc()> for some reason does not convert æøå and other letters outsize a-z.
-
-C<< æøåäëïöüÿâêîôûãõàèìòùáéíóúýñð => ÆØÅÄËÏÖÜ?ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ >>
-
-See also C<< perldoc -f uc >> and C<< perldoc -f lc >>
-
-=head2 lower
-
-Same as L</upper>, only lower...
-
-=head2 trim
-
-Removes space from the beginning and end of a string. Whitespace (C<< \s >>) that is.
-And removes any whitespace inside the string of more than one char, leaving the first whitespace char. Thus:
-
- trim(" asdf \t\n    123 ") eq "asdf 123"
- trim(" asdf\t\n    123 ")  eq "asdf\t123"
-
-Works on C<< $_ >> if no argument i given:
-
- print join",", map trim, " please ", " remove ", " my ", " spaces ";   # please,remove,my,spaces
- print join",", trim(" please ", " remove ", " my ", " spaces ");       # works on arrays as well
- my $s=' please '; trim(\$s);                                           # now  $s eq 'please'
- trim(\@untrimmedstrings);                                              # trims array strings inplace
-
-=head2 lpad
-
-=head2 rpad
-
-"Pads" a string to the given length by adding one or more spaces at the end (right, I<rpad>) or at the start (left, I<lpad>).
-
-B<Input:> First argument: string to be padded. Second argument: length of the output. Optional third argument: character(s) used to pad. Default is space.
-
- rpad('gomle',9);         # 'gomle    '
- lpad('gomle',9);         # '    gomle'
- rpad('gomle',9,'-');     # 'gomle----'
- lpad('gomle',9,'+');     # '++++gomle'
- rpad('gomle',4);         # 'goml'
- lpad('gomle',4);         # 'goml'
- rpad('gomle',7,'xyz');   # 'gomlxy'
- lpad('gomle',10,'xyz');  # 'xyzxygoml'
-
-=head2 cpad
-
-Center pads. Pads the string both on left and right equal to the given length. Centers the string. Pads right side first.
-
- cpad('mat',5)            eq ' mat '
- cpad('mat',4)            eq 'mat '
- cpad('mat',6)            eq ' mat  '
- cpad('mat',9)            eq '   mat   '
- cpad('mat',5,'+')        eq '+mat+'
- cpad('MMMM',20,'xyzXYZ') eq 'xyzXYZxyMMMMxyzXYZxy'
-
-=cut
-
-sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-zæøåäëïöüÿâêîôûãõàèìòùáéíóúýñð/A-ZÆØÅÄËÏÖÜÿÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ/;$s}
-sub lower {no warnings;my $s=@_?shift:$_;$s=~tr/A-ZÆØÅÄËÏÖÜÿÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ/a-zæøåäëïöüÿâêîôûãõàèìòùáéíóúýñð/;$s}
-
-sub trim {
-  return trim($_) if !@_;
-  return map trim($_), @_ if @_>1;
-  my $s=shift;
-  if(ref($s) eq 'SCALAR'){ $$s=~s,^\s+|(?<=\s)\s+|\s+$,,g; return $$s}
-  if(ref($s) eq 'ARRAY') { trim(\$_) for @$s; return $s }
-  $s=~s,^\s+|(?<=\s)\s+|\s+$,,g;
-  $s;
-}
-
-sub rpad {
-  my($s,$l,$p)=@_;
-  $p=' ' if !length($p);
-  $s.=$p while length($s)<$l;
-  substr($s,0,$l);
-}
-
-sub lpad {
-  my($s,$l,$p)=@_;
-  $p=' ' if !length($p);
-  $l<length($s)
-  ? substr($s,0,$l)
-  : substr($p x (1+$l/length($p)), 0, $l-length($s)).$s;
-}
-
-sub cpad {
-  my($s,$l,$p)=@_;
-  $p=' ' if !length($p);
-  my $ls=length($s);
-  return substr($s,0,$l) if $l<$ls;
-  $p=$p x (($l-$ls+2)/length($p));
-  substr($p, 0, ($l-$ls  )/2) . $s .
-  substr($p, 0, ($l-$ls+1)/2);
-}
-
-sub cpad_old {
-  my($s,$l,$p)=@_;
-  $p=' ' if !length($p);
-  return substr($s,0,$l) if $l<length($s);
-  my $i=0;
-  while($l>length($s)){
-    my $pc=substr($p,($i==int($i)?1:-1)*($i%length($p)),1);
-    $i==int($i) ? ($s.=$pc) : ($s=$pc.$s);
-    $i+=1/2;
-  }
-  $s;
-}
-
-=head2 trigram
-
-B<Input:> A string (i.e. a name). And an optional x (see example 2)
-
-B<Output:> A list of this strings trigrams (See examlpe)
-
-B<Example 1:>
-
- print join ", ", trigram("Kjetil Skotheim");
-
-Prints:
-
- Kje, jet, eti, til, il , l S,  Sk, Sko, kot, oth, the, hei, eim
-
-B<Example 2:>
-
-Default is 3, but here 4 is used instead in the second optional input argument:
-
- print join ", ", trigram("Kjetil Skotheim", 4);
-
-And this prints:
-
- Kjet, jeti, etil, til , il S, l Sk,  Sko, Skot, koth, othe, thei, heim
-
-C<trigram()> was created for "fuzzy" name searching. If you have a database of many names,
-addresses, phone numbers, customer numbers etc. You can use trigram() to search
-among all of those at the same time. If the search form only has one input field.
-One general search box.
-
-Store all of the trigrams of the trigram-indexed input fields coupled
-with each person, and when you search, you take each trigram of you
-query string and adds the list of people that has that trigram. The
-search result should then be sorted so that the persons with most hits
-are listed first. Both the query strings and the indexed database
-fields should have a space added first and last before C<trigram()>-ing
-them.
-
-This search algorithm is not includes here yet...
-
-C<trigram()> should perhaps have been named ngram for obvious reasons.
-
-=head2 sliding
-
-Same as trigram (except there is no default width). Works also with arrayref instead of string.
-
-Example:
-
- sliding( ["Reven","rasker","over","isen"], 2 )
-
-Result:
-
-  ( ['Reven','rasker'], ['rasker','over'], ['over','isen'] )
-
-=head2 chunks
-
-Splits strings and arrays into chunks of given size:
-
- my @a = chunks("Reven rasker over isen",7);
- my @b = chunks([qw/Og gubben satt i kveldinga og koste seg med skillinga/], 3);
-
-Resulting arrays:
-
- ( 'Reven r', 'asker o', 'ver ise', 'n' )
- ( ['Og','gubben','satt'], ['i','kveldinga','og'], ['koste','seg','med'], ['skillinga'] )
-
-=head2 chars
-
- chars("Tittentei");     # ('T','i','t','t','e','n','t','e','i')
-
-=cut
-
-sub trigram { sliding($_[0],$_[1]||3) }
-
-sub sliding {
-  my($s,$w)=@_;
-  return map substr($s,$_,$w),   0..length($s)-$w  if !ref($s);
-  return map [@$s[$_..$_+$w-1]], 0..@$s-$w         if ref($s) eq 'ARRAY';
-}
-
-sub chunks {
-  my($s,$w)=@_;
-  return $s=~/(.{1,$w})/g                                      if !ref($s);
-  return map [@$s[$_*$w .. min($_*$w+$w-1,$#$s)]], 0..$#$s/$w  if ref($s) eq 'ARRAY';
-}
-
-sub chars { split//, shift }
-
 
 =head1 COMPRESSION
 
@@ -3618,6 +3667,34 @@ sub makedir {
   ) and ++$MAKEDIR{$d};
 }
 
+=head2 md5sum
+
+B<Input:> a filename.
+
+B<Output:> a string of 32 hexadecimal chars from 0-9 or a-f.
+
+Example, the md5sum gnu/linux command without options could be implementet like this:
+
+ #!/usr/bin/perl
+ use Acme::Tools;
+ print eval{ md5sum($_)."  $_\n" } || $@ for @ARGV;
+
+This sub requires L<Digest::MD5>, which is a core perl-module since
+version 5.?.?  It does not slurp the files or spawn new processes.
+
+=cut
+
+sub md5sum {
+  require Digest::MD5;
+  my $fn=shift;
+  open my $FH, '<', $fn or croak "Could not open file $fn for md5sum() $!";
+  binmode($FH);
+  my $r = eval { Digest::MD5->new->addfile($FH)->hexdigest };
+  croak "md5sum: $fn is a directory (no md5sum)" if $@ and -d $fn;
+  croak "md5sum on $fn failed ($@)\n" if $@;
+  return $r;
+}
+
 =head1 TIME FUNCTIONS
 
 
@@ -4020,75 +4097,6 @@ sub sleep_until {
   sleep_fp($sleep) if $sleep>0;
 }
 
-=head2 sys
-
-Call instead of C<system> if you want C<die> if something fails. Uses Carp::croak internally.
-
- sub sys($){my$s=shift;system($s)==0 or croak"ERROR, sys($s) ($!) ($?)"}
-
-=cut
-
-sub sys($){ my$s=shift;system($s)==0 or croak"ERROR, sys($s) ($!) ($?)" }
-
-=head2 recursed
-
-Returns true or false (actually 1 or 0) depending on whether the
-current sub has been called by itself or not.
-
- sub xyz
- {
-    xyz() if not recursed;
-
- }
-
-=cut
-
-sub recursed {(caller(1))[3] eq (caller(2))[3]?1:0}
-
-=head2 md5sum
-
-B<Input:> a filename.
-
-B<Output:> a string of 32 hexadecimal chars from 0-9 or a-f.
-
-Example, the md5sum gnu/linux command without options could be implementet like this:
-
- #!/usr/bin/perl
- use Acme::Tools;
- print eval{ md5sum($_)."  $_\n" } || $@ for @ARGV;
-
-This sub requires L<Digest::MD5>, which is a core perl-module since
-version 5.?.?  It does not slurp the files or spawn new processes.
-
-=cut
-
-sub md5sum {
-  require Digest::MD5;
-  my $fn=shift;
-  open my $FH, '<', $fn or croak "Could not open file $fn for md5sum() $!";
-  binmode($FH);
-  my $r = eval { Digest::MD5->new->addfile($FH)->hexdigest };
-  croak "md5sum: $fn is a directory (no md5sum)" if $@ and -d $fn;
-  croak "md5sum on $fn failed ($@)\n" if $@;
-  return $r;
-}
-
-#http://rosettacode.org/wiki/Levenshtein_distance#Perl
-our %ldist_cache;
-sub ldist {
-  my($s,$t,$l) = @_;
-  return length($t) if !$s;
-  return length($s) if !$t;
-  %ldist_cache=() if not $l and 1000<0+%ldist_cache;
-  $ldist_cache{$s,$t} ||=
-  do {
-    my($s1,$t1) = ( substr($s,1), substr($t,1) );
-    substr($s,0,1) eq substr($t,0,1)
-      ? ldist($s1,$t1)
-      : 1 + min( ldist($s1,$t1,1+$l), ldist($s,$t1,1+$l), ldist($s1,$t,1+$l) );
-  };
-}
-
 =head2 leapyear
 
 B<Input:> A year. A four digit number.
@@ -4106,6 +4114,22 @@ Prints: (note, 1900 is not a leap year, but 2000 is)
 =cut
 
 sub leapyear{$_[0]%400?$_[0]%100?$_[0]%4?0:1:0:1} #bool
+
+#http://rosettacode.org/wiki/Levenshtein_distance#Perl
+our %ldist_cache;
+sub ldist {
+  my($s,$t,$l) = @_;
+  return length($t) if !$s;
+  return length($s) if !$t;
+  %ldist_cache=() if not $l and 1000<0+%ldist_cache;
+  $ldist_cache{$s,$t} ||=
+  do {
+    my($s1,$t1) = ( substr($s,1), substr($t,1) );
+    substr($s,0,1) eq substr($t,0,1)
+      ? ldist($s1,$t1)
+      : 1 + min( ldist($s1,$t1,1+$l), ldist($s,$t1,1+$l), ldist($s1,$t,1+$l) );
+  };
+}
 
 =head1 OTHER
 
@@ -4352,11 +4376,7 @@ sub range {
 
 =head2 permutations
 
-What is permutations?
-
-Six friends will be eating at a table with six chairs.
-
-How many ways (permutations) can those six be placed when the number of chairs equal the number of people?
+How many ways (permutations) can six people be placed around a table:
 
  If one person:          one
  If two persons:         two     (they can swap places)
@@ -4366,11 +4386,9 @@ How many ways (permutations) can those six be placed when the number of chairs e
  If six  persons:        720
 
 The formula is C<x!> where the postfix unary operator C<!>, also known as I<faculty> is defined like:
-C<x! = x * (x-1) * (x-2) ... * 1>. Example: C<5! = 5 * 4 * 3 * 2 * 1 = 120>.
+C<x! = x * (x-1) * (x-2) ... * 1>. Example: C<5! = 5 * 4 * 3 * 2 * 1 = 120>.Run this to see the 100 first C<< n! >>
 
-Run this to see the 100 first C<< n! >>
-
- perl -le 'use Math::BigInt lib=>'GMP';$i=Math::BigInt->new(1);print "$_! = ",$i*=$_ for 1..100'
+ perl -MAcme::Tools -le'$i=big(1);print "$_!=",$i*=$_ for 1..100'
 
   1!  = 1
   2!  = 2
@@ -5236,6 +5254,32 @@ sub serialize {
         "kallstack:\n".kallstack());
   }
 }
+
+=head2 sys
+
+Call instead of C<system> if you want C<die> (Carp::croak) when something fails.
+
+ sub sys($){my$s=shift;system($s)==0 or croak"ERROR, sys($s) ($!) ($?)"}
+
+=cut
+
+sub sys($){ my$s=shift;system($s)==0 or croak"ERROR, sys($s) ($!) ($?)" }
+
+=head2 recursed
+
+Returns true or false (actually 1 or 0) depending on whether the
+current sub has been called by itself or not.
+
+ sub xyz
+ {
+    xyz() if not recursed;
+
+ }
+
+=cut
+
+sub recursed {(caller(1))[3] eq (caller(2))[3]?1:0}
+
 
 #todo: sub unbless eller sub damn
 #todo: ..se også: use Data::Structure::Util qw/unbless/;
