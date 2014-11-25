@@ -125,6 +125,7 @@ our @EXPORT = qw(
   ldist
   part
   parth
+  parta
   brainfuck
   brainfuck2perl
   brainfuck2perl_optimized
@@ -1954,11 +1955,13 @@ whether the predicate (a code-ref) is true or false for that element.
 
 =head2 parth
 
+Like C<part> but returns any number of lists.
+
 B<Input:> A code-ref and a list
 
 B<Output:> A hash where the returned values from the code-ref are keys and the values are arrayrefs to the list elements which gave those keys.
 
- my %hash = parth { uc(substr($_,0,1)) } qw/These are the words of this array/;
+ my %hash = parth { uc(substr($_,0,1)) } ('These','are','the','words','of','this','array');
  print serialize(\%hash);
 
 Result:
@@ -1968,23 +1971,23 @@ Result:
             O=>['of'],
             W=>['words']                )
 
+=head2 parta
+
+Like <parth> but returns an array of lists.
+
+ my @a = parta { length } qw/These are the words of this array/;
+
+Result:
+
+ @a = ( undef, undef, ['of'], ['are','the'], ['this'], ['These','words','array'] )
+
+Two undefs at first (index positions 0 and 1) since there are no words of length 0 or 1 in the input array.
+
 =cut
 
-sub part (&@) {
-  my $code=shift();
-  my @r=([],[]);
-  push @{ $r[ &$code($_) ? 0 : 1 ] }, $_ for @_;
-  return @r;
-}
-
-sub parth (&@) {
-  my $code=shift();
-  my %r=();
-  push @{ $r{ &$code($_) } }, $_ for @_;
-  return %r;
-}
-
-
+sub part  (&@) { my($c,@r)=(shift,[],[]); push @{ $r[ &$c?0:1 ] }, $_ for @_; @r }
+sub parth (&@) { my($c,%r)=(shift);       push @{ $r{ &$c     } }, $_ for @_; %r }
+sub parta (&@) { my($c,@r)=(shift);       push @{ $r[ &$c     ] }, $_ for @_; @r }
 
 =head1 STATISTICS
 
