@@ -1,12 +1,13 @@
 #perl Makefile.PL;make;perl -Iblib/lib t/06_conv.t
 #perl -I/ext t/06_conv.t
 BEGIN{require 't/common.pl'}
-use Test::More tests => 27;
+use Test::More tests => 29;
 
 sub check {
   my($n, $from, $to, $answer) = @_;
   my $c=conv( $n, $from => $to );
   my $eq=sub{$_[0]==$_[1] or abs(1-$_[0]/$_[1])<1e-6};
+  $answer=&$answer if ref($answer);
   ok( &$eq($c,$answer),   sprintf("%10s %-10s  =>  %10s %-10s     should be %10s %s",$n,$from,$c,$to,$answer,$to) );
 }
 
@@ -26,10 +27,6 @@ check(1,'sqmi','km2', 2.589988110336 ); #http://en.wikipedia.org/wiki/Square_mil
 check(1,'sqmi','m2',  2.589988110336e6 ); #hmm
 
 check(48,'h','d', 2 );
-check(36,'USD','NOK', 36*6.215 );
-check(36,'NOK','USD', 36/6.215 );
-#warn conv(4000,'NOK','BTC');
-#warn conv(0.00227491,'LTC','NOK');
 
 check( 1, "W", "BTU/h", 3600/1055.05585262 );
 check( 1, "BTU/h", "W", 1055.05585262/3600 ); #0.29307107
@@ -46,5 +43,10 @@ check( 10, "C", "F", 50 );
 check( 273.15, "K", "C", 0 );
 check( 0,      "C", "K", 273.15 );
 check( 41, "fahrenheit", "celsius", 5 );
-
 check( 70, "hp", "kW",  52.22);
+
+$Acme::Tools::conv_prepare_money_time=time() if !$ENV{ATTESTNETOK}; #B nice
+check(   36, 'USD', 'NOK', sub{   36 * $Acme::Tools::conv{money}{USD} } );
+check(   36, 'NOK', 'USD', sub{   36 / $Acme::Tools::conv{money}{USD} } );
+check( 8000, 'NOK', 'IDR', sub{ 8000 / $Acme::Tools::conv{money}{IDR} } );
+check(    1, 'BTC', 'NOK', sub{    1 * $Acme::Tools::conv{money}{BTC} } );

@@ -1031,7 +1031,8 @@ our %conv=(
             dusin=>1,dozen=>1,doz=>1,dz=>1,gross=>144,gr=>144,gro=>144,great_gross=>12*144,small_gross=>10*12,
           }
 	);
-my $conv_prepared;
+our $conv_prepare_time=0;
+our $conv_prepare_money_time=0;
 sub conv_prepare {
   my %b    =(da  =>1e+1, h    =>1e+2, k    =>1e+3, M     =>1e+6,          G   =>1e+9, T   =>1e+12, P    =>1e+15, E   =>1e+18, Z    =>1e+21, Y    =>1e+24, H    =>1e+27);
   my %big  =(deca=>1e+1, hecto=>1e+2, kilo =>1e+3, mega  =>1e+6,          giga=>1e+9, tera=>1e+12, peta =>1e+15, exa =>1e+18, zetta=>1e+21, yotta=>1e+24, hella=>1e+27);
@@ -1049,18 +1050,32 @@ sub conv_prepare {
       $conv{$type}{$_.$unit}=$x{$_}*$c for keys%x;
     }
   }
-  conv_prepare_money();
-  $conv_prepared=time();
+  $conv_prepare_time=time();
 }
 
 sub conv_prepare_money {
+  return if $^O ne 'linuxx' and carp "conv: no automatic update yet for currency conversion on non-linux systems";
+  require LWP::Simple;
+  my $fn="/tmp/acme-tools-currency-rates.data";
+  if( !-e$fn or 1 < -M$fn ){
+    LWP::Simple::getstore('http://solfrid.uio.no/currency-rates',"$fn.$$.tmp"); # get ... see getrates.cmd
+    return if !-s"$fn.$$.tmp";
+    rename "$fn.$$.tmp",$fn;
+    chmod 0666,$fn;
+  }
+  my $d=readfile($fn);
+  my %r=$d=~/\b([A-Z]{3}) (\d+\.\d+)\b/g;
+  #warn serialize([minus([keys(%r)],[keys(%{$conv{money}})])],'minus'); #ARS,AED,COP,BWP,LVL,BHD,NPR,LKR,QAR,KWD,LYD,SAR,KZT,CLP,IRR,VEF,TTD,OMR,MUR,BND
+  #warn serialize([minus([keys(%{$conv{money}})],[keys(%r)])],'minus'); #LTC,I44,BTC,BYR,TWI,NOK,XDR
+  $conv{money}={%{$conv{money}},%r} if keys(%r)>20;
+  $conv_prepare_money_time=time();
   1; #not yet
 }
 
 sub conv {
   my($num,$from,$to)=@_;
   croak "conf requires 3 args" if @_!=3;
-  conv_prepare() if !$conv_prepared;
+  conv_prepare() if !$conv_prepare_time;
   my @types=map{
              my $unit=$_;
              [sort grep$conv{$_}{$unit},keys%conv],
@@ -1074,7 +1089,7 @@ sub conv {
               ."to=$to   (".join(",",@{$types[1]}||'?').") has no known common unit type: ".join(", ", @type) if @type<1;
   croak join"\n",map"conv: $_",@err if @err;
   my $type=$type[0];
-  conv_prepare()              if $type eq 'money' and $conv_prepared<time()-24*3600; #1day
+  conv_prepare_money()        if $type eq 'money' and $conv_prepare_money_time < time()-24*3600; #1day
   return conv_temperature(@_) if $type eq 'temperature';
   return conv_numbers(@_)     if $type eq 'numbers';
   my $c=$conv{$type};
