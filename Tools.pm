@@ -123,6 +123,7 @@ our @EXPORT = qw(
   recursed
   md5sum
   ldist
+  isnum
   part
   parth
   parta
@@ -1054,21 +1055,26 @@ sub conv_prepare {
 }
 
 sub conv_prepare_money {
-  return if $^O ne 'linuxx' and carp "conv: no automatic update yet for currency conversion on non-linux systems";
-  require LWP::Simple;
-  my $fn="/tmp/acme-tools-currency-rates.data";
-  if( !-e$fn or 1 < -M$fn ){
-    LWP::Simple::getstore('http://solfrid.uio.no/currency-rates',"$fn.$$.tmp"); # get ... see getrates.cmd
-    return if !-s"$fn.$$.tmp";
-    rename "$fn.$$.tmp",$fn;
-    chmod 0666,$fn;
-  }
-  my $d=readfile($fn);
-  my %r=$d=~/\b([A-Z]{3}) (\d+\.\d+)\b/g;
-  #warn serialize([minus([keys(%r)],[keys(%{$conv{money}})])],'minus'); #ARS,AED,COP,BWP,LVL,BHD,NPR,LKR,QAR,KWD,LYD,SAR,KZT,CLP,IRR,VEF,TTD,OMR,MUR,BND
-  #warn serialize([minus([keys(%{$conv{money}})],[keys(%r)])],'minus'); #LTC,I44,BTC,BYR,TWI,NOK,XDR
-  $conv{money}={%{$conv{money}},%r} if keys(%r)>20;
+  eval {
+    require LWP::Simple;
+    my $td=$^O=~/^(?:linux|cygwin)$/?"/tmp":"/tmp"; #hm wrong!
+    my $fn="$td/acme-tools-currency-rates.data";
+    if( !-e$fn or 1 < -M$fn ){
+      my $url='http://calthis.com/currency-rates';
+     #my $url='http://solfrid.uio.no/currency-rates';
+      LWP::Simple::getstore($url,"$fn.$$.tmp"); # get ... see getrates.cmd
+      die "nothing downloaded" if !-s"$fn.$$.tmp";
+      rename "$fn.$$.tmp",$fn;
+      chmod 0666,$fn;
+    }
+    my $d=readfile($fn);
+    my %r=$d=~/^\s*([A-Z]{3}) +(\d+\.\d+)\b/gm;
+    warn serialize([minus([sort keys(%r)],[sort keys(%{$conv{money}})])],'minus'); #ARS,AED,COP,BWP,LVL,BHD,NPR,LKR,QAR,KWD,LYD,SAR,KZT,CLP,IRR,VEF,TTD,OMR,MUR,BND
+    warn serialize([minus([sort keys(%{$conv{money}})],[sort keys(%r)])],'minus'); #LTC,I44,BTC,BYR,TWI,NOK,XDR
+    $conv{money}={%{$conv{money}},%r} if keys(%r)>20;
+  };
   $conv_prepare_money_time=time();
+  carp "conv: conv_prepare_money (currency conversion automatic daily updated rates) - $@\n" if $@;
   1; #not yet
 }
 
@@ -1458,6 +1464,13 @@ sub fractional { #http://mathcentral.uregina.ca/QQ/database/QQ.09.06/h/lil1.html
   &$st();
   wantarray ? ($te,$ne) : "$te/$ne"; #gcd()
 }
+
+#=head2 isnum
+#
+#B<Input:> String
+#B<Output:>
+#
+sub isnum {$_[0]=~/^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) (?:[eE][\-\+]?\d+)?\s*$/x}
 
 =head1 STRINGS
 
