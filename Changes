@@ -2,6 +2,9 @@ Revision history for Perl extension Acme::Tools.
 
 See also HISTORY in Acme::Tools doc.
 
+0.16  ??? 2014   Improved subs:
+                 New subs: rank, rankstr
+
 0.15  Nov 2014   Reorganized and improved docs.
                  Improved sub: conv (automatic update of currency rates)
                  New subs: bigr, cpad, parth, parta, roman2int, trim

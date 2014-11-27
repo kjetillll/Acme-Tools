@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 package Acme::Tools;
 
-our $VERSION = '0.15';
+our $VERSION = '0.16';
 
 use 5.008;     #5.8 from July 18th 2002
 use strict;
@@ -1910,6 +1910,32 @@ sub binsearchfast { # binary search routine finds index just below value
 
 
 sub binsearchstr {binsearch(@_[0..2],sub{$_[0]cmp$_[1]})}
+
+=head2 rank
+
+B<Input:> Two or three arguments. N and an arrayref for the list to look at.
+
+In scalar context: Returns the nth smallest number in an array. The array doesn't have to be sorted.
+
+In array context: Returns the n smallest numbers in an array.
+
+To return the n(th) largest number(s) instead of smallest, just negate n.
+
+An optional third argument can be a sub that is used to compare the elements of the input array.
+
+Examples:
+
+ my $second_smallest = rank(2, [11,12,13,14]);  # 12
+ my @top10           = rank(-10, [1..100]);     # 100, 99, 98, 97, 96, 95, 94, 93, 92, 91
+ my $max             = rank(-1, [101,102,103,102,101]); #103
+ my @contest         = ({name=>"Alice",score=>14},{name=>"Bob",score=>13},{name=>"Eve",score=>12});
+ my $second          = rank(2, \@contest, sub{$_[1]{score}<=>$_[0]{score}})->{name}; #Bob
+
+=head2 rankstr
+
+Just as C<rank> but sorts alphanumerically (strings, cmp) instead of numerically.
+
+=cut
 
 sub rank {
   my($rank,$aref,$cmpsub)=@_;
