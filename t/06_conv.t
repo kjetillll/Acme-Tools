@@ -1,7 +1,7 @@
 #perl Makefile.PL;make;perl -Iblib/lib t/06_conv.t
 #perl -I/ext t/06_conv.t
 BEGIN{require 't/common.pl'}
-use Test::More tests => 29;
+use Test::More tests => 34;
 
 sub check {
   my($n, $from, $to, $answer) = @_;
@@ -50,3 +50,9 @@ check(   36, 'USD', 'NOK', sub{   36 * $Acme::Tools::conv{money}{USD} } );
 check(   36, 'NOK', 'USD', sub{   36 / $Acme::Tools::conv{money}{USD} } );
 check( 8000, 'NOK', 'IDR', sub{ 8000 / $Acme::Tools::conv{money}{IDR} } );
 check(    1, 'BTC', 'NOK', sub{    1 * $Acme::Tools::conv{money}{BTC} } );
+
+check( "10", "hex", "des", 16 );
+check( "101010", "bin", "des", 42 );
+check( "29", "hex", "bin", 101001 );
+check( 'DCCXLII', "roman","oct", 1346);
+ok( conv( 101010, "bin", "roman") eq "XLII",  "b101010 => roman XLII");

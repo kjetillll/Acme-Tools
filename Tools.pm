@@ -461,19 +461,24 @@ sub resolve {
 
 =head2 conv
 
-Converts between units of measurement.
+Converts between:
+* units of measurement
+* number systems
+* currencies
 
 B<Examples:>
 
  print conv( 2000, "meters", "miles" );  #prints 1.24274238447467
  print conv( 2.1, 'km', 'm');            #prints 2100
  print conv( 70,"cm","in");              #prints 27.5590551181102
- print conv( 4,"USD","EUR");             #prints 2.93125810635538
+ print conv( 4,"USD","EUR");             #prints 3.20481552905431 (depending on todays rates)
  print conv( 4000,"b","kb");             #prints 3.90625 (1 kb = 1024 bytes)
  print conv( 4000,"b","Kb");             #prints 3.90625 (1 Kb = 1000 bytes)
  print conv( 1000,"mb","kb");            #prints 1024000
+ print conv( 101010,"bin","roman");      #prints XLII
+ print conv( "DCCXLII","roman","oct");   #prints 1346
 
-B<Units and types of measurement supported by C<conv> is:>
+B<Units, types of measurement and currencies supported by C<conv> are:>
 
 Note: units starting with the symbol _ means that all metric
 prefixes from yocto 10^-24 to yotta 10^+24 is supported, so _m means
@@ -528,12 +533,17 @@ Note2: Many units have synonyms: m, meter, meters ...
 
  milage:       mpg, l/100km, l/km, l/10km, lp10km, l/mil, liter_pr_100km, liter_pr_km, lp100km
 
- money:        AUD, BGN, BRL, BTC, BYR, CAD, CHF, CNY, CZK, DKK, EUR,
-               GBP, HKD, HRK, HUF, I44, IDR, ILS, INR, ISK, JPY, KRW,
-               LTC, LTL, MXN, MYR, NOK, NZD, PHP, PKR, PLN, RON, RUB,
-               SEK, SGD, THB, TRY, TWD, TWI, USD, XDR, ZAR
-               ...note: Not yet updated each day, valuta exchange rates here
-               now are from some unknown day in sept. 2014
+ money:        AED, ARS, AUD, BGN, BHD, BND, BRL, BWP, CAD, CHF, CLP,
+               CNY, COP, CZK, DKK, EUR, GBP, HKD, HRK, HUF, IDR, ILS,
+               INR, IRR, ISK, JPY, KRW, KWD, KZT, LKR, LTL, LVL, LYD,
+               MUR, MXN, MYR, NOK, NPR, NZD, OMR, PHP, PKR, PLN, QAR,
+               RON, RUB, SAR, SEK, SGD, THB, TRY, TTD, TWD, USD, VEF, ZAR,
+	       BTC, LTC
+               Currency rates are automatically updated from net
+               if +24h since last (on linux/cygwin).
+ numbers:      des, hex, bin, oct, roman, dozen, doz, dz, gross, gr, gro,
+               great_gross, small_gross
+               (not supported: desimal numbers)
 
  power:        BTU, BTU/h, BTU/s, BTUph, GWhpy, J/s, Jps, MWhpy, TWhpy,
                W, Whpy, _W, ftlb/min, ftlb/s, hk, hp, kWh/yr, kWhpy
@@ -983,49 +993,65 @@ our %conv=(
 		  binary_radian => 1/256,
 		  brad          => 1/256,
                  },
-	 money =>{
+	 money =>{                       #rates at nov 27th 2014
 		  NOK => 1,              #Norske kroner
-		  USD => 6.215,          #Amerikanske dollar
-		  AUD => 5.8281,         #Australske dollar
-		  BRL => 2.7909,         #Brasilianske real
-		  GBP => 10.648,         #Britiske pund
-		  BGN => 433.63  /100,   #Bulgarske lev
-		  DKK => 113.73  /100,   #Danske kroner
-		  EUR => 8.481,          #Euro
-		  PHP => 14.262  /100,   #Filippinske peso
-		  HKD => 0.8018  /100,   #Hong Kong dollar
-		  BYR => 0.060872/100,   #Hviterussiske rubler
-		  XDR => 9.61137 /100,   #IMF, Spesielle trekkrettigheter
-		  I44 => 94.55   /100,   #Importveid kursindeks
-		  INR => 10.42   /100,   #Indiske rupi
-		  IDR => 0.052099/100,   #Indonesiske rupiah
-		  TWI => 102.13  /100,   #Industriens effektive valutakurs
-		  ISK => 18.214  /100,   #Islandske kroner
-		  ILS => 1.8159  /100,   #Israelske shekel
-		  JPY => 6.0988  /100,   #Japanske yen
-		  CAD => 5.8369,         #Kanadiske dollar
-		  CNY => 100.05  /100,   #Kinesiske yuan
-		  HRK => 111.78  /100,   #Kroatiske kuna
-		  LTL => 2.4563  /100,   #Litauiske litas
-		  MYR => 1.9454  /100,   #Malaysiske ringgit
-		  MXN => 47.82   /100,   #Meksikanske peso
-		  NZD => 5.4495  /100,   #New Zealand dollar
-		  PKR => 6.305   /100,   #Pakistanske rupi
-		  PLN => 2.045   /100,   #Polske zloty
-		  RON => 193.24  /100,   #Rumenske leu, nye
-		  RUB => 18.159  /100,   #Russiske rubler
-		  SGD => 4.9865  /100,   #Singapore dollar
-		  CHF => 698.2   /100,   #Sveitsiske franc
-		  SEK => 90.91   /100,   #Svenske kroner
-		  ZAR => 0.5766  /100,   #Sørafrikanske rand
-		  KRW => 0.6159  /100,   #Sørkoreanske won
-		  TWD => 20.796  /100,   #Taiwanske dollar
-		  THB => 19.183  /100,   #Thailandske baht
-		  CZK => 30.909  /100,   #Tsjekkiske koruna
-		  TRY => 291.42  /100,   #Tyrkiske lire, nye
-		  HUF => 2.7236  /100,   #Ungarske forinter
-		  BTC => 650*6.215,      #Bitcoins
-		  LTC => 7.9*6.215,      #Litecoins
+                  AED => 1.877817,       #?
+                  ARS => 0.809335,       #?
+                  AUD => 5.910125,       #?
+                  BGN => 4.401556,       #?
+                  BHD => 18.291948,      #?
+                  BND => 5.312127,       #?
+                  BRL => 2.744738,       #?
+                  BWP => 0.752480,       #?
+                  CAD => 6.127302,       #?
+                  CHF => 7.161604,       #?
+                  CLP => 0.011522,       #?
+                  CNY => 1.123836,       #?
+                  COP => 0.003187,       #?
+                  CZK => 0.311719,       #?
+                  DKK => 1.157118,       #?
+                  EUR => 8.608483,       #?
+                  GBP => 10.871689,      #?
+                  HKD => 0.889649,       #?
+                  HRK => 1.121647,       #?
+                  HUF => 0.028020,       #?
+                  IDR => 0.000567,       #?
+                  ILS => 1.776065,       #?
+                  INR => 0.111537,       #?
+                  IRR => 0.000257,       #?
+                  ISK => 0.055983,       #?
+                  JPY => 0.058702,       #?
+                  KRW => 0.006277,       #?
+                  KWD => 23.695673,      #?
+                  KZT => 0.038114,       #?
+                  LKR => 0.052590,       #?
+                  LTL => 2.493189,       #?
+                  LVL => 12.248838,      #?
+                  LYD => 5.285172,       #?
+                  MUR => 0.219027,       #?
+                  MXN => 0.502610,       #?
+                  MYR => 2.061909,       #?
+                  NPR => 0.069167,       #?
+                  NZD => 5.441627,       #?
+                  OMR => 17.917002,      #?
+                  PHP => 0.153783,       #?
+                  PKR => 0.067874,       #?
+                  PLN => 2.058986,       #?
+                  QAR => 1.894302,       #?
+                  RON => 1.948098,       #?
+                  RUB => 0.146634,       #?
+                  SAR => 1.837870,       #?
+                  SEK => 0.929073,       #?
+                  SGD => 5.312127,       #?
+                  THB => 0.210471,       #?
+                  TRY => 3.111767,       #?
+                  TTD => 1.087846,       #?
+                  TWD => 0.223331,       #?
+                  USD => 6.897150,       #?
+                  VEF => 1.096928,       #?
+                  ZAR => 0.629016,       #?
+		  BTC => 374.0*6.897150, #Bitcoins  http://preev.com/btc/usd
+		  LTC => 3.530*6.897150, #Litecoins http://preev.com/ltc/usd
 		 },
           numbers =>{
 	    des=>1,hex=>1,bin=>1,oct=>1,roman=>1,
