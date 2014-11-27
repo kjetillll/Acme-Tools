@@ -1069,8 +1069,8 @@ sub conv_prepare_money {
     }
     my $d=readfile($fn);
     my %r=$d=~/^\s*([A-Z]{3}) +(\d+\.\d+)\b/gm;
-    warn serialize([minus([sort keys(%r)],[sort keys(%{$conv{money}})])],'minus'); #ARS,AED,COP,BWP,LVL,BHD,NPR,LKR,QAR,KWD,LYD,SAR,KZT,CLP,IRR,VEF,TTD,OMR,MUR,BND
-    warn serialize([minus([sort keys(%{$conv{money}})],[sort keys(%r)])],'minus'); #LTC,I44,BTC,BYR,TWI,NOK,XDR
+    #warn serialize([minus([sort keys(%r)],[sort keys(%{$conv{money}})])],'minus'); #ARS,AED,COP,BWP,LVL,BHD,NPR,LKR,QAR,KWD,LYD,SAR,KZT,CLP,IRR,VEF,TTD,OMR,MUR,BND
+    #warn serialize([minus([sort keys(%{$conv{money}})],[sort keys(%r)])],'minus'); #LTC,I44,BTC,BYR,TWI,NOK,XDR
     $conv{money}={%{$conv{money}},%r} if keys(%r)>20;
   };
   $conv_prepare_money_time=time();
