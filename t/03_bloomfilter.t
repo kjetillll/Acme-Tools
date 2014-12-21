@@ -1,6 +1,7 @@
 # perl Makefile.PL;make;perl -Iblib/lib t/3_bloomfilter.t
 # perl Makefile.PL;make;ATDEBUG=1 perl -Iblib/lib t/3_bloomfilter.t
-# time ( perl Makefile.PL;make;ATDEBUG=1 perl -Iblib/lib t/3_bloomfilter.t )
+# time ( perl Makefile.PL;make;ATDEBUG=1 perl -Iblib/lib t/03_bloomfilter.t )
+# perl Makefile.PL;make;perl -Iblib/lib t/03_bloomfilter.t
 
 BEGIN{require 't/common.pl'}
 use Test::More tests => 28;

@@ -22,6 +22,8 @@ t/15_zip.t
 t/16_fractional.t
 t/17_roman.t
 t/18_pad.t
+t/19_serialize.t
+t/20_range.t
 t/common.pl
 test_k_m.pl
 test_fork_bloom.pl

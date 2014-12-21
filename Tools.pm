@@ -3,7 +3,7 @@ package Acme::Tools;
 
 our $VERSION = '0.16';
 
-use 5.008;     #5.8 from July 18th 2002
+use 5.008;     #5.8 was released July 18th 2002
 use strict;
 use warnings;
 use Carp;
@@ -51,6 +51,7 @@ our @EXPORT = qw(
   decode
   decode_num
   between
+  bound
   distinct
   in
   in_num
@@ -215,9 +216,9 @@ That can be binary (2), oct (8), hex (16) or others.
 Example:
 
  print num2code(255,2,"0123456789ABCDEF");  # prints FF
- print num2code(14,2,"0123456789ABCDEF");   # prints 0E
+ print num2code( 14,2,"0123456789ABCDEF");  # prints 0E
 
-...because 255 are converted to hex FF (base C<< length("0123456789ABCDEF") >> ) with is 2 digits 0-9 or characters A-F.
+...because 255 are converted to hex FF (base C<< length("0123456789ABCDEF") >> ) which is 2 digits of 0-9 or A-F.
 ...and 14 are converted to 0E, with leading 0 because of the second argument 2.
 
 Example:
@@ -232,31 +233,34 @@ To convert back:
 
 C<num2code()> can be used to compress numeric IDs to something shorter:
 
- $chars='0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_';
- $code=num2code("241274432",5,$chars);
+ $chars="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
+ print num2code("241274432",5,$chars);     # prints EOOv0
+ print code2num("EOOv0",$chars);           # prints 241274432
 
 =cut
 
+#Math::BaseCnv
+
 sub num2code {
-  my($num,$sifre,$lovligetegn,$start)=@_;
-  my $antlovligetegn=length($lovligetegn);
+  my($num,$digits,$validchars,$start)=@_;
+  my $l=length($validchars);
   my $key;
   no warnings;
   croak if $num<$start;
   $num-=$start;
-  for(1..$sifre){
-    $key=substr($lovligetegn,$num%$antlovligetegn,1).$key;
-    $num=int($num/$antlovligetegn);
+  for(1..$digits){
+    $key=substr($validchars,$num%$l,1).$key;
+    $num=int($num/$l);
   }
   croak if $num>0;
   return $key;
 }
 
 sub code2num {
-  my($code,$lovligetegn,$start)=@_; $start=0 if not defined $start;
-  my $antlovligetegn=length($lovligetegn);
+  my($code,$validchars,$start)=@_; $start=0 if not defined $start;
+  my $l=length($validchars);
   my $num=0;
-  $num=$num*$antlovligetegn+index($lovligetegn,$_) for split//,$code;
+  $num=$num*$l+index($validchars,$_) for split//,$code;
   return $num+$start;
 }
 
@@ -283,7 +287,7 @@ and the common ('overlapping') factors for both 12 and 8 is then 2 * 2 and the r
 B<Example two>:
 
   print gcd(90, 135, 315);               # prints 45
-  print gcd(2*3*3*5, 3*3*3*5, 3*3*5*7);  # prints 45 ( = 3*3*5 which exists for all three)
+  print gcd(2*3*3*5, 3*3*3*5, 3*3*5*7);  # prints 45 ( = 3*3*5 which is common to all three args)
 
 Implementation:
 
@@ -382,21 +386,23 @@ and can be used even if C<resolve> dies (carps).
 
 B<BigFloat-example:>
 
-If either second, third or fourth argument is an instance of Math::BigFloat, so will the result be:
+If either second, third or fourth argument is an instance of L<Math::BigFloat>, so will the result be:
 
  use Acme::Tools;
- use Math::BigFloat try => 'GMP';  # try means pure perl and no warnings if Math::GMP is not installed
- my $start=Math::BigFloat->new(1);
- my $gr1 = resolve(sub{my$x=shift; $x-1-1/$x}, 0, 1);     # 1/2 + sqrt(5)/2
- my $gr2 = resolve(sub{my$x=shift; $x-1-1/$x}, 0, $start);# 1/2 + sqrt(5)/2
- Math::BigFloat->div_scale(50); #default is 40
- my $gr3 = resolve(sub{my$x=shift; $x-1-1/$x}, 0, $start);# 1/2 + sqrt(5)/2
+ my $equation = sub{ my $x=shift; $x-1-1/$x };
+ my $gr1 = resolve( $equation, 0,      1  ); # 
+ my $gr2 = resolve( $equation, 0, bigf(1) ); # 1/2 + sqrt(5)/2
+ bigscale(50);
+ my $gr3 = resolve( $equation, 0, bigf(1) ); # 1/2 + sqrt(5)/2
+ 
+ print 1/2 + sqrt(5)/2, "\n";
  print "Golden ratio 1: $gr1\n";
  print "Golden ratio 2: $gr2\n";
  print "Golden ratio 3: $gr3\n";
 
 Output:
 
+ 1.61803398874989
  Golden ratio 1: 1.61803398874989
  Golden ratio 2: 1.61803398874989484820458683436563811772029300310882395927211731893236137472439025
  Golden ratio 3: 1.6180339887498948482045868343656381177203091798057610016490334024184302360920167724737807104860909804
@@ -409,8 +415,7 @@ L<Math::BigFloat>
 
 L<http://en.wikipedia.org/wiki/Golden_ratio>
 
-TODO: why these fail?
-
+TODO: why do these fail?
  perl -MAcme::Tools -le'for(map$_/10,-4..20){printf"%9.4f  %s\n",$_,3*$_+$_**4-12}print resolve(sub{$x=shift;3*$x+$x**4-12},0,1)'
  resolve(sub{ my $x=shift; $x**2 - 4*$x - 21 },undef,1.9)
 
@@ -2069,6 +2074,8 @@ sub part  (&@) { my($c,@r)=(shift,[],[]); push @{ $r[ &$c?0:1 ] }, $_ for @_; @r
 sub parth (&@) { my($c,%r)=(shift);       push @{ $r{ &$c     } }, $_ for @_; %r }
 sub parta (&@) { my($c,@r)=(shift);       push @{ $r[ &$c     ] }, $_ for @_; @r }
 
+#sub mapn (&$@) { ... } like map but @_ contains n elems at a time, n=1 is map
+
 =head1 STATISTICS
 
 =head2 sum
@@ -2193,9 +2200,8 @@ sub median {
   no warnings;
   my @list = sort {$a<=>$b} @_;
   my $n=@list;
-  $n%2
-    ? $list[($n-1)/2]
-    : ($list[$n/2-1] + $list[$n/2])/2;
+  $n%2 ?  $list[($n-1)/2]
+       : ($list[$n/2-1] + $list[$n/2])/2;
 }
 
 
@@ -2412,6 +2418,7 @@ sub random {
   ($from,$to)=($to,$from) if $from>$to;
   return int($from+rand(1+$to-$from));
 }
+#todo?: https://en.wikipedia.org/wiki/Irwin%E2%80%93Hall_distribution
 
 =head2 random_gauss
 
@@ -2753,6 +2760,33 @@ sub between {
                    : $test>=$tom&&$test<=$fom;
 }
 
+=head2 bound
+
+Input: Three arguments: value, minumum, maximum. If the value is a
+reference to a scalar variable, the variables value is replaced by the
+bound.
+
+Output: Returns the value if its between the given minumum and
+maximum. Returns minimum if the value is less or maximum if the value
+is more.
+
+ my $v = 234;
+ print bound( $v, 200, 250 );    #prints 234
+ print bound( $v, 150, 200 );    #prints 200
+ print bound( $v, 250, 300 );    #prints 250
+ print bound(\$v, 250, 300 );    #prints 250 and changes $v
+ print $v;                       #prints 250
+
+=cut
+
+sub bound {
+  my($val,$min,$max)=@_;
+  croak "bound: wrong args" if @_!=3 or !defined$min or !defined$max or !defined$val or $min>$max;
+  return $$val=bound($$val,$min,$max) if ref($val) eq 'SCALAR';
+  $val < $min ? $min :
+  $val > $max ? $max :
+                $val;
+}
 
 # =head1 veci
 # 
@@ -4398,32 +4432,44 @@ sub KID_ok {
 
 B<Input:>
 
-One, two or three numeric arguments: C<x> og C<y> and C<jump>.
+One or more numeric arguments:
+
+First: x (first returned element)
+
+Second: y (last but not including)
+
+Third: step, default 1. The step between each returned element
+
+If a fourth, fifth and so on arguments are given, they change the step for each returned element. As first derivative, second derivative.
 
 B<Output:>
 
-If one argument: returns the array C<(0..x-1)>
+If one argument: returns the array C<(0 .. x-1)>
 
-If two arguments: returns the array C<(x..y-1)>
+If two arguments: returns the array C<(x .. y-1)>
 
-If three arguments: returns every I<jump>th number between C<x> and C<y>.
-
-Dies (croaks) if there are zero or more than 3 arguments, or if the third argument is zero.
+If three arguments: The default step is 1. Use a third argument to use a different step.
 
 B<Examples:>
 
- print join ",", range(11);      # prints 0,1,2,3,4,5,6,7,8,9,10      (but not 11)
- print join ",", range(2,11);    # prints 2,3,4,5,6,7,8,9,10          (but not 11)
- print join ",", range(11,2,-1); # prints 11,10,9,8,7,6,5,4,3
- print join ",", range(2,11,3);  # prints 2,5,8
- print join ",", range(11,2,-3); # prints 11,8,5
- print join ",", range(11,2,+3); # prints nothing
+ print join ",", range(11);         # prints 0,1,2,3,4,5,6,7,8,9,10      (but not 11)
+ print join ",", range(2,11);       # 2,3,4,5,6,7,8,9,10          (but not 11)
+ print join ",", range(11,2,-1);    # 11,10,9,8,7,6,5,4,3
+ print join ",", range(2,11,3);     # 2,5,8
+ print join ",", range(11,2,-3);    # 11,8,5
+ print join ",", range(11,2,+3);    # prints nothing
 
-In the Python language, C<range> is a build in and an iterator instead of an array. This saves memory for large sets.
+ print join ", ",range(2,11,1,0.1);       # 2, 3, 4.1, 5.3, 6.6, 8, 9.5   adds 0.1 to step each time
+ print join ", ",range(2,11,1,0.1,-0.01); # 2, 3, 4.1, 5.29, 6.56, 7.9, 9.3, 10.75
+
+Note: In the Python language and others, C<range> is a build in iterator (a
+generator), not an array. This saves memory for large sets and sometimes time.
+Use C<range> in L<List::Gen> to get a similar lazy generator in Perl.
 
 =cut
 
 sub range {
+  return _range_accellerated(@_) if @_>3;  #se under
   my($x,$y,$jump)=@_;
   return (  0 .. $x-1 ) if @_==1;
   return ( $x .. $y-1 ) if @_==2;
@@ -4431,6 +4477,19 @@ sub range {
   my @r;
   if($jump>0){  while($x<$y){ push @r, $x; $x+=$jump } }
   else       {  while($x>$y){ push @r, $x; $x+=$jump } }
+  return @r;
+}
+
+#jumps derivative, double der., trippled der usw
+sub _range_accellerated {
+  my($x,$y,@jump)=@_;
+  my @r;
+  my $test = $jump[0]>=0 ? sub{$x<$y} : sub{$x>$y};
+  while(&$test()){
+    push @r, $x;
+    $x+=$jump[0];
+    $jump[$_-1]+=$jump[$_] for 1..$#jump;
+  }
   return @r;
 }
 
@@ -5210,21 +5269,21 @@ Same as C<serialize()> but the output is given a newline every 80th character.
 =cut
 
 our $Dserialize_width=80;
+sub _kallstack { my $tilbake=shift||0; my @c; my $ret; $ret.=serialize(\@c,"caller$tilbake") while @c=caller(++$tilbake); $ret }
 sub dserialize{join "\n",serialize(@_)=~/(.{1,$Dserialize_width})/gs}
 sub serialize {
   no warnings;
-  my($r,$navn,$filnavn,$nivaa)=@_;
-  my @r=(undef,undef,($nivaa||0)-1);
-  if($filnavn){
-    open(FIL,">$filnavn")||croak("FEIL: could not open file $filnavn\n".kallstack());
-    my $ret=serialize($r,$navn,undef,$nivaa);
-    print FIL "$ret\n1;\n";
-    close FIL;
+  my($r,$name,$filename,$level)=@_;
+  my @r=(undef,undef,($level||0)-1);
+  if($filename){
+    open my $fh, '>', $filename or croak("FEIL: could not open file $filename\n" . _kallstack());
+    my $ret=serialize($r,$name,undef,$level);
+    print $fh "$ret\n1;\n";
+    close($fh);
     return $ret;
   }
-
   if(ref($r) eq 'SCALAR'){
-    return "\$$navn=".serialize($r,@r).";\n" if $navn;
+    return "\$$name=".serialize($r,@r).";\n" if $name;
     return "undef" unless defined $$r;
     my $ret=$$r;
     $ret=~s/\\/\\\\/g;
@@ -5232,60 +5291,51 @@ sub serialize {
     return "'$ret'";
   }
   elsif(ref($r) eq 'ARRAY'){
-    return "\@$navn=".serialize($r,@r).";\n" if $navn;
+    return "\@$name=".serialize($r,@r).";\n" if $name;
     my $ret="(";
     for(@$r){
       $ret.=serialize(\$_,@r).",";
-      $ret.="\n" if $nivaa>=0;
+      $ret.="\n" if $level>=0;
     }
     $ret=~s/,$//;
     $ret.=")";
-    $ret.=";\n" if $navn;
+    $ret.=";\n" if $name;
     return $ret;
   }
   elsif(ref($r) eq 'HASH'){
-    return "\%$navn=".serialize($r,@r).";\n" if $navn;
+    return "\%$name=".serialize($r,@r).";\n" if $name;
     my $ret="(";
     for(sort keys %$r){
       $ret.=serialize(\$_,@r)."=>".serialize(\$$r{$_},@r).",";
-      $ret.="\n" if $nivaa>=0;
+      $ret.="\n" if $level>=0;
     }
     $ret=~s/,$//;
     $ret.=")";
-    $ret.=";\n" if $navn;
+    $ret.=";\n" if $name;
     return $ret;
   }
   elsif(ref($$r) eq 'ARRAY'){
-#    my $ret=serialize($$r,@r);
-#    substr($ret,0,1)="[";
-#    substr($ret,-1)="]\n";
-#    return $ret;
-    return "\@$navn=".serialize($r,@r).";\n" if $navn;
+    return "\@$name=".serialize($r,@r).";\n" if $name;
     my $ret="[";
     for(@$$r){
       $ret.=serialize(\$_,@r).",";
-      $ret.="\n" if not defined $nivaa or $nivaa>=0;
+      $ret.="\n" if not defined $level or $level>=0;
     }
     $ret=~s/,$//;
     $ret.="]";
-    $ret.=";\n" if $navn;
+    $ret.=";\n" if $name;
     return $ret;
-
   }
   elsif(ref($$r) eq 'HASH'){
-#    my $ret=serialize($$r,@r);
-#    substr($ret,0,1)="{";
-#    substr($ret,-1,1)="}\n";
-#    return $ret;
-    return "\%$navn=".serialize($r,@r).";\n" if $navn;
+    return "\%$name=".serialize($r,@r).";\n" if $name;
     my $ret="{";
     for(sort keys %$$r){
       $ret.=serialize(\$_,@r)."=>".serialize(\$$$r{$_},@r).",";
-      $ret.="\n" if $nivaa>=0;
+      $ret.="\n" if $level>=0;
     }
     $ret=~s/,$//;
     $ret.="}";
-    $ret.=";\n" if $navn;
+    $ret.=";\n" if $name;
     return $ret;
   }
   elsif(ref($$r) eq 'SCALAR'){
@@ -5311,7 +5361,7 @@ sub serialize {
         "\$r=$r\n".
         "ref(\$r)   = ".ref($r)."\n".
         "ref(\$\$r) = ".ref($$r)."\n".
-        "kallstack:\n".kallstack());
+        "kallstack:\n". _kallstack());
   }
 }
 
