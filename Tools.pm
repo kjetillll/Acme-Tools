@@ -3,7 +3,7 @@ package Acme::Tools;
 
 our $VERSION = '0.16';
 
-use 5.008;     #5.8 was released July 18th 2002
+use 5.008;     #Perl 5.8 was released July 18th 2002
 use strict;
 use warnings;
 use Carp;
@@ -342,11 +342,11 @@ sub lcm { my($a,$b,@r)=@_; @r ? lcm($a,lcm($b,@r)) : $a*$b/gcd($a,$b) }
 
 Resolves an equation by Newtons method.
 
-B<Input:> 1-6 arguments.
+B<Input:> 1-6 arguments. At least one argument.
 
 First argument: must be a coderef to a subroutine (a function)
 
-Second argument: the target, f(x)=target. Default 0.
+Second argument: if present, the target, f(x)=target. Default 0.
 
 Third argument: a start position for x. Default 0.
 
@@ -372,7 +372,8 @@ The equation C<< x^2 - 4x - 21 = 0 >> has two solutions: -3 and 7.
 
 The result of C<resolve> will depend on the start position:
 
- print resolve(sub{ my $x=shift; $x**2 - 4*$x - 21 });        # -3 with default start position 0
+ print resolve { $_**2 - 4*$_ - 21 };                         # -3 with $_ as your x
+ print resolve(sub{ my $x=shift; $x**2 - 4*$x - 21 });        # -3 more elaborate call
  print resolve(sub{ my $x=shift; $x**2 - 4*$x - 21 },0,3);    # 7  with start position 3
  print "Iterations: $Acme::Tools::Resolve_iterations\n";      # 3 or larger, about 10-15 is normal
 
@@ -389,7 +390,7 @@ B<BigFloat-example:>
 If either second, third or fourth argument is an instance of L<Math::BigFloat>, so will the result be:
 
  use Acme::Tools;
- my $equation = sub{ my $x=shift; $x-1-1/$x };
+ my $equation = sub{ $_ - 1 - 1/$_ };
  my $gr1 = resolve( $equation, 0,      1  ); # 
  my $gr2 = resolve( $equation, 0, bigf(1) ); # 1/2 + sqrt(5)/2
  bigscale(50);
@@ -425,14 +426,14 @@ TODO: why do these fail?
 our $Resolve_iterations;
 our $Resolve_last_estimate;
 
-sub resolve {
+sub resolve(&@) {
   my($f,$g,$start,$delta,$iters,$sec)=@_;
   
-  $g=0        if not defined $g;
-  $start=0    if not defined $start;
-  $delta=1e-4 if not defined $delta;
-  $iters=100  if not defined $iters;
-  $sec=0      if not defined $sec;
+  $g=0         if !defined $g;
+  $start=0     if !defined $start;
+  $delta=1e-4  if !defined $delta;
+  $iters=100   if !defined $iters;
+  $sec=0       if !defined $sec;
   $iters=13e13 if $iters==0;
   croak "Iterations ($iters) or seconds ($sec) can not be a negative number" if $iters<0 or $sec<0;
   $Resolve_iterations=undef;
@@ -444,15 +445,15 @@ sub resolve {
   my $time_start=$sec>0?time_fp():undef;
   my $timeout=0;
   my $ds=ref($start) eq 'Math::BigFloat' ? Math::BigFloat->div_scale() : undef;
-  
+  my $fx=sub{local$_=$_[0];&$f($_)};
   for my $n (0..$iters-1){
-    my $fd= &$f($x[$n]+$delta*0.5) - &$f($x[$n]-$delta*0.5);
-    $fd   = &$f($x[$n]+$delta*0.6) - &$f($x[$n]-$delta*0.4) if $fd==0; #wiggle...
-    $fd   = &$f($x[$n]+$delta*0.3) - &$f($x[$n]-$delta*0.7) if $fd==0;
+    my $fd= &$fx($x[$n]+$delta*0.5) - &$fx($x[$n]-$delta*0.5);
+    $fd   = &$fx($x[$n]+$delta*0.6) - &$fx($x[$n]-$delta*0.4) if $fd==0; #wiggle...
+    $fd   = &$fx($x[$n]+$delta*0.3) - &$fx($x[$n]-$delta*0.7) if $fd==0;
     #warn "n=$n  fd=$fd\n";
     croak "Div by zero: df(x) = $x[$n] at n'th iteration, n=$n" if $fd==0;
     $Resolve_last_estimate=
-    $x[$n+1]=$x[$n]-(&$f($x[$n])-$g)/($fd/$delta);
+    $x[$n+1]=$x[$n]-(&$fx($x[$n])-$g)/($fd/$delta);
     $Resolve_iterations=$n;
     last if $n>3 and $x[$n+1]==$x[$n] and $x[$n]==$x[$n-1];
     last if $n>3 and ref($x[$n+1]) eq 'Math::BigFloat' and substr($x[$n+1],0,$ds) eq substr($x[$n],0,$ds); #hm
@@ -3467,7 +3468,8 @@ sub ht2t {
   $f=~s/<t(d|r|h).*?>/\l$1$s/gsi;
   $f=~s/\s*<.*?>\s*/ /gsi;
   my @t=split("r$s",$f);shift @t;
-  $r||=sub{s/&#160;/ /g;s/&amp;/&/g;s/^\s*(.*?)\s*$/$1/s};
+  $r||=sub{s/&(#160|nbsp);/ /g;s/&amp;/&/g;s/^\s*(.*?)\s*$/$1/s;
+	   s/(\d) (\d)/$1$2/g if /^[\d \.\,]+$/};
   for(@t){my @r=split/[dh]$s/;shift@r;$_=[map{&$r;$_}@r]}
   @t;
 }
