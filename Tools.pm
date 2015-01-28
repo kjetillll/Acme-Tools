@@ -28,6 +28,7 @@ our @EXPORT = qw(
   $Resolve_iterations
   $Resolve_last_estimate
   resolve
+  resolve_equation
   conv
   rank
   rankstr
@@ -419,7 +420,7 @@ L<http://en.wikipedia.org/wiki/Golden_ratio>
 TODO: why do these fail?
  perl -MAcme::Tools -le'for(map$_/10,-4..20){printf"%9.4f  %s\n",$_,3*$_+$_**4-12}print resolve(sub{$x=shift;3*$x+$x**4-12},0,1)'
  resolve(sub{ my $x=shift; $x**2 - 4*$x - 21 },undef,1.9)
-
+ resolve_equation "x + 13*(3-x) = 17 - 1/x"
 
 =cut
 
@@ -428,7 +429,6 @@ our $Resolve_last_estimate;
 
 sub resolve(&@) {
   my($f,$g,$start,$delta,$iters,$sec)=@_;
-  
   $g=0         if !defined $g;
   $start=0     if !defined $start;
   $delta=1e-4  if !defined $delta;
@@ -445,7 +445,17 @@ sub resolve(&@) {
   my $time_start=$sec>0?time_fp():undef;
   my $timeout=0;
   my $ds=ref($start) eq 'Math::BigFloat' ? Math::BigFloat->div_scale() : undef;
-  my $fx=sub{local$_=$_[0];&$f($_)};
+  my $fx=sub{
+    local$_=$_[0];
+    my $fx=&$f($_);
+    if($fx=~/x/ and $fx=~/^[ \(\)\.\d\+\-\*\/x\=]+$/){
+      $fx=~s/^(.*)=(.*)$/($1)-($2)/;
+      $fx=~s,x,\$_,g;
+      $f=eval"sub{$fx}";
+      $fx=&$f($_);
+    }
+    $fx
+  };
   for my $n (0..$iters-1){
     my $fd= &$fx($x[$n]+$delta*0.5) - &$fx($x[$n]-$delta*0.5);
     $fd   = &$fx($x[$n]+$delta*0.6) - &$fx($x[$n]-$delta*0.4) if $fd==0; #wiggle...
@@ -464,6 +474,22 @@ sub resolve(&@) {
   croak "Could not resolve, perhaps too few iterations ($iters)" if @x>=$iters;
   return $x[-1];
 }
+
+=head2 resolve_equation
+
+This prints 2:
+
+ print resolve_equation "x + 13*(3-x) = 17 - x"
+
+A string containing at least one x is converted into a perl function.
+Then x is found by using L<resolve>. The string conversion is done by
+replacing every x with $_ and if a C< = > char is present it converts
+C< leftside = rightside > into C< (leftside) - (rightside) = 0 > which
+is the default behaviour of L<resolve>.
+
+=cut
+
+sub resolve_equation { my $equation=shift;resolve sub{$equation},@_ }
 
 =head2 conv
 
