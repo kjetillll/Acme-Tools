@@ -2,7 +2,7 @@
 # perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
 
 BEGIN{require 't/common.pl'}
-use Test::More tests => 154;
+use Test::More tests => 168;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -372,17 +372,6 @@ END
 ok(upper('a-zæøåäëïöüÿâêîôûãõàèìòùáéíóúıñ' x 3) eq 'A-ZÆØÅÄËÏÖÜÿÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚİÑ' x 3, 'upper'); #hmm ÿ
 ok(lower('A-ZÆØÅÄËÏÖÜ.ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚİÑ' x 3) eq 'a-zæøåäëïöü.âêîôûãõàèìòùáéíóúıñ' x 3, 'lower'); #hmm .
 
-#--trim
-ok( trim(" asdf \t\n    123 ") eq "asdf 123",  'trim 1');
-ok( trim(" asdf\t\n    123 ") eq "asdf\t123",  'trim 2');
-ok( trim(" asdf\n\t    123\n") eq "asdf\n123", 'trim 3');
-my($trimstr,@trim)=(' please ', ' please ', ' remove ', ' my ', ' spaces ');
-ok( join('',map"<$_>",trim(@trim)) eq '<please><remove><my><spaces>', 'trim array');
-trim(\$trimstr);
-ok($trimstr eq 'please', 'trim inplace');
-trim(\@trim);
-ok_ref(\@trim,[qw/please remove my spaces/], 'trim inplace array');
-
 #-- easter
 ok( '384f0eefc22c35d412ff01b2088e9e05' eq  md5_hex( join",", map{easter($_)} 1..5000), 'easter');
 
@@ -414,3 +403,10 @@ my$br;
 ok(($br=bytes_readable($_)) eq $br{$_}, "bytes_readable($_) == $br (should be $br{$_})")
   for sort {$a<=>$b} keys%br;
 
+#--isnum
+my @is=qw/222 2.2e123 +2 -1 -2.2123e-321/;
+my @isnt=(qw/2e pi NaN Inf/,'- 2');
+ok(isnum($_),'isnum')    for @is;
+ok(!isnum($_),'!isnum')  for @isnt;
+ok(isnum,'isnum')        for @is;
+ok(!isnum,'!isnum')      for @isnt;
