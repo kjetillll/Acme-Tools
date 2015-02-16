@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 package Acme::Tools;
 
-our $VERSION = '0.16';  #new version: C-s ny versjon
+our $VERSION = '0.17';  #new version: C-s ny versjon
 
 use 5.008;     #Perl 5.8 was released July 18th 2002
 use strict;
@@ -568,14 +568,14 @@ Note2: Many units have synonyms: m, meter, meters ...
 
  milage:       mpg, l/100km, l/km, l/10km, lp10km, l/mil, liter_pr_100km, liter_pr_km, lp100km
 
- money:        AED, ARS, AUD, BGN, BHD, BND, BRL, BWP, CAD, CHF, CLP,
-               CNY, COP, CZK, DKK, EUR, GBP, HKD, HRK, HUF, IDR, ILS,
-               INR, IRR, ISK, JPY, KRW, KWD, KZT, LKR, LTL, LVL, LYD,
-               MUR, MXN, MYR, NOK, NPR, NZD, OMR, PHP, PKR, PLN, QAR,
-               RON, RUB, SAR, SEK, SGD, THB, TRY, TTD, TWD, USD, VEF, ZAR,
-	       BTC, LTC
-               Currency rates are automatically updated from net
-               if +24h since last (on linux/cygwin).
+ money:        AED, ARS, AUD, BGN, BHD, BND, BRL, BWP, CAD, CHF, CLP, CNY,
+               COP, CZK, DKK, EUR, GBP, HKD, HRK, HUF, IDR, ILS, INR, IRR,
+               ISK, JPY, KRW, KWD, KZT, LKR, LTL, LVL, LYD, MUR, MXN, MYR,
+               NOK, NPR, NZD, OMR, PHP, PKR, PLN, QAR, RON, RUB, SAR, SEK,
+               SGD, THB, TRY, TTD, TWD, USD, VEF, ZAR,  BTC, LTC
+               Currency rates are automatically updated from the net
+               at least every 24h since last update (on linux/cygwin).
+
  numbers:      des, hex, bin, oct, roman, dozen, doz, dz, gross, gr, gro,
                great_gross, small_gross
                (not supported: desimal numbers)
@@ -1324,9 +1324,9 @@ sub roman2int {
 
 =head2 distance
 
-B<Input:> the four decimal numbers of latutude1, longitude1, latitude2, longitude2
+B<Input:> the four decimal numbers of two GPS positions: latutude1, longitude1, latitude2, longitude2
 
-B<Output:> the air distance in meters from point1 to point2.
+B<Output:> the air distance in meters between the two points
 
 Calculation is done using the Haversine Formula for spherical distance:
 
@@ -6258,11 +6258,12 @@ Release history
 
 Kjetil Skotheim, E<lt>kjetil.skotheim@gmail.comE<gt>
 
-=head1 COPYRIGHT AND LICENSE
+=head1 COPYRIGHT
 
 1995-2015, Kjetil Skotheim
 
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself.
+=head1 LICENSE
+
+This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
 
 =cut
