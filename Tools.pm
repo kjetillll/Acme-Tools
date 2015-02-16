@@ -28,6 +28,7 @@ our @EXPORT = qw(
   $Resolve_iterations
   $Resolve_last_estimate
   resolve
+  resolve_equation
   conv
   rank
   rankstr
@@ -463,6 +464,14 @@ sub resolve(&@) {
   }
   croak "Could not resolve, perhaps too few iterations ($iters)" if @x>=$iters;
   return $x[-1];
+}
+
+sub resolve_equation{
+    my $e=shift;
+    die if $e!~/^[\d\.\+\-\*\/\(\)\=\sex]+$/i;
+    $e=~s/x/\$_/g;#die$e;
+    my $f=eval"sub{$e}";
+    resolve(sub{$f},@_);
 }
 
 =head2 conv
