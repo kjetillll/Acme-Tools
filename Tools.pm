@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 package Acme::Tools;
 
-our $VERSION = '0.16';
+our $VERSION = '0.16';  #new version: C-s ny versjon
 
 use 5.008;     #Perl 5.8 was released July 18th 2002
 use strict;
@@ -124,6 +124,7 @@ our @EXPORT = qw(
   sys
   recursed
   md5sum
+  read_conf
   ldist
   isnum
   part
@@ -417,19 +418,19 @@ L<Math::BigFloat>
 
 L<http://en.wikipedia.org/wiki/Golden_ratio>
 
-TODO: why do these fail?
+TODO: fix fail for div by 0, e.g.:
  perl -MAcme::Tools -le'for(map$_/10,-4..20){printf"%9.4f  %s\n",$_,3*$_+$_**4-12}print resolve(sub{$x=shift;3*$x+$x**4-12},0,1)'
  resolve(sub{ my $x=shift; $x**2 - 4*$x - 21 },undef,1.9)
-
+ resolve_equation "x + 13*(3-x) = 17 - 1/x"
 
 =cut
 
 our $Resolve_iterations;
 our $Resolve_last_estimate;
 
+#sub resolve(\[&$]@) {
 sub resolve(&@) {
   my($f,$g,$start,$delta,$iters,$sec)=@_;
-  
   $g=0         if !defined $g;
   $start=0     if !defined $start;
   $delta=1e-4  if !defined $delta;
@@ -446,7 +447,17 @@ sub resolve(&@) {
   my $time_start=$sec>0?time_fp():undef;
   my $timeout=0;
   my $ds=ref($start) eq 'Math::BigFloat' ? Math::BigFloat->div_scale() : undef;
-  my $fx=sub{local$_=$_[0];&$f($_)};
+  my $fx=sub{
+    local$_=$_[0];
+    my $fx=&$f($_);
+    if($fx=~/x/ and $fx=~/^[ \(\)\.\d\+\-\*\/x\=]+$/){
+      $fx=~s/^(.*)=(.*)$/($1)-($2)/;
+      $fx=~s,x,\$_,g;
+      $f=eval"sub{$fx}";
+      $fx=&$f($_);
+    }
+    $fx
+  };
   for my $n (0..$iters-1){
     my $fd= &$fx($x[$n]+$delta*0.5) - &$fx($x[$n]-$delta*0.5);
     $fd   = &$fx($x[$n]+$delta*0.6) - &$fx($x[$n]-$delta*0.4) if $fd==0; #wiggle...
@@ -466,13 +477,22 @@ sub resolve(&@) {
   return $x[-1];
 }
 
-sub resolve_equation{
-    my $e=shift;
-    die if $e!~/^[\d\.\+\-\*\/\(\)\=\sex]+$/i;
-    $e=~s/x/\$_/g;#die$e;
-    my $f=eval"sub{$e}";
-    resolve(sub{$f},@_);
-}
+=head2 resolve_equation
+
+This prints 2:
+
+ print resolve_equation "x + 13*(3-x) = 17 - x"
+
+A string containing at least one x is converted into a perl function.
+Then x is found by using L<resolve>. The string conversion is done by
+replacing every x with $_ and if a C< = > char is present it converts
+C< leftside = rightside > into C< (leftside) - (rightside) = 0 > which
+is the default behaviour of L<resolve>.
+
+=cut
+
+#sub resolve_equation { my $e=shift;$e=~s/x/\$_/g;$e=~s/(.*)=(.*)/($1)-($2)/;resolve sub{eval$e},@_ }
+sub resolve_equation { my $e=shift;resolve sub{$e},@_ }
 
 =head2 conv
 
@@ -488,7 +508,7 @@ B<Examples:>
  print conv( 70,"cm","in");              #prints 27.5590551181102
  print conv( 4,"USD","EUR");             #prints 3.20481552905431 (depending on todays rates)
  print conv( 4000,"b","kb");             #prints 3.90625 (1 kb = 1024 bytes)
- print conv( 4000,"b","Kb");             #prints 3.90625 (1 Kb = 1000 bytes)
+ print conv( 4000,"b","Kb");             #prints 4       (1 Kb = 1000 bytes)
  print conv( 1000,"mb","kb");            #prints 1024000
  print conv( 101010,"bin","roman");      #prints XLII
  print conv( "DCCXLII","roman","oct");   #prints 1346
@@ -736,12 +756,13 @@ our %conv=(
 		  liters    => 1,
 		  litre     => 1,
 		  litres    => 1,
-		  gal       => 3.785411784, #231 cubic inches
-		  gallon    => 3.785411784,
-		  gallons   => 3.785411784,
-		  gallon_us => 3.785411784,
+		  gal       => 231*2.54**3/1000, #3.785411784, #231 cubic inches
+		  gallon    => 231*2.54**3/1000,
+		  gallons   => 231*2.54**3/1000,
+		  gallon_us => 231*2.54**3/1000,
 		  gallon_uk => 4.54609,
 		  gallon_imp=> 4.54609,
+		  gallon_us_dry => 4.40488377086, # ~ 9.25**2*pi*2.54**3/1000 L
 		  m3        => 10**3,      #1000 L
 		  cm3       => 0.1**3,     #0.001 L
                   in3       => 0.254**3,   #0.016387064 L
@@ -750,12 +771,18 @@ our %conv=(
 		  tsp       => 3.785411784/256/3,     #4.92892159375 mL
 		  teaspoon  => 3.785411784/256/3,     #4.92892159375 mL
                   floz      => 3.785411784/128,       #fluid ounce US
+                  floz_uk   => 4.54609/160,           #fluid ounce UK
                   pint      => 4.54609/8,             #0.56826125 L
                   pint_uk   => 4.54609/8,
                   pint_imp  => 4.54609/8,
                   pint_us   => 3.785411784/8,         #0.473176473
 		  therm     => 2.74e3,                #? 100000BTUs?   (!= thermie)
 		  thm       => 2.74e3,                #?               (!= th)
+                  fat       => 42*231*2.54**3/1000,
+                  bbl       => 42*231*2.54**3/1000,   #oil barrel ~159 liters https://en.wikipedia.org/wiki/Barrel_(unit)
+		  Mbbl      => 42*231*2.54**3,        #mille (thousand) oil barrels
+		  MMbbl     => 42*231*2.54**3*1000,   #mille mille (million) oil barrels
+		  drum      => 200,
 		 },
 	 time  =>{
 		  s           => 1,
@@ -1008,65 +1035,65 @@ our %conv=(
 		  binary_radian => 1/256,
 		  brad          => 1/256,
                  },
-	 money =>{                       #rates at nov 27th 2014
-		  NOK => 1,              #Norske kroner
-                  AED => 1.877817,       #?
-                  ARS => 0.809335,       #?
-                  AUD => 5.910125,       #?
-                  BGN => 4.401556,       #?
-                  BHD => 18.291948,      #?
-                  BND => 5.312127,       #?
-                  BRL => 2.744738,       #?
-                  BWP => 0.752480,       #?
-                  CAD => 6.127302,       #?
-                  CHF => 7.161604,       #?
-                  CLP => 0.011522,       #?
-                  CNY => 1.123836,       #?
-                  COP => 0.003187,       #?
-                  CZK => 0.311719,       #?
-                  DKK => 1.157118,       #?
-                  EUR => 8.608483,       #?
-                  GBP => 10.871689,      #?
-                  HKD => 0.889649,       #?
-                  HRK => 1.121647,       #?
-                  HUF => 0.028020,       #?
-                  IDR => 0.000567,       #?
-                  ILS => 1.776065,       #?
-                  INR => 0.111537,       #?
-                  IRR => 0.000257,       #?
-                  ISK => 0.055983,       #?
-                  JPY => 0.058702,       #?
-                  KRW => 0.006277,       #?
-                  KWD => 23.695673,      #?
-                  KZT => 0.038114,       #?
-                  LKR => 0.052590,       #?
-                  LTL => 2.493189,       #?
-                  LVL => 12.248838,      #?
-                  LYD => 5.285172,       #?
-                  MUR => 0.219027,       #?
-                  MXN => 0.502610,       #?
-                  MYR => 2.061909,       #?
-                  NPR => 0.069167,       #?
-                  NZD => 5.441627,       #?
-                  OMR => 17.917002,      #?
-                  PHP => 0.153783,       #?
-                  PKR => 0.067874,       #?
-                  PLN => 2.058986,       #?
-                  QAR => 1.894302,       #?
-                  RON => 1.948098,       #?
-                  RUB => 0.146634,       #?
-                  SAR => 1.837870,       #?
-                  SEK => 0.929073,       #?
-                  SGD => 5.312127,       #?
-                  THB => 0.210471,       #?
-                  TRY => 3.111767,       #?
-                  TTD => 1.087846,       #?
-                  TWD => 0.223331,       #?
-                  USD => 6.897150,       #?
-                  VEF => 1.096928,       #?
-                  ZAR => 0.629016,       #?
-		  BTC => 374.0*6.897150, #Bitcoins  http://preev.com/btc/usd
-		  LTC => 3.530*6.897150, #Litecoins http://preev.com/ltc/usd
+	 money =>{                        # rates at feb 13th 2015
+                  NOK => 1.000000000,     # norwegian kroner
+                  AED => 2.062607,        #
+                  ARS => 0.872666,        #
+                  AUD => 5.883676,        #
+                  BGN => 4.415369,        #
+                  BHD => 20.096754,       #
+                  BND => 5.594729,        #
+                  BRL => 2.674694,        #
+                  BTC => 1714.50835478131,# bitcoin
+                  BWP => 0.783666,        #
+                  CAD => 6.079577,        #
+                  CHF => 8.125951,        #
+                  CLP => 0.012246,        #
+                  CNY => 1.214359,        #
+                  COP => 0.00317992,      #
+                  CZK => 0.312771,        #
+                  DKK => 1.160164,        #
+                  EUR => 8.635740,        #
+                  GBP => 11.669630,       #
+                  HKD => 0.976865,        #
+                  HRK => 1.119689,        #
+                  HUF => 0.028187,        #
+                  IDR => 0.00059556,      #
+                  ILS => 1.947183,        #
+                  INR => 0.122048,        #
+                  IRR => 0.00027282,      #
+                  ISK => 0.057573,        #
+                  JPY => 0.063792,        #
+                  KRW => 0.00689579,      #
+                  KWD => 25.654000,       #
+                  KZT => 0.040847,        #
+                  LKR => 0.057016,        #
+                  LTC => 13.477679419905, # litecoin
+                  LTL => 2.501083,        #
+                  LVL => 12.287621,       #
+                  LYD => 5.635074,        #
+                  MUR => 0.227179,        #
+                  MXN => 0.509277,        #
+                  MYR => 2.128165,        #
+                  NPR => 0.076177,        #
+                  NZD => 5.650167,        #
+                  OMR => 19.678606,       #
+                  PHP => 0.171276,        #
+                  PKR => 0.074698,        #
+                  PLN => 2.064177,        #
+                  QAR => 2.080563,        #
+                  RON => 1.943624,        #
+                  RUB => 0.119595,        #
+                  SAR => 2.019045,        #
+                  SEK => 0.900900,        #
+                  SGD => 5.594729,        #
+                  THB => 0.232321,        #
+                  TRY => 3.083376,        #
+                  TTD => 1.191966,        #
+                  TWD => 0.241858,        #
+                  USD => 7.576263,        #
+                  VEF => 1.193186,        #
+                  ZAR => 0.649438,        #
 		 },
           numbers =>{
 	    des=>1,hex=>1,bin=>1,oct=>1,roman=>1,
@@ -1506,12 +1533,15 @@ sub fractional { #http://mathcentral.uregina.ca/QQ/database/QQ.09.06/h/lil1.html
   wantarray ? ($te,$ne) : "$te/$ne"; #gcd()
 }
 
-#=head2 isnum
-#
-#B<Input:> String
-#B<Output:>
-#
-sub isnum {$_[0]=~/^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) (?:[eE][\-\+]?\d+)?\s*$/x}
+=head2 isnum
+
+B<Input:> String to be tested on regexp C<< /^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) (?:[eE][\-\+]?\d+)?\s*$/x >>. If no argument is given isnum checks C<< $_ >>.
+
+B<Output:> True or false (1 or 0)
+
+=cut
+
+sub isnum {(@_?$_[0]:$_)=~/^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) (?:[eE][\-\+]?\d+)?\s*$/x}
 
 =head1 STRINGS
 
@@ -1534,8 +1564,8 @@ Same as L</upper>, only lower...
 Removes space from the beginning and end of a string. Whitespace (C<< \s >>) that is.
 And removes any whitespace inside the string of more than one char, leaving the first whitespace char. Thus:
 
- trim(" asdf \t\n    123 ") eq "asdf 123"
- trim(" asdf\t\n    123 ")  eq "asdf\t123"
+ trim(" asdf \t\n    123 ")  eq "asdf 123"
+ trim(" asdf\t\n    123\n")  eq "asdf\t123"
 
 Works on C<< $_ >> if no argument i given:
 
@@ -1543,14 +1573,17 @@ Works on C<< $_ >> if no argument i given:
  print join",", trim(" please ", " remove ", " my ", " spaces ");       # works on arrays as well
  my $s=' please '; trim(\$s);                                           # now  $s eq 'please'
  trim(\@untrimmedstrings);                                              # trims array strings inplace
+ @untrimmedstrings = map trim, @untrimmedstrings;                       # same, works on $_
+ trim(\$_) for @untrimmedstrings;                                       # same, works on \$_
 
 =head2 lpad
 
 =head2 rpad
 
-"Pads" a string to the given length by adding one or more spaces at the end (right, I<rpad>) or at the start (left, I<lpad>).
+Left or right pads a string to the given length by adding one or more spaces at the end for  I<rpad> or at the start for I<lpad>.
 
-B<Input:> First argument: string to be padded. Second argument: length of the output. Optional third argument: character(s) used to pad. Default is space.
+B<Input:> First argument: string to be padded. Second argument: length of the output. Optional third argument: character(s) used to pad.
+Default is space.
 
  rpad('gomle',9);         # 'gomle    '
  lpad('gomle',9);         # '    gomle'
@@ -2169,9 +2202,9 @@ distribution where one stddev on each side of the mean covers 68% and
 two stddevs 95%.  Normal distributions are sometimes called Gauss curves
 or Bell shapes. L<https://en.wikipedia.org/wiki/Standard_deviation>
 
- stddev(4,5,6,5,6,4,3,5,5,6,7,6,5,7,5,6,4)             # = 1.0914103126635
- avg(@IQtestscores) + stddev(@IQtestscores)            # = the score for IQ = 115 (by one definition)
- avg(@IQtestscores) - stddev(@IQtestscores)            # = the score for IQ = 85
+ stddev(4,5,6,5,6,4,3,5,5,6,7,6,5,7,5,6,4)         # = 1.0914103126635
+ avg(@testscores) + stddev(@testscores)            # = the score for IQ = 115 (by one definition)
+ avg(@testscores) - stddev(@testscores)            # = the score for IQ = 85
 
 =cut
 
@@ -2185,7 +2218,6 @@ sub stddev {
   my $sumx;  $sumx  += $_    for @$ar;
   sqrt( (@$ar*$sumx2-$sumx*$sumx)/(@$ar*(@$ar-1)) );
 }
-
 
 =head2 median
 
@@ -3471,7 +3503,7 @@ Output:
 =cut
 
 sub ht2t {
-  my($f,$s,$r)=@_;
+  my($f,$s,$r)=@_; 1>@_||@_>3 and croak; $s='' if @_==1;
   $f=~s,.*?($s).*?(<table.*?)</table.*,$2,si;
   my $e=0;$e++ while index($f,$s=chr($e))>=$[;
   $f=~s/<t(d|r|h).*?>/\l$1$s/gsi;
@@ -3800,33 +3832,84 @@ sub md5sum {
   return $r;
 }
 
+=head2 read_conf
+
+B<First argument:> A file name (string) or a reference to a string with settings in the format described below.
+
+B<Second argument, optional:> A reference to a hash with the settings from the file (or string reference).
+The hash do not have to be empty beforehand.
+
+Returns a hash with the settings as in this examples:
+
+ my %conf = read_conf('/etc/thing/thing.conf');
+ print $conf{sectionA}{knobble};  #prints ABC if the file is as shown below
+ print $conf{sectionA}{gobble};   #prints ZZZ, the last gobble
+ print $conf{''}{switch};         #prints OK if the file is as shown below
+ print $conf{part2}{password};    #prints oh:no= x
+
+File use for the above example:
+
+ switch:    OK       #before first section, the '' (empty) section
+ [sectionA]
+ knobble:   ABC
+ gobble:    XYZ      #this gobble is overwritten by the gobble on the next line
+ gobble:    ZZZ
+ [part2]
+ password:  oh:no= x  #should be better
+
+Everything from # and behind is regarded comments and ignored. Comments can be on any line.
+
+A C< : > or C< = > separates keys and values.  Spaces at the beginning or end of lines are ignored
+(after removal of #comments), as are any spaces before and after : and = separators. Empty lines is
+also ignored. Keys and values can contain internal spaces and tabs, but not at the beginning or end.
+Sections are marked with C<< [sectionname] >>.  Section names, keys and values is case
+sensitive. Acme::Tools::read_conf does not support multi-line values. C<read_conf> can be a simpler
+alternative to the core module L<Config::Std> which has its own hassles.
+
+=cut
+
+sub read_conf {
+  my($fn,$hr)=@_;
+  $hr||={};
+  my @f=ref($fn)?split("\n",$$fn):readfile($fn);
+  my $section='';
+  my $incfn=sub{return $1 if $_[0]=~m,^(/.+),;my$f=$fn;$f=~s,[^/]+$,$_[0],;$f};
+  for(readfile($fn)) {
+    #s,<INCLUDE ([^>]+)>,"".readfile(&$incfn($1)),eg; #todo
+    s,\s*#.*,,g;
+    #trim(\$_);#hm
+    /^\s*\[(.*)\]/ and $section=$1 and $$hr{$1}={} and next;
+    /^\s*([^\:\=]+)[:=]\s*(.*?)\s*$/ and $$hr{$section}{$1}=$2;
+  }
+  %$hr;
+}
+
 =head1 TIME FUNCTIONS
 
-
-# = head2 timestr
-# 
+# head2 timestr
+#
 # Converts epoch or YYYYMMDD-HH24:MI:SS time string to other forms of time.
-# 
+#
 # B<Input:> One, two or three arguments.
-# 
+#
 # B<First argument:> A format string.
-# 
+#
 # B<Second argument: (optional)> An epock C<time()> number or a time
 # string of the form YYYYMMDD-HH24:MI:SS. I no second argument is gives,
 # picks the current C<time()>.
-# 
+#
 # B<Thirs argument: (optional> True eller false. If true and first argument is eight digits:
 # Its interpreted as a YYYYMMDD time string, not an epoch time.
 # If true and first argument is six digits its interpreted as a DDMMYY date.
-# 
+#
 # B<Output:> a date or clock string on the wanted form.
-# 
+#
 # B<Exsamples:>
-# 
+#
 # Prints C<< 3. july 1997 >> if thats the dato today:
-# 
+#
 #  perl -MAcme::Tools -le 'print timestr("D. month YYYY")'
-# 
+#
 #  print timestr"HH24:MI");              # prints 23:55 if thats the time now
 #  print timestr"HH24:MI",time());       # ...same,since time() is the default
 #  print timestr"HH:MI",time()-5*60);    # prints 23:50 if that was the time 5 minutes ago
@@ -3836,17 +3919,17 @@ sub md5sum {
 #  timestr"DG DD. MONTH YYYY HH24:MI");  # LØR 03. JULY 2004 23:55         (HH24 = HH, month=engelsk)
 #  timestr"DD-MON-YYYY");                # 03-MAY-2004                     (mon engelsk)
 #  timestr"DD-MÅN-YYYY");                # 03-MAI-2004                     (mån norsk)
-# 
+#
 # B<Formatstrengen i argument to:>
-# 
+#
 # Formatstrengen kan innholde en eller flere av følgende koder.
-# 
+#
 # Formatstrengen kan inneholde tekst, som f.eks. C<< tid('Klokken er: HH:MI') >>.
 # Teksten her vil ikke bli konvertert. Men det anbefales å holde tekst utenfor
 # formatstrengen, siden framtidige koder kan erstatte noen tegn i teksten med tall.
-# 
+#
 # Der det ikke står annet: bruk store bokstaver.
-# 
+#
 #  YYYY    Årstallet med fire sifre
 #  ÅÅÅÅ    Samme som YYYY (norsk)
 #  YY      Årstallet med to sifre, f.eks. 04 for 2004 (anbefaler ikke å bruke tosifrede år)
@@ -3863,7 +3946,7 @@ sub md5sum {
 #  TT      Samme som HH. Ingen forskjell. Fra 00 til 23. TT24 og TT12 finnes ikke.
 #  MI      Minutt. Fra 00 til 59.
 #  SS      Sekund. Fra 00 til 59.
-#  
+#
 #  Måned   Skriver månedens fulle navn på norsk. Med stor førstebokstav, resten små.
 #          F.eks. Januar, Februar osv. NB: Vær oppmerksom på at måneder på norsk normal
 #          skrives med liten førstebokstav (om ikke i starten av setning). Alt for mange
@@ -3873,74 +3956,74 @@ sub md5sum {
 #  Måne.   Samme som Måne, men bruker punktum der det forkortes. Bruker alltid fire tegn.
 #          Jan. Feb. Mars Apr. Mai Juni Juli Aug. Sep. Okt. Nov. Des.
 #  Mån     Tre bokstaver, norsk: Jan Feb Mar Apr Mai Jun Jul Aug Sep Okt Nov Des
-#  
+#
 #  Month   Engelsk: January February May June July October December, ellers = norsk.
 #  Mont    Engelsk: Jan Feb Mars Apr May June July Aug Sep Oct Nov Dec
 #  Mont.   Engelsk: Jan. Feb. Mars Apr. May June July Aug. Sep. Oct. Nov. Dec.
 #  Mon     Engelsk: Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
-#  
+#
 #  måned måne måne. mån       Samme, men med liten førstebokstav. På norsk.
 #  month mont mont. mon       Samme, men med liten førstebokstav. På engelsk.
 #  MÅNED MÅNE MÅNE. MÅN       Samme, men med alle bokstaver store. På norsk.
 #  MONTH MONT MONT. MON       Samme, men med alle bokstaver store. På engelsk.
-#  
+#
 #  Dag     Dagens navn på norsk. Stor førstebokstav, resten små. Mandag Tirsdag Onsdag Torsdag
 #          Fredag Lørdag Søndag.
 #  Dg      Dagens navn på norsk forkortet. Stor førstebokstav, resten små.
 #          Alltid tre bokstaver: Man Tir Ons Tor Fre Lør Søn
 #  Day     Samme som Dag, men på engelsk. Monday Tuesday Wednesday Thursday Friday Saturday Sunday
 #  Dy      Samme som Dg, men på engelsk. Alltid tre bokstaver: Mon Tue Wed Thu Fri Sat Sun
-#  
+#
 #  dag dg day dy DAG DG DAY DY       ....du klarer sikkert å gjette...
-#  
+#
 #  UKE     Ukenr ett eller to siffer. Bruker ISO-definisjonen som brukes stort sett i hele verden unntatt USA.
 #  UKENR   Ukenr, alltid to siffer, 01 02 osv. Se uke() et annet sted i SO::Bibl for mer om dette.
-# 
-# 
+#
+#
 #  Gjenstår:  Dag- og månedsnavn på nynorsk og samisk.
-# 
+#
 #  Gjenstår:  Dth => 1st eller 2nd hvis dato er den første eller andre
-#   
+#
 #  Gjenstår:  M => Måned ett eller to sifre, slik D er dato med ett eller to. Vanskelig/umulig(?)
-#   
+#
 #  Gjenstår:  J => "julian day"....
-#   
+#
 #  Gjenstår:  Sjekke om den takler tidspunkt for svært lenge siden eller om svært lenge...
 #             Kontroll med kanskje die ved input
-#   
+#
 #  Gjenstår:  sub dit() (tid baklengs... eller et bedre navn) for å konvertere andre veien.
 #             Som med to_date og to_char i Oracle. Se evt L<Date::Parse> isteden.
-#   
+#
 #  Gjenstår:  Hvis formatstrengen er DDMMYY (evt DDMMÅÅ), og det finnes en tredje argument,
 #             så vil den tredje argumenten sees på som personnummer og DD vil bli DD+40
 #             eller MM vil bli MM+50 hvis personnummeret medfører D- eller S-type fødselsnr.
 #             Hmm, kanskje ikke. Se heller  sub foedtdato  og  sub fnr  m.fl.
-#  
+#
 #  Gjenstår:  Testing på tidspunkter på mer enn hundre år framover eller tilbake i tid.
-# 
+#
 # Se også L</tidstrk> og L</tidstr>
-# 
+#
 # =cut
-# 
+#
 # our %SObibl_tid_strenger;
 # our $SObibl_tid_pattern;
-# 
+#
 # sub tid
 # {
 #   return undef if @_>1 and not defined $_[1];
 #   return 1900+(localtime())[5] if $_[0]=~/^(?:ÅÅÅÅ|YYYY)$/ and @_==1; # kjappis for tid("ÅÅÅÅ") og tid("YYYY")
-# 
+#
 #   my($format,$time,$er_dato)=@_;
-#   
-# 
+#
+#
 #   $time=time() if @_==1;
-# 
+#
 #   ($time,$format)=($format,$time)
 #     if $format=~/^[\d+\:\-]+$/; #swap hvis format =~ kun tall og : og -
-# 
+#
 #   $format=~s,([Mm])aa,$1å,;
 #   $format=~s,([Mm])AA,$1Å,;
-# 
+#
 #   $time = yyyymmddhh24miss_time("$1$2$3$4$5$6")
 #     if $time=~/^((?:19|20|18)\d\d)          #yyyy
 #                 (0[1-9]|1[012])             #mm
@@ -3948,13 +4031,13 @@ sub md5sum {
 #                 ([01]\d|2[0-3])       \:?   #hh24
 #                 ([0-5]\d)             \:?   #mi
 #                 ([0-5]\d)             $/x;  #ss
-# 
+#
 #   $time = yyyymmddhh24miss_time(dato_ok("$1$2$3")."000000")
 #     if $time=~/^(\d\d)(\d\d)(\d\d)$/ and $er_dato;
-# 
+#
 #   $time = yyyymmddhh24miss_time("$1$2${3}000000")
 #     if $time=~/^((?:18|19|20)\d\d)(\d\d)(\d\d)$/ and $er_dato;
-# 
+#
 #   my @lt=localtime($time);
 #   if($format){
 #     unless(defined %SObibl_tid_strenger){
@@ -3974,7 +4057,7 @@ sub md5sum {
 # 	   'MÅN'   => [4, 'JAN','FEB','MAR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DES'],
 # 	   'Mån'   => [4, 'Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'],
 # 	   'mån'   => [4, 'jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'],
-# 
+#
 # 	   'MONTH' => [4, 'JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY',
 # 		          'AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'],
 # 	   'Month' => [4, 'January','February','March','April','May','June','July',
@@ -4012,7 +4095,7 @@ sub md5sum {
 #       #uten sort kan "måned" bli "mared", fordi "mån"=>"mar"
 #     }
 #     $format=~s/($SObibl_tid_pattern)/$SObibl_tid_strenger{$1}[1+$lt[$SObibl_tid_strenger{$1}[0]]]/g;
-# 
+#
 #     $format=~s/TT|tt/HH/;
 #     $format=~s/ÅÅ/YY/g;$format=~s/åå/yy/g;
 #     $format=~s/YYYY             /1900+$lt[5]                  /gxe;
@@ -4030,7 +4113,7 @@ sub md5sum {
 #     $format=~s/UKENR            /sprintf("%02d",ukenr($time)) /gxei;
 #     $format=~s/UKE              /ukenr($time)                 /gxei;
 #     $format=~s/SS               /sprintf("%02d",$lt[0])       /gxei;
-# 
+#
 #     return $format;
 #   }
 #   else{
@@ -4570,7 +4653,7 @@ If the first argument is a coderef, that sub will be called for each permutation
  print for map join("",@$_), permutations(1..3);
 
 ...but the first of those two uses less RAM if 3 has been say 9.
-Changing 3 with 10, and many computers hasn't enough memory 
+Changing 3 with 10, and many computers hasn't enough memory
 for the latter.
 
 The examples prints:
@@ -5192,7 +5275,7 @@ sub tablestring {
 	$overskrift_forrige=0;
       }
     }
-  }#for x 
+  }#for x
   return join("\n",@tabut)."\n";
 }
 
@@ -5380,11 +5463,11 @@ sub serialize {
 
 Call instead of C<system> if you want C<die> (Carp::croak) when something fails.
 
- sub sys($){my$s=shift;system($s)==0 or croak"ERROR, sys($s) ($!) ($?)"}
+ sub sys($){my$s=shift;system($s)==0 or croak"ERROR: sys($s) ($!) ($?)"}
 
 =cut
 
-sub sys($){ my$s=shift;system($s)==0 or croak"ERROR, sys($s) ($!) ($?)" }
+sub sys($){ my$s=shift;system($s)==0 or croak"ERROR: sys($s) ($!) ($?)" }
 
 =head2 recursed
 
@@ -5496,7 +5579,7 @@ In the example below, a set of 100000 phone numbers (or any string of
 any length) can be "stored" in just 91230 bytes if you accept that you
 can only check the data structure for existence of a string and accept
 false positives with an error rate of 0.03 (that is three percent, error
-rates are given in numbers larger then 0 and smaller than 1).
+rates are given in numbers larger than 0 and smaller than 1).
 
 You can not retrieve the strings in the set without using "brute
 force" methods and even then you would get slightly more strings than
@@ -5547,8 +5630,8 @@ Returns false most of the times, but sometimes true*), if C<$phone_number> doesn
 
 Checking more than one key:
 
- @bools = bfcheck($bf, @keys);    #or ...
- @bools = bfcheck($bf, \@keys);   #better if @keys is large
+ @bools = bfcheck($bf, @keys);          # or ...
+ @bools = bfcheck($bf, \@keys);         # better, uses less memory if @keys is large
 
 Returns an array the same size as @keys where each element is true or false accordingly.
 
@@ -5556,83 +5639,83 @@ Returns an array the same size as @keys where each element is true or false acco
 
 Same as C<bfcheck> except it returns the keys that exists in the bloom filter
 
- @found = bfgrep($bf, @keys);           #or ...
- @found = bfgrep($bf, \@keys);          #better if @keys is large, or ...
- @found = grep bfcheck($bf,$_), @keys;  #same but slower
+ @found = bfgrep($bf, @keys);           # or ...
+ @found = bfgrep($bf, \@keys);          # better, uses less memory if @keys is large, or ...
+ @found = grep bfcheck($bf,$_), @keys;  # same but slower
 
 =head2 bfgrepnot
 
 Same as C<bfgrep> except it returns the keys that do NOT exists in the bloom filter:
 
- @not_found = bfgrepnot($bf, @keys);          #or ...
- @not_found = bfgrepnot($bf, \@keys);         #better if @keys is large
- @not_found = grep !bfcheck($bf,$_), @keys);  #same but slower
+ @not_found = bfgrepnot($bf, @keys);          # or ...
+ @not_found = bfgrepnot($bf, \@keys);         # better, uses less memory if @keys is large, or ...
+ @not_found = grep !bfcheck($bf,$_), @keys);  # same but slower
 
 =head2 bfdelete
 
 Deletes from a counting bloom filter.
 
 To enable deleting be sure to initialize the bloom filter with the
-numeric C<counting_bits> argument. The number of bits could be 2 or 3
+numeric C<counting_bits> argument. The number of bits could be 2 or 3*)
 for small filters with a small capacity (a small number of keys), but
 setting the number to 4 ensures that even very large filters with very
 small error rates would not overflow.
 
-Acme::Tools do not currently support C<< counting_bits => 3 >> so 4
-and 8 are the only practical alternatives.
+*) Acme::Tools do not currently support C<< counting_bits => 3 >> so 4
+and 8 are the only practical alternatives where 8 is almost always overkill.
 
  my $bf=bfinit(
-   error_rate=>0.001,
-   capacity=>10e6,
-   counting_bits=>4     # a power of 2, i.e. 2, 4, 8, 16 or 32
+   error_rate    => 0.001,
+   capacity      => 10000000,
+   counting_bits => 4              # power of 2, that is 2, 4, 8, 16 or 32
  );
- bfadd(   $bf, @phone_numbers);     # make sure the phone numbers are unique!
- bfdelete($bf, @phone_numbers);
+ bfadd(   $bf, @unique_phone_numbers);
+ bfdelete($bf, @unique_phone_numbers);
 
-To examine the frequency of the counters with 4 bit counters and 4 million keys:
+Example: examine the frequency of the counters with 4 bit counters and 4 million keys:
 
  my $bf=bfinit( error_rate=>0.001, capacity=>4e6, counting_bits=>4 );
  bfadd($bf,[1e3*$_+1 .. 1e3*($_+1)]) for 0..4000-1;  # adding 4 million keys one thousand at a time
  my %c; $c{vec($$bf{filter},$_,$$bf{counting_bits})}++ for 0..$$bf{filterlength}-1;
- printf "%8d counters is %2d\n",$c{$_},$_ for sort{$a<=>$b}keys%c;
+ printf "%8d counters = %d\n",$c{$_},$_ for sort{$a<=>$b}keys%c;
 
 The output:
 
- 28689562 counters is  0
- 19947673 counters is  1
-  6941082 counters is  2
-  1608250 counters is  3
-   280107 counters is  4
-    38859 counters is  5
-     4533 counters is  6
-      445 counters is  7
-       46 counters is  8
-        1 counters is  9
+ 28689562 counters = 0
+ 19947673 counters = 1
+  6941082 counters = 2
+  1608250 counters = 3
+   280107 counters = 4
+    38859 counters = 5
+     4533 counters = 6
+      445 counters = 7
+       46 counters = 8
+        1 counters = 9
 
 Even after the error_rate is changed from 0.001 to a percent of that, 0.00001, the limit of 16 (4 bits) is still far away:
 
- 47162242 counters is  0
- 33457237 counters is  1
- 11865217 counters is  2
-  2804447 counters is  3
-   497308 counters is  4
-    70608 counters is  5
-     8359 counters is  6
-      858 counters is  7
-       65 counters is  8
-        4 counters is  9
+ 47162242 counters = 0
+ 33457237 counters = 1
+ 11865217 counters = 2
+  2804447 counters = 3
+   497308 counters = 4
+    70608 counters = 5
+     8359 counters = 6
+      858 counters = 7
+       65 counters = 8
+        4 counters = 9
 
-In algorithmic terms the number of bits needed is C<ln of ln of n>.
-Thats why 4 bits (counters up to 15) is "always" good enough.
-
-(Except when adding the same key many times, which should be avoided, and Acme::Tools::bfadd don't check for that).
+In algorithmic terms the number of bits needed is C<ln of ln of n>.  Thats why 4 bits (counters up
+to 15) is "always" good enough except for extremely large capasities or extremely small error rates.
+(Except when adding the same key many times, which should be avoided, and Acme::Tools::bfadd do not
+check for that, perhaps in future versions).
 
 Bloom filters of the counting type are not very space efficient: The tables above shows that 84%-85%
 of the counters are 0 or 1. This means most bits are zero-bits. This doesn't have to be a problem if
 a counting bloom filter is used to be sent over slow networks because they are very compressable by
 common compression tools like I<gzip> or L<Compress::Zlib> and such.
 
-Deletion of non-existing keys C<bfdelete> croaks on deletion of a non-existing key
+Deletion of non-existing keys makes C<bfdelete> die (croak).
 
 =head2 bfdelete
 
@@ -5693,7 +5776,7 @@ number of bytes as the number of keys.
  Storage (bytes):
  Capacity      Error-rate  Error-rate Error-rate Error-rate Error-rate Error-rate Error-rate Error-rate Error-rate Error-rate Error-rate Error-rate
                0.000000001 0.00000001 0.0000001  0.000001   0.00001    0.0001     0.001      0.01       0.02141585 0.1        0.5        0.99
- ------------- ----------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- 
+ ------------- ----------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
             10 54.48       48.49      42.5       36.51      30.52      24.53      18.53      12.54      10.56      6.553      2.366      0.5886
            100 539.7       479.8      419.9      360        300.1      240.2      180.3      120.4      100.6      60.47      18.6       0.824
           1000 5392        4793       4194       3595       2996       2397       1798       1199       1001       599.6      180.9      3.177
@@ -5866,7 +5949,7 @@ sub bfaddbf {
   $$bf{key_count}+=$$bf2{key_count};
   if($$bf{counting_bits}==1){
     $$bf{filter} |= $$bf2{filter};
-    #$$bf{filter} = $$bf{filter} | $$bf2{filter}; #or-ing 
+    #$$bf{filter} = $$bf{filter} | $$bf2{filter}; #or-ing
   }
   else {
     my $cb=$$bf{counting_bits};
@@ -6056,6 +6139,27 @@ sub bfdimensions {
   return ($m+0.5,min($maxk,max($mink,int($k+0.5))));
 }
 
+sub _update_currency_file { #call from cron
+  my $fn=shift()||'/var/www/currency-rates';
+  my %exe=map+($_=>"/usr/bin/$_"),qw/curl ci/;-x$_ or die for values %exe;
+  open my $F, '>', $fn or die"ERROR: Could not write file $fn ($!)\n";
+  print $F "#-- Currency rates ".localtime()." (".time().")\n";
+  print $F "#   File generated by Acme::Tools version $VERSION\n";
+  print $F "NOK 1.000000000\n";
+  my $amount=1000;
+  my $data=qx($exe{curl} -s "http://www.x-rates.com/table/?from=NOK&amount=$amount");
+  $data=~s,to=([A-Z]{3})(.)>,$2>$1</td><td>,g;
+  my @data=ht2t($data,"Alphabetical order"); shift @data;
+  @data=map "$$_[1] ".($$_[4]>1e-2?$$_[4]:$$_[2]?sprintf("%.8f",$amount/$$_[2]):0)."\n",@data;
+  my %data=map split,@data;
+  my@tc=qx($exe{curl} -s https://btc-e.com/api/3/ticker/btc_usd-ltc_usd)=~/avg.?:(\d+\.?\d*)/g;
+  push @data,"BTC ".($tc[0]*$data{USD})."\n";
+  push @data,"LTC ".($tc[1]*$data{USD})."\n";
+  print $F sort(@data);
+  close($F);
+  qx($exe{ci} -l -m. -d $fn) if -w"$fn,v";
+}
+
 cmd_atca() if $0 =~ /\b atca $/x;
 sub cmd_atca { print eval $_, "\n" for split ";", "@ARGV" } #$@&&warn$@
 
@@ -6080,17 +6184,23 @@ sub sum      { &Acme::Tools::bfsum      }
 # + endre $VERSION
 # + endre Release history under HISTORY
 # + endre årstall under COPYRIGHT AND LICENSE
+# + oppd default valutakurser
 # + emacs Changes
-# + emacs README
+# + emacs README + aarstall
+# + emacs MANIFEST legg til ev nye t/*.t
 # + perl            Makefile.PL;make test
 # + /local/bin/perl Makefile.PL;make test
 # + /usr/bin/perl   Makefile.PL;make test
 # + perlbrew exec "perl ~/Acme-Tools/Makefile.PL ; time make test"
 # + perlbrew use perl-5.10.1; perl Makefile.PL; make test; perlbrew off
 # + test evt i cygwin og mingw-perl
+# + https://metacpan.org/pod/Acme::Tools
 # + make dist
 # + cp -p *tar.gz /htdocs/
 # + ci -l -mversjon -d `cat MANIFEST`
+# + git add `cat MANIFEST`
+# + git commit -a
+# + git push
 # + http://pause.perl.org/
 # http://en.wikipedia.org/wiki/Birthday_problem#Approximations
 
@@ -6102,9 +6212,6 @@ sub sum      { &Acme::Tools::bfsum      }
 # memoize_memcached         http://search.cpan.org/~dtrischuk/Memoize-Memcached-0.03/lib/Memoize/Memcached.pm
 # hint on http://perl.jonallen.info/writing/articles/install-perl-modules-without-root
 
-# sub lpad
-# sub rpad
-# 
 # sub mycrc32 {  #http://billauer.co.il/blog/2011/05/perl-crc32-crc-xs-module/  eller String::CRC32::crc32 som er 100 x raskere enn Digest::CRC::crc32
 #  my ($input, $init_value, $polynomial) = @_;
 #  $init_value = 0 unless (defined $init_value);
@@ -6128,12 +6235,16 @@ sub sum      { &Acme::Tools::bfsum      }
 #  $crc = $crc ^ 0xffffffff;
 #  return $crc;
 # }
-# 
+#
+
+
 
 =head1 HISTORY
 
 Release history
 
+ 0.16  Feb 2015   bigr, bound, cpad, isnum, parta, parth, read_conf, resolve_equation,
+                  roman2int, trim. Improved: conv (numbers, currency), range ("derivatives")
  0.15  Nov 2014   Improved doc
  0.14  Nov 2014   New subs, improved tests and doc
  0.13  Oct 2010   Non-linux test issue, resolve. improved: bloom filter, tests, doc
@@ -6145,11 +6256,11 @@ Release history
 
 =head1 AUTHOR
 
-Kjetil Skotheim, E<lt>kjetil.skotheim@gmail.comE<gt>, E<lt>kjetil.skotheim@usit.uio.noE<gt>
+Kjetil Skotheim, E<lt>kjetil.skotheim@gmail.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-1995-2014, Kjetil Skotheim
+1995-2015, Kjetil Skotheim
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
