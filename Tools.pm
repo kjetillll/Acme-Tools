@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 package Acme::Tools;
 
-our $VERSION = '0.16';  #new version: C-s ny versjon
+our $VERSION = '0.17';  #new version: C-s ny versjon
 
 use 5.008;     #Perl 5.8 was released July 18th 2002
 use strict;
@@ -379,13 +379,12 @@ The result of C<resolve> will depend on the start position:
  print resolve(sub{ my $x=shift; $x**2 - 4*$x - 21 },0,3);    # 7  with start position 3
  print "Iterations: $Acme::Tools::Resolve_iterations\n";      # 3 or larger, about 10-15 is normal
 
-The variable C< $Acme::Tools::Resolve_iterations > (which is exported) will
-be set to the last number of iterations C<resolve> used. Work also if
-C<resolve> dies (carps).
+The variable C< $Acme::Tools::Resolve_iterations > (which is exported) will be set
+to the last number of iterations C<resolve> used. Also if C<resolve> dies (carps).
 
-The variable C< $Acme::Tools::Resolve_last_estimate > (which is exported) will
-be set to the last estimate. This number will often be close to the solution
-and can be used even if C<resolve> dies (carps).
+The variable C< $Acme::Tools::Resolve_last_estimate > (which is exported) will be
+set to the last estimate. This number will often be close to the solution and can
+be used even if C<resolve> dies (carps).
 
 B<BigFloat-example:>
 
@@ -419,6 +418,7 @@ L<Math::BigFloat>
 L<http://en.wikipedia.org/wiki/Golden_ratio>
 
 TODO: fix fail for div by 0, e.g.:
+
  perl -MAcme::Tools -le'for(map$_/10,-4..20){printf"%9.4f  %s\n",$_,3*$_+$_**4-12}print resolve(sub{$x=shift;3*$x+$x**4-12},0,1)'
  resolve(sub{ my $x=shift; $x**2 - 4*$x - 21 },undef,1.9)
  resolve_equation "x + 13*(3-x) = 17 - 1/x"
@@ -497,9 +497,16 @@ sub resolve_equation { my $e=shift;resolve sub{$e},@_ }
 =head2 conv
 
 Converts between:
-* units of measurement
-* number systems
-* currencies
+
+=over 4
+
+=item * units of measurement
+
+=item * number systems
+
+=item * currencies
+
+=back
 
 B<Examples:>
 
@@ -522,12 +529,12 @@ km, mm, cm, µm and so on. And _N means kN, MN GN and so on.
 Note2: Many units have synonyms: m, meter, meters ...
 
  acceleration: g, g0, m/s2, mps2
-
+ 
  angle:        binary_degree, binary_radian, brad, deg, degree, degrees,
                gon, grad, grade, gradian, gradians, hexacontade, hour,
                new_degree, nygrad, point, quadrant, rad, radian, radians,
                sextant, turn
-
+ 
  area:         a, ar, are, ares, bunder, ca, centiare, cho, cm2,
                daa, decare, decares, deciare, dekar,
                djerib, m2, dunam, dönüm, earths, feddan, ft2, gongqing, ha
@@ -535,75 +542,74 @@ Note2: Many units have synonyms: m, meter, meters ...
                mi2, mm2, mu, qing, rai, sotka,
                sqcm, sqft, sqkm, sqm, sqmi, sqmm
                stremmata, um2, µm2
-
+ 
  bytes:        Eb, Gb, Kb, KiB, Mb, Pb, Tb, Yb, Zb, b, byte,
                kb, kilobyte,  mb, megabyte,
                gb, gigabyte,  tb, terabyte,
                pb, petabyte,  eb, exabyte,
                zb, zettabyte, yb, yottabyte
-
+ 
  charge:       As, C, _e, coulomb, e
-
+ 
  current:      A, _A, N/m2
-
+ 
  energy:       BTU, Btu, J, Nm, W/s, Wh, Wps, Ws, _J, _eV,
                cal, calorie, calories, eV, electronvolt,
                erg, ergs, foot-pound, foot-pounds, ftlb, joule, kWh,
                kcal, kilocalorie, kilocalories,
                newtonmeter, newtonmeters, th, thermie
-
+ 
  force:        N, _N, dyn, dyne, dynes, lb, newton
-
+ 
  length:       NM, _m, _pc, astronomical unit, au, chain, ft, furlong,
                in, inch, inches, km, league, lightyear, ls, ly,
                m, meter, meters, mi, mil, mile, miles,
                nautical mile, nautical miles, nmi,
                parsec, pc, planck, yard, yard_imperical, yd, Å, ångstrøm
-
+ 
  mass:         Da, _eV, _g, bag, carat, ct, dwt, eV, electronvolt, g,
                grain, grains, gram, grams, kilo, kilos, kt, lb, lb_av,
                lb_t, lb_troy, lbs, ounce, ounce_av, ounce_troy, oz, oz_av, oz_t,
                pennyweight, pound, pound_av, pound_metric, pound_troy, pounds,
-               pwt, seer, sl, slug, solar mass, st, stone, t, tonn, tonne, tonnes, u, wey
-
+               pwt, seer, sl, slug, solar_mass, st, stone, t, tonn, tonne, tonnes, u, wey
+ 
  milage:       mpg, l/100km, l/km, l/10km, lp10km, l/mil, liter_pr_100km, liter_pr_km, lp100km
-
+ 
  money:        AED, ARS, AUD, BGN, BHD, BND, BRL, BWP, CAD, CHF, CLP,
                CNY, COP, CZK, DKK, EUR, GBP, HKD, HRK, HUF, IDR, ILS,
                INR, IRR, ISK, JPY, KRW, KWD, KZT, LKR, LTL, LVL, LYD,
                MUR, MXN, MYR, NOK, NPR, NZD, OMR, PHP, PKR, PLN, QAR,
                RON, RUB, SAR, SEK, SGD, THB, TRY, TTD, TWD, USD, VEF, ZAR,
 	       BTC, LTC
-               Currency rates are automatically updated from net
-               if +24h since last (on linux/cygwin).
- numbers:      des, hex, bin, oct, roman, dozen, doz, dz, gross, gr, gro,
-               great_gross, small_gross
-               (not supported: desimal numbers)
-
+               Currency rates are automatically updated to a local cache file
+               from the net if +24h since last (on linux/cygwin).
+ 
+ numbers:      dec, hex, bin, oct, roman, dozen, doz, dz, gross, gr, gro,
+               great_gross, small_gross (not supported: decimal numbers)
+ 
  power:        BTU, BTU/h, BTU/s, BTUph, GWhpy, J/s, Jps, MWhpy, TWhpy,
                W, Whpy, _W, ftlb/min, ftlb/s, hk, hp, kWh/yr, kWhpy
-
+ 
  pressure:     N/m2, Pa, _Pa, at, atm, bar, mbar, pascal, psi, torr
-
+ 
  radioactivity: Bq, becquerel, curie
-
- speed:        _m/s, c, fps, ft/s, ftps, km/h, km/t, kmh, kmph, kmt,
-               kn, knot, knots, kt, m/s, mach, machs, mi/h, mph, mps
-
+ 
+ speed:        _m/s, km/h, km/t, kmh, kmph, kmt, m/s, mi/h, mph, mps,
+               kn, knot, knots, kt, mach, machs, c, fps, ft/s, ftps
+ 
  temperature:  C, F, K, celsius, fahrenheit, kelvin
-
+ 
  time:         _s, biennium, century, d, day, days, decade, dy, fortnight,
                h, hour, hours, hr, indiction, jubilee, ke, lustrum, m,
                millennium, min, minute, minutes, mo, moment, mon, month,
                olympiad, quarter, s, season, sec, second, seconds, shake,
                tp, triennium, w, week, weeks, y, y365, ySI, ycommon,
                year, years, ygregorian, yjulian, ysideral, ytropical
-
- volume:        l, L, _L, _l, cm3, m3, floz, ft3, in3,
+ 
+ volume:        l, L, _L, _l, cm3, m3, ft3, in3, liter, liters, litre, litres,
                 gal, gallon, gallon_imp, gallon_uk, gallon_us, gallons,
-                liter, liters, litre, litres,
-                pint, pint_imp, pint_uk, pint_us,
-                tablespoon, teaspoon, therm, thm, tsp
+                pint, pint_imp, pint_uk, pint_us, tsp, tablespoon, teaspoon,
+                floz, floz_uk, therm, thm, fat, bbl, Mbbl, MMbbl, drum
 
 See: L<http://en.wikipedia.org/wiki/Units_of_measurement>
 
@@ -697,6 +703,7 @@ our %conv=(
                   _eV          => 1.783e-33,
 		  electronvolt => 1.783e-33,
                  'solar mass'  => 1.99e33,
+                  solar_mass   => 1.99e33,
                   bag          => 60*1000, #60kg coffee
 		 },
 	 area  =>{               # https://en.wikipedia.org/wiki/Unit_conversion#Area
@@ -1397,10 +1404,9 @@ sub distance {
 
 =head2 bigscale
 
-big, bigi, bigf, bigr and bigscale are just convenient shorthands for using
-L<Math::BigInt>->new(), L<Math::BigFloat>->new() and L<Math::BigRat>-new()
-preferably with the GMP for faster calculations. Use those modules instead
-of the real deal. Examples:
+big, bigi, bigf, bigr and bigscale are sometimes convenient shorthands for using
+C<< Math::BigInt->new() >>, C<< Math::BigFloat->new() >> and C<< Math::BigRat->new() >>
+(preferably with the GMP for faster calculations). Examples:
 
   my $num1 = big(3);      #returns a new Math::BigInt-object
   my $num2 = big('3.0');  #returns a new Math::BigFloat-object
@@ -1547,17 +1553,15 @@ sub isnum {(@_?$_[0]:$_)=~/^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) (?:[eE][\-\+]?\d+)
 
 =head2 upper
 
-Returns input string as uppercase.
-
-Can be used if perls build in C<uc()> for some reason does not convert æøå and other letters outsize a-z.
-
-C<< æøåäëïöüÿâêîôûãõàèìòùáéíóúýñð => ÆØÅÄËÏÖÜ?ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ >>
-
-See also C<< perldoc -f uc >> and C<< perldoc -f lc >>
-
 =head2 lower
 
-Same as L</upper>, only lower...
+Returns input string as uppercase or lowercase.
+
+Can be used if Perls build in C<uc()> and C<lc()> for some reason does not convert æøå and other letters outsize a-z.
+
+Converts C<< æøåäëïöüÿâêîôûãõàèìòùáéíóúýñð >> to and from C<< ÆØÅÄËÏÖÜ?ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ >>
+
+See also C<< perldoc -f uc >> and C<< perldoc -f lc >>
 
 =head2 trim
 
@@ -3652,6 +3656,7 @@ sub readfile {
       }
   }
   else {                 #-- two arguments
+      #my $open=/\.gz$/?"zcat ...":/\.bz2$/?"bzcat ...":...
       open(READFILE,'<',$filename) or croak($!);
       if(ref($ref) eq 'SCALAR'){
 	  $$ref=join"",<READFILE>;
@@ -3812,7 +3817,6 @@ B<Output:> a string of 32 hexadecimal chars from 0-9 or a-f.
 
 Example, the md5sum gnu/linux command without options could be implementet like this:
 
- #!/usr/bin/perl
  use Acme::Tools;
  print eval{ md5sum($_)."  $_\n" } || $@ for @ARGV;
 
@@ -4749,19 +4753,16 @@ Input: two or more arrayrefs with accordingly x, y, z and so on number of elemen
 
 Output: An array of x * y * z number of arrayrefs. The arrays being the cartesian product of the input arrays.
 
-It can be useful to think of this as joins in SQL. In C<select> statements
-with more tables behind C<from>, but without any C<where> condition to join
-the tables.
+It can be useful to think of this as joins in SQL. In C<select> statements with
+more tables behind C<from>, but without any C<where> condition to join the tables.
 
 B<Advanced usage, with condition(s):>
 
 B<Input:>
 
-- Either two or more arrayrefs with x, y, z and so on number of
-elements.
+- Either two or more arrayrefs with x, y, z and so on number of elements.
 
-- Or coderefs to subs containing condition checks. Somewhat like
-C<where> conditions in SQL.
+- Or coderefs to subs containing condition checks. Somewhat like C<where> conditions in SQL.
 
 B<Output:> An array of x * y * z number of arrayrefs (the cartesian product)
 minus the ones that did not fulfill the condition(s).
@@ -4807,7 +4808,7 @@ Prints the same as this:
    }
  }
 
-Examples, from the tests:
+B<Examples, from the tests:>
 
  my @a1 = (1,2);
  my @a2 = (10,20,30);
@@ -4822,9 +4823,11 @@ Examples, from the tests:
  $s=join"",map "*".join(",",@$_), cart(\@a1,\@a2,\@a3,sub{sum(@$_)%3==0});
  ok( $s eq "*1,10,100*1,10,400*1,20,300*1,30,200*2,10,300*2,20,200*2,30,100*2,30,400");
 
-Hash-mode returns hashrefs instead of arrayrefs:
+B<Example, hash-mode:>
 
- @cards=cart(             #100 decks of 52 cards
+Returns hashrefs instead of arrayrefs:
+
+ my @cards=cart(             #5200 cards: 100 decks of 52 cards
    deck  => [1..100],
    value => [qw/2 3 4 5 6 7 8 9 10 J Q K A/],
    col   => [qw/heart diamond club star/],
@@ -4832,6 +4835,8 @@ Hash-mode returns hashrefs instead of arrayrefs:
  for my $card ( mix(@cards) ) {
    print "From deck number $$card{deck} we got $$card{value} $$card{col}\n";
  }
+
+Note: using sub-ref filters do not work (yet) in hash-mode. Use grep on result instead.
 
 =cut
 
@@ -4849,6 +4854,11 @@ sub cart {
   return @res;
 }
 
+sub cart_easy { #not tested/exported http://stackoverflow.com/questions/2457096/in-perl-how-can-i-get-the-cartesian-product-of-multiple-sets
+  my $last = pop @_;
+  @_ ? (map {my$left=$_; map [@$left, $_], @$last } cart_easy(@_) )
+     : (map [$_], @$last);
+}
 
 =head2 reduce
 
