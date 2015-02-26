@@ -911,8 +911,8 @@ our %conv=(
                  'N/m2'   => 1,
                   bar     => 100000.0,
                   mbar    => 100.0,
-                  at      =>  98066.5,   #technical atmosphere
-		  atm     => 101325.0,     #standard atmosphere
+                  at      => 98066.5,    #technical atmosphere
+		  atm     => 101325.0,   #standard atmosphere
 		  torr    => 133.3224,
                   psi     => 6894.8,     #pounds per square inch
                  },
@@ -1123,7 +1123,7 @@ sub conv {
   my $type=$type[0];
   conv_prepare_money()        if $type eq 'money' and $conv_prepare_money_time < time()-24*3600; #1day
   return conv_temperature(@_) if $type eq 'temperature';
-  return conv_numbers(@_)     if $type eq 'numbers';
+  return conv_number(@_)     if $type eq 'numbers';
   my $c=$conv{$type};
   my($cf,$ct)=@{$conv{$type}}{$from,$to};
   my $r= $cf>0 && $ct<0 ? -$ct/$num/$cf
@@ -1146,7 +1146,7 @@ sub conv_temperature { #http://en.wikipedia.org/wiki/Temperature#Conversion
   }->{uc(substr($from,0,1).substr($to,0,1))}->($t);
 }
 
-sub conv_numbers {
+sub conv_number {
   my($n,$fr,$to)=@_;
   my $des=$fr eq 'des'                    ? $n
          :$fr eq 'hex'                    ? hex($n)
@@ -2053,7 +2053,7 @@ Result:
 
 =head2 parta
 
-Like <parth> but returns an array of lists.
+Like C<parth> but returns an array of lists.
 
  my @a = parta { length } qw/These are the words of this array/;
 
@@ -2962,12 +2962,8 @@ Note2: For perl version 5.20+ subhashes (hash slices returning keys as well as v
 
 =cut
 
-sub subhash {
-  my $hr=shift;
-  my @r;
-  for(@_){ push@r,($_=>$$hr{$_}) }
-  return @r;
-}
+sub subhash {my $hr=shift;(map+($_=>$$hr{$_}),@_)}
+#sub subhash {my($hr,%h)=shift;@h{@_}=@$hr{@_};%h}
 
 =head2 hashtrans
 
