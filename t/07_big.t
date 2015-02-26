@@ -1,7 +1,9 @@
-#perl Makefile.PL;make;perl -Iblib/lib t/7_big.t
+#perl Makefile.PL;make;perl -Iblib/lib t/07_big.t
 BEGIN{require 't/common.pl'}
-use Test::More tests => 15;
-eval{big(1)}; exit if $@ and print "<<$@>>\n" and map ok(1),1..13; #Math::BigInt or Math::BigFloat is missing
+BEGIN{our $T=15}
+use Test::More tests => $T;
+eval{big(1)};
+exit if $@ and print "<<$@>>\n" and map ok(1),1..$T; #Math::BigInt or Math::BigFloat is missing
 
 my $num1 = big(3);      #returns a new Math::BigInt-object
 my $num2 = big('3.0');  #returns a new Math::BigFloat-object

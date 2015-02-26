@@ -2,7 +2,7 @@
 # perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
 
 BEGIN{require 't/common.pl'}
-use Test::More tests => 152;
+use Test::More tests => 168;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -93,18 +93,28 @@ ok( replace("abc","a","b","b","c") eq "ccc" ); #not bcc
 
 #--decode, decode_num
 my $test=123;
-ok( decode($test, 123,3, 214,4, $test)           == 3 );
-ok( decode($test, 122=>3, 214=>7, $test)         == 123 );
-ok( not defined decode($test, '123.0'=>3, 214=>7) );                # prints nothing (undef)
-ok( decode($test, 123.0=>3, 214=>7)           == 3 );
-ok( decode_num($test, 121=>3, 221=>7, '123.0','b') eq 'b' );
+ok( decode($test, 123,3, 214,4, $test)   == 3             ,'decode easy');
+ok( decode($test, 122=>3, 214=>7, $test) == 123           ,'decode else');
+ok( !defined decode($test, '123.0'=>3, 214=>7)            ,'decode !def'); # prints nothing (undef)
+ok( decode($test, 123.0=>3, 214=>7)      == 3             ,'decode float');
+ok( decode_num($test, 121=>3, 221=>7, '123.0','b') eq 'b' ,'decode_num');
 
 #--between
 my $n=7;
-ok( between($n, 1,10) );
-ok( between(undef, 1,10) eq '');
-ok( between($n, 10,1) );
-ok( between(5,5,5) );
+ok( between($n, 1,10)          ,'between 1');
+ok( between(undef, 1,10) eq '' ,'between 2');
+ok( between($n, 10,1)          ,'between 3');
+ok( between(5,5,5)             ,'between 4');
+
+#--bound
+my $vb = 234;
+ok( bound( $vb, 200, 250 ) == 234,             'bound 1');
+ok( bound( $vb, 150, 200 ) == 200,             'bound 2');
+ok( bound( $vb, 250, 300 ) == 250 && $vb==234, 'bound 3');
+ok( bound(\$vb, 250, 300 ) == 250 && $vb==250, 'bound 4');
+ok( do{eval{bound()};          $@=~/^bound/},  'bound 5'); eval{1};
+ok( do{eval{bound(1,2,undef)}; $@=~/^bound/},  'bound 6'); eval{1};
+ok( do{eval{bound(1,2,3,4)};   $@=~/^bound/},  'bound 7'); eval{1};
 
 #--distinct
 ok( join(", ", distinct(4,9,30,4,"abc",30,"abc")) eq '30, 4, 9, abc' );
@@ -207,14 +217,6 @@ if($^O eq 'linux'){
   unlink($fn);
 }
 else{ok(1) for 1..3}     # not linux
-
-#--range
-
-ok_ref([range(11)],     [0,1,2,3,4,5,6,7,8,9,10], 'range' );
-ok_ref([range(2,11)],   [2,3,4,5,6,7,8,9,10],     'range' );
-ok_ref([range(11,2,-1)],[11,10,9,8,7,6,5,4,3],    'range' );
-ok_ref([range(2,11,3)], [2,5,8],                  'range' );
-ok_ref([range(11,2,-3)],[11,8,5],                 'range' );
 
 #--permutations
 ok(join("-", map join("",@$_), permutations('a','b')) eq 'ab-ba', 'permutations 1');
@@ -370,17 +372,6 @@ END
 ok(upper('a-zæøåäëïöüÿâêîôûãõàèìòùáéíóúıñ' x 3) eq 'A-ZÆØÅÄËÏÖÜÿÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚİÑ' x 3, 'upper'); #hmm ÿ
 ok(lower('A-ZÆØÅÄËÏÖÜ.ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚİÑ' x 3) eq 'a-zæøåäëïöü.âêîôûãõàèìòùáéíóúıñ' x 3, 'lower'); #hmm .
 
-#--trim
-ok( trim(" asdf \t\n    123 ") eq "asdf 123",  'trim 1');
-ok( trim(" asdf\t\n    123 ") eq "asdf\t123",  'trim 2');
-ok( trim(" asdf\n\t    123\n") eq "asdf\n123", 'trim 3');
-my($trimstr,@trim)=(' please ', ' please ', ' remove ', ' my ', ' spaces ');
-ok( join('',map"<$_>",trim(@trim)) eq '<please><remove><my><spaces>', 'trim array');
-trim(\$trimstr);
-ok($trimstr eq 'please', 'trim inplace');
-trim(\@trim);
-ok_ref(\@trim,[qw/please remove my spaces/], 'trim inplace array');
-
 #-- easter
 ok( '384f0eefc22c35d412ff01b2088e9e05' eq  md5_hex( join",", map{easter($_)} 1..5000), 'easter');
 
@@ -412,3 +403,10 @@ my$br;
 ok(($br=bytes_readable($_)) eq $br{$_}, "bytes_readable($_) == $br (should be $br{$_})")
   for sort {$a<=>$b} keys%br;
 
+#--isnum
+my @is=qw/222 2.2e123 +2 -1 -2.2123e-321/;
+my @isnt=(qw/2e pi NaN Inf/,'- 2');
+ok(isnum($_),'isnum')    for @is;
+ok(!isnum($_),'!isnum')  for @isnt;
+ok(isnum,'isnum')        for @is;
+ok(!isnum,'!isnum')      for @isnt;
