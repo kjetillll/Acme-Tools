@@ -515,7 +515,7 @@ B<Examples:>
  print conv( 70,"cm","in");              #prints 27.5590551181102
  print conv( 4,"USD","EUR");             #prints 3.20481552905431 (depending on todays rates)
  print conv( 4000,"b","kb");             #prints 3.90625 (1 kb = 1024 bytes)
- print conv( 4000,"b","Kb");             #prints 3.90625 (1 Kb = 1000 bytes)
+ print conv( 4000,"b","Kb");             #prints 4       (1 Kb = 1000 bytes)
  print conv( 1000,"mb","kb");            #prints 1024000
  print conv( 101010,"bin","roman");      #prints XLII
  print conv( "DCCXLII","roman","oct");   #prints 1346
@@ -574,19 +574,18 @@ Note2: Many units have synonyms: m, meter, meters ...
                pwt, seer, sl, slug, solar_mass, st, stone, t, tonn, tonne, tonnes, u, wey
  
  milage:       mpg, l/100km, l/km, l/10km, lp10km, l/mil, liter_pr_100km, liter_pr_km, lp100km
- 
- money:        AED, ARS, AUD, BGN, BHD, BND, BRL, BWP, CAD, CHF, CLP,
-               CNY, COP, CZK, DKK, EUR, GBP, HKD, HRK, HUF, IDR, ILS,
-               INR, IRR, ISK, JPY, KRW, KWD, KZT, LKR, LTL, LVL, LYD,
-               MUR, MXN, MYR, NOK, NPR, NZD, OMR, PHP, PKR, PLN, QAR,
-               RON, RUB, SAR, SEK, SGD, THB, TRY, TTD, TWD, USD, VEF, ZAR,
-	       BTC, LTC
-               Currency rates are automatically updated to a local cache file
-               from the net if +24h since last (on linux/cygwin).
- 
- numbers:      dec, hex, bin, oct, roman, dozen, doz, dz, gross, gr, gro,
-               great_gross, small_gross (not supported: decimal numbers)
- 
+
+ money:        AED, ARS, AUD, BGN, BHD, BND, BRL, BWP, CAD, CHF, CLP, CNY,
+               COP, CZK, DKK, EUR, GBP, HKD, HRK, HUF, IDR, ILS, INR, IRR,
+               ISK, JPY, KRW, KWD, KZT, LKR, LTL, LVL, LYD, MUR, MXN, MYR,
+               NOK, NPR, NZD, OMR, PHP, PKR, PLN, QAR, RON, RUB, SAR, SEK,
+               SGD, THB, TRY, TTD, TWD, USD, VEF, ZAR,  BTC, LTC
+               Currency rates are automatically updated from the net
+               at least every 24h since last update (on linux/cygwin).
+
+ numbers:      dec, hex, bin, oct, roman, dozen, doz, dz, dusin, gross, gro,
+               gr, great_gross, small_gross  (not supported: decimal numbers)
+
  power:        BTU, BTU/h, BTU/s, BTUph, GWhpy, J/s, Jps, MWhpy, TWhpy,
                W, Whpy, _W, ftlb/min, ftlb/s, hk, hp, kWh/yr, kWhpy
  
@@ -1103,7 +1102,7 @@ our %conv=(
                   ZAR => 0.649438,        #
 		 },
           numbers =>{
-	    des=>1,hex=>1,bin=>1,oct=>1,roman=>1,
+	    dec=>1,hex=>1,bin=>1,oct=>1,roman=>1,      des=>1,#des: spelling error in 0.15-0.16
             dusin=>1,dozen=>1,doz=>1,dz=>1,gross=>144,gr=>144,gro=>144,great_gross=>12*144,small_gross=>10*12,
           }
 	);
@@ -1197,7 +1196,7 @@ sub conv_temperature { #http://en.wikipedia.org/wiki/Temperature#Conversion
 
 sub conv_numbers {
   my($n,$fr,$to)=@_;
-  my $des=$fr eq 'des'                    ? $n
+  my $dec=$fr eq 'dec'                    ? $n
          :$fr eq 'hex'                    ? hex($n)
          :$fr eq 'oct'                    ? oct($n)
          :$fr eq 'bin'                    ? oct("0b$n")
@@ -1206,16 +1205,18 @@ sub conv_numbers {
          :$fr eq 'great_gross'            ? $n*12*144
          :$fr eq 'small_gross'            ? $n*12*10
          :$fr eq 'roman'                  ? roman2int($n)
+         :$fr eq 'des'                    ? $n
          :croak "Conv from $fr not supported yet";
-  my $ret=$to eq 'des'                    ? $des
-         :$to eq 'hex'                    ? sprintf("%x",$des)
-         :$to eq 'oct'                    ? sprintf("%o",$des)
-         :$to eq 'bin'                    ? sprintf("%b",$des)
-         :$to =~ /^(dusin|dozen|doz|dz)$/ ? $des/12
-         :$to =~ /^(gross|gr|gro)$/       ? $des/144
-         :$to eq 'great_gross'            ? $des/(12*144)
-         :$to eq 'small_gross'            ? $des/(12*10)
-         :$to eq 'roman'                  ? int2roman($des)
+  my $ret=$to eq 'dec'                    ? $dec
+         :$to eq 'hex'                    ? sprintf("%x",$dec)
+         :$to eq 'oct'                    ? sprintf("%o",$dec)
+         :$to eq 'bin'                    ? sprintf("%b",$dec)
+         :$to =~ /^(dusin|dozen|doz|dz)$/ ? $dec/12
+         :$to =~ /^(gross|gr|gro)$/       ? $dec/144
+         :$to eq 'great_gross'            ? $dec/(12*144)
+         :$to eq 'small_gross'            ? $dec/(12*10)
+         :$to eq 'roman'                  ? int2roman($dec)
+         :$to eq 'des'                    ? $dec
          :croak "Conv to $to not suppoerted yet";
   $ret;
 }
@@ -1331,9 +1332,9 @@ sub roman2int {
 
 =head2 distance
 
-B<Input:> the four decimal numbers of latutude1, longitude1, latitude2, longitude2
+B<Input:> the four decimal numbers of two GPS positions: latutude1, longitude1, latitude2, longitude2
 
-B<Output:> the air distance in meters from point1 to point2.
+B<Output:> the air distance in meters between the two points
 
 Calculation is done using the Haversine Formula for spherical distance:
 
@@ -1503,11 +1504,11 @@ sub bigscale {
 #=cut
 
 sub fractional { #http://mathcentral.uregina.ca/QQ/database/QQ.09.06/h/lil1.html
-  carp "NOT FINISHED";
+  carp "fractional: NOT FINISHED";
   my $n=shift;
   print "----fractional n=$n\n";
-  my $nn=$n; my $des;
-  $nn=~s,\.(\d+)$,$des=length($1);$1.,;
+  my $nn=$n; my $dec;
+  $nn=~s,\.(\d+)$,$dec=length($1);$1.,;
   my $l;
   my $max=0;
   my($te,$ne);
@@ -1521,8 +1522,7 @@ sub fractional { #http://mathcentral.uregina.ca/QQ/database/QQ.09.06/h/lil1.html
       }
     }
   }
-  return fractional($n)
-    if not $l and not recursed() and $des>6 and substr($n,-1) and substr($n,-1)--;
+  return fractional($n) if !$l and !recursed() and $dec>6 and substr($n,-1) and substr($n,-1)--;
   print "l=$l max=$max\n";
   $ne="9" x $l;
   print log($n),"\n";
@@ -2031,7 +2031,7 @@ sub eqarr {
   
   for my $ar (@arefs[1..$#arefs]){
     for(0..@$ar-1){
-      ++$ant and $ant>100 and croak ">100";
+      ++$ant and $ant>100 and croak ">100";  #TODO: feiler ved sammenligning av to tabeller > 10000(?) tall
       return 0 if $arefs[0][$_] ne $$ar[$_]
    	       or $arefs[0][$_] != $$ar[$_];
     }
@@ -3848,7 +3848,8 @@ Returns a hash with the settings as in this examples:
  my %conf = read_conf('/etc/thing/thing.conf');
  print $conf{sectionA}{knobble};  #prints ABC if the file is as shown below
  print $conf{sectionA}{gobble};   #prints ZZZ, the last gobble
- print $conf{''}{switch};         #prints OK if the file is as shown below
+ print $conf{''}{switch};         #prints OK if the file is as shown below, the empty section
+ print $conf{switch};             #prints OK here as well, unsectioned value
  print $conf{part2}{password};    #prints oh:no= x
 
 File use for the above example:
@@ -3860,33 +3861,45 @@ File use for the above example:
  gobble:    ZZZ
  [part2]
  password:  oh:no= x  #should be better
+ text:      { values starting with { continues
+              until reaching a line with }
 
 Everything from # and behind is regarded comments and ignored. Comments can be on any line.
+To keep a # char, put a \ in front of it.
 
-A C< : > or C< = > separates keys and values.  Spaces at the beginning or end of lines are ignored
-(after removal of #comments), as are any spaces before and after : and = separators. Empty lines is
-also ignored. Keys and values can contain internal spaces and tabs, but not at the beginning or end.
+A C< : > or C< = > separates keys and values.  Spaces at the beginning or end of lines are
+ignored (after removal of #comments), as are any spaces before and after : and = separators.
+
+Empty lines or lines with no C< : > or C< = > is also ignored. Keys and values can contain
+internal spaces and tabs, but not at the beginning or end.
+
+Multi-line values must start and end with { and }. Using { and } keep spaces at the start
+or end in both one-line and multi-line values.
+
 Sections are marked with C<< [sectionname] >>.  Section names, keys and values is case
-sensitive. Acme::Tools::read_conf does not support multi-line values. C<read_conf> can be a simpler
-alternative to the core module L<Config::Std> which has its own hassles.
+sensitive. C<Key:values> above the first section or below and empty C<< [] >> is placed
+both in the empty section in the returned hash and as top level key/values.
+
+C<read_conf> can be a simpler alternative to the core module L<Config::Std> which has
+its own hassles.
 
 =cut
 
 sub read_conf {
-  my($fn,$hr)=@_;
-  $hr||={};
-  my @f=ref($fn)?split("\n",$$fn):readfile($fn);
-  my $section='';
-  my $incfn=sub{return $1 if $_[0]=~m,^(/.+),;my$f=$fn;$f=~s,[^/]+$,$_[0],;$f};
-  for(readfile($fn)) {
-    #s,<INCLUDE ([^>]+)>,"".readfile(&$incfn($1)),eg; #todo
-    s,\s*#.*,,g;
-    #trim(\$_);#hm
-    /^\s*\[(.*)\]/ and $section=$1 and $$hr{$1}={} and next;
-    /^\s*([^\:\=]+)[:=]\s*(.*?)\s*$/ and $$hr{$section}{$1}=$2;
+  my($fn,$hr)=(@_,{});
+  my $conf=ref($fn)?$$fn:readfile($fn);
+  $conf=~s,\s*(?<!\\)#.*,,g;
+  my($section,@l)=('',split"\n",$conf);
+  while(@l) {
+    my $l=shift@l;
+    my $ml=sub{my$v=shift;$v.="\n".shift@l while $v=~/^\{[^\}]*$/&&@l;$v=~s/^\{(.*)\}\s*$/$1/s;$v=~s,\\#,#,g;$v};
+    if   ( $l=~/^\s*\[\s*(.*?)\s*\]/            ) { $section=$1; $$hr{$1}||={} }
+    elsif( $l=~/^\s*([^\:\=]+)[:=]\s*(.*?)\s*$/ ) { my$v=&$ml($2);$$hr{$section}{$1}=$v; length($section) or $$hr{$1}=$v }
   }
   %$hr;
 }
+#  my $incfn=sub{return $1 if $_[0]=~m,^(/.+),;my$f=$fn;$f=~s,[^/]+$,$_[0],;$f};
+#    s,<INCLUDE ([^>]+)>,"".readfile(&$incfn($1)),eg; #todo
 
 =head1 TIME FUNCTIONS
 
@@ -4690,6 +4703,8 @@ and last names. In foreign or unfamiliar names it can be difficult to
 know that.
 
 =cut
+
+#TODO: se test_perl.pl
 
 sub permutations {
   my $code=ref($_[0]) eq 'CODE' ? shift() : undef;
@@ -6268,11 +6283,12 @@ Release history
 
 Kjetil Skotheim, E<lt>kjetil.skotheim@gmail.comE<gt>
 
-=head1 COPYRIGHT AND LICENSE
+=head1 COPYRIGHT
 
 1995-2015, Kjetil Skotheim
 
-This library is free software; you can redistribute it and/or modify
-it under the same terms as Perl itself.
+=head1 LICENSE
+
+This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
 
 =cut
