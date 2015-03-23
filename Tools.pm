@@ -146,6 +146,7 @@ our @EXPORT = qw(
   bfclone
   bfdimensions
   $PI
+  install_little_acme_tools
 );
 
 our $PI = '3.141592653589793238462643383279502884197169399375105820974944592307816406286';
@@ -6185,8 +6186,66 @@ sub _update_currency_file { #call from cron
   qx($exe{ci} -l -m. -d $fn) if -w"$fn,v";
 }
 
-cmd_atca() if $0 =~ /\b atca $/x;
-sub cmd_atca { print eval $_, "\n" for split ";", "@ARGV" } #$@&&warn$@
+sub ftype {
+  my $f=shift;
+  -e $f and
+      -f$f ? 'file'         # -f  File is a plain file.
+     :-d$f ? 'dir'          # -d  File is a directory.
+     :-l$f ? 'symlink'      # -l  File is a symbolic link.
+     :-p$f ? 'pipe'         # -p  File is a named pipe (FIFO), or Filehandle is a pipe.
+     :-S$f ? 'socket'       # -S  File is a socket.
+     :-b$f ? 'blockfile'    # -b  File is a block special file.
+     :-c$f ? 'charfile'     # -c  File is a character special file.
+     :-t$f ? 'ttyfile'      # -t  Filehandle is opened to a tty.
+     :       ''
+  or undef;
+}
+
+sub install_little_acme_tools {
+  my $dir=shift()||'/usr/bin';
+  die "Can not install in $dir, not a directory\n" if !-d$dir;
+  die "Can not install in $dir, not a writeable directory. Try chmod.\n" if -d$dir and !-w$dir;
+  my @prog=map "$dir/$_", qw/tconv tdue/;
+  -l $_ and unlink for @prog; #force
+  for(@prog) {
+    my $status = rpad($_,max(map length,@prog))." -> ".$INC{'Acme/Tools.pm'};
+    $status.="   ".ftype($_)." exists" if -e $_;
+    my $r=eval{symlink($INC{'Acme/Tools.pm'},$_)};
+    print $@    ? "ERROR on:          $status ($@)\n"
+        : $r==1 ? "Installed symlink: $status\n"
+        : $r==0 ? "Not installed:     $status\n":"";
+  }
+}
+cmd_tconv() if $0 =~ /\b tconv $/x;
+cmd_tdue()  if $0 =~ /\b tdue $/x;
+sub cmd_tconv { print conv(@ARGV)."\n"  }
+sub cmd_tdue {
+  require Getopt::Std; my %o; Getopt::Std::getopts("zkmhce" => \%o);
+  require File::Find;
+  no warnings 'uninitialized';
+  die"$0: -h, -k or -m can not be used together\n" if $o{h}+$o{k}+$o{m}>1;
+  die"$0: -c and -a can not be used together\n"    if $o{a}+$o{c}>1;
+  my @q=@ARGV; @q=('.') if !@q;
+  my(%c,%b,$cnt,$bts);
+  my $r=$o{z} ? qr/(\.[^\.\/]{1,10}(\.(z|Z|gz|bz2|rz))?)$/
+              : qr/(\.[^\.\/]{1,10})$/;
+    File::Find::find({wanted =>
+    sub {
+      return if !-f$_;
+      my($ext,$sz)=(m/$r/?$1:"",-s$_);
+      $cnt++;    $c{$ext}++;
+      $bts+=$sz; $b{$ext}+=$sz;
+    } },@q);
+    my($f,$s)=$o{k}?("%10.2f kb",sub{$_[0]/1024})
+             :$o{m}?("%10.2f mb",sub{$_[0]/1024**2})
+             :$o{h}?("%12s",     sub{bytes_readable($_[0])})
+             :      ("%10d b",   sub{$_[0]});
+    my @e=$o{a}?(sort(keys%c))
+         :$o{c}?(sort{$c{$a}<=>$c{$b} or $a cmp $b}keys%c)
+         :      (sort{$b{$a}<=>$b{$b} or $a cmp $b}keys%c);
+    printf("%-10s %8d $f %7.2f%%\n",$_,$c{$_},&$s($b{$_}),100*$b{$_}/$bts) for @e;
+    printf("%-10s %8d $f\n","Sum",$cnt,&$s($bts));
+}
 
 1;
 

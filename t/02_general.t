@@ -178,9 +178,10 @@ ok_ref( \%in, \%out, 'webparams 1' );
 ok_ref( $a={webparams("b=123&a=1&b=122&a=3&a=2%20")},{a=>'1,3,2 ',b=>'123,122'}, 'webparams 2' );
 
 #--chall
-if($^O eq 'linux'){
-  my $f1="/tmp/tmpf1";
-  my $f2="/tmp/tmpf2";
+my $tmp=tmp();
+if($^O eq 'linux' and -w$tmp){
+  my $f1="$tmp/tmpf1";
+  my $f2="$tmp/tmpf2";
   chmod(0777,$f1,$f2) and unlink($f1, $f2);
   open my $fh1,">",$f1 or die$!;
   open my $fh2,">",$f2 or die$!;
@@ -205,8 +206,8 @@ if($^O eq 'linux'){
 else {ok(1) for 1..11}   # not linux
 
 #--writefile, readfile
-if($^O eq 'linux'){
-  my $fn="/tmp/tmptestfile$$";
+if($^O eq 'linux' and -w$tmp){
+  my $fn="$tmp/tmptestfile$$";
   unlink($fn);
   my $data="xxx\nyyy\nzzzz" x 10001;
   writefile($fn,$data);

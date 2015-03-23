@@ -9,4 +9,5 @@ sub ok_ref {
 }
 sub ok_ca  { ok( abs( 1 - $_[0]/$_[1] ) < 1e-4, $_[2]) }
 sub deb($) { print STDERR @_ if $ENV{ATDEBUG} }
+sub tmp {require File::Temp;File::Temp::tempdir(CLEANUP=>1,@_)}
 1;

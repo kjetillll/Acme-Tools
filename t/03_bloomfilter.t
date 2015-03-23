@@ -97,8 +97,9 @@ length(bfinit(counting_bits=>1, error_rate=>0.01,capacity=>100)->{filter}) / $_,
 eval{bfinit(counting_bits=>2,error_rate=>0.1,capacity=>1000,keys=>[1..1000])};ok($@=~/Too many overflows/,'overflow check');
 
 #----------storing and retrieving
-if($^O eq 'linux'){
-  my $file='/tmp/cbf.bf';
+my $tmp=tmp();
+if(-w$tmp){
+  my $file="$tmp/cbf.bf";
   bfstore($cbf,$file);
   deb "Stored size of $file: ".(-s$file)." bytes\n";
   my $cbfr=bfretrieve($file);
