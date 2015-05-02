@@ -130,6 +130,8 @@ our @EXPORT = qw(
   part
   parth
   parta
+  ed
+  $Edcursor
   brainfuck
   brainfuck2perl
   brainfuck2perl_optimized
@@ -5510,11 +5512,64 @@ current sub has been called by itself or not.
 
 sub recursed {(caller(1))[3] eq (caller(2))[3]?1:0}
 
+=head2 ed
+
+String editor...to be continued...
+
+ literals:             a-z 0-9 space
+ move cursor:          FBAEPN MF MB ME
+ delete:               D Md
+ backspace:            -
+ search:               S
+ return/enter:         R
+ meta/esc/alt:         M
+ shift:                T
+ caps lock:            C
+ yank:                 Y
+ start and end:        < >
+ macro start/end/play: { } !
+
+=cut
+
+our $Edcursor;
+sub ed {
+  my($s,$cs,$p,$buf)=@_; #string, commands, point (or cursor)
+  my($sh,$cl,$m,@m)=(0,0,0);
+  while(length($cs)){
+    my $n = 0;
+    my $c = $cs=~s,^(M.|.),, ? $1 : die;
+    $p = bound($p||0,0,length($s));
+    if   ($c =~ /([a-z0-9 ])/){ substr($s,$p++,0)=$sh^$cl?uc($1):$1; $sh=0 }
+    elsif($c eq 'F') { $p++ }
+    elsif($c eq 'B') { $p-- }
+    elsif($c eq 'A') { $p-- while $p>0 and substr($s,$p-1,2)!~/^\n/ }
+    elsif($c eq 'E') { $p++ while $p<length($s) and substr($s,$p,2)!~/^\n/ }
+    elsif($c eq 'D') { substr($s,$p,1)='' }
+    elsif($c eq 'MD'){ substr($s,$p)=~s/^(\W*\w+)// and $buf=$1 }
+    elsif($c eq 'MF'){ $p++ while $p<length($s) and substr($s,$p,1)=~/\W/;
+                       $p++ while $p<length($s) and substr($s,$p,1)=~/\w/ }
+    elsif($c eq 'Y') { substr($s,$p,0)=$buf; $p+=length($buf) }
+    elsif($c eq '<') { $p=0 }
+    elsif($c eq '>') { $p=length($s) }
+    elsif($c eq 'T') { $sh=1 }
+    elsif($c eq 'C') { $cl^=1 }
+    elsif($c eq '-') { substr($s,--$p,1)='' if $p }
+    elsif($c eq '{') { $m=1; @m=() }
+    elsif($c eq '}') { $m=0 }
+    elsif($c eq '!') { $m&&die; $cs=join("",@m).$cs }
+    else             { croak "ed: Unknown cmd '$c'\n" }
+    push @m, $c if $m;
+  }
+  $Edcursor=$p;
+  $s;
+}
+
 
 #todo: sub unbless eller sub damn
 #todo: ..se også: use Data::Structure::Util qw/unbless/;
 #todo: ...og: Acme::Damn sin damn()
 #todo? sub swap($$) http://www.idg.no/computerworld/article242008.ece
+#void quicksort(int t, int u) int i, m; if (t >= u) return; swap(t, randint(t, u)); m = t; for (i = t + 1; i <= u; i++) if (x[i] < x[t]) swap(++m, i); swap(t, m) quicksort(t, m-1); quicksort(m+1, u);
 
 
 =head1 JUST FOR FUN
@@ -6220,7 +6275,7 @@ cmd_tconv() if $0 =~ /\b tconv $/x;
 cmd_tdue()  if $0 =~ /\b tdue $/x;
 sub cmd_tconv { print conv(@ARGV)."\n"  }
 sub cmd_tdue {
-  require Getopt::Std; my %o; Getopt::Std::getopts("zkmhce" => \%o);
+  require Getopt::Std; my %o; Getopt::Std::getopts("zkmhcei" => \%o);
   require File::Find;
   no warnings 'uninitialized';
   die"$0: -h, -k or -m can not be used together\n" if $o{h}+$o{k}+$o{m}>1;
@@ -6233,6 +6288,7 @@ sub cmd_tdue {
     sub {
       return if !-f$_;
       my($ext,$sz)=(m/$r/?$1:"",-s$_);
+      $ext=lc($ext) if $o{i};
       $cnt++;    $c{$ext}++;
       $bts+=$sz; $b{$ext}+=$sz;
     } },@q);
