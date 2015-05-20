@@ -25,6 +25,7 @@ t/19_serialize.t
 t/20_range.t
 t/21_read_conf.t
 t/22_trim.t
+t/23_ed.t
 t/common.pl
 test_fork_bloom.pl
 test_k_m.pl

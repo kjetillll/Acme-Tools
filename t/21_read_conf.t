@@ -59,7 +59,7 @@ sub sjekk {
   ok($s eq $f, sprintf("read_conf %10.6f sek (".length($s)." bytes)",$t)) or warn"s=$s\nf=$f\n";
 }
 sjekk();
-my $f='/tmp/acme-tools.read_conf.tmp';
+my $f=tmp()."/acme-tools.read_conf.tmp";
 eval{writefile($f,$c)};$@&&ok(1)&&exit;
 %c=(); rc($f,\%c);
 sjekk();

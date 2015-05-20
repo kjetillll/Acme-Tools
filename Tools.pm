@@ -130,6 +130,8 @@ our @EXPORT = qw(
   part
   parth
   parta
+  ed
+  $Edcursor
   brainfuck
   brainfuck2perl
   brainfuck2perl_optimized
@@ -146,6 +148,7 @@ our @EXPORT = qw(
   bfclone
   bfdimensions
   $PI
+  install_little_acme_tools
 );
 
 our $PI = '3.141592653589793238462643383279502884197169399375105820974944592307816406286';
@@ -259,7 +262,7 @@ sub num2code {
 }
 
 sub code2num {
-  my($code,$validchars,$start)=@_; $start=0 if not defined $start;
+  my($code,$validchars,$start)=@_; $start=0 if !defined $start;
   my $l=length($validchars);
   my $num=0;
   $num=$num*$l+index($validchars,$_) for split//,$code;
@@ -440,8 +443,8 @@ sub resolve(&@) {
   croak "Iterations ($iters) or seconds ($sec) can not be a negative number" if $iters<0 or $sec<0;
   $Resolve_iterations=undef;
   $Resolve_last_estimate=undef;
-  croak "Should have at least 1 argument, a coderef" if not @_;
-  croak "First argument should be a coderef" if not ref($f) eq 'CODE';
+  croak "Should have at least 1 argument, a coderef" if !@_;
+  croak "First argument should be a coderef" if ref($f) ne 'CODE';
   
   my @x=($start);
   my $time_start=$sec>0?time_fp():undef;
@@ -1252,7 +1255,7 @@ Examples:
 
 sub bytes_readable {
   my $bytes=shift();
-  return undef if not defined $bytes;
+  return undef if !defined $bytes;
   return "$bytes B"                      if abs($bytes)<=2** 0*1000; #bytes
   return sprintf("%.2f kB",$bytes/2**10) if abs($bytes)<2**10*1000; #kilobyte
   return sprintf("%.2f MB",$bytes/2**20) if abs($bytes)<2**20*1000; #megabyte
@@ -1476,9 +1479,9 @@ sub big {
 sub bigscale {
   @_==1 or croak "bigscale requires one and only one argument";
   my $scale=shift();
-  eval q(use Math::BigInt    try=>"GMP") if not $INC{'Math/BigInt.pm'};
-  eval q(use Math::BigFloat  try=>"GMP") if not $INC{'Math/BigFloat.pm'};
-  eval q(use Math::BigRat    try=>"GMP") if not $INC{'Math/BigRat.pm'};
+  eval q(use Math::BigInt    try=>"GMP") if !$INC{'Math/BigInt.pm'};
+  eval q(use Math::BigFloat  try=>"GMP") if !$INC{'Math/BigFloat.pm'};
+  eval q(use Math::BigRat    try=>"GMP") if !$INC{'Math/BigRat.pm'};
   Math::BigInt->div_scale($scale);
   Math::BigFloat->div_scale($scale);
   Math::BigRat->div_scale($scale);
@@ -1853,7 +1856,7 @@ sub pushsort (\@@) {
   my $ar=shift;
 
   #not needed but often faster
-  if(not defined $Pushsort_cmpsub and @$ar+@_<100){ #hm speedup?
+  if(!defined $Pushsort_cmpsub and @$ar+@_<100){ #hm speedup?
     @$ar=(sort {$a<=>$b} (@$ar,@_));
     return 0+@$ar;
   }
@@ -1861,7 +1864,7 @@ sub pushsort (\@@) {
   for my $v (@_){
 
     #not needed but often faster
-    if(not defined $Pushsort_cmpsub){ #faster rank() in most cases
+    if(!defined $Pushsort_cmpsub){ #faster rank() in most cases
       push    @$ar, $v and next if $v>=$$ar[-1];
       unshift @$ar, $v and next if $v< $$ar[0];
     }
@@ -1920,7 +1923,7 @@ sub binsearch {
   my($search,$aref,$insertpos,$cmpsub)=@_; #search pos of search in array
   croak "binsearch did not get arrayref as second arg" if ref($aref) ne 'ARRAY';
   croak "binsearch got fourth arg which is not a code-ref" if $cmpsub and ref($cmpsub) ne 'CODE';
-  return $insertpos ? -0.5 : undef if not @$aref;
+  return $insertpos ? -0.5 : undef if !@$aref;
   my($min,$max)=(0,$#$aref);
   $Binsearch_steps=0;
   while (++$Binsearch_steps <= $Binsearch_maxsteps) {
@@ -2396,8 +2399,8 @@ sub percentile {
   elsif(not ref($_[0]))    { @p=(shift())  }
   else{croak()}
   @t=@_;
-  return if not @p;
-  croak if not @t;
+  return if !@p;
+  croak if !@t;
   @t=sort{$a<=>$b}@t;
   push@t,$t[0] if @t==1;
   for(@p){
@@ -2569,9 +2572,9 @@ Example 2:
 
 sub random_gauss {
   my($avg,$stddev,$num)=@_;
-  $avg=0    if not defined $avg;
-  $stddev=1 if not defined $stddev;
-  $num=1    if not defined $num;
+  $avg=0    if !defined $avg;
+  $stddev=1 if !defined $stddev;
+  $num=1    if !defined $num;
   croak "random_gauss should not have more than 3 arguments" if @_>3;
   my @r;
   while (@r<$num) {
@@ -2779,7 +2782,7 @@ sub decode {
   croak "Must have a mimimum of two arguments" if @_<2;
   my $uttrykk=shift;
   if(defined$uttrykk){ shift eq $uttrykk and return shift or shift for 1..@_/2 }
-  else               { not defined shift and return shift or shift for 1..@_/2 }
+  else               { !defined shift    and return shift or shift for 1..@_/2 }
   return shift;
 }
 
@@ -2787,7 +2790,7 @@ sub decode_num {
   croak "Must have a mimimum of two arguments" if @_<2;
   my $uttrykk=shift;
   if(defined$uttrykk){ shift == $uttrykk and return shift or shift for 1..@_/2 }
-  else               { not defined shift and return shift or shift for 1..@_/2 }
+  else               { !defined shift    and return shift or shift for 1..@_/2 }
   return shift;
 }
 
@@ -3336,10 +3339,10 @@ Does internal memoization via the hash C<%Acme::Tools::IPNUM_memo>.
 our %IPNUM_memo;
 sub ipnum {
   my $ipaddr=shift;
-  #croak "No $ipaddr" if not length($ipaddr);
+  #croak "No $ipaddr" if !length($ipaddr);
   return $IPNUM_memo{$ipaddr} if exists $IPNUM_memo{$ipaddr};
   my $h=gethostbyname($ipaddr);
-  #croak "No ipnum for $ipaddr" if not $h;
+  #croak "No ipnum for $ipaddr" if !$h;
   return if !defined $h;
   my $ipnum = join(".",unpack("C4",$h));
   $IPNUM_memo{$ipaddr} = $ipnum=~/^(\d+\.){3}\d+$/ ? $ipnum : undef;
@@ -3394,8 +3397,8 @@ L<http://some.server.somewhere/cgi-bin/script?name=Bond&name=+James+Bond> will p
 
 sub webparams {
   my $query=shift();
-  $query=$ENV{QUERY_STRING} if not defined $query;
-  if(not defined $query  and  $ENV{REQUEST_METHOD} eq "POST"){
+  $query=$ENV{QUERY_STRING} if !defined $query;
+  if(!defined $query  and  $ENV{REQUEST_METHOD} eq "POST"){
     read(STDIN,$query , $ENV{CONTENT_LENGTH});
     $ENV{QUERY_STRING}=$query;
   }
@@ -3578,7 +3581,7 @@ sub writefile {
 	return;
     }
     open(WRITEFILE,">",$filename) and binmode(WRITEFILE) or croak($!);
-    if(not defined $text or not ref($text)){
+    if(!defined $text or !ref($text)){
 	print WRITEFILE $text;
     }
     elsif(ref($text) eq 'SCALAR'){
@@ -3639,7 +3642,7 @@ With two input arguments, nothing (undef) is returned from C<readfile()>.
 
 sub readfile {
   my($filename,$ref)=@_;
-  if(not defined $ref){  #-- one argument
+  if(!defined $ref){  #-- one argument
       if(wantarray){
 	  my @data;
 	  readfile($filename,\@data);
@@ -4322,7 +4325,7 @@ sub ldist {
   my($s,$t,$l) = @_;
   return length($t) if !$s;
   return length($s) if !$t;
-  %ldist_cache=() if not $l and 1000<0+%ldist_cache;
+  %ldist_cache=() if !$l and 1000<0+%ldist_cache;
   $ldist_cache{$s,$t} ||=
   do {
     my($s1,$t1) = ( substr($s,1), substr($t,1) );
@@ -5434,7 +5437,7 @@ sub serialize {
     my $ret="[";
     for(@$$r){
       $ret.=serialize(\$_,@r).",";
-      $ret.="\n" if not defined $level or $level>=0;
+      $ret.="\n" if !defined $level or $level>=0;
     }
     $ret=~s/,$//;
     $ret.="]";
@@ -5505,11 +5508,64 @@ current sub has been called by itself or not.
 
 sub recursed {(caller(1))[3] eq (caller(2))[3]?1:0}
 
+=head2 ed
+
+String editor...to be continued...
+
+ literals:             a-z 0-9 space
+ move cursor:          FBAEPN MF MB ME
+ delete:               D Md
+ backspace:            -
+ search:               S
+ return/enter:         R
+ meta/esc/alt:         M
+ shift:                T
+ caps lock:            C
+ yank:                 Y
+ start and end:        < >
+ macro start/end/play: { } !
+
+=cut
+
+our $Edcursor;
+sub ed {
+  my($s,$cs,$p,$buf)=@_; #string, commands, point (or cursor)
+  my($sh,$cl,$m,@m)=(0,0,0);
+  while(length($cs)){
+    my $n = 0;
+    my $c = $cs=~s,^(M.|.),, ? $1 : die;
+    $p = bound($p||0,0,length($s));
+    if   ($c =~ /([a-z0-9 ])/){ substr($s,$p++,0)=$sh^$cl?uc($1):$1; $sh=0 }
+    elsif($c eq 'F') { $p++ }
+    elsif($c eq 'B') { $p-- }
+    elsif($c eq 'A') { $p-- while $p>0 and substr($s,$p-1,2)!~/^\n/ }
+    elsif($c eq 'E') { $p++ while $p<length($s) and substr($s,$p,2)!~/^\n/ }
+    elsif($c eq 'D') { substr($s,$p,1)='' }
+    elsif($c eq 'MD'){ substr($s,$p)=~s/^(\W*\w+)// and $buf=$1 }
+    elsif($c eq 'MF'){ $p++ while $p<length($s) and substr($s,$p,1)=~/\W/;
+                       $p++ while $p<length($s) and substr($s,$p,1)=~/\w/ }
+    elsif($c eq 'Y') { substr($s,$p,0)=$buf; $p+=length($buf) }
+    elsif($c eq '<') { $p=0 }
+    elsif($c eq '>') { $p=length($s) }
+    elsif($c eq 'T') { $sh=1 }
+    elsif($c eq 'C') { $cl^=1 }
+    elsif($c eq '-') { substr($s,--$p,1)='' if $p }
+    elsif($c eq '{') { $m=1; @m=() }
+    elsif($c eq '}') { $m=0 }
+    elsif($c eq '!') { $m&&die; $cs=join("",@m).$cs }
+    else             { croak "ed: Unknown cmd '$c'\n" }
+    push @m, $c if $m;
+  }
+  $Edcursor=$p;
+  $s;
+}
+
 
 #todo: sub unbless eller sub damn
 #todo: ..se også: use Data::Structure::Util qw/unbless/;
 #todo: ...og: Acme::Damn sin damn()
 #todo? sub swap($$) http://www.idg.no/computerworld/article242008.ece
+#void quicksort(int t, int u) int i, m; if (t >= u) return; swap(t, randint(t, u)); m = t; for (i = t + 1; i <= u; i++) if (x[i] < x[t]) swap(++m, i); swap(t, m) quicksort(t, m-1); quicksort(m+1, u);
 
 
 =head1 JUST FOR FUN
@@ -5933,7 +5989,7 @@ sub bfinit {
   my @not_ok=sort(grep!in($_,@ok_param),keys%arg);
   croak "Not ok param to bfinit: ".join(", ",@not_ok) if @not_ok;
   croak "Not an arrayref in keys-param" if exists $arg{keys} and ref($arg{keys}) ne 'ARRAY';
-  croak "Not implemented counting_bits=$arg{counting_bits}, should be 2, 4, 8, 16 or 32" if not in(nvl($arg{counting_bits},1),1,2,4,8,16,32);
+  croak "Not implemented counting_bits=$arg{counting_bits}, should be 2, 4, 8, 16 or 32" if !in(nvl($arg{counting_bits},1),1,2,4,8,16,32);
   croak "An bloom filters here can not be in both adaptive and counting_bits modes" if $arg{adaptive} and $arg{counting_bits}>1;
   my $bf={error_rate    => 0.001,  #default p
 	  capacity      => 100000, #default n
@@ -6002,14 +6058,14 @@ sub bfsum {
 sub bfadd {
   require Digest::MD5;
   my($bf,@keys)=@_;
-  return if not @keys;
+  return if !@keys;
   my $keysref=@keys==1 && ref($keys[0]) eq 'ARRAY' ? $keys[0] : \@keys;
   my($m,$k,$up,$n,$cb,$adaptive)=@$bf{'filterlength','hashfuncs','unpack','capacity','counting_bits','adaptive'};
   for(@$keysref){
     #croak "Key should be scalar" if ref($_);
     $$bf{key_count} >= $n and croak "Exceeded filter capacity $n"  or  $$bf{key_count}++;
     my @h; push @h, unpack $up, Digest::MD5::md5($_,0+@h) while @h<$k;
-    if ($cb==1 and not $adaptive) { # normal bloom filter
+    if ($cb==1 and !$adaptive) { # normal bloom filter
       vec($$bf{filter}, $h[$_] % $m, 1) = 1 for 0..$k-1;
     }
     elsif ($cb>1) {                 # counting bloom filter
@@ -6029,7 +6085,7 @@ sub bfadd {
     elsif ($adaptive) {             # adaptive bloom filter
       my($i,$key,$bit)=(0+@h,$_);
       for(0..$$bf{filterlength}-1){
-	$i+=push(@h, unpack $up, Digest::MD5::md5($key,$i)) if not @h;
+	$i+=push(@h, unpack $up, Digest::MD5::md5($key,$i)) if !@h;
 	my $pos=shift(@h) % $m;
 	$bit=vec($$bf{filter}, $pos, 1);
 	vec($$bf{filter}, $pos, 1)=1;
@@ -6043,16 +6099,16 @@ sub bfadd {
 sub bfcheck {
   require Digest::MD5;
   my($bf,@keys)=@_;
-  return if not @keys;
+  return if !@keys;
   my $keysref=@keys==1 && ref($keys[0]) eq 'ARRAY' ? $keys[0] : \@keys;
   my($m,$k,$up,$cb,$adaptive)=@$bf{'filterlength','hashfuncs','unpack','counting_bits','adaptive'};
   my $wa=wantarray();
-  if(not $adaptive){ # normal bloom filter  or  counting bloom filter
+  if(!$adaptive){    # normal bloom filter  or  counting bloom filter
     return map {
       my $match = 1; # match if every bit is on
       my @h; push @h, unpack $up, Digest::MD5::md5($_,0+@h) while @h<$k;
       vec($$bf{filter}, $h[$_] % $m, $cb) or $match=0 or last for 0..$k-1;
-      return $match if not $wa;
+      return $match if !$wa;
       $match;
     } @$keysref;
   }
@@ -6060,14 +6116,14 @@ sub bfcheck {
     return map {
       my($match,$i,$key,$bit,@h)=(1,0,$_);
       for(0..$$bf{filterlength}-1){
-	$i+=push(@h, unpack $up, Digest::MD5::md5($key,$i)) if not @h;
+	$i+=push(@h, unpack $up, Digest::MD5::md5($key,$i)) if !@h;
 	my $pos=shift(@h) % $m;
 	$bit=vec($$bf{filter}, $pos, 1);
 	$match++ if $_ >  $k-1 and $bit==1;
 	$match=0 if $_ <= $k-1 and $bit==0;
 	last     if $bit==0;
       }
-      return $match if not $wa;
+      return $match if !$wa;
       $match;
     } @$keysref;
   }
@@ -6075,7 +6131,7 @@ sub bfcheck {
 sub bfgrep { # just a copy of bfcheck with map replaced by grep
   require Digest::MD5;
   my($bf,@keys)=@_;
-  return if not @keys;
+  return if !@keys;
   my $keysref=@keys==1 && ref($keys[0]) eq 'ARRAY' ? $keys[0] : \@keys;
   my($m,$k,$up,$cb)=@$bf{'filterlength','hashfuncs','unpack','counting_bits'};
   return grep {
@@ -6088,20 +6144,20 @@ sub bfgrep { # just a copy of bfcheck with map replaced by grep
 sub bfgrepnot { # just a copy of bfgrep with $match replaced by not $match
   require Digest::MD5;
   my($bf,@keys)=@_;
-  return if not @keys;
+  return if !@keys;
   my $keysref=@keys==1 && ref($keys[0]) eq 'ARRAY' ? $keys[0] : \@keys;
   my($m,$k,$up,$cb)=@$bf{'filterlength','hashfuncs','unpack','counting_bits'};
   return grep {
     my $match = 1; # match if every bit is on
     my @h; push @h, unpack $up, Digest::MD5::md5($_,0+@h) while @h<$k;
     vec($$bf{filter}, $h[$_] % $m, $cb) or $match=0 or last for 0..$k-1;
-    not $match;
+    !$match;
   } @$keysref;
 }
 sub bfdelete {
   require Digest::MD5;
   my($bf,@keys)=@_;
-  return if not @keys;
+  return if !@keys;
   my $keysref=@keys==1 && ref($keys[0]) eq 'ARRAY' ? $keys[0] : \@keys;
   my($m,$k,$up,$cb)=@$bf{'filterlength','hashfuncs','unpack','counting_bits'};
   croak "Cannot delete from non-counting bloom filter (use counting_bits 4 e.g.)" if $cb==1;
@@ -6145,7 +6201,7 @@ sub bfdimensions_old {
     @_==1 ? (@{$_[0]}{'capacity','error_rate','min_hashfuncs','max_hashfuncs'},1)
    :@_==2 ? (@_,1,100,1)
           : croak "Wrong number of arguments (".@_."), should be 2";
-  croak "p ($p) should be > 0 and < 1" if not $p>0 && $p<1;
+  croak "p ($p) should be > 0 and < 1" if not ( 0<$p && $p<1 );
   $m=-1*$_*$n/log(1-$p**(1/$_)) and (!defined $flen or $m<$flen) and ($flen,$k)=($m,$_) for $mink..$maxk;
   $flen = int(1+$flen);
   return ($flen,$k);
@@ -6181,8 +6237,67 @@ sub _update_currency_file { #call from cron
   qx($exe{ci} -l -m. -d $fn) if -w"$fn,v";
 }
 
-cmd_atca() if $0 =~ /\b atca $/x;
-sub cmd_atca { print eval $_, "\n" for split ";", "@ARGV" } #$@&&warn$@
+sub ftype {
+  my $f=shift;
+  -e $f and
+      -f$f ? 'file'         # -f  File is a plain file.
+     :-d$f ? 'dir'          # -d  File is a directory.
+     :-l$f ? 'symlink'      # -l  File is a symbolic link.
+     :-p$f ? 'pipe'         # -p  File is a named pipe (FIFO), or Filehandle is a pipe.
+     :-S$f ? 'socket'       # -S  File is a socket.
+     :-b$f ? 'blockfile'    # -b  File is a block special file.
+     :-c$f ? 'charfile'     # -c  File is a character special file.
+     :-t$f ? 'ttyfile'      # -t  Filehandle is opened to a tty.
+     :       ''
+  or undef;
+}
+
+sub install_little_acme_tools {
+  my $dir=shift()||'/usr/bin';
+  die "Can not install in $dir, not a directory\n" if !-d$dir;
+  die "Can not install in $dir, not a writeable directory. Try chmod.\n" if -d$dir and !-w$dir;
+  my @prog=map "$dir/$_", qw/tconv tdue/;
+  -l $_ and unlink for @prog; #force
+  for(@prog) {
+    my $status = rpad($_,max(map length,@prog))." -> ".$INC{'Acme/Tools.pm'};
+    $status.="   ".ftype($_)." exists" if -e $_;
+    my $r=eval{symlink($INC{'Acme/Tools.pm'},$_)};
+    print $@    ? "ERROR on:          $status ($@)\n"
+        : $r==1 ? "Installed symlink: $status\n"
+        : $r==0 ? "Not installed:     $status\n":"";
+  }
+}
+cmd_tconv() if $0 =~ /\b tconv $/x;
+cmd_tdue()  if $0 =~ /\b tdue $/x;
+sub cmd_tconv { print conv(@ARGV)."\n"  }
+sub cmd_tdue {
+  require Getopt::Std; my %o; Getopt::Std::getopts("zkmhcei" => \%o);
+  require File::Find;
+  no warnings 'uninitialized';
+  die"$0: -h, -k or -m can not be used together\n" if $o{h}+$o{k}+$o{m}>1;
+  die"$0: -c and -a can not be used together\n"    if $o{a}+$o{c}>1;
+  my @q=@ARGV; @q=('.') if !@q;
+  my(%c,%b,$cnt,$bts);
+  my $r=$o{z} ? qr/(\.[^\.\/]{1,10}(\.(z|Z|gz|bz2|rz))?)$/
+              : qr/(\.[^\.\/]{1,10})$/;
+    File::Find::find({wanted =>
+    sub {
+      return if !-f$_;
+      my($ext,$sz)=(m/$r/?$1:"",-s$_);
+      $ext=lc($ext) if $o{i};
+      $cnt++;    $c{$ext}++;
+      $bts+=$sz; $b{$ext}+=$sz;
+    } },@q);
+    my($f,$s)=$o{k}?("%10.2f kb",sub{$_[0]/1024})
+             :$o{m}?("%10.2f mb",sub{$_[0]/1024**2})
+             :$o{h}?("%12s",     sub{bytes_readable($_[0])})
+             :      ("%10d b",   sub{$_[0]});
+    my @e=$o{a}?(sort(keys%c))
+         :$o{c}?(sort{$c{$a}<=>$c{$b} or $a cmp $b}keys%c)
+         :      (sort{$b{$a}<=>$b{$b} or $a cmp $b}keys%c);
+    printf("%-10s %8d $f %7.2f%%\n",$_,$c{$_},&$s($b{$_}),100*$b{$_}/$bts) for @e;
+    printf("%-10s %8d $f\n","Sum",$cnt,&$s($bts));
+}
 
 1;
 
