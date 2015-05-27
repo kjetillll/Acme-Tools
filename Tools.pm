@@ -3786,6 +3786,8 @@ B<Output:> Returns the filename with any directory and (if given) the suffix rem
  basename('/usr/bin/perl')                   # returns 'perl'
  basename('/usr/local/bin/report.pl','.pl')  # returns 'report' since .pl at the end is removed
  basename('report2.pl','.pl')                # returns 'report2'
+ basename('report2.pl','.\w+')               # returns 'report2.pl', probably not what you meant
+ basename('report2.pl',qr/.\w+/)             # returns 'report2', use qr for regex
 
 =head2 dirname
 
@@ -3799,7 +3801,7 @@ the last /. Return just a one char C<< . >> (period string) if there is no direc
 
 =cut
 
-sub basename {my($f,$suffix)=(@_,'');$f=~m,^(.*/)?([^/]*?)(\Q$suffix\E)?$,;$2}
+sub basename {my($f,$s)=(@_,'');$s=quotemeta($s)if!ref($s);$f=~m,^(.*/)?([^/]*?)($s)?$,;$2}
 sub dirname  {shift=~m,^(.*)/,;length($1)?$1:'.'}
 
 =head2 chall

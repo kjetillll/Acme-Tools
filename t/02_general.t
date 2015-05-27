@@ -414,12 +414,14 @@ ok(!isnum,'!isnum')      for @isnt;
 
 #--basename
 sub basenametest {my($fasit,@a)=@_;my$b=basename(@a);ok($fasit eq $b,"basename $b")}
-basenametest('brb.pl', '/tmp/brb.pl');
-basenametest('brb.pl', '/tmp/123/brb.pl');
-basenametest('brb.pl', 'brb.pl');
-basenametest('brb',    'brb.pl','.pl');
-basenametest('brb',    '/tmp/brb.pl','.pl');
-basenametest('brb,pl', '/tmp/123/brb,pl','.pl');
+basenametest('brb.pl',       '/tmp/brb.pl');
+basenametest('brb.pl',       '/tmp/123/brb.pl');
+basenametest('brb.pl',       'brb.pl');
+basenametest('brb',          'brb.pl','.pl');
+basenametest('brb',          '/tmp/brb.pl','.pl');
+basenametest('brb,pl',       '/tmp/123/brb,pl','.pl');
+basenametest('report2.pl',   'report2.pl','.\w+');
+basenametest('report2',      'report2.pl',qr/.\w+/);
 
 #--dirname
 ok(dirname('/tmp/brbbbb.pl') eq '/tmp'              ,'dirname');
