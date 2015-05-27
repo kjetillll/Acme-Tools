@@ -2,7 +2,7 @@
 # perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
 
 BEGIN{require 't/common.pl'}
-use Test::More tests => 168;
+use Test::More tests => 176;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -411,3 +411,16 @@ ok(isnum($_),'isnum')    for @is;
 ok(!isnum($_),'!isnum')  for @isnt;
 ok(isnum,'isnum')        for @is;
 ok(!isnum,'!isnum')      for @isnt;
+
+#--basename
+sub basenametest {my($fasit,@a)=@_;my$b=basename(@a);ok($fasit eq $b,"basename $b")}
+basenametest('brb.pl', '/tmp/brb.pl');
+basenametest('brb.pl', '/tmp/123/brb.pl');
+basenametest('brb.pl', 'brb.pl');
+basenametest('brb',    'brb.pl','.pl');
+basenametest('brb',    '/tmp/brb.pl','.pl');
+basenametest('brb,pl', '/tmp/123/brb,pl','.pl');
+
+#--dirname
+ok(dirname('/tmp/brbbbb.pl') eq '/tmp'              ,'dirname');
+ok(dirname('brbbbb.pl') eq '.'                      ,'dirname');

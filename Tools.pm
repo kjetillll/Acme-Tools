@@ -11,8 +11,8 @@ use Carp;
 require Exporter;
 
 our @ISA = qw(Exporter);
-our %EXPORT_TAGS = ( 'all' => [ qw() ] );
-our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
+our %EXPORT_TAGS = ( all => [ qw() ] );
+our @EXPORT_OK = ( @{ $EXPORT_TAGS{all} } );
 our @EXPORT = qw(
   min
   max
@@ -91,6 +91,8 @@ our @EXPORT = qw(
   writefile
   readfile
   readdirectory
+  basename
+  dirname
   range
   permutations
   trigram
@@ -148,7 +150,24 @@ our @EXPORT = qw(
   bfclone
   bfdimensions
   $PI
-  install_little_acme_tools
+  install_acme_tools
+
+  $Dbh
+  dblogin
+  dblogout
+  dbrow
+  dbrows
+  dbrowc
+  dbrowsc
+  dbcols
+  dbpk
+  dbsel
+  dbdo
+  dbins
+  dbupd
+  dbdel
+  dbcommit
+  dbrollback
 );
 
 our $PI = '3.141592653589793238462643383279502884197169399375105820974944592307816406286';
@@ -182,7 +201,7 @@ Acme::Tools - Lots of more or less useful subs lumped together and exported into
  my $dice = random(1,6);
  my $color = random(['red','green','blue','yellow','orange']);
 
- ...and so on.
+ ...and more.
 
 =head1 ABSTRACT
 
@@ -195,11 +214,7 @@ Subs created and collected since the mid-90s.
 =head1 INSTALLATION
 
  sudo cpan Acme::Tools
-
-or maybe better:
-
- sudo apt-get install cpanminus make       # for Ubuntu 12.04
- sudo cpanm Acme::Tools
+ sudo cpanm Acme::Tools   # after: sudo apt-get install cpanminus make   # for Ubuntu 12.04
 
 =head1 EXPORT
 
@@ -628,19 +643,22 @@ our %conv=(
 		  meter   => 1,
 		  meters  => 1,
 		  km      => 1000,
-		  mil     => 10000,
+		  mil     => 10000,                   #scandinavian #also: inch/1000!
 		  in      => 0.0254,
 		  inch    => 0.0254,
 		  inches  => 0.0254,
 		  ft      => 0.0254*12,               #0.3048 m
+		  feet    => 0.0254*12,               #0.3048 m
 		  yd      => 0.0254*12*3,             #0.9144 m
 		  yard    => 0.0254*12*3,             #0.9144 m
+		  yards   => 0.0254*12*3,             #0.9144 m
 		  chain   => 0.0254*12*3*22,          #20.1168 m
 		  furlong => 0.0254*12*3*22*10,       #201.168 m
 		  mi      => 0.0254*12*3*22*10*8,     #1609.344 m
 		  mile    => 0.0254*12*3*22*10*8,     #1609.344 m
 		  miles   => 0.0254*12*3*22*10*8,
 		  league  => 0.0254*12*3*22*10*8*3,   #4828.032 m
+		  leagues => 0.0254*12*3*22*10*8*3,   #4828.032 m
 		  yard_imperical     => 0.914398416,
                   NM                 => 1852,           #nautical mile
                   nmi                => 1852,           #nautical mile
@@ -737,24 +755,39 @@ our %conv=(
                   sqft    => (0.0254*12)**2,
 		  mi2     => 1609.344**2,
 		  sqmi    => 1609.344**2,
-		  sotka   => 100,       #russian are
-                  jerib   => 10000,     #iran hectare
-                  djerib  => 10000,     #turkish hectare
-		  gongqing=> 10000,     #chinese hectare
-                  manzana => 10000,     #argentinian hectare
-                  bunder  => 10000,     #dutch hectare
-                  centiare=> 1,
-                  deciare => 10,
-                  ca      => 1,
-                  mu      => 10000/15,    #China
-                  qing    => 10000/0.15,  #China
-                  dunam   => 10000/10,    #Middle East
-                 'dönüm'  => 10000/10,    #Middle East
-                  stremmata=>10000/10,    #Greece
-                  rai     => 10000/6.25,  #Thailand
-                  cho     => 10000/1.008, #Japan
-                  feddan  => 10000/2.381, #Egypt
-                  earths  => 510072000*1000**2, #510072000 km2, surface area of earth
+                  yd2     => (0.0254*12*3)**2, #square yard
+                  sqyd    => (0.0254*12*3)**2,
+                  yard2   => (0.0254*12*3)**2,
+                  sqyard  => (0.0254*12*3)**2,
+                  rood      => 1210*(0.0254*12)**2,  # 1/4 acres
+                  roods     => 1210*(0.0254*12)**2,  # 1/4 acres
+		  ac        => 4840*(0.0254*12)**2,  # 4840 square yards
+		  acre      => 4840*(0.0254*12)**2,
+		  acres     => 4840*(0.0254*12)**2,
+                  homestead => 4840*(0.0254*12)**2 *160,      #160 acres US Surveyors or 1/4 sqmiles
+                  township  => 4840*(0.0254*12)**2 *160*144,  #144 homesteads or 36 sqmiles
+                  perches   => 4840*(0.0254*12)**2 /160,      #160 perches = 1 acre in sri lanka
+		  sotka     => 100,       #russian are
+                  jerib     => 10000,     #iran hectare
+                  djerib    => 10000,     #turkish hectare
+		  gongqing  => 10000,     #chinese hectare
+                  manzana   => 10000,     #argentinian hectare
+                  bunder    => 10000,     #dutch hectare
+                  centiare  => 1,
+                  deciare   => 10,
+                  ca        => 1,
+                  mu        => 10000/15,    #China
+                  qing      => 10000/0.15,  #China
+                  dunam     => 10000/10,    #Middle East
+                 'dönüm'    => 10000/10,    #Middle East
+                  stremmata =>10000/10,    #Greece
+                  rai       => 10000/6.25,  #Thailand
+                  cho       => 10000/1.008, #Japan
+                  feddan    => 10000/2.381, #Egypt
+                  earths    => 510072000*1000**2, #510072000 km2, surface area of earth
+		  barn      => 1e-28,       #physics
+                  outhouse  => 1e-34,       #physics
+                  shed      => 1e-52,       #physics
         	 },
 	 volume=>{
 		  l         => 1,
@@ -859,6 +892,7 @@ our %conv=(
  		  kn        => 1852/3600,
  		  kt        => 1852/3600,
  		  knot      => 1852/3600,
+ 		  knop      => 1852/3600,    #scandinavian
  		  knots     => 1852/3600,
 		  c         => 299792458,    #speed of light
 		  mach      => 340.3,        #speed of sound
@@ -1105,7 +1139,7 @@ our %conv=(
                   ZAR => 0.649438,        #
 		 },
           numbers =>{
-	    dec=>1,hex=>1,bin=>1,oct=>1,roman=>1,      des=>1,#des: spelling error in 0.15-0.16
+	    dec=>1,hex=>1,bin=>1,oct=>1,roman=>1,      des=>1,#des: spelling error in v0.15-0.16
             dusin=>1,dozen=>1,doz=>1,dz=>1,gross=>144,gr=>144,gro=>144,great_gross=>12*144,small_gross=>10*12,
           }
 	);
@@ -1185,16 +1219,15 @@ sub conv {
 }
 
 sub conv_temperature { #http://en.wikipedia.org/wiki/Temperature#Conversion
-  my($t,$from,$to)=@_;
+  my($t,$from,$to)=(shift(),map uc(substr($_,0,1)),@_);
+  $from=~s/K/C/ and $t-=273.15;
+ #$from=~s/R/F/ and $t-=459.67; #rankine
   return $t if $from eq $to;
   {CK=>sub{$t+273.15},
-   KC=>sub{$t-273.15},
    FC=>sub{($t-32)*5/9},
    CF=>sub{$t*9/5+32},
    FK=>sub{($t-32)*5/9+273.15},
-   KF=>sub{($t-273.15)*9/5+32},
-#  }->{uc(substr($from,0,1).substr($to,0,1))}->($t);
-  }->{uc(substr($from,0,1).substr($to,0,1))}->($t);
+  }->{$from.$to}->();
 }
 
 sub conv_numbers {
@@ -1207,6 +1240,7 @@ sub conv_numbers {
          :$fr =~ /^(gross|gr|gro)$/       ? $n*144
          :$fr eq 'great_gross'            ? $n*12*144
          :$fr eq 'small_gross'            ? $n*12*10
+         :$fr eq 'skokk'                  ? $n*60           #norwegian unit
          :$fr eq 'roman'                  ? roman2int($n)
          :$fr eq 'des'                    ? $n
          :croak "Conv from $fr not supported yet";
@@ -1218,11 +1252,14 @@ sub conv_numbers {
          :$to =~ /^(gross|gr|gro)$/       ? $dec/144
          :$to eq 'great_gross'            ? $dec/(12*144)
          :$to eq 'small_gross'            ? $dec/(12*10)
+         :$to eq 'skokk'                  ? $dec/60
          :$to eq 'roman'                  ? int2roman($dec)
          :$to eq 'des'                    ? $dec
          :croak "Conv to $to not suppoerted yet";
   $ret;
 }
+#http://en.wikipedia.org/wiki/Norwegian_units_of_measurement
+
 
 =head2 bytes_readable
 
@@ -2927,11 +2964,7 @@ Example, prints 1,2,3,4:
 
 =cut
 
-sub union {
-  my %seen;
-  return grep{!$seen{$_}++}(@{shift()},@{shift()});
-}
-
+sub union { my %seen; grep !$seen{$_}++, map @{shift()},@_ }
 =head2 minus
 
 Input: Two arrayrefs.
@@ -2949,7 +2982,7 @@ Output is C<< five 1 2 >>.
 sub minus {
   my %seen;
   my %notme=map{($_=>1)}@{$_[1]};
-  return grep{!$notme{$_}&&!$seen{$_}++}@{$_[0]};
+  grep !$notme{$_}&&!$seen{$_}++, @{$_[0]};
 }
 
 =head2 intersect
@@ -3009,10 +3042,7 @@ Example:
 
 =cut
 
-sub uniq(@) {
-  my %seen;
-  return grep{!$seen{$_}++}@_;
-}
+sub uniq(@) { my %seen; grep !$seen{$_}++, @_ }
 
 =head1 HASHES
 
@@ -3073,15 +3103,15 @@ Gives:
 #Hashtrans brukes automatisk når første argument er -1 i sub hashtabell()
 
 sub hashtrans {
-    my $h=shift;
-    my %new;
-    for my $k (keys%$h){
-	my $r=$$h{$k};
-	for(keys%$r){
-	    $new{$_}{$k}=$$r{$_};
-	}
+  my $h=shift;
+  my %new;
+  for my $k (keys%$h){
+    my $r=$$h{$k};
+    for(keys%$r){
+      $new{$_}{$k}=$$r{$_};
     }
-    return %new;
+  }
+  return %new;
 }
 
 =head1 COMPRESSION
@@ -3744,6 +3774,33 @@ sub readdirectory {
   closedir($D);
   return @filer;
 }
+
+=head2 basename
+
+The basename and dirname functions behaves like the *nix shell commands with the same names.
+
+B<Input:> One or two arguments: Filename and an optional suffix
+
+B<Output:> Returns the filename with any directory and (if given) the suffix removed.
+
+ basename('/usr/bin/perl')                   # returns 'perl'
+ basename('/usr/local/bin/report.pl','.pl')  # returns 'report' since .pl at the end is removed
+ basename('report2.pl','.pl')                # returns 'report2'
+
+=head2 dirname
+
+B<Input:> A filename including path
+
+B<Output:> Removes the filename path and returns just the directory path up until but not including
+the last /. Return just a one char C<< . >> (period string) if there is no directory in the input.
+
+ dirname('/usr/bin/perl')                    # returns '/usr/bin'
+ dirname('perl')                             # returns '.'
+
+=cut
+
+sub basename {my($f,$suffix)=(@_,'');$f=~m,^(.*/)?([^/]*?)(\Q$suffix\E)?$,;$2}
+sub dirname  {shift=~m,^(.*)/,;length($1)?$1:'.'}
 
 =head2 chall
 
@@ -5514,51 +5571,70 @@ sub recursed {(caller(1))[3] eq (caller(2))[3]?1:0}
 
 =head2 ed
 
-String editor...to be continued...
+String editor commands
 
- literals:             a-z 0-9 space
- move cursor:          FBAEPN MF MB ME
- delete:               D Md
- backspace:            -
- search:               S
- return/enter:         R
- meta/esc/alt:         M
- shift:                T
- caps lock:            C
- yank:                 Y
- start and end:        < >
- macro start/end/play: { } !
+ literals:               a-z 0-9 space
+ move cursor:            FBAEPN MF MB ME
+ delete:                 D Md
+ up/low/camelcase word   U L C
+ backspace:              -
+ search:                 S
+ return/enter:           R
+ meta/esc/alt:           M
+ shift:                  T
+ cut to eol:             K
+ caps lock:              C
+ yank:                   Y
+ start and end:          < >
+ macro start/end/play:   { } !
+ times for next cmd:     M<number>  (i.e. M24a inserts 24 a's)
+
+(TODO: alfa...and more docs needed)
 
 =cut
 
 our $Edcursor;
 sub ed {
   my($s,$cs,$p,$buf)=@_; #string, commands, point (or cursor)
-  my($sh,$cl,$m,@m)=(0,0,0);
+  return $$s=ed($$s,$cs,$p,$buf) if ref($s);
+  my($sh,$cl,$m,$t,@m)=(0,0,0,undef);
   while(length($cs)){
     my $n = 0;
-    my $c = $cs=~s,^(M.|.),, ? $1 : die;
+    my $c = $cs=~s,^(M\d+|M.|""|".+?"|S.+?R|\\.|.),,s ? $1 : die;
     $p = bound($p||0,0,length($s));
-    if   ($c =~ /([a-z0-9 ])/){ substr($s,$p++,0)=$sh^$cl?uc($1):$1; $sh=0 }
+    if(defined$t){$cs="".($c x $t).$cs;$t=undef;next}
+    my $add=sub{substr($s,$p,0)=$_[0];$p+=length($_[0])};
+    if   ($c =~ /^([a-z0-9 ])/){ &$add($sh^$cl?uc($1):$1); $sh=0 }
+    elsif($c =~ /^"(.+)"$/)    { &$add($1) }
+    elsif($c =~ /^\\(.)/)      { &$add($1) }
+    elsif($c =~ /^S(.+)R/)     { my $i=index($s,$1,$p);$p=$i+length($1) if $i>=0 }
+    elsif($c =~ /^M(\d+)/)     { $t=$1; next }
     elsif($c eq 'F') { $p++ }
     elsif($c eq 'B') { $p-- }
     elsif($c eq 'A') { $p-- while $p>0 and substr($s,$p-1,2)!~/^\n/ }
-    elsif($c eq 'E') { $p++ while $p<length($s) and substr($s,$p,2)!~/^\n/ }
+    elsif($c eq 'E') { substr($s,$p)=~/(.*)/ and $p+=length($1) }
     elsif($c eq 'D') { substr($s,$p,1)='' }
     elsif($c eq 'MD'){ substr($s,$p)=~s/^(\W*\w+)// and $buf=$1 }
-    elsif($c eq 'MF'){ $p++ while $p<length($s) and substr($s,$p,1)=~/\W/;
-                       $p++ while $p<length($s) and substr($s,$p,1)=~/\w/ }
-    elsif($c eq 'Y') { substr($s,$p,0)=$buf; $p+=length($buf) }
+    elsif($c eq 'MF'){ substr($s,$p)=~/(\W*\w+)/ and $p+=length($1) }
+    elsif($c eq 'MB'){ substr($s,0,$p)=~/(\w+\W*)$/ and $p-=length($1) }
+    elsif($c eq '-') { substr($s,--$p,1)='' if $p }
+    elsif($c eq 'M-'){ substr($s,0,$p)=~s/(\w+\W*)$// and $p-=length($buf=$1)}
+    elsif($c eq 'K') { substr($s,$p)=~s/(\S.+|\s*?\n)// and $buf=$1 }
+    elsif($c eq 'Y') { &$add($buf) }
+    elsif($c eq 'U') { substr($s,$p)=~s/(\W*)(\w+)/$1\U$2\E/; $p+=length($1.$2) }
+    elsif($c eq 'L') { substr($s,$p)=~s/(\W*)(\w+)/$1\L$2\E/; $p+=length($1.$2) }
+    elsif($c eq 'C') { substr($s,$p)=~s/(\W*)(\w+)/$1\u\L$2\E/; $p+=length($1.$2) }
     elsif($c eq '<') { $p=0 }
     elsif($c eq '>') { $p=length($s) }
     elsif($c eq 'T') { $sh=1 }
     elsif($c eq 'C') { $cl^=1 }
-    elsif($c eq '-') { substr($s,--$p,1)='' if $p }
     elsif($c eq '{') { $m=1; @m=() }
     elsif($c eq '}') { $m=0 }
-    elsif($c eq '!') { $m&&die; $cs=join("",@m).$cs }
+    elsif($c eq '!') { $m||!@m and die"ed: no macro"; $cs=join("",@m).$cs }
+    elsif($c eq '""'){ &$add('"') }
     else             { croak "ed: Unknown cmd '$c'\n" }
-    push @m, $c if $m;
+    push @m, $c if $m and $c ne '{';
+    #warn serialize([$c,$m,$cs],'d');
   }
   $Edcursor=$p;
   $s;
@@ -6256,23 +6332,15 @@ sub ftype {
   or undef;
 }
 
-sub install_little_acme_tools {
-  my $dir=shift()||'/usr/bin';
-  die "Can not install in $dir, not a directory\n" if !-d$dir;
-  die "Can not install in $dir, not a writeable directory. Try chmod.\n" if -d$dir and !-w$dir;
-  my @prog=map "$dir/$_", qw/tconv tdue/;
-  -l $_ and unlink for @prog; #force
-  for(@prog) {
-    my $status = rpad($_,max(map length,@prog))." -> ".$INC{'Acme/Tools.pm'};
-    $status.="   ".ftype($_)." exists" if -e $_;
-    my $r=eval{symlink($INC{'Acme/Tools.pm'},$_)};
-    print $@    ? "ERROR on:          $status ($@)\n"
-        : $r==1 ? "Installed symlink: $status\n"
-        : $r==0 ? "Not installed:     $status\n":"";
+sub install_acme_tools {
+  my $dir=(grep -d$_, @_, '/usr/local/bin', '/usr/bin')[0];
+  for(qw( tconv tdue )){
+    unlink("$dir/$_");
+    writefile("$dir/$_", "#!$^X\nuse Acme::Tools;\nAcme::Tools::cmd_$_();\n");
+    sys("/bin/chmod +x $dir/$_");
+    print "Wrote executable $dir/$_\n";
   }
 }
-cmd_tconv() if $0 =~ /\b tconv $/x;
-cmd_tdue()  if $0 =~ /\b tdue $/x;
 sub cmd_tconv { print conv(@ARGV)."\n"  }
 sub cmd_tdue {
   require Getopt::Std; my %o; Getopt::Std::getopts("zkmhcei" => \%o);
@@ -6303,6 +6371,85 @@ sub cmd_tdue {
     printf("%-10s %8d $f\n","Sum",$cnt,&$s($bts));
 }
 
+=head1 DATABASE STUFF
+
+Uses L<DBI>.
+
+=cut
+
+<<'SOON';
+sub dbtype {
+  my $connstr=shift;
+  return 'SQLite' if $connstr=~/(\.sqlite|sqlite:.*\.db)$/i;
+  return 'Oracle' if $connstr=~/\@/;
+  return 'Pg' if 1==2;
+  die;
+}
+
+our($Dbh,@Dbh);
+our %Dbattr=(RaiseError => 1, AutoCommit => 0); #defaults
+sub dblogin {
+  my $connstr=shift();
+  my %attr=(%Dbattr,@_);
+  my $type=dbtype($connstr);
+  my($dsn,$u,$p)=('','','');
+  if($type eq 'SQLite'){
+    $dsn=$connstr;
+  }
+  elsif($type eq 'Oracle'){
+    ($u,$p,$dsn)=($connstr=~m,(.+?)(/.+?)?\@(.+),);
+  }
+  elsif($type eq 'Pg'){
+    croak "todo";
+  }
+  else{
+    croak "dblogin: unknown database type for connection string $connstr\n";
+  }
+  $dsn="dbi:$type:$dsn";
+  push @Dbh, $Dbh if $Dbh; #local is better?
+  require DBI;
+  $Dbh=DBI->connect($dsn,$u,$p,\%attr); #connect_cached?
+}
+sub dblogout {
+  $Dbh->disconnect;
+  $Dbh=pop@Dbh if @Dbh;
+}
+sub dbrow {
+  my @arg=_dbargprep(@_);
+  my $sth=do{$Sth{$Dbh,$arg[0]} ||= $Dbh->prepare_cached($arg[0]
+}
+sub dbrows {
+}
+sub dbrowc {
+}
+sub dbrowsc {
+}
+sub dbcols {
+}
+sub dbpk {
+}
+sub dbsel {
+}
+sub dbdo {
+  my @arg=_dbargprep(@_);
+  #warn serialize(\@arg,'arg','',1);
+  $Dbh->do(@arg); #hm cache?
+}
+sub dbins {
+}
+sub dbupd {
+}
+sub dbdel {
+}
+sub dbcommit { $Dbh->commit }
+sub dbrollback { $Dbh->rollback }
+
+sub _dbargprep {
+  my @arg=@_;
+  splice @arg,1,0, ref($arg[-1]) eq 'HASH' ? pop(@arg) : {};
+  @arg;
+}
+SOON
 1;
 
 package Acme::Tools::BloomFilter;
