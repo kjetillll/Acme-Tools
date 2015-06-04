@@ -2,7 +2,7 @@
 # perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
 
 BEGIN{require 't/common.pl'}
-use Test::More tests => 176;
+use Test::More tests => 178;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -106,15 +106,15 @@ ok( between(undef, 1,10) eq '' ,'between 2');
 ok( between($n, 10,1)          ,'between 3');
 ok( between(5,5,5)             ,'between 4');
 
-#--bound
+#--curb
 my $vb = 234;
-ok( bound( $vb, 200, 250 ) == 234,             'bound 1');
-ok( bound( $vb, 150, 200 ) == 200,             'bound 2');
-ok( bound( $vb, 250, 300 ) == 250 && $vb==234, 'bound 3');
-ok( bound(\$vb, 250, 300 ) == 250 && $vb==250, 'bound 4');
-ok( do{eval{bound()};          $@=~/^bound/},  'bound 5'); eval{1};
-ok( do{eval{bound(1,2,undef)}; $@=~/^bound/},  'bound 6'); eval{1};
-ok( do{eval{bound(1,2,3,4)};   $@=~/^bound/},  'bound 7'); eval{1};
+ok( curb( $vb, 200, 250 ) == 234,             'curb 1');
+ok( curb( $vb, 150, 200 ) == 200,             'curb 2');
+ok( curb( $vb, 250, 300 ) == 250 && $vb==234, 'curb 3');
+ok( curb(\$vb, 250, 300 ) == 250 && $vb==250, 'curb 4');
+ok( do{eval{curb()};          $@=~/^curb/},   'curb 5'); eval{1};
+ok( do{eval{curb(1,2,undef)}; $@=~/^curb/},   'curb 6'); eval{1};
+ok( do{eval{curb(1,2,3,4)};   $@=~/^curb/},   'curb 7'); eval{1};
 
 #--distinct
 ok( join(", ", distinct(4,9,30,4,"abc",30,"abc")) eq '30, 4, 9, abc' );
@@ -426,3 +426,4 @@ basenametest('report2',      'report2.pl',qr/.\w+/);
 #--dirname
 ok(dirname('/tmp/brbbbb.pl') eq '/tmp'              ,'dirname');
 ok(dirname('brbbbb.pl') eq '.'                      ,'dirname');
+

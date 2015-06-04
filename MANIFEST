@@ -27,6 +27,7 @@ t/21_read_conf.t
 t/22_trim.t
 t/23_ed.t
 t/24_db.t
+t/25_pwgen.t
 t/common.pl
 test_fork_bloom.pl
 test_k_m.pl

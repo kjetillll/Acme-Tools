@@ -52,7 +52,7 @@ our @EXPORT = qw(
   decode
   decode_num
   between
-  bound
+  curb bound
   distinct
   in
   in_num
@@ -126,6 +126,7 @@ our @EXPORT = qw(
   sys
   recursed
   md5sum
+  pwgen
   read_conf
   ldist
   isnum
@@ -150,7 +151,7 @@ our @EXPORT = qw(
   bfclone
   bfdimensions
   $PI
-  install_acme_tools
+  install_acme_command_tools
 
   $Dbh
   dblogin
@@ -1589,6 +1590,49 @@ B<Output:> True or false (1 or 0)
 
 sub isnum {(@_?$_[0]:$_)=~/^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) (?:[eE][\-\+]?\d+)?\s*$/x}
 
+=head2 between
+
+Input: Three arguments.
+
+Returns: Something I<true> if the first argument is numerically between the two next.
+
+=cut
+
+sub between {
+  my($test,$fom,$tom)=@_;
+  no warnings;
+  return $fom<$tom ? $test>=$fom&&$test<=$tom
+                   : $test>=$tom&&$test<=$fom;
+}
+
+=head2 curb
+
+B<Input:> Three arguments: value, minumum, maximum.
+
+B<Output:> Returns the value if its between the given minumum and maximum.
+Returns minimum if the value is less or maximum if the value is more.
+
+ my $v = 234;
+ print curb( $v, 200, 250 );    #prints 234
+ print curb( $v, 150, 200 );    #prints 200
+ print curb( $v, 250, 300 );    #prints 250
+ print curb(\$v, 250, 300 );    #prints 250 and changes $v
+ print $v;                      #prints 250
+
+In the last example $v is changed because the argument is a reference. (To keep backward compatability, C<< bound() >> is a synonym for C<< curb() >>)
+
+=cut
+
+sub curb {
+  my($val,$min,$max)=@_;
+  croak "curb: wrong args" if @_!=3 or !defined$min or !defined$max or !defined$val or $min>$max;
+  return $$val=curb($$val,$min,$max) if ref($val) eq 'SCALAR';
+  $val < $min ? $min :
+  $val > $max ? $max :
+                $val;
+}
+sub bound { curb(@_) }
+
 =head1 STRINGS
 
 =head2 upper
@@ -1597,7 +1641,7 @@ sub isnum {(@_?$_[0]:$_)=~/^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) (?:[eE][\-\+]?\d+)
 
 Returns input string as uppercase or lowercase.
 
-Can be used if Perls build in C<uc()> and C<lc()> for some reason does not convert æøå and other letters outsize a-z.
+Can be used if Perls build in C<uc()> and C<lc()> for some reason does not convert æøå or other latin letters outsize a-z.
 
 Converts C<< æøåäëïöüÿâêîôûãõàèìòùáéíóúýñð >> to and from C<< ÆØÅÄËÏÖÜ?ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ >>
 
@@ -1788,6 +1832,60 @@ sub chunks {
 }
 
 sub chars { split//, shift }
+
+=head2 repl
+
+Synonym for replace().
+
+=head2 replace
+
+Return the string in the first input argument, but where pairs of search-replace strings (or rather regexes) has been run.
+
+Works as C<replace()> in Oracle, or rather regexp_replace() in Oracle 10 and onward. Except that this C<replace()> accepts more than three arguments.
+
+Examples:
+
+ print replace("water","ater","ine");  # Turns water into wine
+ print replace("water","ater");        # w
+ print replace("water","at","eath");   # weather
+ print replace("water","wa","ju",
+                       "te","ic",
+                       "x","y",        # No x is found, no y is returned
+                       'r$',"e");      # Turns water into juice. 'r$' says that the r it wants
+                                       # to change should be the last letters. This reveals that
+                                       # second, fourth, sixth and so on argument is really regexs,
+                                       # not normal strings. So use \ (or \\ inside "") to protect
+                                       # the special characters of regexes. You probably also
+                                       # should write qr/regexp/ instead of 'regexp' if you make
+                                       # use of regexps here, just to make it more clear that
+                                       # these are really regexps, not strings.
+
+ print replace('JACK and JUE','J','BL'); # prints BLACK and BLUE
+ print replace('JACK and JUE','J');      # prints ACK and UE
+ print replace("abc","a","b","b","c");   # prints ccc           (not bcc)
+
+If the first argument is a reference to a scalar variable, that variable is changed "in place".
+
+Example:
+
+ my $str="test";
+ replace(\$str,'e','ee','s','S');
+ print $str;                         # prints teeSt
+
+=cut
+
+sub replace { repl(@_) }
+sub repl {
+  my $str=shift;
+  return $$str=replace($$str,@_) if ref($str) eq 'SCALAR';
+ #return ? if ref($str) eq 'ARRAY';
+ #return ? if ref($str) eq 'HASH';
+  while(@_){
+    my($fra,$til)=(shift,shift);
+    defined $til ? $str=~s/$fra/$til/g : $str=~s/$fra//g;
+  }
+  return $str;
+}
 
 
 =head1 ARRAYS
@@ -2145,7 +2243,7 @@ Result:
 
 =head2 parta
 
-Like <parth> but returns an array of lists.
+Like L<parth> but returns an array of lists.
 
  my @a = parta { length } qw/These are the words of this array/;
 
@@ -2695,183 +2793,87 @@ sub mix {
   }
 }
 
-=head2 nvl
+=head2 pwgen
 
-The I<no value> function (or I<null value> function)
+Generates random passwords.
 
-C<nvl()> takes two or more arguments. (Oracles nvl-function take just two)
+B<Input:> 0-n args
 
-Returns the value of the first input argument with length() > 0.
+* First arg: length of password(s), default 8
 
-Return I<undef> if there is no such input argument.
+* Second arg: number of passwords, default 1
 
-In perl 5.10 and perl 6 this will most often be easier with the C< //
-> operator, although C<nvl()> and C<< // >> treats empty strings C<"">
-differently. Sub nvl here considers empty strings and undef the same.
+* Third arg: string containing legal chars in password, default A-Za-z0-9,-./&%_!
 
-=cut
+* Fourth to n'th arg: list of requirements for passwords, default if the third arg is false/undef (so default third arg is used) is:
 
-sub nvl {
-  return $_[0] if defined $_[0] and length($_[0]) or @_==1;
-  return $_[1] if @_==2;
-  return nvl(@_[1..$#_]) if @_>2;
-  return undef;
-}
+ sub{/^[a-zA-Z0-9].*[a-zA-Z0-9]$/ and /[a-z]/ and /[A-Z]/ and /\d/ and /[,-.\/&%_!]/}
 
-=head2 repl
+...meaning the password should:
+* start and end with: a letter a-z (lower- or uppercase) or a digit 0-9
+* should contain at least one char from each of the groups lower, upper, digit and special char
 
-Synonym for replace().
+To keep the default requirement-sub but add additional ones just set the fourth arg to false/undef
+and add your own requirements in the fifth arg and forward (examples below). Sub pwgen uses perls
+own C<rand()> internally.
 
-=head2 replace
-
-Return the string in the first input argument, but where pairs of search-replace strings (or rather regexes) has been run.
-
-Works as C<replace()> in Oracle, or rather regexp_replace() in Oracle 10 and onward. Except that this C<replace()> accepts more than three arguments.
+C<< $Acme::Tools::Pwgen_max_sec >> and C<< $Acme::Tools::Pwgen_max_trials >> can be set to adjust for how long
+pwgen tries to find a password. Defaults for those are 0.01 and 10000.
+Whenever one of the two limits is reached, a first generates a croak.
 
 Examples:
 
- print replace("water","ater","ine");  # Turns water into wine
- print replace("water","ater");        # w
- print replace("water","at","eath");   # weather
- print replace("water","wa","ju",
-                       "te","ic",
-                       "x","y",        # No x is found, no y is returned
-                       'r$',"e");      # Turns water into juice. 'r$' says that the r it wants
-                                       # to change should be the last letters. This reveals that
-                                       # second, fourth, sixth and so on argument is really regexs,
-                                       # not normal strings. So use \ (or \\ inside "") to protect
-                                       # the special characters of regexes. You probably also
-                                       # should write qr/regexp/ instead of 'regexp' if you make
-                                       # use of regexps here, just to make it more clear that
-                                       # these are really regexps, not strings.
+ my $pw=pwgen();             # a random 8 chars password A-Z a-z 0-9 ,-./&%!_ (8 is default length)
+ my $pw=pwgen(12);           # a random 12 chars password A-Z a-z 0-9 ,-./&%!_
+ my @pw=pwgen(0,10);         # 10 random 8 chars passwords, containing the same possible chars
+ my @pw=pwgen(0,1000,'A-Z'); # 1000 random 8 chars passwords containing just uppercase letters from A to Z
 
- print replace('JACK and JUE','J','BL'); # prints BLACK and BLUE
- print replace('JACK and JUE','J');      # prints ACK and UE
- print replace("abc","a","b","b","c");   # prints ccc           (not bcc)
+ pwgen(3);                                # dies, defaults require chars in each of 4 group (see above)
+ pwgen(5,1,'A-C0-9',  qr/^\D{3}\d{2}$/);  # a 5 char string starting with three A, B or Cs and endring with two digits
+ pwgen(5,1,'ABC0-9',sub{/^\D{3}\d{2}$/}); # same as above
 
-If the first argument is a reference to a scalar variable, that variable is changed "in place".
+Examples of adding additional requirements to the default ones:
 
-Example:
+ my @pwreq = ( qr/^[A-C]/ );
+ pwgen(8,1,'','',@pwreq);    # use defaults for allowed chars and the standard requirements
+                             # but also demand that the password must start with A, B or C
 
- my $str="test";
- replace(\$str,'e','ee','s','S');
- print $str;                         # prints teeSt
+ push @pwreq, sub{ not /[a-z]{3}/i };
+ pwgen(8,1,'','',@pwreq);    # as above and in addition the password should not contain three
+                             # or more consecutive letters (to avoid "offensive" words perhaps)
 
 =cut
 
-sub replace { repl(@_) }
-sub repl {
-  my $str=shift;
-  return $$str=replace($$str,@_) if ref($str) eq 'SCALAR';
- #return ? if ref($str) eq 'ARRAY';
- #return ? if ref($str) eq 'HASH';
-  while(@_){
-    my($fra,$til)=(shift,shift);
-    defined $til ? $str=~s/$fra/$til/g : $str=~s/$fra//g;
+our $Pwgen_max_sec=0.01;     #max seconds/password before croak (for hard to find requirements)
+our $Pwgen_max_trials=10000; #max trials/password  before croak (for hard to find requirements)
+our $Pwgen_sec=0;            #seconds used in last call to pwgen()
+our $Pwgen_trials=0;         #trials in last call to pwgen()
+sub pwgendefreq{/^[a-z\d].*[a-z\d]$/i and /[a-z]/ and /[A-Z]/ and /\d/ and /[,-.\/&%_!]/}
+sub pwgen {
+  my($len,$num,$chars,@req)=@_;
+  $len||=8;
+  $num||=1;
+  $chars||='A-Za-z0-9,-./&%_!';
+  $req[0]||=\&pwgendefreq if !$_[2];
+  $chars=~s/([$_])-([$_])/join("","$1".."$2")/eg  for ('a-z','A-Z','0-9');
+  my($c,$t,@pw)=(length($chars),time_fp());
+  ($Pwgen_trials,$Pwgen_sec)=(0,0);
+  TRIAL:
+  while(@pw<$num){
+    croak "pwgen timeout after $Pwgen_trials trials"
+      if ++$Pwgen_trials >= $Pwgen_max_trials
+      or time_fp()-$t > $Pwgen_max_sec*$num;
+    my $pw=join"",map substr($chars,rand($c),1),1..$len;
+    for my $r (@req){
+      if   (ref($r) eq 'CODE'  ){ local$_=$pw; &$r()    or next TRIAL }
+      elsif(ref($r) eq 'Regexp'){              $pw=~$$r or next TRIAL }
+      else                      { croak "pwgen: invalid req type $r ".ref($r) }
+    }
+    push@pw,$pw;
   }
-  return $str;
-}
-
-=head2 decode_num
-
-See L</decode>.
-
-=head2 decode
-
-C<decode()> and C<decode_num()> works just as Oracles C<decode()>.
-
-C<decode()> and C<decode_num()> accordingly uses perl operators C<eq> and C<==> for comparison.
-
-Examples:
-
- my $a=123;
- print decode($a, 123,3,  214,4, $a);     # prints 3
- print decode($a, 123=>3, 214=>4, $a);    # prints 3, same thing since => is synonymous to comma in Perl
-
-The first argument is tested against the second, fourth, sixth and so on,
-and then the third, fifth, seventh and so on is
-returned if decode() finds an equal string or number.
-
-In the above example: 123 maps to 3, 124 maps to 4 and the last argument $a is returned elsewise.
-
-More examples:
-
- my $a=123;
- print decode($a, 123=>3, 214=>7, $a);              # also 3,  note that => is synonym for , (comma) in perl
- print decode($a, 122=>3, 214=>7, $a);              # prints 123
- print decode($a,  123.0 =>3, 214=>7);              # prints 3
- print decode($a, '123.0'=>3, 214=>7);              # prints nothing (undef), no last argument default value here
- print decode_num($a, 121=>3, 221=>7, '123.0','b'); # prints b
-
-Sort of:
-
- decode($string, %conversion, $default);
-
-The last argument is returned as a default if none of the keys in the keys/value-pairs matched.
-
-A more perl-ish and often faster way of doing the same:
-
- {123=>3, 214=>7}->{$a} || $a                       # (beware of 0)
-
-=cut
-
-sub decode {
-  croak "Must have a mimimum of two arguments" if @_<2;
-  my $uttrykk=shift;
-  if(defined$uttrykk){ shift eq $uttrykk and return shift or shift for 1..@_/2 }
-  else               { !defined shift    and return shift or shift for 1..@_/2 }
-  return shift;
-}
-
-sub decode_num {
-  croak "Must have a mimimum of two arguments" if @_<2;
-  my $uttrykk=shift;
-  if(defined$uttrykk){ shift == $uttrykk and return shift or shift for 1..@_/2 }
-  else               { !defined shift    and return shift or shift for 1..@_/2 }
-  return shift;
-}
-
-=head2 between
-
-Input: Three arguments.
-
-Returns: Something I<true> if the first argument is numerically between the two next.
-
-=cut
-
-sub between {
-  my($test,$fom,$tom)=@_;
-  no warnings;
-  return $fom<$tom ? $test>=$fom&&$test<=$tom
-                   : $test>=$tom&&$test<=$fom;
-}
-
-=head2 bound
-
-Input: Three arguments: value, minumum, maximum. If the value is a
-reference to a scalar variable, the variables value is replaced by the
-bound.
-
-Output: Returns the value if its between the given minumum and
-maximum. Returns minimum if the value is less or maximum if the value
-is more.
-
- my $v = 234;
- print bound( $v, 200, 250 );    #prints 234
- print bound( $v, 150, 200 );    #prints 200
- print bound( $v, 250, 300 );    #prints 250
- print bound(\$v, 250, 300 );    #prints 250 and changes $v
- print $v;                       #prints 250
-
-=cut
-
-sub bound {
-  my($val,$min,$max)=@_;
-  croak "bound: wrong args" if @_!=3 or !defined$min or !defined$max or !defined$val or $min>$max;
-  return $$val=bound($$val,$min,$max) if ref($val) eq 'SCALAR';
-  $val < $min ? $min :
-  $val > $max ? $max :
-                $val;
+  $Pwgen_sec=time_fp()-$t;
+  return $pw[0] if $num==1;
+  return @pw;
 }
 
 # =head1 veci
@@ -3963,6 +3965,28 @@ sub read_conf {
 #  my $incfn=sub{return $1 if $_[0]=~m,^(/.+),;my$f=$fn;$f=~s,[^/]+$,$_[0],;$f};
 #    s,<INCLUDE ([^>]+)>,"".readfile(&$incfn($1)),eg; #todo
 
+
+=head2 openstr
+                                            # returned from openstr:
+  open my $FH, openstr("fil.txt")  or die;  # fil.txt
+  open my $FH, openstr("fil.gz")   or die;  # zcat fil.gz |
+  open my $FH, openstr("fil.bz2")  or die;  # bzcat fil.bz2 |
+  open my $FH, openstr(">fil.txt") or die;  # >fil.txt
+  open my $FH, openstr(">fil.gz")  or die;  # | gzip >fil.gz
+  open my $FH, openstr(">fil.bz2") or die;  # | bzip2 >fil.bz2
+
+=cut
+
+our @Openstrpath=(grep$_,split(":",$ENV{PATH}),qw(/usr/bin /bin /usr/local/bin));
+sub openstr {
+  my($fn,$ext)=(shift=~/^(.*?(?:\.(t?gz|bz2))?)$/i);
+  return $fn if !$ext;
+  my $prog=sub{@Openstrpath or return $_[0];(grep-x$_,map"$_/$_[0]",@Openstrpath)[0] or die};
+  $fn =~ /^\s*>/
+      ? "| ".&$prog({qw/tgz gzip gz gzip bz2 bzip2/}->{lc($ext)}).$fn
+      :      &$prog({qw/tgz zcat gz zcat bz2 bzcat/}->{lc($ext)})." $fn |";
+}
+
 =head1 TIME FUNCTIONS
 
 # head2 timestr
@@ -4368,15 +4392,16 @@ sub sleep_until {
 
 B<Input:> A year. A four digit number.
 
-B<Output:> True (1) or false (0) of weather the year is a leap year or
-not. (Uses current calendar even for period before it was used).
+B<Output:> True (1) or false (0) of whether the year is a leap year or
+not. (Uses current calendar even for periods before leapyears was used).
 
  print join(", ",grep leapyear($_), 1900..2014)."\n";
 
-Prints: (note, 1900 is not a leap year, but 2000 is)
-
  1904, 1908, 1912, 1916, 1920, 1924, 1928, 1932, 1936, 1940, 1944, 1948, 1952, 1956,
  1960, 1964, 1968, 1972, 1976, 1980, 1984, 1988, 1992, 1996, 2000, 2004, 2008, 2012
+
+Note: 1900 is not a leap year, but 2000 is. Years divided by 100 is a leap year only
+if it can be divided by 400.
 
 =cut
 
@@ -4399,6 +4424,88 @@ sub ldist {
 }
 
 =head1 OTHER
+
+=head2 nvl
+
+The I<no value> function (or I<null value> function)
+
+C<nvl()> takes two or more arguments. (Oracles nvl-function take just two)
+
+Returns the value of the first input argument with length() > 0.
+
+Return I<undef> if there is no such input argument.
+
+In perl 5.10 and perl 6 this will most often be easier with the C< //
+> operator, although C<nvl()> and C<< // >> treats empty strings C<"">
+differently. Sub nvl here considers empty strings and undef the same.
+
+=cut
+
+sub nvl {
+  return $_[0] if defined $_[0] and length($_[0]) or @_==1;
+  return $_[1] if @_==2;
+  return nvl(@_[1..$#_]) if @_>2;
+  return undef;
+}
+
+=head2 decode_num
+
+See L</decode>.
+
+=head2 decode
+
+C<decode()> and C<decode_num()> works just as Oracles C<decode()>.
+
+C<decode()> and C<decode_num()> accordingly uses perl operators C<eq> and C<==> for comparison.
+
+Examples:
+
+ my $a=123;
+ print decode($a, 123,3,  214,4, $a);     # prints 3
+ print decode($a, 123=>3, 214=>4, $a);    # prints 3, same thing since => is synonymous to comma in Perl
+
+The first argument is tested against the second, fourth, sixth and so on,
+and then the third, fifth, seventh and so on is
+returned if decode() finds an equal string or number.
+
+In the above example: 123 maps to 3, 124 maps to 4 and the last argument $a is returned elsewise.
+
+More examples:
+
+ my $a=123;
+ print decode($a, 123=>3, 214=>7, $a);              # also 3,  note that => is synonym for , (comma) in perl
+ print decode($a, 122=>3, 214=>7, $a);              # prints 123
+ print decode($a,  123.0 =>3, 214=>7);              # prints 3
+ print decode($a, '123.0'=>3, 214=>7);              # prints nothing (undef), no last argument default value here
+ print decode_num($a, 121=>3, 221=>7, '123.0','b'); # prints b
+
+Sort of:
+
+ decode($string, %conversion, $default);
+
+The last argument is returned as a default if none of the keys in the keys/value-pairs matched.
+
+A more perl-ish and often faster way of doing the same:
+
+ {123=>3, 214=>7}->{$a} || $a                       # (beware of 0)
+
+=cut
+
+sub decode {
+  croak "Must have a mimimum of two arguments" if @_<2;
+  my $uttrykk=shift;
+  if(defined$uttrykk){ shift eq $uttrykk and return shift or shift for 1..@_/2 }
+  else               { !defined shift    and return shift or shift for 1..@_/2 }
+  return shift;
+}
+
+sub decode_num {
+  croak "Must have a mimimum of two arguments" if @_<2;
+  my $uttrykk=shift;
+  if(defined$uttrykk){ shift == $uttrykk and return shift or shift for 1..@_/2 }
+  else               { !defined shift    and return shift or shift for 1..@_/2 }
+  return shift;
+}
 
 =head2 qrlist
 
@@ -5603,7 +5710,7 @@ sub ed {
   while(length($cs)){
     my $n = 0;
     my $c = $cs=~s,^(M\d+|M.|""|".+?"|S.+?R|\\.|.),,s ? $1 : die;
-    $p = bound($p||0,0,length($s));
+    $p = curb($p||0,0,length($s));
     if(defined$t){$cs="".($c x $t).$cs;$t=undef;next}
     my $add=sub{substr($s,$p,0)=$_[0];$p+=length($_[0])};
     if   ($c =~ /^([a-z0-9 ])/){ &$add($sh^$cl?uc($1):$1); $sh=0 }
@@ -6334,11 +6441,11 @@ sub ftype {
   or undef;
 }
 
-sub install_acme_tools {
+sub install_acme_command_tools {
   my $dir=(grep -d$_, @_, '/usr/local/bin', '/usr/bin')[0];
-  for(qw( tconv tdue )){
+  for(qw( tconv tdue xcat freq deldup )){
     unlink("$dir/$_");
-    writefile("$dir/$_", "#!$^X\nuse Acme::Tools;\nAcme::Tools::cmd_$_();\n");
+    writefile("$dir/$_", "#!$^X\nuse Acme::Tools;\nAcme::Tools::cmd_$_(\@ARGV);\n");
     sys("/bin/chmod +x $dir/$_");
     print "Wrote executable $dir/$_\n";
   }
@@ -6372,6 +6479,26 @@ sub cmd_tdue {
     printf("%-10s %8d $f %7.2f%%\n",$_,$c{$_},&$s($b{$_}),100*$b{$_}/$bts) for @e;
     printf("%-10s %8d $f\n","Sum",$cnt,&$s($bts));
 }
+sub cmd_xcat {
+  for my $fn (@_){
+    my $os=openstr($fn);
+    open my $FH, $os or warn"xcat: cannot open $os ($!)\n" and next;
+    print while <$FH>;
+    close($FH);
+  }
+}
+sub cmd_freq {
+  my(@f,$i);
+  map $f[$_]++, unpack("C*",$_) while <>;
+  my $s=" " x 12;map{print"$_$s$_$s$_\n"}("BYTE  CHAR   COUNT","---- ----- -------");
+  my %m=(145,"DOS-æ",155,"DOS-ø",134,"DOS-å",146,"DOS-Æ",157,"DOS-Ø",143,"DOS-Å",map{($_," ")}0..31);
+  printf("%4d %5s%8d".(++$i%3?$s:"\n"),$_,$m{$_}||chr,$f[$_]) for grep$f[$_],0..255;print "\n";
+  my @no=grep!$f[$_],0..255; print "No bytes for ".@no.": ".join(" ",@no)."\n";
+}
+
+sub cmd_deldup {
+  die "todo: not yet"
+}
 
 =head1 DATABASE STUFF
 
@@ -6379,7 +6506,7 @@ Uses L<DBI>.
 
 =cut
 
-<<'SOON';
+#my$dummy=<<'SOON';
 sub dbtype {
   my $connstr=shift;
   return 'SQLite' if $connstr=~/(\.sqlite|sqlite:.*\.db)$/i;
@@ -6388,7 +6515,7 @@ sub dbtype {
   die;
 }
 
-our($Dbh,@Dbh);
+our($Dbh,@Dbh,%Sth);
 our %Dbattr=(RaiseError => 1, AutoCommit => 0); #defaults
 sub dblogin {
   my $connstr=shift();
@@ -6418,7 +6545,8 @@ sub dblogout {
 }
 sub dbrow {
   my @arg=_dbargprep(@_);
-  my $sth=do{$Sth{$Dbh,$arg[0]} ||= $Dbh->prepare_cached($arg[0]
+  my $sth=do{$Sth{$Dbh,$arg[0]} ||= $Dbh->prepare_cached($arg[0])};
+  
 }
 sub dbrows {
 }
@@ -6451,7 +6579,7 @@ sub _dbargprep {
   splice @arg,1,0, ref($arg[-1]) eq 'HASH' ? pop(@arg) : {};
   @arg;
 }
-SOON
+#SOON
 1;
 
 package Acme::Tools::BloomFilter;
@@ -6470,6 +6598,7 @@ sub sum      { &Acme::Tools::bfsum      }
 1;
 
 # Ny versjon:
+# + c-s todo
 # + endre $VERSION
 # + endre Release history under HISTORY
 # + endre årstall under COPYRIGHT AND LICENSE
@@ -6483,6 +6612,7 @@ sub sum      { &Acme::Tools::bfsum      }
 # + perlbrew exec "perl ~/Acme-Tools/Makefile.PL ; time make test"
 # + perlbrew use perl-5.10.1; perl Makefile.PL; make test; perlbrew off
 # + test evt i cygwin og mingw-perl
+# + pod2html Tools.pm > Tools.html ; firefox Tools.html 
 # + https://metacpan.org/pod/Acme::Tools
 # + make dist
 # + cp -p *tar.gz /htdocs/
@@ -6532,7 +6662,7 @@ sub sum      { &Acme::Tools::bfsum      }
 
 Release history
 
- 0.16  Feb 2015   bigr, bound, cpad, isnum, parta, parth, read_conf, resolve_equation,
+ 0.16  Feb 2015   bigr, curb, cpad, isnum, parta, parth, read_conf, resolve_equation,
                   roman2int, trim. Improved: conv (numbers, currency), range ("derivatives")
  0.15  Nov 2014   Improved doc
  0.14  Nov 2014   New subs, improved tests and doc
