@@ -154,21 +154,21 @@ our @EXPORT = qw(
   install_acme_command_tools
 
   $Dbh
-  dblogin
-  dblogout
-  dbrow
-  dbrows
-  dbrowc
-  dbrowsc
-  dbcols
-  dbpk
-  dbsel
-  dbdo
-  dbins
-  dbupd
-  dbdel
-  dbcommit
-  dbrollback
+  dlogin
+  dlogout
+  drow
+  drows
+  drowc
+  drowsc
+  dcols
+  dpk
+  dsel
+  ddo
+  dins
+  dupd
+  ddel
+  dcommit
+  drollback
 );
 
 our $PI = '3.141592653589793238462643383279502884197169399375105820974944592307816406286';
@@ -1414,7 +1414,7 @@ and L<Geo::Direction::Distance>, but Acme::Tools::distance() is about 8 times fa
 
 =cut
 
-our $Distance_factor=$PI / 180;
+our $Distance_factor = $PI / 180;
 sub acos { atan2( sqrt(1 - $_[0] * $_[0]), $_[0] ) }
 sub distance_great_circle {
   my($lat1,$lon1,$lat2,$lon2)=map $Distance_factor*$_, @_;
@@ -6497,6 +6497,8 @@ sub cmd_freq {
 }
 
 sub cmd_deldup {
+  # ~/test/deldup.pl #find duplicate files effiencently
+  #http://www.commandlinefu.com/commands/view/3555/find-duplicate-files-based-on-size-first-then-md5-hash
   die "todo: not yet"
 }
 
@@ -6507,7 +6509,7 @@ Uses L<DBI>.
 =cut
 
 #my$dummy=<<'SOON';
-sub dbtype {
+sub dtype {
   my $connstr=shift;
   return 'SQLite' if $connstr=~/(\.sqlite|sqlite:.*\.db)$/i;
   return 'Oracle' if $connstr=~/\@/;
@@ -6517,10 +6519,10 @@ sub dbtype {
 
 our($Dbh,@Dbh,%Sth);
 our %Dbattr=(RaiseError => 1, AutoCommit => 0); #defaults
-sub dblogin {
+sub dlogin {
   my $connstr=shift();
   my %attr=(%Dbattr,@_);
-  my $type=dbtype($connstr);
+  my $type=dtype($connstr);
   my($dsn,$u,$p)=('','','');
   if($type eq 'SQLite'){
     $dsn=$connstr;
@@ -6539,42 +6541,47 @@ sub dblogin {
   require DBI;
   $Dbh=DBI->connect($dsn,$u,$p,\%attr); #connect_cached?
 }
-sub dblogout {
+sub dlogout {
   $Dbh->disconnect;
   $Dbh=pop@Dbh if @Dbh;
 }
-sub dbrow {
-  my @arg=_dbargprep(@_);
-  my $sth=do{$Sth{$Dbh,$arg[0]} ||= $Dbh->prepare_cached($arg[0])};
-  
+sub drow {
+  my($q,@b)=_dattrarg(@_);
+  #my $sth=do{$Sth{$Dbh,$q} ||= $Dbh->prepare_cached($q)};
+  my $sth=$Dbh->prepare_cached($q);
+  $sth->execute(@b);
+  my @r=$sth->fetchrow_array;
+  $sth->finish if $$Dbh{Driver}{Name} eq 'SQLite';
+  #$dbh->selectrow_array($statement);
+  return @r==1?$r[0]:@r;
 }
-sub dbrows {
+sub drows {
 }
-sub dbrowc {
+sub drowc {
 }
-sub dbrowsc {
+sub drowsc {
 }
-sub dbcols {
+sub dcols {
 }
-sub dbpk {
+sub dpk {
 }
-sub dbsel {
+sub dsel {
 }
-sub dbdo {
-  my @arg=_dbargprep(@_);
+sub ddo {
+  my @arg=_dattrarg(@_);
   #warn serialize(\@arg,'arg','',1);
   $Dbh->do(@arg); #hm cache?
 }
-sub dbins {
+sub dins {
 }
-sub dbupd {
+sub dupd {
 }
-sub dbdel {
+sub ddel {
 }
-sub dbcommit { $Dbh->commit }
-sub dbrollback { $Dbh->rollback }
+sub dcommit { $Dbh->commit }
+sub drollback { $Dbh->rollback }
 
-sub _dbargprep {
+sub _dattrarg {
   my @arg=@_;
   splice @arg,1,0, ref($arg[-1]) eq 'HASH' ? pop(@arg) : {};
   @arg;
@@ -6623,7 +6630,6 @@ sub sum      { &Acme::Tools::bfsum      }
 # + http://pause.perl.org/
 # http://en.wikipedia.org/wiki/Birthday_problem#Approximations
 
-# ~/test/deldup.pl #find duplicate files effiencently
 # memoize_expire()           http://perldoc.perl.org/Memoize/Expire.html
 # memoize_file_expire()
 # memoize_limit_size() #lru
