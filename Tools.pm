@@ -6267,6 +6267,8 @@ sub install_little_acme_tools {
         : $r==0 ? "Not installed:     $status\n":"";
   }
 }
+#todo: cmd_tabdiff (fra sonyk)
+#todo: cmd_catlog (ala catal med /etc/catlog.conf, default er access_log)
 cmd_tconv() if $0 =~ /\b tconv $/x;
 cmd_tdue()  if $0 =~ /\b tdue $/x;
 sub cmd_tconv { print conv(@ARGV)."\n"  }
@@ -6317,6 +6319,7 @@ sub sum      { &Acme::Tools::bfsum      }
 1;
 
 # Ny versjon:
+# + c-s todo
 # + endre $VERSION
 # + endre Release history under HISTORY
 # + endre årstall under COPYRIGHT AND LICENSE
