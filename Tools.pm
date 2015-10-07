@@ -6535,9 +6535,27 @@ sub cmd_deldup {
   die "todo: not yet"
 }
 
-=head1 DATABASE STUFF
 
-Uses L<DBI>.
+=head1 DATABASE STUFF - NOT IMPLEMENTED
+
+Uses L<DBI>. Comming soon...
+
+  $Dbh
+  dlogin
+  dlogout
+  drow
+  drows
+  drowc
+  drowsc
+  dcols
+  dpk
+  dsel
+  ddo
+  dins
+  dupd
+  ddel
+  dcommit
+  drollback
 
 =cut
 
