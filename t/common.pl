@@ -8,6 +8,7 @@ sub ok_ref {
   $ok
 }
 sub ok_ca  { ok( abs( 1 - $_[0]/$_[1] ) < 1e-4, $_[2]) }
+sub okstr { my($s1,$s2)=@_; $s1 eq $s2 and return ok(1); ok(0,"s1: $s1   not eq   s2: $s2") }
 sub deb($) { print STDERR @_ if $ENV{ATDEBUG} }
 sub tmp {require File::Temp;File::Temp::tempdir(CLEANUP=>1,@_)}
 1;

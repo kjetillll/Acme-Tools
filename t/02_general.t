@@ -390,6 +390,11 @@ my $diff=abs(time_fp()-$t-0.1);
 #? ok($diff < 0.03, "sleep_fp, diff=$diff < 0.03")    #off 30% ok
 #: ok (1);
 
+sleeps(0.010);
+sleepms(10);
+sleepus(10000);
+sleepns(10000000);
+
 #--bytes_readable
 my %br=(
    999                    => '999 B',
