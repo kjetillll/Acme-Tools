@@ -11,8 +11,8 @@ use Carp;
 require Exporter;
 
 our @ISA = qw(Exporter);
-our %EXPORT_TAGS = ( 'all' => [ qw() ] );
-our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
+our %EXPORT_TAGS = ( all => [ qw() ] );
+our @EXPORT_OK = ( @{ $EXPORT_TAGS{all} } );
 our @EXPORT = qw(
   min
   max
@@ -52,7 +52,7 @@ our @EXPORT = qw(
   decode
   decode_num
   between
-  bound
+  curb bound
   distinct
   in
   in_num
@@ -91,6 +91,8 @@ our @EXPORT = qw(
   writefile
   readfile
   readdirectory
+  basename
+  dirname
   range
   permutations
   trigram
@@ -124,6 +126,7 @@ our @EXPORT = qw(
   sys
   recursed
   md5sum
+  pwgen
   read_conf
   ldist
   isnum
@@ -148,7 +151,24 @@ our @EXPORT = qw(
   bfclone
   bfdimensions
   $PI
-  install_little_acme_tools
+  install_acme_command_tools
+
+  $Dbh
+  dlogin
+  dlogout
+  drow
+  drows
+  drowc
+  drowsc
+  dcols
+  dpk
+  dsel
+  ddo
+  dins
+  dupd
+  ddel
+  dcommit
+  drollback
 );
 
 our $PI = '3.141592653589793238462643383279502884197169399375105820974944592307816406286';
@@ -182,7 +202,7 @@ Acme::Tools - Lots of more or less useful subs lumped together and exported into
  my $dice = random(1,6);
  my $color = random(['red','green','blue','yellow','orange']);
 
- ...and so on.
+ ...and more.
 
 =head1 ABSTRACT
 
@@ -195,11 +215,7 @@ Subs created and collected since the mid-90s.
 =head1 INSTALLATION
 
  sudo cpan Acme::Tools
-
-or maybe better:
-
- sudo apt-get install cpanminus make       # for Ubuntu 12.04
- sudo cpanm Acme::Tools
+ sudo cpanm Acme::Tools   # after: sudo apt-get install cpanminus make   # for Ubuntu 12.04
 
 =head1 EXPORT
 
@@ -628,19 +644,22 @@ our %conv=(
 		  meter   => 1,
 		  meters  => 1,
 		  km      => 1000,
-		  mil     => 10000,
+		  mil     => 10000,                   #scandinavian #also: inch/1000!
 		  in      => 0.0254,
 		  inch    => 0.0254,
 		  inches  => 0.0254,
 		  ft      => 0.0254*12,               #0.3048 m
+		  feet    => 0.0254*12,               #0.3048 m
 		  yd      => 0.0254*12*3,             #0.9144 m
 		  yard    => 0.0254*12*3,             #0.9144 m
+		  yards   => 0.0254*12*3,             #0.9144 m
 		  chain   => 0.0254*12*3*22,          #20.1168 m
 		  furlong => 0.0254*12*3*22*10,       #201.168 m
 		  mi      => 0.0254*12*3*22*10*8,     #1609.344 m
 		  mile    => 0.0254*12*3*22*10*8,     #1609.344 m
 		  miles   => 0.0254*12*3*22*10*8,
 		  league  => 0.0254*12*3*22*10*8*3,   #4828.032 m
+		  leagues => 0.0254*12*3*22*10*8*3,   #4828.032 m
 		  yard_imperical     => 0.914398416,
                   NM                 => 1852,           #nautical mile
                   nmi                => 1852,           #nautical mile
@@ -737,24 +756,39 @@ our %conv=(
                   sqft    => (0.0254*12)**2,
 		  mi2     => 1609.344**2,
 		  sqmi    => 1609.344**2,
-		  sotka   => 100,       #russian are
-                  jerib   => 10000,     #iran hectare
-                  djerib  => 10000,     #turkish hectare
-		  gongqing=> 10000,     #chinese hectare
-                  manzana => 10000,     #argentinian hectare
-                  bunder  => 10000,     #dutch hectare
-                  centiare=> 1,
-                  deciare => 10,
-                  ca      => 1,
-                  mu      => 10000/15,    #China
-                  qing    => 10000/0.15,  #China
-                  dunam   => 10000/10,    #Middle East
-                 'dönüm'  => 10000/10,    #Middle East
-                  stremmata=>10000/10,    #Greece
-                  rai     => 10000/6.25,  #Thailand
-                  cho     => 10000/1.008, #Japan
-                  feddan  => 10000/2.381, #Egypt
-                  earths  => 510072000*1000**2, #510072000 km2, surface area of earth
+                  yd2     => (0.0254*12*3)**2, #square yard
+                  sqyd    => (0.0254*12*3)**2,
+                  yard2   => (0.0254*12*3)**2,
+                  sqyard  => (0.0254*12*3)**2,
+                  rood      => 1210*(0.0254*12)**2,  # 1/4 acres
+                  roods     => 1210*(0.0254*12)**2,  # 1/4 acres
+		  ac        => 4840*(0.0254*12)**2,  # 4840 square yards
+		  acre      => 4840*(0.0254*12)**2,
+		  acres     => 4840*(0.0254*12)**2,
+                  homestead => 4840*(0.0254*12)**2 *160,      #160 acres US Surveyors or 1/4 sqmiles
+                  township  => 4840*(0.0254*12)**2 *160*144,  #144 homesteads or 36 sqmiles
+                  perches   => 4840*(0.0254*12)**2 /160,      #160 perches = 1 acre in sri lanka
+		  sotka     => 100,       #russian are
+                  jerib     => 10000,     #iran hectare
+                  djerib    => 10000,     #turkish hectare
+		  gongqing  => 10000,     #chinese hectare
+                  manzana   => 10000,     #argentinian hectare
+                  bunder    => 10000,     #dutch hectare
+                  centiare  => 1,
+                  deciare   => 10,
+                  ca        => 1,
+                  mu        => 10000/15,    #China
+                  qing      => 10000/0.15,  #China
+                  dunam     => 10000/10,    #Middle East
+                 'dönüm'    => 10000/10,    #Middle East
+                  stremmata =>10000/10,    #Greece
+                  rai       => 10000/6.25,  #Thailand
+                  cho       => 10000/1.008, #Japan
+                  feddan    => 10000/2.381, #Egypt
+                  earths    => 510072000*1000**2, #510072000 km2, surface area of earth
+		  barn      => 1e-28,       #physics
+                  outhouse  => 1e-34,       #physics
+                  shed      => 1e-52,       #physics
         	 },
 	 volume=>{
 		  l         => 1,
@@ -859,6 +893,7 @@ our %conv=(
  		  kn        => 1852/3600,
  		  kt        => 1852/3600,
  		  knot      => 1852/3600,
+ 		  knop      => 1852/3600,    #scandinavian
  		  knots     => 1852/3600,
 		  c         => 299792458,    #speed of light
 		  mach      => 340.3,        #speed of sound
@@ -1105,7 +1140,7 @@ our %conv=(
                   ZAR => 0.649438,        #
 		 },
           numbers =>{
-	    dec=>1,hex=>1,bin=>1,oct=>1,roman=>1,      des=>1,#des: spelling error in 0.15-0.16
+	    dec=>1,hex=>1,bin=>1,oct=>1,roman=>1,      des=>1,#des: spelling error in v0.15-0.16
             dusin=>1,dozen=>1,doz=>1,dz=>1,gross=>144,gr=>144,gro=>144,great_gross=>12*144,small_gross=>10*12,
           }
 	);
@@ -1185,16 +1220,15 @@ sub conv {
 }
 
 sub conv_temperature { #http://en.wikipedia.org/wiki/Temperature#Conversion
-  my($t,$from,$to)=@_;
+  my($t,$from,$to)=(shift(),map uc(substr($_,0,1)),@_);
+  $from=~s/K/C/ and $t-=273.15;
+ #$from=~s/R/F/ and $t-=459.67; #rankine
   return $t if $from eq $to;
   {CK=>sub{$t+273.15},
-   KC=>sub{$t-273.15},
    FC=>sub{($t-32)*5/9},
    CF=>sub{$t*9/5+32},
    FK=>sub{($t-32)*5/9+273.15},
-   KF=>sub{($t-273.15)*9/5+32},
-#  }->{uc(substr($from,0,1).substr($to,0,1))}->($t);
-  }->{uc(substr($from,0,1).substr($to,0,1))}->($t);
+  }->{$from.$to}->();
 }
 
 sub conv_number {
@@ -1207,6 +1241,7 @@ sub conv_number {
          :$fr =~ /^(gross|gr|gro)$/       ? $n*144
          :$fr eq 'great_gross'            ? $n*12*144
          :$fr eq 'small_gross'            ? $n*12*10
+         :$fr eq 'skokk'                  ? $n*60           #norwegian unit
          :$fr eq 'roman'                  ? roman2int($n)
          :$fr eq 'des'                    ? $n
          :croak "Conv from $fr not supported yet";
@@ -1218,11 +1253,14 @@ sub conv_number {
          :$to =~ /^(gross|gr|gro)$/       ? $dec/144
          :$to eq 'great_gross'            ? $dec/(12*144)
          :$to eq 'small_gross'            ? $dec/(12*10)
+         :$to eq 'skokk'                  ? $dec/60
          :$to eq 'roman'                  ? int2roman($dec)
          :$to eq 'des'                    ? $dec
          :croak "Conv to $to not suppoerted yet";
   $ret;
 }
+#http://en.wikipedia.org/wiki/Norwegian_units_of_measurement
+
 
 =head2 bytes_readable
 
@@ -1376,7 +1414,7 @@ and L<Geo::Direction::Distance>, but Acme::Tools::distance() is about 8 times fa
 
 =cut
 
-our $Distance_factor=$PI / 180;
+our $Distance_factor = $PI / 180;
 sub acos { atan2( sqrt(1 - $_[0] * $_[0]), $_[0] ) }
 sub distance_great_circle {
   my($lat1,$lon1,$lat2,$lon2)=map $Distance_factor*$_, @_;
@@ -1552,6 +1590,49 @@ B<Output:> True or false (1 or 0)
 
 sub isnum {(@_?$_[0]:$_)=~/^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) (?:[eE][\-\+]?\d+)?\s*$/x}
 
+=head2 between
+
+Input: Three arguments.
+
+Returns: Something I<true> if the first argument is numerically between the two next.
+
+=cut
+
+sub between {
+  my($test,$fom,$tom)=@_;
+  no warnings;
+  return $fom<$tom ? $test>=$fom&&$test<=$tom
+                   : $test>=$tom&&$test<=$fom;
+}
+
+=head2 curb
+
+B<Input:> Three arguments: value, minumum, maximum.
+
+B<Output:> Returns the value if its between the given minumum and maximum.
+Returns minimum if the value is less or maximum if the value is more.
+
+ my $v = 234;
+ print curb( $v, 200, 250 );    #prints 234
+ print curb( $v, 150, 200 );    #prints 200
+ print curb( $v, 250, 300 );    #prints 250
+ print curb(\$v, 250, 300 );    #prints 250 and changes $v
+ print $v;                      #prints 250
+
+In the last example $v is changed because the argument is a reference. (To keep backward compatability, C<< bound() >> is a synonym for C<< curb() >>)
+
+=cut
+
+sub curb {
+  my($val,$min,$max)=@_;
+  croak "curb: wrong args" if @_!=3 or !defined$min or !defined$max or !defined$val or $min>$max;
+  return $$val=curb($$val,$min,$max) if ref($val) eq 'SCALAR';
+  $val < $min ? $min :
+  $val > $max ? $max :
+                $val;
+}
+sub bound { curb(@_) }
+
 =head1 STRINGS
 
 =head2 upper
@@ -1560,7 +1641,7 @@ sub isnum {(@_?$_[0]:$_)=~/^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) (?:[eE][\-\+]?\d+)
 
 Returns input string as uppercase or lowercase.
 
-Can be used if Perls build in C<uc()> and C<lc()> for some reason does not convert æøå and other letters outsize a-z.
+Can be used if Perls build in C<uc()> and C<lc()> for some reason does not convert æøå or other latin letters outsize a-z.
 
 Converts C<< æøåäëïöüÿâêîôûãõàèìòùáéíóúýñð >> to and from C<< ÆØÅÄËÏÖÜ?ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ >>
 
@@ -1751,6 +1832,60 @@ sub chunks {
 }
 
 sub chars { split//, shift }
+
+=head2 repl
+
+Synonym for replace().
+
+=head2 replace
+
+Return the string in the first input argument, but where pairs of search-replace strings (or rather regexes) has been run.
+
+Works as C<replace()> in Oracle, or rather regexp_replace() in Oracle 10 and onward. Except that this C<replace()> accepts more than three arguments.
+
+Examples:
+
+ print replace("water","ater","ine");  # Turns water into wine
+ print replace("water","ater");        # w
+ print replace("water","at","eath");   # weather
+ print replace("water","wa","ju",
+                       "te","ic",
+                       "x","y",        # No x is found, no y is returned
+                       'r$',"e");      # Turns water into juice. 'r$' says that the r it wants
+                                       # to change should be the last letters. This reveals that
+                                       # second, fourth, sixth and so on argument is really regexs,
+                                       # not normal strings. So use \ (or \\ inside "") to protect
+                                       # the special characters of regexes. You probably also
+                                       # should write qr/regexp/ instead of 'regexp' if you make
+                                       # use of regexps here, just to make it more clear that
+                                       # these are really regexps, not strings.
+
+ print replace('JACK and JUE','J','BL'); # prints BLACK and BLUE
+ print replace('JACK and JUE','J');      # prints ACK and UE
+ print replace("abc","a","b","b","c");   # prints ccc           (not bcc)
+
+If the first argument is a reference to a scalar variable, that variable is changed "in place".
+
+Example:
+
+ my $str="test";
+ replace(\$str,'e','ee','s','S');
+ print $str;                         # prints teeSt
+
+=cut
+
+sub replace { repl(@_) }
+sub repl {
+  my $str=shift;
+  return $$str=replace($$str,@_) if ref($str) eq 'SCALAR';
+ #return ? if ref($str) eq 'ARRAY';
+ #return ? if ref($str) eq 'HASH';
+  while(@_){
+    my($fra,$til)=(shift,shift);
+    defined $til ? $str=~s/$fra/$til/g : $str=~s/$fra//g;
+  }
+  return $str;
+}
 
 
 =head1 ARRAYS
@@ -2108,7 +2243,11 @@ Result:
 
 =head2 parta
 
+<<<<<<< HEAD
 Like C<parth> but returns an array of lists.
+=======
+Like L<parth> but returns an array of lists.
+>>>>>>> 2d0bbd013488f004fef77fd8b4f2ab492748f876
 
  my @a = parta { length } qw/These are the words of this array/;
 
@@ -2658,183 +2797,87 @@ sub mix {
   }
 }
 
-=head2 nvl
+=head2 pwgen
 
-The I<no value> function (or I<null value> function)
+Generates random passwords.
 
-C<nvl()> takes two or more arguments. (Oracles nvl-function take just two)
+B<Input:> 0-n args
 
-Returns the value of the first input argument with length() > 0.
+* First arg: length of password(s), default 8
 
-Return I<undef> if there is no such input argument.
+* Second arg: number of passwords, default 1
 
-In perl 5.10 and perl 6 this will most often be easier with the C< //
-> operator, although C<nvl()> and C<< // >> treats empty strings C<"">
-differently. Sub nvl here considers empty strings and undef the same.
+* Third arg: string containing legal chars in password, default A-Za-z0-9,-./&%_!
 
-=cut
+* Fourth to n'th arg: list of requirements for passwords, default if the third arg is false/undef (so default third arg is used) is:
 
-sub nvl {
-  return $_[0] if defined $_[0] and length($_[0]) or @_==1;
-  return $_[1] if @_==2;
-  return nvl(@_[1..$#_]) if @_>2;
-  return undef;
-}
+ sub{/^[a-zA-Z0-9].*[a-zA-Z0-9]$/ and /[a-z]/ and /[A-Z]/ and /\d/ and /[,-.\/&%_!]/}
 
-=head2 repl
+...meaning the password should:
+* start and end with: a letter a-z (lower- or uppercase) or a digit 0-9
+* should contain at least one char from each of the groups lower, upper, digit and special char
 
-Synonym for replace().
+To keep the default requirement-sub but add additional ones just set the fourth arg to false/undef
+and add your own requirements in the fifth arg and forward (examples below). Sub pwgen uses perls
+own C<rand()> internally.
 
-=head2 replace
-
-Return the string in the first input argument, but where pairs of search-replace strings (or rather regexes) has been run.
-
-Works as C<replace()> in Oracle, or rather regexp_replace() in Oracle 10 and onward. Except that this C<replace()> accepts more than three arguments.
+C<< $Acme::Tools::Pwgen_max_sec >> and C<< $Acme::Tools::Pwgen_max_trials >> can be set to adjust for how long
+pwgen tries to find a password. Defaults for those are 0.01 and 10000.
+Whenever one of the two limits is reached, a first generates a croak.
 
 Examples:
 
- print replace("water","ater","ine");  # Turns water into wine
- print replace("water","ater");        # w
- print replace("water","at","eath");   # weather
- print replace("water","wa","ju",
-                       "te","ic",
-                       "x","y",        # No x is found, no y is returned
-                       'r$',"e");      # Turns water into juice. 'r$' says that the r it wants
-                                       # to change should be the last letters. This reveals that
-                                       # second, fourth, sixth and so on argument is really regexs,
-                                       # not normal strings. So use \ (or \\ inside "") to protect
-                                       # the special characters of regexes. You probably also
-                                       # should write qr/regexp/ instead of 'regexp' if you make
-                                       # use of regexps here, just to make it more clear that
-                                       # these are really regexps, not strings.
+ my $pw=pwgen();             # a random 8 chars password A-Z a-z 0-9 ,-./&%!_ (8 is default length)
+ my $pw=pwgen(12);           # a random 12 chars password A-Z a-z 0-9 ,-./&%!_
+ my @pw=pwgen(0,10);         # 10 random 8 chars passwords, containing the same possible chars
+ my @pw=pwgen(0,1000,'A-Z'); # 1000 random 8 chars passwords containing just uppercase letters from A to Z
 
- print replace('JACK and JUE','J','BL'); # prints BLACK and BLUE
- print replace('JACK and JUE','J');      # prints ACK and UE
- print replace("abc","a","b","b","c");   # prints ccc           (not bcc)
+ pwgen(3);                                # dies, defaults require chars in each of 4 group (see above)
+ pwgen(5,1,'A-C0-9',  qr/^\D{3}\d{2}$/);  # a 5 char string starting with three A, B or Cs and endring with two digits
+ pwgen(5,1,'ABC0-9',sub{/^\D{3}\d{2}$/}); # same as above
 
-If the first argument is a reference to a scalar variable, that variable is changed "in place".
+Examples of adding additional requirements to the default ones:
 
-Example:
+ my @pwreq = ( qr/^[A-C]/ );
+ pwgen(8,1,'','',@pwreq);    # use defaults for allowed chars and the standard requirements
+                             # but also demand that the password must start with A, B or C
 
- my $str="test";
- replace(\$str,'e','ee','s','S');
- print $str;                         # prints teeSt
+ push @pwreq, sub{ not /[a-z]{3}/i };
+ pwgen(8,1,'','',@pwreq);    # as above and in addition the password should not contain three
+                             # or more consecutive letters (to avoid "offensive" words perhaps)
 
 =cut
 
-sub replace { repl(@_) }
-sub repl {
-  my $str=shift;
-  return $$str=replace($$str,@_) if ref($str) eq 'SCALAR';
- #return ? if ref($str) eq 'ARRAY';
- #return ? if ref($str) eq 'HASH';
-  while(@_){
-    my($fra,$til)=(shift,shift);
-    defined $til ? $str=~s/$fra/$til/g : $str=~s/$fra//g;
+our $Pwgen_max_sec=0.01;     #max seconds/password before croak (for hard to find requirements)
+our $Pwgen_max_trials=10000; #max trials/password  before croak (for hard to find requirements)
+our $Pwgen_sec=0;            #seconds used in last call to pwgen()
+our $Pwgen_trials=0;         #trials in last call to pwgen()
+sub pwgendefreq{/^[a-z\d].*[a-z\d]$/i and /[a-z]/ and /[A-Z]/ and /\d/ and /[,-.\/&%_!]/}
+sub pwgen {
+  my($len,$num,$chars,@req)=@_;
+  $len||=8;
+  $num||=1;
+  $chars||='A-Za-z0-9,-./&%_!';
+  $req[0]||=\&pwgendefreq if !$_[2];
+  $chars=~s/([$_])-([$_])/join("","$1".."$2")/eg  for ('a-z','A-Z','0-9');
+  my($c,$t,@pw)=(length($chars),time_fp());
+  ($Pwgen_trials,$Pwgen_sec)=(0,0);
+  TRIAL:
+  while(@pw<$num){
+    croak "pwgen timeout after $Pwgen_trials trials"
+      if ++$Pwgen_trials >= $Pwgen_max_trials
+      or time_fp()-$t > $Pwgen_max_sec*$num;
+    my $pw=join"",map substr($chars,rand($c),1),1..$len;
+    for my $r (@req){
+      if   (ref($r) eq 'CODE'  ){ local$_=$pw; &$r()    or next TRIAL }
+      elsif(ref($r) eq 'Regexp'){              $pw=~$$r or next TRIAL }
+      else                      { croak "pwgen: invalid req type $r ".ref($r) }
+    }
+    push@pw,$pw;
   }
-  return $str;
-}
-
-=head2 decode_num
-
-See L</decode>.
-
-=head2 decode
-
-C<decode()> and C<decode_num()> works just as Oracles C<decode()>.
-
-C<decode()> and C<decode_num()> accordingly uses perl operators C<eq> and C<==> for comparison.
-
-Examples:
-
- my $a=123;
- print decode($a, 123,3,  214,4, $a);     # prints 3
- print decode($a, 123=>3, 214=>4, $a);    # prints 3, same thing since => is synonymous to comma in Perl
-
-The first argument is tested against the second, fourth, sixth and so on,
-and then the third, fifth, seventh and so on is
-returned if decode() finds an equal string or number.
-
-In the above example: 123 maps to 3, 124 maps to 4 and the last argument $a is returned elsewise.
-
-More examples:
-
- my $a=123;
- print decode($a, 123=>3, 214=>7, $a);              # also 3,  note that => is synonym for , (comma) in perl
- print decode($a, 122=>3, 214=>7, $a);              # prints 123
- print decode($a,  123.0 =>3, 214=>7);              # prints 3
- print decode($a, '123.0'=>3, 214=>7);              # prints nothing (undef), no last argument default value here
- print decode_num($a, 121=>3, 221=>7, '123.0','b'); # prints b
-
-Sort of:
-
- decode($string, %conversion, $default);
-
-The last argument is returned as a default if none of the keys in the keys/value-pairs matched.
-
-A more perl-ish and often faster way of doing the same:
-
- {123=>3, 214=>7}->{$a} || $a                       # (beware of 0)
-
-=cut
-
-sub decode {
-  croak "Must have a mimimum of two arguments" if @_<2;
-  my $uttrykk=shift;
-  if(defined$uttrykk){ shift eq $uttrykk and return shift or shift for 1..@_/2 }
-  else               { !defined shift    and return shift or shift for 1..@_/2 }
-  return shift;
-}
-
-sub decode_num {
-  croak "Must have a mimimum of two arguments" if @_<2;
-  my $uttrykk=shift;
-  if(defined$uttrykk){ shift == $uttrykk and return shift or shift for 1..@_/2 }
-  else               { !defined shift    and return shift or shift for 1..@_/2 }
-  return shift;
-}
-
-=head2 between
-
-Input: Three arguments.
-
-Returns: Something I<true> if the first argument is numerically between the two next.
-
-=cut
-
-sub between {
-  my($test,$fom,$tom)=@_;
-  no warnings;
-  return $fom<$tom ? $test>=$fom&&$test<=$tom
-                   : $test>=$tom&&$test<=$fom;
-}
-
-=head2 bound
-
-Input: Three arguments: value, minumum, maximum. If the value is a
-reference to a scalar variable, the variables value is replaced by the
-bound.
-
-Output: Returns the value if its between the given minumum and
-maximum. Returns minimum if the value is less or maximum if the value
-is more.
-
- my $v = 234;
- print bound( $v, 200, 250 );    #prints 234
- print bound( $v, 150, 200 );    #prints 200
- print bound( $v, 250, 300 );    #prints 250
- print bound(\$v, 250, 300 );    #prints 250 and changes $v
- print $v;                       #prints 250
-
-=cut
-
-sub bound {
-  my($val,$min,$max)=@_;
-  croak "bound: wrong args" if @_!=3 or !defined$min or !defined$max or !defined$val or $min>$max;
-  return $$val=bound($$val,$min,$max) if ref($val) eq 'SCALAR';
-  $val < $min ? $min :
-  $val > $max ? $max :
-                $val;
+  $Pwgen_sec=time_fp()-$t;
+  return $pw[0] if $num==1;
+  return @pw;
 }
 
 # =head1 veci
@@ -2927,11 +2970,7 @@ Example, prints 1,2,3,4:
 
 =cut
 
-sub union {
-  my %seen;
-  return grep{!$seen{$_}++}(@{shift()},@{shift()});
-}
-
+sub union { my %seen; grep !$seen{$_}++, map @{shift()},@_ }
 =head2 minus
 
 Input: Two arrayrefs.
@@ -2949,7 +2988,7 @@ Output is C<< five 1 2 >>.
 sub minus {
   my %seen;
   my %notme=map{($_=>1)}@{$_[1]};
-  return grep{!$notme{$_}&&!$seen{$_}++}@{$_[0]};
+  grep !$notme{$_}&&!$seen{$_}++, @{$_[0]};
 }
 
 =head2 intersect
@@ -3009,10 +3048,7 @@ Example:
 
 =cut
 
-sub uniq(@) {
-  my %seen;
-  return grep{!$seen{$_}++}@_;
-}
+sub uniq(@) { my %seen; grep !$seen{$_}++, @_ }
 
 =head1 HASHES
 
@@ -3069,15 +3105,15 @@ Gives:
 #Hashtrans brukes automatisk når første argument er -1 i sub hashtabell()
 
 sub hashtrans {
-    my $h=shift;
-    my %new;
-    for my $k (keys%$h){
-	my $r=$$h{$k};
-	for(keys%$r){
-	    $new{$_}{$k}=$$r{$_};
-	}
+  my $h=shift;
+  my %new;
+  for my $k (keys%$h){
+    my $r=$$h{$k};
+    for(keys%$r){
+      $new{$_}{$k}=$$r{$_};
     }
-    return %new;
+  }
+  return %new;
 }
 
 =head1 COMPRESSION
@@ -3741,6 +3777,35 @@ sub readdirectory {
   return @filer;
 }
 
+=head2 basename
+
+The basename and dirname functions behaves like the *nix shell commands with the same names.
+
+B<Input:> One or two arguments: Filename and an optional suffix
+
+B<Output:> Returns the filename with any directory and (if given) the suffix removed.
+
+ basename('/usr/bin/perl')                   # returns 'perl'
+ basename('/usr/local/bin/report.pl','.pl')  # returns 'report' since .pl at the end is removed
+ basename('report2.pl','.pl')                # returns 'report2'
+ basename('report2.pl','.\w+')               # returns 'report2.pl', probably not what you meant
+ basename('report2.pl',qr/.\w+/)             # returns 'report2', use qr for regex
+
+=head2 dirname
+
+B<Input:> A filename including path
+
+B<Output:> Removes the filename path and returns just the directory path up until but not including
+the last /. Return just a one char C<< . >> (period string) if there is no directory in the input.
+
+ dirname('/usr/bin/perl')                    # returns '/usr/bin'
+ dirname('perl')                             # returns '.'
+
+=cut
+
+sub basename {my($f,$s)=(@_,'');$s=quotemeta($s)if!ref($s);$f=~m,^(.*/)?([^/]*?)($s)?$,;$2}
+sub dirname  {shift=~m,^(.*)/,;length($1)?$1:'.'}
+
 =head2 chall
 
 Does chmod + utime + chown on one or more files.
@@ -3899,6 +3964,28 @@ sub read_conf {
 }
 #  my $incfn=sub{return $1 if $_[0]=~m,^(/.+),;my$f=$fn;$f=~s,[^/]+$,$_[0],;$f};
 #    s,<INCLUDE ([^>]+)>,"".readfile(&$incfn($1)),eg; #todo
+
+
+=head2 openstr
+                                            # returned from openstr:
+  open my $FH, openstr("fil.txt")  or die;  # fil.txt
+  open my $FH, openstr("fil.gz")   or die;  # zcat fil.gz |
+  open my $FH, openstr("fil.bz2")  or die;  # bzcat fil.bz2 |
+  open my $FH, openstr(">fil.txt") or die;  # >fil.txt
+  open my $FH, openstr(">fil.gz")  or die;  # | gzip >fil.gz
+  open my $FH, openstr(">fil.bz2") or die;  # | bzip2 >fil.bz2
+
+=cut
+
+our @Openstrpath=(grep$_,split(":",$ENV{PATH}),qw(/usr/bin /bin /usr/local/bin));
+sub openstr {
+  my($fn,$ext)=(shift=~/^(.*?(?:\.(t?gz|bz2))?)$/i);
+  return $fn if !$ext;
+  my $prog=sub{@Openstrpath or return $_[0];(grep-x$_,map"$_/$_[0]",@Openstrpath)[0] or die};
+  $fn =~ /^\s*>/
+      ? "| ".&$prog({qw/tgz gzip gz gzip bz2 bzip2/}->{lc($ext)}).$fn
+      :      &$prog({qw/tgz zcat gz zcat bz2 bzcat/}->{lc($ext)})." $fn |";
+}
 
 =head1 TIME FUNCTIONS
 
@@ -4305,15 +4392,16 @@ sub sleep_until {
 
 B<Input:> A year. A four digit number.
 
-B<Output:> True (1) or false (0) of weather the year is a leap year or
-not. (Uses current calendar even for period before it was used).
+B<Output:> True (1) or false (0) of whether the year is a leap year or
+not. (Uses current calendar even for periods before leapyears was used).
 
  print join(", ",grep leapyear($_), 1900..2014)."\n";
 
-Prints: (note, 1900 is not a leap year, but 2000 is)
-
  1904, 1908, 1912, 1916, 1920, 1924, 1928, 1932, 1936, 1940, 1944, 1948, 1952, 1956,
  1960, 1964, 1968, 1972, 1976, 1980, 1984, 1988, 1992, 1996, 2000, 2004, 2008, 2012
+
+Note: 1900 is not a leap year, but 2000 is. Years divided by 100 is a leap year only
+if it can be divided by 400.
 
 =cut
 
@@ -4336,6 +4424,88 @@ sub ldist {
 }
 
 =head1 OTHER
+
+=head2 nvl
+
+The I<no value> function (or I<null value> function)
+
+C<nvl()> takes two or more arguments. (Oracles nvl-function take just two)
+
+Returns the value of the first input argument with length() > 0.
+
+Return I<undef> if there is no such input argument.
+
+In perl 5.10 and perl 6 this will most often be easier with the C< //
+> operator, although C<nvl()> and C<< // >> treats empty strings C<"">
+differently. Sub nvl here considers empty strings and undef the same.
+
+=cut
+
+sub nvl {
+  return $_[0] if defined $_[0] and length($_[0]) or @_==1;
+  return $_[1] if @_==2;
+  return nvl(@_[1..$#_]) if @_>2;
+  return undef;
+}
+
+=head2 decode_num
+
+See L</decode>.
+
+=head2 decode
+
+C<decode()> and C<decode_num()> works just as Oracles C<decode()>.
+
+C<decode()> and C<decode_num()> accordingly uses perl operators C<eq> and C<==> for comparison.
+
+Examples:
+
+ my $a=123;
+ print decode($a, 123,3,  214,4, $a);     # prints 3
+ print decode($a, 123=>3, 214=>4, $a);    # prints 3, same thing since => is synonymous to comma in Perl
+
+The first argument is tested against the second, fourth, sixth and so on,
+and then the third, fifth, seventh and so on is
+returned if decode() finds an equal string or number.
+
+In the above example: 123 maps to 3, 124 maps to 4 and the last argument $a is returned elsewise.
+
+More examples:
+
+ my $a=123;
+ print decode($a, 123=>3, 214=>7, $a);              # also 3,  note that => is synonym for , (comma) in perl
+ print decode($a, 122=>3, 214=>7, $a);              # prints 123
+ print decode($a,  123.0 =>3, 214=>7);              # prints 3
+ print decode($a, '123.0'=>3, 214=>7);              # prints nothing (undef), no last argument default value here
+ print decode_num($a, 121=>3, 221=>7, '123.0','b'); # prints b
+
+Sort of:
+
+ decode($string, %conversion, $default);
+
+The last argument is returned as a default if none of the keys in the keys/value-pairs matched.
+
+A more perl-ish and often faster way of doing the same:
+
+ {123=>3, 214=>7}->{$a} || $a                       # (beware of 0)
+
+=cut
+
+sub decode {
+  croak "Must have a mimimum of two arguments" if @_<2;
+  my $uttrykk=shift;
+  if(defined$uttrykk){ shift eq $uttrykk and return shift or shift for 1..@_/2 }
+  else               { !defined shift    and return shift or shift for 1..@_/2 }
+  return shift;
+}
+
+sub decode_num {
+  croak "Must have a mimimum of two arguments" if @_<2;
+  my $uttrykk=shift;
+  if(defined$uttrykk){ shift == $uttrykk and return shift or shift for 1..@_/2 }
+  else               { !defined shift    and return shift or shift for 1..@_/2 }
+  return shift;
+}
 
 =head2 qrlist
 
@@ -5510,51 +5680,70 @@ sub recursed {(caller(1))[3] eq (caller(2))[3]?1:0}
 
 =head2 ed
 
-String editor...to be continued...
+String editor commands
 
- literals:             a-z 0-9 space
- move cursor:          FBAEPN MF MB ME
- delete:               D Md
- backspace:            -
- search:               S
- return/enter:         R
- meta/esc/alt:         M
- shift:                T
- caps lock:            C
- yank:                 Y
- start and end:        < >
- macro start/end/play: { } !
+ literals:               a-z 0-9 space
+ move cursor:            FBAEPN MF MB ME
+ delete:                 D Md
+ up/low/camelcase word   U L C
+ backspace:              -
+ search:                 S
+ return/enter:           R
+ meta/esc/alt:           M
+ shift:                  T
+ cut to eol:             K
+ caps lock:              C
+ yank:                   Y
+ start and end:          < >
+ macro start/end/play:   { } !
+ times for next cmd:     M<number>  (i.e. M24a inserts 24 a's)
+
+(TODO: alfa...and more docs needed)
 
 =cut
 
 our $Edcursor;
 sub ed {
   my($s,$cs,$p,$buf)=@_; #string, commands, point (or cursor)
-  my($sh,$cl,$m,@m)=(0,0,0);
+  return $$s=ed($$s,$cs,$p,$buf) if ref($s);
+  my($sh,$cl,$m,$t,@m)=(0,0,0,undef);
   while(length($cs)){
     my $n = 0;
-    my $c = $cs=~s,^(M.|.),, ? $1 : die;
-    $p = bound($p||0,0,length($s));
-    if   ($c =~ /([a-z0-9 ])/){ substr($s,$p++,0)=$sh^$cl?uc($1):$1; $sh=0 }
+    my $c = $cs=~s,^(M\d+|M.|""|".+?"|S.+?R|\\.|.),,s ? $1 : die;
+    $p = curb($p||0,0,length($s));
+    if(defined$t){$cs="".($c x $t).$cs;$t=undef;next}
+    my $add=sub{substr($s,$p,0)=$_[0];$p+=length($_[0])};
+    if   ($c =~ /^([a-z0-9 ])/){ &$add($sh^$cl?uc($1):$1); $sh=0 }
+    elsif($c =~ /^"(.+)"$/)    { &$add($1) }
+    elsif($c =~ /^\\(.)/)      { &$add($1) }
+    elsif($c =~ /^S(.+)R/)     { my $i=index($s,$1,$p);$p=$i+length($1) if $i>=0 }
+    elsif($c =~ /^M(\d+)/)     { $t=$1; next }
     elsif($c eq 'F') { $p++ }
     elsif($c eq 'B') { $p-- }
     elsif($c eq 'A') { $p-- while $p>0 and substr($s,$p-1,2)!~/^\n/ }
-    elsif($c eq 'E') { $p++ while $p<length($s) and substr($s,$p,2)!~/^\n/ }
+    elsif($c eq 'E') { substr($s,$p)=~/(.*)/ and $p+=length($1) }
     elsif($c eq 'D') { substr($s,$p,1)='' }
     elsif($c eq 'MD'){ substr($s,$p)=~s/^(\W*\w+)// and $buf=$1 }
-    elsif($c eq 'MF'){ $p++ while $p<length($s) and substr($s,$p,1)=~/\W/;
-                       $p++ while $p<length($s) and substr($s,$p,1)=~/\w/ }
-    elsif($c eq 'Y') { substr($s,$p,0)=$buf; $p+=length($buf) }
+    elsif($c eq 'MF'){ substr($s,$p)=~/(\W*\w+)/ and $p+=length($1) }
+    elsif($c eq 'MB'){ substr($s,0,$p)=~/(\w+\W*)$/ and $p-=length($1) }
+    elsif($c eq '-') { substr($s,--$p,1)='' if $p }
+    elsif($c eq 'M-'){ substr($s,0,$p)=~s/(\w+\W*)$// and $p-=length($buf=$1)}
+    elsif($c eq 'K') { substr($s,$p)=~s/(\S.+|\s*?\n)// and $buf=$1 }
+    elsif($c eq 'Y') { &$add($buf) }
+    elsif($c eq 'U') { substr($s,$p)=~s/(\W*)(\w+)/$1\U$2\E/; $p+=length($1.$2) }
+    elsif($c eq 'L') { substr($s,$p)=~s/(\W*)(\w+)/$1\L$2\E/; $p+=length($1.$2) }
+    elsif($c eq 'C') { substr($s,$p)=~s/(\W*)(\w+)/$1\u\L$2\E/; $p+=length($1.$2) }
     elsif($c eq '<') { $p=0 }
     elsif($c eq '>') { $p=length($s) }
     elsif($c eq 'T') { $sh=1 }
     elsif($c eq 'C') { $cl^=1 }
-    elsif($c eq '-') { substr($s,--$p,1)='' if $p }
     elsif($c eq '{') { $m=1; @m=() }
     elsif($c eq '}') { $m=0 }
-    elsif($c eq '!') { $m&&die; $cs=join("",@m).$cs }
+    elsif($c eq '!') { $m||!@m and die"ed: no macro"; $cs=join("",@m).$cs }
+    elsif($c eq '""'){ &$add('"') }
     else             { croak "ed: Unknown cmd '$c'\n" }
-    push @m, $c if $m;
+    push @m, $c if $m and $c ne '{';
+    #warn serialize([$c,$m,$cs],'d');
   }
   $Edcursor=$p;
   $s;
@@ -6252,25 +6441,22 @@ sub ftype {
   or undef;
 }
 
-sub install_little_acme_tools {
-  my $dir=shift()||'/usr/bin';
-  die "Can not install in $dir, not a directory\n" if !-d$dir;
-  die "Can not install in $dir, not a writeable directory. Try chmod.\n" if -d$dir and !-w$dir;
-  my @prog=map "$dir/$_", qw/tconv tdue/;
-  -l $_ and unlink for @prog; #force
-  for(@prog) {
-    my $status = rpad($_,max(map length,@prog))." -> ".$INC{'Acme/Tools.pm'};
-    $status.="   ".ftype($_)." exists" if -e $_;
-    my $r=eval{symlink($INC{'Acme/Tools.pm'},$_)};
-    print $@    ? "ERROR on:          $status ($@)\n"
-        : $r==1 ? "Installed symlink: $status\n"
-        : $r==0 ? "Not installed:     $status\n":"";
+sub install_acme_command_tools {
+  my $dir=(grep -d$_, @_, '/usr/local/bin', '/usr/bin')[0];
+  for(qw( tconv tdue xcat freq deldup )){
+    unlink("$dir/$_");
+    writefile("$dir/$_", "#!$^X\nuse Acme::Tools;\nAcme::Tools::cmd_$_(\@ARGV);\n");
+    sys("/bin/chmod +x $dir/$_");
+    print "Wrote executable $dir/$_\n";
   }
 }
+<<<<<<< HEAD
 #todo: cmd_tabdiff (fra sonyk)
 #todo: cmd_catlog (ala catal med /etc/catlog.conf, default er access_log)
 cmd_tconv() if $0 =~ /\b tconv $/x;
 cmd_tdue()  if $0 =~ /\b tdue $/x;
+=======
+>>>>>>> 2d0bbd013488f004fef77fd8b4f2ab492748f876
 sub cmd_tconv { print conv(@ARGV)."\n"  }
 sub cmd_tdue {
   require Getopt::Std; my %o; Getopt::Std::getopts("zkmhcei" => \%o);
@@ -6300,7 +6486,114 @@ sub cmd_tdue {
     printf("%-10s %8d $f %7.2f%%\n",$_,$c{$_},&$s($b{$_}),100*$b{$_}/$bts) for @e;
     printf("%-10s %8d $f\n","Sum",$cnt,&$s($bts));
 }
+sub cmd_xcat {
+  for my $fn (@_){
+    my $os=openstr($fn);
+    open my $FH, $os or warn"xcat: cannot open $os ($!)\n" and next;
+    print while <$FH>;
+    close($FH);
+  }
+}
+sub cmd_freq {
+  my(@f,$i);
+  map $f[$_]++, unpack("C*",$_) while <>;
+  my $s=" " x 12;map{print"$_$s$_$s$_\n"}("BYTE  CHAR   COUNT","---- ----- -------");
+  my %m=(145,"DOS-æ",155,"DOS-ø",134,"DOS-å",146,"DOS-Æ",157,"DOS-Ø",143,"DOS-Å",map{($_," ")}0..31);
+  printf("%4d %5s%8d".(++$i%3?$s:"\n"),$_,$m{$_}||chr,$f[$_]) for grep$f[$_],0..255;print "\n";
+  my @no=grep!$f[$_],0..255; print "No bytes for ".@no.": ".join(" ",@no)."\n";
+}
 
+sub cmd_deldup {
+  # ~/test/deldup.pl #find duplicate files effiencently
+  #http://www.commandlinefu.com/commands/view/3555/find-duplicate-files-based-on-size-first-then-md5-hash
+  die "todo: not yet"
+}
+
+=head1 DATABASE STUFF
+
+Uses L<DBI>.
+
+=cut
+
+#my$dummy=<<'SOON';
+sub dtype {
+  my $connstr=shift;
+  return 'SQLite' if $connstr=~/(\.sqlite|sqlite:.*\.db)$/i;
+  return 'Oracle' if $connstr=~/\@/;
+  return 'Pg' if 1==2;
+  die;
+}
+
+our($Dbh,@Dbh,%Sth);
+our %Dbattr=(RaiseError => 1, AutoCommit => 0); #defaults
+sub dlogin {
+  my $connstr=shift();
+  my %attr=(%Dbattr,@_);
+  my $type=dtype($connstr);
+  my($dsn,$u,$p)=('','','');
+  if($type eq 'SQLite'){
+    $dsn=$connstr;
+  }
+  elsif($type eq 'Oracle'){
+    ($u,$p,$dsn)=($connstr=~m,(.+?)(/.+?)?\@(.+),);
+  }
+  elsif($type eq 'Pg'){
+    croak "todo";
+  }
+  else{
+    croak "dblogin: unknown database type for connection string $connstr\n";
+  }
+  $dsn="dbi:$type:$dsn";
+  push @Dbh, $Dbh if $Dbh; #local is better?
+  require DBI;
+  $Dbh=DBI->connect($dsn,$u,$p,\%attr); #connect_cached?
+}
+sub dlogout {
+  $Dbh->disconnect;
+  $Dbh=pop@Dbh if @Dbh;
+}
+sub drow {
+  my($q,@b)=_dattrarg(@_);
+  #my $sth=do{$Sth{$Dbh,$q} ||= $Dbh->prepare_cached($q)};
+  my $sth=$Dbh->prepare_cached($q);
+  $sth->execute(@b);
+  my @r=$sth->fetchrow_array;
+  $sth->finish if $$Dbh{Driver}{Name} eq 'SQLite';
+  #$dbh->selectrow_array($statement);
+  return @r==1?$r[0]:@r;
+}
+sub drows {
+}
+sub drowc {
+}
+sub drowsc {
+}
+sub dcols {
+}
+sub dpk {
+}
+sub dsel {
+}
+sub ddo {
+  my @arg=_dattrarg(@_);
+  #warn serialize(\@arg,'arg','',1);
+  $Dbh->do(@arg); #hm cache?
+}
+sub dins {
+}
+sub dupd {
+}
+sub ddel {
+}
+sub dcommit { $Dbh->commit }
+sub drollback { $Dbh->rollback }
+
+sub _dattrarg {
+  my @arg=@_;
+  splice @arg,1,0, ref($arg[-1]) eq 'HASH' ? pop(@arg) : {};
+  @arg;
+}
+#SOON
 1;
 
 package Acme::Tools::BloomFilter;
@@ -6333,6 +6626,7 @@ sub sum      { &Acme::Tools::bfsum      }
 # + perlbrew exec "perl ~/Acme-Tools/Makefile.PL ; time make test"
 # + perlbrew use perl-5.10.1; perl Makefile.PL; make test; perlbrew off
 # + test evt i cygwin og mingw-perl
+# + pod2html Tools.pm > Tools.html ; firefox Tools.html 
 # + https://metacpan.org/pod/Acme::Tools
 # + make dist
 # + cp -p *tar.gz /htdocs/
@@ -6343,7 +6637,6 @@ sub sum      { &Acme::Tools::bfsum      }
 # + http://pause.perl.org/
 # http://en.wikipedia.org/wiki/Birthday_problem#Approximations
 
-# ~/test/deldup.pl #find duplicate files effiencently
 # memoize_expire()           http://perldoc.perl.org/Memoize/Expire.html
 # memoize_file_expire()
 # memoize_limit_size() #lru
@@ -6382,7 +6675,7 @@ sub sum      { &Acme::Tools::bfsum      }
 
 Release history
 
- 0.16  Feb 2015   bigr, bound, cpad, isnum, parta, parth, read_conf, resolve_equation,
+ 0.16  Feb 2015   bigr, curb, cpad, isnum, parta, parth, read_conf, resolve_equation,
                   roman2int, trim. Improved: conv (numbers, currency), range ("derivatives")
  0.15  Nov 2014   Improved doc
  0.14  Nov 2014   New subs, improved tests and doc
