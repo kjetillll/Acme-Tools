@@ -1,24 +1,28 @@
 # make test
-# perl Makefile.PL; make; perl -Iblib/lib t/14_brainfuck.t
+# perl Makefile.PL; make; perl -Iblib/lib t/14_brainfu.t
 
 BEGIN{require 't/common.pl'}
 use Test::More tests => 3;
 
 my @test=(
+
    '>++++++++[<++++++++>-]<++++++++.>++++++[<++++++>-]<---.',
    'Hi',
+
    '++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>-.>---..++++++.++++++>>.<<--.
     ----.+++++++++.>><<-----.>++++++++++.+++.<+++.>>.++++++++++++++++++.--.+.+++.,.,.,.',
    'Geek oktober 2014xyz',
+
    '++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>---.+++++++++++..+++.>++.<<++++++++++++++
     .>----------.+++++++++++++.--------------.+.+++++++++.>+  .>.',
    "Hallo Verden!\n",
+
 );
 
-#print brainfuck2perl('>++++++++[<++++++++>-]<++++++++.>++++++[<++++++>-]<---.'),"\n";
-#print brainfuck2perl($test[0],"asdf"),"\n\n";
+#print brainfu2perl('>++++++++[<++++++++>-]<++++++++.>++++++[<++++++>-]<---.'),"\n";
+#print brainfu2perl($test[0],"asdf"),"\n\n";
 
 while(@test){
   my($bf,$answer)=splice(@test,0,2);
-  ok( brainfuck($bf,"xyz") eq $answer,  "brainfuck: $answer");
+  ok( brainfu($bf,"xyz") eq $answer,  "brainfu: $answer");
 }

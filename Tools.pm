@@ -9,7 +9,6 @@ use warnings;
 use Carp;
 
 require Exporter;
-
 our @ISA = qw(Exporter);
 our %EXPORT_TAGS = ( all => [ qw() ] );
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{all} } );
@@ -122,12 +121,17 @@ our @EXPORT = qw(
   easter
   time_fp
   sleep_fp
+  sleeps
+  sleepms
+  sleepus
+  sleepns
   eta
   sys
   recursed
   md5sum
   pwgen
   read_conf
+  openstr
   ldist
   isnum
   part
@@ -135,9 +139,9 @@ our @EXPORT = qw(
   parta
   ed
   $Edcursor
-  brainfuck
-  brainfuck2perl
-  brainfuck2perl_optimized
+  brainfu
+  brainfu2perl
+  brainfu2perl_optimized
   bfinit
   bfsum
   bfaddbf
@@ -592,7 +596,7 @@ Note2: Many units have synonyms: m, meter, meters ...
                pennyweight, pound, pound_av, pound_metric, pound_troy, pounds,
                pwt, seer, sl, slug, solar_mass, st, stone, t, tonn, tonne, tonnes, u, wey
  
- milage:       mpg, l/100km, l/km, l/10km, lp10km, l/mil, liter_pr_100km, liter_pr_km, lp100km
+ mileage:      mpg, l/100km, l/km, l/10km, lp10km, l/mil, liter_pr_100km, liter_pr_km, lp100km
 
  money:        AED, ARS, AUD, BGN, BHD, BND, BRL, BWP, CAD, CHF, CLP, CNY,
                COP, CZK, DKK, EUR, GBP, HKD, HRK, HUF, IDR, ILS, INR, IRR,
@@ -3967,24 +3971,33 @@ sub read_conf {
 
 
 =head2 openstr
+
                                             # returned from openstr:
   open my $FH, openstr("fil.txt")  or die;  # fil.txt
   open my $FH, openstr("fil.gz")   or die;  # zcat fil.gz |
   open my $FH, openstr("fil.bz2")  or die;  # bzcat fil.bz2 |
-  open my $FH, openstr(">fil.txt") or die;  # >fil.txt
-  open my $FH, openstr(">fil.gz")  or die;  # | gzip >fil.gz
-  open my $FH, openstr(">fil.bz2") or die;  # | bzip2 >fil.bz2
+  open my $FH, openstr("fil.xz")   or die;  # xzcat fil.xz |
+  open my $FH, openstr(">fil.txt") or die;  # > fil.txt
+  open my $FH, openstr(">fil.gz")  or die;  # | gzip > fil.gz
+  open my $FH, openstr(">fil.bz2") or die;  # | bzip2 > fil.bz2
+  open my $FH, openstr(">fil.xz")  or die;  # | xz    > fil.bz2
+
+Environment variable PATH is used. So in the examples above, /bin/gzip
+is returned instead of gzip if /bin is the first directory in
+$ENV{PATH} containing an executable file gzip. Dirs /usr/bin, /bin and
+/usr/local/bin is added to PATH in openstr(). They are checked even if
+PATH is empty.
 
 =cut
 
 our @Openstrpath=(grep$_,split(":",$ENV{PATH}),qw(/usr/bin /bin /usr/local/bin));
 sub openstr {
-  my($fn,$ext)=(shift=~/^(.*?(?:\.(t?gz|bz2))?)$/i);
+  my($fn,$ext)=(shift()=~/^(.*?(?:\.(t?gz|bz2|xz))?)$/i);
   return $fn if !$ext;
-  my $prog=sub{@Openstrpath or return $_[0];(grep-x$_,map"$_/$_[0]",@Openstrpath)[0] or die};
+  my $prog=sub{@Openstrpath or return $_[0];(grep -x$_, map "$_/$_[0]", @Openstrpath)[0] or die};
   $fn =~ /^\s*>/
-      ? "| ".&$prog({qw/tgz gzip gz gzip bz2 bzip2/}->{lc($ext)}).$fn
-      :      &$prog({qw/tgz zcat gz zcat bz2 bzcat/}->{lc($ext)})." $fn |";
+      ?  "| ".(&$prog({qw/tgz gzip gz gzip bz2 bzip2 xz xz/   }->{lc($ext)})).$fn
+      :        &$prog({qw/tgz zcat gz zcat bz2 bzcat xz xzcat/}->{lc($ext)})." $fn |";
 }
 
 =head1 TIME FUNCTIONS
@@ -4287,9 +4300,9 @@ sub time_fp {  # {return 0+gettimeofday} is just as well?
 
 =head2 sleep_fp
 
-sleep_fp() work as the built in C<< sleep() >>, but accepts fractional seconds:
+sleep_fp() work as the built in C<< sleep() >> but also accepts fractional seconds:
 
- sleep_fp(0.02);  # sleeps for 20 milliseconds
+ sleep_fp(0.020);  # sleeps for 20 milliseconds
 
 Sub sleep_fp do a C<require Time::HiRes>, thus it might take some
 extra time the first call. To avoid that, add C<< use Time::HiRes >>
@@ -4298,9 +4311,27 @@ a tenth of a second. Virtual machines tend to be less accurate (sleep
 longer) than physical ones. This was tested on VMware and RHEL
 (Linux). See also L<Time::HiRes>.
 
+=head2 sleeps
+
+=head2 sleepms
+
+=head2 sleepus
+
+=head2 sleepns
+
+ sleep_fp(0.020);   #sleeps for 20 milliseconds
+ sleeps(0.020);     #sleeps for 20 milliseconds, sleeps() is a synonym to sleep_fp()
+ sleepms(20);       #sleeps for 20 milliseconds
+ sleepus(20000);    #sleeps for 20000 microseconds = 20 milliseconds
+ sleepns(20000000); #sleeps for 20 million nanoseconds = 20 milliseconds
+
 =cut
 
 sub sleep_fp { eval{require Time::HiRes} or (sleep(shift()),return);Time::HiRes::sleep(shift()) }
+sub sleeps   { eval{require Time::HiRes} or (sleep(shift()),return);Time::HiRes::sleep(shift()) }
+sub sleepms  { eval{require Time::HiRes} or (sleep(shift()/1e3),return);Time::HiRes::sleep(shift()/1e3) }
+sub sleepus  { eval{require Time::HiRes} or (sleep(shift()/1e6),return);Time::HiRes::sleep(shift()/1e6) }
+sub sleepns  { eval{require Time::HiRes} or (sleep(shift()/1e9),return);Time::HiRes::sleep(shift()/1e9) }
 
 =head2 eta
 
@@ -5754,16 +5785,18 @@ sub ed {
 #todo: ..se også: use Data::Structure::Util qw/unbless/;
 #todo: ...og: Acme::Damn sin damn()
 #todo? sub swap($$) http://www.idg.no/computerworld/article242008.ece
+#todo? catal
+#todo? 
 #void quicksort(int t, int u) int i, m; if (t >= u) return; swap(t, randint(t, u)); m = t; for (i = t + 1; i <= u; i++) if (x[i] < x[t]) swap(++m, i); swap(t, m) quicksort(t, m-1); quicksort(m+1, u);
 
 
 =head1 JUST FOR FUN
 
-=head2 brainfuck
+=head2 brainfu
 
 B<Input:> one or two arguments
 
-First argument: a string, source code of the brainfuck
+First argument: a string, source code of the brainfu
 language. String containing the eight charachters + - < > [ ] . ,
 Every other char is ignored silently.
 
@@ -5774,20 +5807,20 @@ B<Output:> The resulting output from the program.
 
 Example:
 
- print brainfuck(<<"");  #prints "Hallo Verden!\n"
+ print brainfu(<<"");  #prints "Hallo Verden!\n"
  ++++++++++[>+++++++>++++++++++>+++>+<<<<-]>++.>---.+++++++++++..+++.>++.<<++++++++++++++
  .>----------.+++++++++++++.--------------.+.+++++++++.>+.>.
 
 See L<http://en.wikipedia.org/wiki/Brainfuck>
 
-=head2 brainfuck2perl
+=head2 brainfu2perl
 
-Just as L</brainfuck> but instead it return the perl code to which the
-brainfuck code is translated. Just C<< eval() >> this perl code to run.
+Just as L</brainfu> but instead it return the perl code to which the
+brainfu code is translated. Just C<< eval() >> this perl code to run.
 
 Example:
 
- print brainfuck2perl('>++++++++[<++++++++>-]<++++++++.>++++++[<++++++>-]<---.');
+ print brainfu2perl('>++++++++[<++++++++>-]<++++++++.>++++++[<++++++>-]<---.');
 
 Prints this string:
 
@@ -5799,10 +5832,10 @@ Prints this string:
  while($b[$c]){--$c;++$b[$c];++$b[$c];++$b[$c];++$b[$c];++$b[$c];++$b[$c];++$c;--$b[$c];}
  --$c;--$b[$c];--$b[$c];--$b[$c];out;$o;
 
-=head2 brainfuck2perl_optimized
+=head2 brainfu2perl_optimized
 
-Just as L</brainfuck2perl> but optimizes the perl code. The same
-example as above with brainfuck2perl_optimized returns this equivalent
+Just as L</brainfu2perl> but optimizes the perl code. The same
+example as above with brainfu2perl_optimized returns this equivalent
 but shorter perl code:
 
  $b[++$c]+=8;while($b[$c]){$b[--$c]+=8;--$b[++$c]}$b[--$c]+=8;out;$b[++$c]+=6;
@@ -5810,9 +5843,9 @@ but shorter perl code:
 
 =cut
 
-sub brainfuck { eval(brainfuck2perl(@_)) }
+sub brainfu { eval(brainfu2perl(@_)) }
 
-sub brainfuck2perl {
+sub brainfu2perl {
   my($bf,$inp)=@_;
   my $perl='my($c,$inp,$o,@b)=(0,\''.$inp.'\'); no warnings; sub out{$o.=chr($b[$c]) for 1..$_[0]||1}'."\n";
   $perl.='sub inp{$inp=~s/(.)//s and $b[$c]=ord($1)}'."\n" if $inp and $bf=~/,/;
@@ -5820,8 +5853,8 @@ sub brainfuck2perl {
   $perl;
 }
 
-sub brainfuck2perl_optimized {
-  my $perl=brainfuck2perl(@_);
+sub brainfu2perl_optimized {
+  my $perl=brainfu2perl(@_);
   $perl=~s{(((\+|\-)\3\$b\[\$c\];){2,})}{ '$b[$c]'.$3.'='.(grep/b/,split//,$1).';' }gisex;
   1 while $perl=~s/\+\+\$c;\-\-\$c;//g + $perl=~s/\-\-\$c;\+\+\$c;//g;
   $perl=~s{((([\-\+])\3\$c;){2,})}{"\$c$3=".(grep/c/,split//,$1).';'}gisex;
@@ -6443,13 +6476,14 @@ sub ftype {
 
 sub install_acme_command_tools {
   my $dir=(grep -d$_, @_, '/usr/local/bin', '/usr/bin')[0];
-  for(qw( tconv tdue xcat freq deldup )){
+  for(qw( conv due xcat freq deldup )){
     unlink("$dir/$_");
     writefile("$dir/$_", "#!$^X\nuse Acme::Tools;\nAcme::Tools::cmd_$_(\@ARGV);\n");
     sys("/bin/chmod +x $dir/$_");
     print "Wrote executable $dir/$_\n";
   }
 }
+<<<<<<< HEAD
 <<<<<<< HEAD
 #todo: cmd_tabdiff (fra sonyk)
 #todo: cmd_catlog (ala catal med /etc/catlog.conf, default er access_log)
@@ -6459,6 +6493,10 @@ cmd_tdue()  if $0 =~ /\b tdue $/x;
 >>>>>>> 2d0bbd013488f004fef77fd8b4f2ab492748f876
 sub cmd_tconv { print conv(@ARGV)."\n"  }
 sub cmd_tdue {
+=======
+sub cmd_conv { print conv(@ARGV)."\n"  }
+sub cmd_due {
+>>>>>>> 3e59031d19c8c51d5181464a9d4c2a3989016da1
   require Getopt::Std; my %o; Getopt::Std::getopts("zkmhcei" => \%o);
   require File::Find;
   no warnings 'uninitialized';
@@ -6489,7 +6527,7 @@ sub cmd_tdue {
 sub cmd_xcat {
   for my $fn (@_){
     my $os=openstr($fn);
-    open my $FH, $os or warn"xcat: cannot open $os ($!)\n" and next;
+    open my $FH, $os or warn "xcat: cannot open $os ($!)\n" and next;
     print while <$FH>;
     close($FH);
   }
@@ -6500,7 +6538,7 @@ sub cmd_freq {
   my $s=" " x 12;map{print"$_$s$_$s$_\n"}("BYTE  CHAR   COUNT","---- ----- -------");
   my %m=(145,"DOS-æ",155,"DOS-ø",134,"DOS-å",146,"DOS-Æ",157,"DOS-Ø",143,"DOS-Å",map{($_," ")}0..31);
   printf("%4d %5s%8d".(++$i%3?$s:"\n"),$_,$m{$_}||chr,$f[$_]) for grep$f[$_],0..255;print "\n";
-  my @no=grep!$f[$_],0..255; print "No bytes for ".@no.": ".join(" ",@no)."\n";
+  my @no=grep!$f[$_],0..255; print "No bytes for these ".@no.": ".join(" ",@no)."\n";
 }
 
 sub cmd_deldup {
@@ -6628,6 +6666,7 @@ sub sum      { &Acme::Tools::bfsum      }
 # + test evt i cygwin og mingw-perl
 # + pod2html Tools.pm > Tools.html ; firefox Tools.html 
 # + https://metacpan.org/pod/Acme::Tools
+# + http://cpants.cpanauthors.org/dist/Acme-Tools
 # + make dist
 # + cp -p *tar.gz /htdocs/
 # + ci -l -mversjon -d `cat MANIFEST`
