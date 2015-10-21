@@ -6512,6 +6512,26 @@ sub ftype {
   or undef;
 }
 
+=head2 install_acme_command_tools
+
+ sudo perl -MAcme::Tools -e install_acme_command_tools
+ Wrote executable /usr/local/bin/conv
+ Wrote executable /usr/local/bin/due
+ Wrote executable /usr/local/bin/xcat
+ Wrote executable /usr/local/bin/freq
+ Wrote executable /usr/local/bin/deldup
+
+Examples of commands then made available:
+
+ conv 1 USD EUR              #might show 0.88029 if thats the current currency rate. Uses conv()
+ conv .5 in cm               #reveals that 1/2 inch is 1.27 cm, see doc on L</conv> for all supported units
+ due [-h] /path/1/ /path/2/  #like du, but show statistics on file extentions instead of subdirs
+ xcat file                   #like cat, zcat, bzcat or xzcat in one. Uses file extention to decide on which. Uses openstr()
+ freq file                   #reads file(s) or stdin and view counts of each byte 0-255
+ deldup [-d] path1/ path2/   #reports (and optionally deletes) duplicate files NOT IMPLEMENTED YET!
+
+=cut
+
 sub install_acme_command_tools {
   my $dir=(grep -d$_, @_, '/usr/local/bin', '/usr/bin')[0];
   for(qw( conv due xcat freq deldup )){
@@ -6568,9 +6588,9 @@ sub cmd_freq {
 }
 
 sub cmd_deldup {
-  # ~/test/deldup.pl #find duplicate files effiencently
+  # ~/test/deldup.pl #find and optionally delete duplicate files effiencently
   #http://www.commandlinefu.com/commands/view/3555/find-duplicate-files-based-on-size-first-then-md5-hash
-  die "todo: not yet"
+  die "todo: not ready yet"
 }
 
 
