@@ -3616,6 +3616,7 @@ B<Output:> Nothing (for the time being). C<die()>s (C<croak($!)> really) if some
 
 =cut
 
+#todo: use openstr() as in readfile(), transparently gzip .gz filenames and so on
 sub writefile {
     my($filename,$text)=@_;
     if(ref($filename) eq 'ARRAY'){
@@ -6706,6 +6707,16 @@ sub _dattrarg {
   my @arg=@_;
   splice @arg,1,0, ref($arg[-1]) eq 'HASH' ? pop(@arg) : {};
   @arg;
+}
+
+sub self_update {
+  require LWP::Simple;
+  print __FILE__,"\n";
+  my $url="https://raw.githubusercontent.com/kjetillll/Acme-Tools/master/Tools.pm";
+  my $code=LWP::Simple::get($url);
+  defined$code or croak "ERROR: self_update failed. Could not get from $url\n";
+  eval{writefile(__FILE__,$code)};
+  if($@){ croak "ERROR: $@ Try sudo.\n" }
 }
 #SOON
 1;
