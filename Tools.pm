@@ -6598,9 +6598,9 @@ sub cmd_ccmd {
   makedir($d);
   my $md5=Digest::MD5::md5_hex($cmd);
   my($fno,$fne)=map"$d/cmd.$md5.std$_","out","err";
-  my $age=sub{time()-(stat(shift))[9]};
-  unlink grep &$age($_) >= $Ccmd_cache_expire, <$d/*.std???>;
-  sys("($cmd) > $fno 2> $fne") if !-e$fno;
+  my $too_old=sub{time()-(stat(shift))[9] >= $Ccmd_cache_expire};
+  unlink grep &$too_old($_), <$d/*.std???>;
+  sys("($cmd) > $fno 2> $fne") if !-e$fno or &$too_old($fno);
   print STDOUT "".readfile($fno);
   print STDERR "".readfile($fne);
 }
