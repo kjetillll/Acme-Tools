@@ -3684,35 +3684,18 @@ With two input arguments, nothing (undef) is returned from C<readfile()>.
 
 sub readfile {
   my($filename,$ref)=@_;
-  if(!defined $ref){  #-- one argument
-      if(wantarray){
-	  my @data;
-	  readfile($filename,\@data);
-	  return @data;
-      }
-      else {
-	  my $data;
-	  readfile($filename,\$data);
-	  return $data;
-      }
+  if(@_==1){
+    if(wantarray){ my @data; readfile($filename,\@data); return @data }
+    else         { my $data; readfile($filename,\$data); return $data }
   }
-  else {                 #-- two arguments
-      #my $open=/\.gz$/?"zcat ...":/\.bz2$/?"bzcat ...":...
-      open(READFILE,'<',$filename) or croak($!);
-      if(ref($ref) eq 'SCALAR'){
-	  $$ref=join"",<READFILE>;
-      }
-      elsif(ref($ref) eq 'ARRAY'){
-	  while(my $l=<READFILE>){
-	      chomp($l);
-	      push @$ref, $l;
-	  }
-      }
-      else {
-	  croak;
-      }
-      close(READFILE);
-      return;
+  else {
+    my $o=openstr($filename);
+    open my $fh,openstr($filename) or croak("ERROR: readfile $! $?");
+    if   (ref($ref) eq 'SCALAR'){  $$ref=join"",<$fh> }
+    elsif(ref($ref) eq 'ARRAY') {  while(my $l=<$fh>){ chomp($l); push @$ref, $l } }
+    else { croak "ERROR: Second arg to readfile should be a ref to a scalar og array" }
+    close($fh);
+    return;
   }
 }
 
@@ -6615,10 +6598,13 @@ sub cmd_ccmd {
   makedir($d);
   my $md5=Digest::MD5::md5_hex($cmd);
   my($fno,$fne)=map"$d/cmd.$md5.std$_","out","err";
+  ($fno,$fne)=map"$_.gz",$fno,$fne if !-e$fno and -e"$fno.gz";
   my $age=sub{time()-(stat(shift))[9]};
-  if(!-e$fno or &$age($fno) >= $Ccmd_cache_expire){
-    system("$cmd > $fno 2> $fne");
-    unlink grep &$age($_)>=$Ccmd_cache_expire, <$d/*.std???>;
+  unlink grep &$age($_)>=$Ccmd_cache_expire, <$d/*.std???{,.gz}>;
+  if(!-e$fno){
+    my $t=time_fp();
+    system("$cmd > >(gzip -1 $fno 2> $fne");
+    map system("gzip -1 $_"),$fno,$fne if time_fp()-$t>0.5 or grep -s$_>10e3,$fno,$fne;
   }
   print STDOUT "".readfile($fno);
   print STDERR "".readfile($fne);
