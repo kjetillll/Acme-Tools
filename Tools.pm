@@ -92,6 +92,7 @@ our @EXPORT = qw(
   readdirectory
   basename
   dirname
+  username
   range
   permutations
   trigram
@@ -3806,10 +3807,17 @@ the last /. Return just a one char C<< . >> (period string) if there is no direc
  dirname('/usr/bin/perl')                    # returns '/usr/bin'
  dirname('perl')                             # returns '.'
 
+=head2 username
+
+Returns the current linux/unix username, for example the string root
+
+ print username();                        #just (getpwuid($<))[0] but more readable perhaps
+
 =cut
 
 sub basename {my($f,$s)=(@_,'');$s=quotemeta($s)if!ref($s);$f=~m,^(.*/)?([^/]*?)($s)?$,;$2}
 sub dirname  {shift=~m,^(.*)/,;length($1)?$1:'.'}
+sub username {(getpwuid($<))[0]}
 
 =head2 chall
 
@@ -6527,14 +6535,17 @@ Examples of commands then made available:
  conv .5 in cm               #reveals that 1/2 inch is 1.27 cm, see doc on L</conv> for all supported units
  due [-h] /path/1/ /path/2/  #like du, but show statistics on file extentions instead of subdirs
  xcat file                   #like cat, zcat, bzcat or xzcat in one. Uses file extention to decide on which. Uses openstr()
- freq file                   #reads file(s) or stdin and view counts of each byte 0-255
- deldup [-d] path1/ path2/   #reports (and optionally deletes) duplicate files NOT IMPLEMENTED YET!
+ freq file                     #reads file(s) or stdin and view counts of each byte 0-255
+ deldup [-d] path1/ path2/     #reports (and optionally deletes) duplicate files NOT IMPLEMENTED YET!
+ ccmd grep string /huge/file   #caches stdout+stderr for 15 minutes (default) for much faster results later
+ ccmd "sleep 2;echo hello"     #slow first time. Note the quotes!
+ ccmd "du -s ~/*|sort -n|tail" #ccmd store stdout+stderr in /tmp files (default)
 
 =cut
 
 sub install_acme_command_tools {
   my $dir=(grep -d$_, @_, '/usr/local/bin', '/usr/bin')[0];
-  for(qw( conv due xcat freq deldup )){
+  for(qw( conv due xcat freq deldup ccmd )){
     unlink("$dir/$_");
     writefile("$dir/$_", "#!$^X\nuse Acme::Tools;\nAcme::Tools::cmd_$_(\@ARGV);\n");
     sys("/bin/chmod +x $dir/$_");
@@ -6590,7 +6601,27 @@ sub cmd_freq {
 sub cmd_deldup {
   # ~/test/deldup.pl #find and optionally delete duplicate files effiencently
   #http://www.commandlinefu.com/commands/view/3555/find-duplicate-files-based-on-size-first-then-md5-hash
-  die "todo: not ready yet"
+  die "todo: deldup not ready yet"
+}
+
+#http://stackoverflow.com/questions/11900239/can-i-cache-the-output-of-a-command-on-linux-from-cli
+our $Ccmd_cache_dir='/tmp/acme-tools-ccmd-cache';
+our $Ccmd_cache_expire=15*60;  #default 15 minutes
+sub cmd_ccmd {
+  #die "todo: ccmd not ready yet";
+  require Digest::MD5;
+  my $cmd=join" ",@_;
+  my $d="$Ccmd_cache_dir/".username();
+  makedir($d);
+  my $md5=Digest::MD5::md5_hex($cmd);
+  my($fno,$fne)=map"$d/cmd.$md5.std$_","out","err";
+  my $age=sub{time()-(stat(shift))[9]};
+  if(!-e$fno or &$age($fno) >= $Ccmd_cache_expire){
+    system("$cmd > $fno 2> $fne");
+    unlink grep &$age($_)>=$Ccmd_cache_expire, <$d/*.std???>;
+  }
+  print STDOUT "".readfile($fno);
+  print STDERR "".readfile($fne);
 }
 
 
