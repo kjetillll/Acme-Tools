@@ -3681,6 +3681,7 @@ With two input arguments, nothing (undef) is returned from C<readfile()>.
 =cut
 
 #http://blogs.perl.org/users/leon_timmermans/2013/05/why-you-dont-need-fileslurp.html
+#todo: readfile with grep-filter code ref in a third arg (avoid reading all into mem)
 
 sub readfile {
   my($filename,$ref)=@_;
@@ -3689,13 +3690,12 @@ sub readfile {
     else         { my $data; readfile($filename,\$data); return $data }
   }
   else {
-    my $o=openstr($filename);
     open my $fh,openstr($filename) or croak("ERROR: readfile $! $?");
-    if   (ref($ref) eq 'SCALAR'){  $$ref=join"",<$fh> }
-    elsif(ref($ref) eq 'ARRAY') {  while(my $l=<$fh>){ chomp($l); push @$ref, $l } }
+    if   ( ref($ref) eq 'SCALAR') { $$ref=join"",<$fh> }
+    elsif( ref($ref) eq 'ARRAY' ) { while(my $l=<$fh>){ chomp($l); push @$ref, $l } }
     else { croak "ERROR: Second arg to readfile should be a ref to a scalar og array" }
     close($fh);
-    return;
+    return;#?
   }
 }
 
@@ -5713,11 +5713,12 @@ sub srlz {
 
 Call instead of C<system> if you want C<die> (Carp::croak) when something fails.
 
- sub sys($){my$s=shift;system($s)==0 or croak"ERROR: sys($s) ($!) ($?)"}
+ sub sys($){ my$s=shift; my$r=system($s); $r==0 or croak"ERROR: system($s)==$r ($!) ($?)" }
+
 
 =cut
 
-sub sys($){ my$s=shift;system($s)==0 or croak"ERROR: sys($s) ($!) ($?)" }
+sub sys($){ my$s=shift; my$r=system($s); $r==0 or croak"ERROR: system($s)==$r ($!) ($?)" }
 
 =head2 recursed
 
@@ -6590,22 +6591,19 @@ sub cmd_deldup {
 #http://stackoverflow.com/questions/11900239/can-i-cache-the-output-of-a-command-on-linux-from-cli
 our $Ccmd_cache_dir='/tmp/acme-tools-ccmd-cache';
 our $Ccmd_cache_expire=15*60;  #default 15 minutes
+our $Gzip;
 sub cmd_ccmd {
   #die "todo: ccmd not ready yet";
+  $Gzip||=(grep -x$_,'/bin/gzip','/usr/bin/gzip','/usr/local/bin/gzip')[0];
   require Digest::MD5;
   my $cmd=join" ",@_;
   my $d="$Ccmd_cache_dir/".username();
   makedir($d);
   my $md5=Digest::MD5::md5_hex($cmd);
-  my($fno,$fne)=map"$d/cmd.$md5.std$_","out","err";
-  ($fno,$fne)=map"$_.gz",$fno,$fne if !-e$fno and -e"$fno.gz";
+  my($fno,$fne)=map"$d/cmd.$md5.std$_.gz","out","err";
   my $age=sub{time()-(stat(shift))[9]};
-  unlink grep &$age($_)>=$Ccmd_cache_expire, <$d/*.std???{,.gz}>;
-  if(!-e$fno){
-    my $t=time_fp();
-    system("$cmd > >(gzip -1 $fno 2> $fne");
-    map system("gzip -1 $_"),$fno,$fne if time_fp()-$t>0.5 or grep -s$_>10e3,$fno,$fne;
-  }
+  unlink grep &$age($_) >= $Ccmd_cache_expire, <$d/*.std???{,.gz}>;
+  sys("($cmd) > >($Gzip > $fno) 2> >($Gzip > $fne)") if !-e$fno;
   print STDOUT "".readfile($fno);
   print STDERR "".readfile($fne);
 }
