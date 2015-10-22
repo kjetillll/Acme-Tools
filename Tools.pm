@@ -6709,11 +6709,13 @@ sub _dattrarg {
   @arg;
 }
 
+our $Wget;
 sub self_update {
   #require LWP::Simple;
   #print __FILE__,"\n";
   my $url="https://raw.githubusercontent.com/kjetillll/Acme-Tools/master/Tools.pm";
-  sys("cd ".dirname(__FILE__)."; /usr/bin/wget -N $url");
+  $Wget||=(grep -x$_,'/usr/bin/wget','/bin/wget','/usr/local/bin/wget','wget')[0];
+  sys("cd ".dirname(__FILE__)."; $Wget -N $url");
   #my $code=LWP::Simple::get($url);
   #defined$code or croak "ERROR: self_update failed. Could not get from $url\n";
   #open my $fh,'>',__FILE__ or croak "ERROR: $! couldnt update file ".__FILE__.". Try sudo?\n";
