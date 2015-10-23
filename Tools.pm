@@ -6713,7 +6713,7 @@ sub _dattrarg {
 
 Update Acme::Tools to newest version quick and dirty:
 
- function pmview(){ ls -l `perldoc -l $1`; perl -M$1 -le 'print "Version ".${"".shift()."::VERSION"}' $1;}
+ function pmview(){ ls -ld `perl -M$1 -le'$m=shift;$mi=$m;$mi=~s,::,/,g;print $INC{"$mi.pm"};warn"Version ".${$m."::VERSION"}."\n"' $1`;}
 
  pmview Acme::Tools                                     #view date and version before
  sudo perl -MAcme::Tools -e Acme::Tools::self_update    #update to newest version
@@ -6724,14 +6724,14 @@ Does C<cd> to where Acme/Tools.pm are and then wget -N https://raw.githubusercon
 =cut
 
 our $Wget;
+our $Self_update_url='https://raw.githubusercontent.com/kjetillll/Acme-Tools/master/Tools.pm'; #todo: change site
 sub self_update {
   #in($^O,'linux','cygwin') or die"ERROR: self_update works on linux and cygwin only";
-  my $url="https://raw.githubusercontent.com/kjetillll/Acme-Tools/master/Tools.pm"; #todo: change site
   $Wget||=(grep -x$_,map"$_/wget",'/usr/bin','/bin','/usr/local/bin','.')[0];
   -x$Wget or die"ERROR: wget ($Wget) executable not found\n";
   my $d=dirname(__FILE__);
   sys("cd $d; ls -l Tools.pm; md5sum Tools.pm");
-  sys("cd $d; $Wget -N $url");
+  sys("cd $d; $Wget -N ".($ARGV[0]||$Self_update_url));
   sys("cd $d; ls -l Tools.pm; md5sum Tools.pm");
 }
 
