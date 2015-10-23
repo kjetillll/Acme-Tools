@@ -6709,20 +6709,32 @@ sub _dattrarg {
   @arg;
 }
 
+=head2 self_update
+
+Update Acme::Tools to newest version quick and dirty:
+
+ function pmview(){ ls -l `perldoc -l $1`; perl -M$1 -le 'print "Version ".${"".shift()."::VERSION"}' $1;}
+
+ pmview Acme::Tools                                     #view date and version before
+ sudo perl -MAcme::Tools -e Acme::Tools::self_update    #update to newest version
+ pmview Acme::Tools                                     #view date and version after
+
+Does C<cd> to where Acme/Tools.pm are and then wget -N https://raw.githubusercontent.com/kjetillll/Acme-Tools/master/Tools.pm
+
+=cut
+
 our $Wget;
 sub self_update {
-  #require LWP::Simple;
-  #print __FILE__,"\n";
-  my $url="https://raw.githubusercontent.com/kjetillll/Acme-Tools/master/Tools.pm";
-  $Wget||=(grep -x$_,'/usr/bin/wget','/bin/wget','/usr/local/bin/wget','wget')[0];
-  sys("cd ".dirname(__FILE__)."; $Wget -N $url");
-  #my $code=LWP::Simple::get($url);
-  #defined$code or croak "ERROR: self_update failed. Could not get from $url\n";
-  #open my $fh,'>',__FILE__ or croak "ERROR: $! couldnt update file ".__FILE__.". Try sudo?\n";
-  #print $fh $code;
-  #close($fh);
+  #in($^O,'linux','cygwin') or die"ERROR: self_update works on linux and cygwin only";
+  my $url="https://raw.githubusercontent.com/kjetillll/Acme-Tools/master/Tools.pm"; #todo: change site
+  $Wget||=(grep -x$_,map"$_/wget",'/usr/bin','/bin','/usr/local/bin','.')[0];
+  -x$Wget or die"ERROR: wget ($Wget) executable not found\n";
+  my $d=dirname(__FILE__);
+  sys("cd $d; ls -l Tools.pm; md5sum Tools.pm");
+  sys("cd $d; $Wget -N $url");
+  sys("cd $d; ls -l Tools.pm; md5sum Tools.pm");
 }
-#SOON
+
 1;
 
 package Acme::Tools::BloomFilter;
@@ -6815,6 +6827,8 @@ Release history
  0.10  Dec 2008
 
 =head1 SEE ALSO
+
+L<https://github.com/kjetillll/Acme-Tools>
 
 =head1 AUTHOR
 
