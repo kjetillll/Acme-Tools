@@ -603,7 +603,7 @@ Note2: Many units have synonyms: m, meter, meters ...
                COP, CZK, DKK, EUR, GBP, HKD, HRK, HUF, IDR, ILS, INR, IRR,
                ISK, JPY, KRW, KWD, KZT, LKR, LTL, LVL, LYD, MUR, MXN, MYR,
                NOK, NPR, NZD, OMR, PHP, PKR, PLN, QAR, RON, RUB, SAR, SEK,
-               SGD, THB, TRY, TTD, TWD, USD, VEF, ZAR,  BTC, LTC
+               SGD, THB, TRY, TTD, TWD, USD, VEF, ZAR,      BTC, LTC, mBTC
                Currency rates are automatically updated from the net
                at least every 24h since last update (on linux/cygwin).
 
@@ -658,8 +658,12 @@ our %conv=(
 		  yd      => 0.0254*12*3,             #0.9144 m
 		  yard    => 0.0254*12*3,             #0.9144 m
 		  yards   => 0.0254*12*3,             #0.9144 m
+		  fathom  => 0.0254*12*3*2,           #1.8288 m
+		  fathoms => 0.0254*12*3*2,           #1.8288 m
 		  chain   => 0.0254*12*3*22,          #20.1168 m
+		  chains  => 0.0254*12*3*22,          #20.1168 m
 		  furlong => 0.0254*12*3*22*10,       #201.168 m
+		  furlongs=> 0.0254*12*3*22*10,       #201.168 m
 		  mi      => 0.0254*12*3*22*10*8,     #1609.344 m
 		  mile    => 0.0254*12*3*22*10*8,     #1609.344 m
 		  miles   => 0.0254*12*3*22*10*8,
@@ -681,6 +685,13 @@ our %conv=(
                   au                 => 149597870700, # by def, earth-sun
                  'astronomical unit' => 149597870700,
 		  planck             => 1.61619997e-35, #planck length
+		  #Norwegian (old) lengths:
+		  tomme   => 0.0254,
+		  tommer  => 0.0254,
+		  fot     => 0.0254*12,               #0.3048m
+		  alen    => 0.0254*12*2,             #0.6096m
+		  favn    => 0.0254*12*2*3,           #1.8288m
+		  kvart   => 0.0254*12*2/4,           #0.1524m a quarter alen
 		 },
 	 mass  =>{ #https://en.wikipedia.org/wiki/Unit_conversion#Mass
 		  g            => 1,
@@ -831,6 +842,9 @@ our %conv=(
 		  Mbbl      => 42*231*2.54**3,        #mille (thousand) oil barrels
 		  MMbbl     => 42*231*2.54**3*1000,   #mille mille (million) oil barrels
 		  drum      => 200,
+		  #Norwegian:
+                  meterfavn => 2 * 2 * 0.6,           #ved 2.4 m3
+                  storfavn  => 2 * 2 * 3,             #ved 12 m3
 		 },
 	 time  =>{
 		  s           => 1,
@@ -1094,6 +1108,7 @@ our %conv=(
                   BND => 5.594729,        #
                   BRL => 2.674694,        #
                   BTC => 1714.50835478131,# bitcoin
+                 mBTC => 1.71450835478131,# bitcoin
                   BWP => 0.783666,        #
                   CAD => 6.079577,        #
                   CHF => 8.125951,        #
@@ -1191,8 +1206,9 @@ sub conv_prepare_money {
     #warn serialize([minus([sort keys(%{$conv{money}})],[sort keys(%r)])],'minus'); #LTC,I44,BTC,BYR,TWI,NOK,XDR
     $conv{money}={%{$conv{money}},%r} if keys(%r)>20;
   };
-  $conv_prepare_money_time=time();
   carp "conv: conv_prepare_money (currency conversion automatic daily updated rates) - $@\n" if $@;
+  $conv{money}{mBTC}=$conv{money}{BTC}/1000;
+  $conv_prepare_money_time=time();
   1; #not yet
 }
 
@@ -1200,17 +1216,13 @@ sub conv {
   my($num,$from,$to)=@_;
   croak "conf requires 3 args" if @_!=3;
   conv_prepare() if !$conv_prepare_time;
-  my @types=map{
-             my $unit=$_;
-             [sort grep$conv{$_}{$unit},keys%conv],
-           }($from,$to);
-  my @err;
-  push @err, "from unit $from is unknown" if !@{$types[0]};
-  push @err, "to unit $to is unknown"     if !@{$types[1]};
+  my $types=sub{ my $unit=shift; [sort grep$conv{$_}{$unit}, keys%conv] };
+  my @types=map{ my $ru=$_; my $r;$r=&$types($_) and @$r and $$ru=$_ and last for ($$ru,uc($$ru),lc($$ru)); $r }(\$from,\$to);
+  my @err=map "Unit ".[$from,$to]->[$_]." is unknown",grep!@{$types[$_]},0..1;
   my @type=intersect(@types);
   push @err, "from=$from and to=$to has more than one possible conversions: ".join(", ", @type) if @type>1;
-  push @err, "from=$from (".join(",",@{$types[0]}||'?').") and "
-              ."to=$to   (".join(",",@{$types[1]}||'?').") has no known common unit type: ".join(", ", @type) if @type<1;
+  push @err, "from $from (".(join(",",@{$types[0]})||'?').") and "
+              ."to $to ("  .(join(",",@{$types[1]})||'?').") has no known common unit type.\n" if @type<1;
   croak join"\n",map"conv: $_",@err if @err;
   my $type=$type[0];
   conv_prepare_money()        if $type eq 'money' and time() >= $conv_prepare_money_time + $Currency_rates_expire;
@@ -3899,17 +3911,16 @@ sub md5sum {
 
 =head2 read_conf
 
-B<First argument:> A file name (string) or a reference to a string with settings in the format described below.
+B<First argument:> A file name or a reference to a string with settings in the format described below.
 
-B<Second argument, optional:> A reference to a hash with the settings from the file (or string reference).
+B<Second argument, optional:> A reference to a hash. This hash will have the settings from the file (or stringref).
 The hash do not have to be empty beforehand.
 
 Returns a hash with the settings as in this examples:
 
- my %conf = read_conf('/etc/thing/thing.conf');
+ my %conf = read_conf('/etc/your/thing.conf');
  print $conf{sectionA}{knobble};  #prints ABC if the file is as shown below
  print $conf{sectionA}{gobble};   #prints ZZZ, the last gobble
- print $conf{''}{switch};         #prints OK if the file is as shown below, the empty section
  print $conf{switch};             #prints OK here as well, unsectioned value
  print $conf{part2}{password};    #prints oh:no= x
 
@@ -3944,8 +3955,14 @@ both in the empty section in the returned hash and as top level key/values.
 C<read_conf> can be a simpler alternative to the core module L<Config::Std> which has
 its own hassles.
 
+ $Acme::Tools::Read_conf_empty_section=1;        #default 0 (was 1 in version 0.16)
+ my %conf = read_conf('/etc/your/thing.conf');
+ print $conf{''}{switch};                        #prints OK with the file above
+ print $conf{switch};                            #prints OK here as well
+
 =cut
 
+our $Read_conf_empty_section=0;
 sub read_conf {
   my($fn,$hr)=(@_,{});
   my $conf=ref($fn)?$$fn:readfile($fn);
@@ -3953,9 +3970,16 @@ sub read_conf {
   my($section,@l)=('',split"\n",$conf);
   while(@l) {
     my $l=shift@l;
-    my $ml=sub{my$v=shift;$v.="\n".shift@l while $v=~/^\{[^\}]*$/&&@l;$v=~s/^\{(.*)\}\s*$/$1/s;$v=~s,\\#,#,g;$v};
-    if   ( $l=~/^\s*\[\s*(.*?)\s*\]/            ) { $section=$1; $$hr{$1}||={} }
-    elsif( $l=~/^\s*([^\:\=]+)[:=]\s*(.*?)\s*$/ ) { my$v=&$ml($2);$$hr{$section}{$1}=$v; length($section) or $$hr{$1}=$v }
+    if( $l=~/^\s*\[\s*(.*?)\s*\]/ ) {
+      $section=$1;
+      $$hr{$1}||={};
+    }
+    elsif( $l=~/^\s*([^\:\=]+)[:=]\s*(.*?)\s*$/ ) {
+      my $ml=sub{my$v=shift;$v.="\n".shift@l while $v=~/^\{[^\}]*$/&&@l;$v=~s/^\{(.*)\}\s*$/$1/s;$v=~s,\\#,#,g;$v};
+      my $v=&$ml($2);
+      $$hr{$section}{$1}=$v if length($section) or $Read_conf_empty_section;
+      $$hr{$1}=$v if !length($section);
+    }
   }
   %$hr;
 }
@@ -3995,9 +4019,13 @@ sub openstr {
 
 =head1 TIME FUNCTIONS
 
-# head2 timestr
-#
-# Converts epoch or YYYYMMDD-HH24:MI:SS time string to other forms of time.
+=head2 timestr
+
+Converts time stamps to more readable forms of time strings.
+
+=cut
+
+# seconds since epoch and time strings YYYYMMDD-HH24:MI:SS time string to other forms of time.
 #
 # B<Input:> One, two or three arguments.
 #
@@ -6606,6 +6634,8 @@ sub cmd_ccmd {
   print STDERR "".readfile($fne);
 }
 
+sub cmd_trunc { die "todo: trunc not ready yet"} #truncate a file, size 0, keep all other attr
+sub cmd_wipe  { die "todo: wipe not ready yet" } #wipe a file
 
 =head1 DATABASE STUFF - NOT IMPLEMENTED
 
@@ -6727,7 +6757,7 @@ our $Wget;
 our $Self_update_url='https://raw.githubusercontent.com/kjetillll/Acme-Tools/master/Tools.pm'; #todo: change site
 sub self_update {
   #in($^O,'linux','cygwin') or die"ERROR: self_update works on linux and cygwin only";
-  $Wget||=(grep -x$_,map"$_/wget",'/usr/bin','/bin','/usr/local/bin','.')[0];
+  $Wget||=(grep -x$_,map"$_/wget",'/usr/bin','/bin','/usr/local/bin','.')[0]; #hm --no-check-certificate
   -x$Wget or die"ERROR: wget ($Wget) executable not found\n";
   my $d=dirname(__FILE__);
   sys("cd $d; ls -l Tools.pm; md5sum Tools.pm");
