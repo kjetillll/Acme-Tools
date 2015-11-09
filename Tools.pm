@@ -117,8 +117,10 @@ our @EXPORT = qw(
   cpad
   dserialize
   serialize
+  srlz
   bytes_readable
   distance
+  tms
   easter
   time_fp
   sleep_fp
@@ -603,7 +605,7 @@ Note2: Many units have synonyms: m, meter, meters ...
                COP, CZK, DKK, EUR, GBP, HKD, HRK, HUF, IDR, ILS, INR, IRR,
                ISK, JPY, KRW, KWD, KZT, LKR, LTL, LVL, LYD, MUR, MXN, MYR,
                NOK, NPR, NZD, OMR, PHP, PKR, PLN, QAR, RON, RUB, SAR, SEK,
-               SGD, THB, TRY, TTD, TWD, USD, VEF, ZAR,      BTC, LTC, mBTC
+               SGD, THB, TRY, TTD, TWD, USD, VEF, ZAR,      BTC, LTC, mBTC, XBT
                Currency rates are automatically updated from the net
                at least every 24h since last update (on linux/cygwin).
 
@@ -1108,7 +1110,9 @@ our %conv=(
                   BND => 5.594729,        #
                   BRL => 2.674694,        #
                   BTC => 1714.50835478131,# bitcoin
+                  XBT => 1714.50835478131,# bitcoin
                  mBTC => 1.71450835478131,# bitcoin
+                 mXBT => 1.71450835478131,# bitcoin
                   BWP => 0.783666,        #
                   CAD => 6.079577,        #
                   CHF => 8.125951,        #
@@ -1207,7 +1211,7 @@ sub conv_prepare_money {
     $conv{money}={%{$conv{money}},%r} if keys(%r)>20;
   };
   carp "conv: conv_prepare_money (currency conversion automatic daily updated rates) - $@\n" if $@;
-  $conv{money}{mBTC}=$conv{money}{BTC}/1000;
+  $conv{money}{"m$_"}=$conv{money}{$_}/1000 for qw/BTC XBT/;
   $conv_prepare_money_time=time();
   1; #not yet
 }
@@ -4019,244 +4023,237 @@ sub openstr {
 
 =head1 TIME FUNCTIONS
 
-=head2 timestr
+=head2 tms - timestring
+
+TODO: doc and implementation is experimental.
 
 Converts time stamps to more readable forms of time strings.
 
+Converts seconds since epoch and time strings YYYYMMDD-HH24:MI:SS  to other forms of time strings.
+
+B<Input:> One, two or three arguments.
+
+B<First argument:> A format string.
+
+B<Second argument: (optional)> An epock C<time()> number or a time
+string of the form YYYYMMDD-HH24:MI:SS or YYYYMMDDTHH:MI:SS or
+YYYY-MM-DDTHH:MI:SS (in which T is litteral and HH is the 24-hour
+version of hours) or YYYYMMDD. Uses the current C<time()> if the
+second argument is missing or false.
+
+B<Third argument: (optional> True or false. If true and first argument
+is eight digits: Its interpreted as a date like YYYYMMDD time string,
+not an epoch time.  If true and first argument is six digits its
+interpreted as a date like DDMMYY (not YYMMDD!).
+
+B<Output:> a date or clock string on the wanted form.
+
+B<Examples:>
+
+Prints C<< 3. july 1997 >> if thats the dato today:
+
+  perl -MAcme::Tools -le 'print timestr("D. month YYYY")'
+
+  print timestr"HH24:MI");              # prints 23:55 if thats the time now
+  print timestr"HH24:MI",time());       # ...same,since time() is the default
+  print timestr"HH:MI",time()-5*60);    # prints 23:50 if that was the time 5 minutes ago
+  print timestr"HH:MI",time()-5*60*60); # print 18:55 if thats the time 5 hours ago
+  timestr"Day D. month YYYY HH:MI");    # Saturday  juli 2004 23:55       (stor L liten j)
+  timestr"dag D. Måned ÅÅÅÅ HH:MI");    # lørdag 3. Juli 2004 23:55       (omvendt)
+  timestr"DG DD. MONTH YYYY HH24:MI");  # LØR 03. JULY 2004 23:55         (HH24 = HH, month=engelsk)
+  timestr"DD-MON-YYYY");                # 03-MAY-2004                     (mon engelsk)
+  timestr"DD-MÅN-YYYY");                # 03-MAI-2004                     (mån norsk)
+
+B<String in second argument:>
+
+Formatstrengen kan innholde en eller flere av følgende koder.
+
+Formatstrengen kan inneholde tekst, som f.eks. C<< tid('Klokken er: HH:MI') >>.
+Teksten her vil ikke bli konvertert. Men det anbefales å holde tekst utenfor
+formatstrengen, siden framtidige koder kan erstatte noen tegn i teksten med tall.
+
+Der det ikke står annet: bruk store bokstaver.
+
+  YYYY    Årstallet med fire sifre
+  ÅÅÅÅ    Samme som YYYY (norsk)
+  YY      Årstallet med to sifre, f.eks. 04 for 2004 (anbefaler ikke å bruke tosifrede år)
+  ÅÅ      Samme som YY (norsk)
+  yyyy    Årtallet med fire sifre, men skriver ingenting dersom årstallet er årets (plass-sparing, ala tidstrk() ).
+  åååå    Samme som yyyy
+  MM      Måned, to sifre. F.eks. 08 for august.
+  DD      Dato, alltid to sifer. F.eks 01 for første dag i en måned.
+  D       Dato, ett eller to sifre. F.eks. 1 for første dag i en måned.
+  HH      Time. Fra 00, 01, 02 osv opp til 23.
+  HH24    Samme som HH. Ingen forskjell. Tatt med for å fjerne tvil om det er 00-12-11 eller 00-23
+  HH12    NB: Kl 12 blir 12, kl 13 blir 01, kl 14 blir 02 osv .... 23 blir 11,
+          MEN 00 ETTER MIDNATT BLIR 12 ! Oracle er også slik.
+  TT      Samme som HH. Ingen forskjell. Fra 00 til 23. TT24 og TT12 finnes ikke.
+  MI      Minutt. Fra 00 til 59.
+  SS      Sekund. Fra 00 til 59.
+ 
+  Måned   Skriver månedens fulle navn på norsk. Med stor førstebokstav, resten små.
+          F.eks. Januar, Februar osv. NB: Vær oppmerksom på at måneder på norsk normal
+          skrives med liten førstebokstav (om ikke i starten av setning). Alt for mange
+          gjør dette feil. På engelsk skrives de ofte med stor førstebokstav.
+  Måne    Skriver månedens navn forkortet og uten punktum. På norsk. De med tre eller
+          fire bokstaver forkortes ikke: Jan Feb Mars Apr Mai Juni Juli Aug Sep Okt Nov Des
+  Måne.   Samme som Måne, men bruker punktum der det forkortes. Bruker alltid fire tegn.
+          Jan. Feb. Mars Apr. Mai Juni Juli Aug. Sep. Okt. Nov. Des.
+  Mån     Tre bokstaver, norsk: Jan Feb Mar Apr Mai Jun Jul Aug Sep Okt Nov Des
+ 
+  Month   Engelsk: January February May June July October December, ellers = norsk.
+  Mont    Engelsk: Jan Feb Mars Apr May June July Aug Sep Oct Nov Dec
+  Mont.   Engelsk: Jan. Feb. Mars Apr. May June July Aug. Sep. Oct. Nov. Dec.
+  Mon     Engelsk: Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
+ 
+  måned måne måne. mån       Samme, men med liten førstebokstav. På norsk.
+  month mont mont. mon       Samme, men med liten førstebokstav. På engelsk.
+  MÅNED MÅNE MÅNE. MÅN       Samme, men med alle bokstaver store. På norsk.
+  MONTH MONT MONT. MON       Samme, men med alle bokstaver store. På engelsk.
+ 
+  Dag     Dagens navn på norsk. Stor førstebokstav, resten små. Mandag Tirsdag Onsdag Torsdag
+          Fredag Lørdag Søndag.
+  Dg      Dagens navn på norsk forkortet. Stor førstebokstav, resten små.
+          Alltid tre bokstaver: Man Tir Ons Tor Fre Lør Søn
+  Day     Samme som Dag, men på engelsk. Monday Tuesday Wednesday Thursday Friday Saturday Sunday
+  Dy      Samme som Dg, men på engelsk. Alltid tre bokstaver: Mon Tue Wed Thu Fri Sat Sun
+ 
+  dag dg day dy DAG DG DAY DY       ....du klarer sikkert å gjette...
+ 
+  UKE     Ukenr ett eller to siffer. Bruker ISO-definisjonen som brukes stort sett i hele verden unntatt USA.
+  UKENR   Ukenr, alltid to siffer, 01 02 osv. Se uke() et annet sted i SO::Bibl for mer om dette.
+ 
+  Gjenstår:  Dag- og månedsnavn på nynorsk og samisk.
+ 
+  Gjenstår:  Dth => 1st eller 2nd hvis dato er den første eller andre
+ 
+  Gjenstår:  M => Måned ett eller to sifre, slik D er dato med ett eller to. Vanskelig/umulig(?)
+ 
+  Gjenstår:  J => "julian day"....
+ 
+  Gjenstår:  Sjekke om den takler tidspunkt for svært lenge siden eller om svært lenge...
+             Kontroll med kanskje die ved input
+ 
+  Gjenstår:  sub dit() (tid baklengs... eller et bedre navn) for å konvertere andre veien.
+             Som med to_date og to_char i Oracle. Se evt L<Date::Parse> isteden.
+ 
+  Gjenstår:  Hvis formatstrengen er DDMMYY (evt DDMMÅÅ), og det finnes en tredje argument,
+             så vil den tredje argumenten sees på som personnummer og DD vil bli DD+40
+             eller MM vil bli MM+50 hvis personnummeret medfører D- eller S-type fødselsnr.
+             Hmm, kanskje ikke. Se heller  sub foedtdato  og  sub fnr  m.fl.
+ 
+  Gjenstår:  Testing på tidspunkter på mer enn hundre år framover eller tilbake i tid.
+
 =cut
 
-# seconds since epoch and time strings YYYYMMDD-HH24:MI:SS time string to other forms of time.
-#
-# B<Input:> One, two or three arguments.
-#
-# B<First argument:> A format string.
-#
-# B<Second argument: (optional)> An epock C<time()> number or a time
-# string of the form YYYYMMDD-HH24:MI:SS. I no second argument is gives,
-# picks the current C<time()>.
-#
-# B<Thirs argument: (optional> True eller false. If true and first argument is eight digits:
-# Its interpreted as a YYYYMMDD time string, not an epoch time.
-# If true and first argument is six digits its interpreted as a DDMMYY date.
-#
-# B<Output:> a date or clock string on the wanted form.
-#
-# B<Exsamples:>
-#
-# Prints C<< 3. july 1997 >> if thats the dato today:
-#
-#  perl -MAcme::Tools -le 'print timestr("D. month YYYY")'
-#
-#  print timestr"HH24:MI");              # prints 23:55 if thats the time now
-#  print timestr"HH24:MI",time());       # ...same,since time() is the default
-#  print timestr"HH:MI",time()-5*60);    # prints 23:50 if that was the time 5 minutes ago
-#  print timestr"HH:MI",time()-5*60*60); # print 18:55 if thats the time 5 hours ago
-#  timestr"Day D. month YYYY HH:MI");    # Saturday  juli 2004 23:55       (stor L liten j)
-#  timestr"dag D. Måned ÅÅÅÅ HH:MI");    # lørdag 3. Juli 2004 23:55       (omvendt)
-#  timestr"DG DD. MONTH YYYY HH24:MI");  # LØR 03. JULY 2004 23:55         (HH24 = HH, month=engelsk)
-#  timestr"DD-MON-YYYY");                # 03-MAY-2004                     (mon engelsk)
-#  timestr"DD-MÅN-YYYY");                # 03-MAI-2004                     (mån norsk)
-#
-# B<Formatstrengen i argument to:>
-#
-# Formatstrengen kan innholde en eller flere av følgende koder.
-#
-# Formatstrengen kan inneholde tekst, som f.eks. C<< tid('Klokken er: HH:MI') >>.
-# Teksten her vil ikke bli konvertert. Men det anbefales å holde tekst utenfor
-# formatstrengen, siden framtidige koder kan erstatte noen tegn i teksten med tall.
-#
-# Der det ikke står annet: bruk store bokstaver.
-#
-#  YYYY    Årstallet med fire sifre
-#  ÅÅÅÅ    Samme som YYYY (norsk)
-#  YY      Årstallet med to sifre, f.eks. 04 for 2004 (anbefaler ikke å bruke tosifrede år)
-#  ÅÅ      Samme som YY (norsk)
-#  yyyy    Årtallet med fire sifre, men skriver ingenting dersom årstallet er årets (plass-sparing, ala tidstrk() ).
-#  åååå    Samme som yyyy
-#  MM      Måned, to sifre. F.eks. 08 for august.
-#  DD      Dato, alltid to sifer. F.eks 01 for første dag i en måned.
-#  D       Dato, ett eller to sifre. F.eks. 1 for første dag i en måned.
-#  HH      Time. Fra 00, 01, 02 osv opp til 23.
-#  HH24    Samme som HH. Ingen forskjell. Tatt med for å fjerne tvil om det er 00-12-11 eller 00-23
-#  HH12    NB: Kl 12 blir 12, kl 13 blir 01, kl 14 blir 02 osv .... 23 blir 11,
-#          MEN 00 ETTER MIDNATT BLIR 12 ! Oracle er også slik.
-#  TT      Samme som HH. Ingen forskjell. Fra 00 til 23. TT24 og TT12 finnes ikke.
-#  MI      Minutt. Fra 00 til 59.
-#  SS      Sekund. Fra 00 til 59.
-#
-#  Måned   Skriver månedens fulle navn på norsk. Med stor førstebokstav, resten små.
-#          F.eks. Januar, Februar osv. NB: Vær oppmerksom på at måneder på norsk normal
-#          skrives med liten førstebokstav (om ikke i starten av setning). Alt for mange
-#          gjør dette feil. På engelsk skrives de ofte med stor førstebokstav.
-#  Måne    Skriver månedens navn forkortet og uten punktum. På norsk. De med tre eller
-#          fire bokstaver forkortes ikke: Jan Feb Mars Apr Mai Juni Juli Aug Sep Okt Nov Des
-#  Måne.   Samme som Måne, men bruker punktum der det forkortes. Bruker alltid fire tegn.
-#          Jan. Feb. Mars Apr. Mai Juni Juli Aug. Sep. Okt. Nov. Des.
-#  Mån     Tre bokstaver, norsk: Jan Feb Mar Apr Mai Jun Jul Aug Sep Okt Nov Des
-#
-#  Month   Engelsk: January February May June July October December, ellers = norsk.
-#  Mont    Engelsk: Jan Feb Mars Apr May June July Aug Sep Oct Nov Dec
-#  Mont.   Engelsk: Jan. Feb. Mars Apr. May June July Aug. Sep. Oct. Nov. Dec.
-#  Mon     Engelsk: Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
-#
-#  måned måne måne. mån       Samme, men med liten førstebokstav. På norsk.
-#  month mont mont. mon       Samme, men med liten førstebokstav. På engelsk.
-#  MÅNED MÅNE MÅNE. MÅN       Samme, men med alle bokstaver store. På norsk.
-#  MONTH MONT MONT. MON       Samme, men med alle bokstaver store. På engelsk.
-#
-#  Dag     Dagens navn på norsk. Stor førstebokstav, resten små. Mandag Tirsdag Onsdag Torsdag
-#          Fredag Lørdag Søndag.
-#  Dg      Dagens navn på norsk forkortet. Stor førstebokstav, resten små.
-#          Alltid tre bokstaver: Man Tir Ons Tor Fre Lør Søn
-#  Day     Samme som Dag, men på engelsk. Monday Tuesday Wednesday Thursday Friday Saturday Sunday
-#  Dy      Samme som Dg, men på engelsk. Alltid tre bokstaver: Mon Tue Wed Thu Fri Sat Sun
-#
-#  dag dg day dy DAG DG DAY DY       ....du klarer sikkert å gjette...
-#
-#  UKE     Ukenr ett eller to siffer. Bruker ISO-definisjonen som brukes stort sett i hele verden unntatt USA.
-#  UKENR   Ukenr, alltid to siffer, 01 02 osv. Se uke() et annet sted i SO::Bibl for mer om dette.
-#
-#
-#  Gjenstår:  Dag- og månedsnavn på nynorsk og samisk.
-#
-#  Gjenstår:  Dth => 1st eller 2nd hvis dato er den første eller andre
-#
-#  Gjenstår:  M => Måned ett eller to sifre, slik D er dato med ett eller to. Vanskelig/umulig(?)
-#
-#  Gjenstår:  J => "julian day"....
-#
-#  Gjenstår:  Sjekke om den takler tidspunkt for svært lenge siden eller om svært lenge...
-#             Kontroll med kanskje die ved input
-#
-#  Gjenstår:  sub dit() (tid baklengs... eller et bedre navn) for å konvertere andre veien.
-#             Som med to_date og to_char i Oracle. Se evt L<Date::Parse> isteden.
-#
-#  Gjenstår:  Hvis formatstrengen er DDMMYY (evt DDMMÅÅ), og det finnes en tredje argument,
-#             så vil den tredje argumenten sees på som personnummer og DD vil bli DD+40
-#             eller MM vil bli MM+50 hvis personnummeret medfører D- eller S-type fødselsnr.
-#             Hmm, kanskje ikke. Se heller  sub foedtdato  og  sub fnr  m.fl.
-#
-#  Gjenstår:  Testing på tidspunkter på mer enn hundre år framover eller tilbake i tid.
-#
-# Se også L</tidstrk> og L</tidstr>
-#
-# =cut
-#
-# our %SObibl_tid_strenger;
-# our $SObibl_tid_pattern;
-#
-# sub tid
-# {
-#   return undef if @_>1 and not defined $_[1];
-#   return 1900+(localtime())[5] if $_[0]=~/^(?:ÅÅÅÅ|YYYY)$/ and @_==1; # kjappis for tid("ÅÅÅÅ") og tid("YYYY")
-#
-#   my($format,$time,$er_dato)=@_;
-#
-#
-#   $time=time() if @_==1;
-#
-#   ($time,$format)=($format,$time)
-#     if $format=~/^[\d+\:\-]+$/; #swap hvis format =~ kun tall og : og -
-#
-#   $format=~s,([Mm])aa,$1å,;
-#   $format=~s,([Mm])AA,$1Å,;
-#
-#   $time = yyyymmddhh24miss_time("$1$2$3$4$5$6")
-#     if $time=~/^((?:19|20|18)\d\d)          #yyyy
-#                 (0[1-9]|1[012])             #mm
-#                 (0[1-9]|[12]\d|3[01]) \-?   #dd
-#                 ([01]\d|2[0-3])       \:?   #hh24
-#                 ([0-5]\d)             \:?   #mi
-#                 ([0-5]\d)             $/x;  #ss
-#
-#   $time = yyyymmddhh24miss_time(dato_ok("$1$2$3")."000000")
-#     if $time=~/^(\d\d)(\d\d)(\d\d)$/ and $er_dato;
-#
-#   $time = yyyymmddhh24miss_time("$1$2${3}000000")
-#     if $time=~/^((?:18|19|20)\d\d)(\d\d)(\d\d)$/ and $er_dato;
-#
-#   my @lt=localtime($time);
-#   if($format){
-#     unless(defined %SObibl_tid_strenger){
-#       %SObibl_tid_strenger=
-# 	  ('MÅNED' => [4, 'JANUAR','FEBRUAR','MARS','APRIL','MAI','JUNI','JULI',
-# 		          'AUGUST','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER' ],
-# 	   'Måned' => [4, 'Januar','Februar','Mars','April','Mai','Juni','Juli',
-# 		          'August','September','Oktober','November','Desember'],
-# 	   'måned' => [4, 'januar','februar','mars','april','mai','juni','juli',
-# 		          'august','september','oktober','november','desember'],
-# 	   'MÅNE.' => [4, 'JAN.','FEB.','MARS','APR.','MAI','JUNI','JULI','AUG.','SEP.','OKT.','NOV.','DES.'],
-# 	   'Måne.' => [4, 'Jan.','Feb.','Mars','Apr.','Mai','Juni','Juli','Aug.','Sep.','Okt.','Nov.','Des.'],
-# 	   'måne.' => [4, 'jan.','feb.','mars','apr.','mai','juni','juli','aug.','sep.','okt.','nov.','des.'],
-# 	   'MÅNE'  => [4, 'JAN','FEB','MARS','APR','MAI','JUNI','JULI','AUG','SEP','OKT','NOV','DES'],
-# 	   'Måne'  => [4, 'Jan','Feb','Mars','Apr','Mai','Juni','Juli','Aug','Sep','Okt','Nov','Des'],
-# 	   'måne'  => [4, 'jan','feb','mars','apr','mai','juni','juli','aug','sep','okt','nov','des'],
-# 	   'MÅN'   => [4, 'JAN','FEB','MAR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DES'],
-# 	   'Mån'   => [4, 'Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'],
-# 	   'mån'   => [4, 'jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'],
-#
-# 	   'MONTH' => [4, 'JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY',
-# 		          'AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'],
-# 	   'Month' => [4, 'January','February','March','April','May','June','July',
-# 		          'August','September','October','November','December'],
-# 	   'month' => [4, 'january','february','march','april','may','june','july',
-# 		          'august','september','october','november','december'],
-# 	   'MONT.' => [4, 'JAN.','FEB.','MAR.','APR.','MAY','JUNE','JULY','AUG.','SEP.','OCT.','NOV.','DEC.'],
-# 	   'Mont.' => [4, 'Jan.','Feb.','Mar.','Apr.','May','June','July','Aug.','Sep.','Oct.','Nov.','Dec.'],
-# 	   'mont.' => [4, 'jan.','feb.','mar.','apr.','may','june','july','aug.','sep.','oct.','nov.','dec.'],
-# 	   'MONT'  => [4, 'JAN','FEB','MAR','APR','MAY','JUNE','JULY','AUG','SEP','OCT','NOV','DEC'],
-# 	   'Mont'  => [4, 'Jan','Feb','Mar','Apr','May','June','July','Aug','Sep','Oct','Nov','Dec'],
-# 	   'mont'  => [4, 'jan','feb','mar','apr','may','june','july','aug','sep','oct','nov','dec'],
-# 	   'MON'   => [4, 'JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],
-# 	   'Mon'   => [4, 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
-# 	   'mon'   => [4, 'jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'],
-# 	   'DAY'   => [6, 'SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'],
-# 	   'Day'   => [6, 'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
-# 	   'day'   => [6, 'sunday','monday','tuesday','wednesday','thursday','friday','saturday'],
-# 	   'DY'    => [6, 'SUN','MON','TUE','WED','THU','FRI','SAT'],
-# 	   'Dy'    => [6, 'Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
-# 	   'dy'    => [6, 'sun','mon','tue','wed','thu','fri','sat'],
-# 	   'DAG'   => [6, 'SØNDAG','MANDAG','TIRSDAG','ONSDAG','TORSDAG','FREDAG','LØRDAG'],
-# 	   'Dag'   => [6, 'Søndag','Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag'],
-# 	   'dag'   => [6, 'søndag','mandag','tirsdag','onsdag','torsdag','fredag','lørdag'],
-# 	   'DG'    => [6, 'SØN','MAN','TIR','ONS','TOR','FRE','LØR'],
-# 	   'Dg'    => [6, 'Søn','Man','Tir','Ons','Tor','Fre','Lør'],
-# 	   'dg'    => [6, 'søn','man','tir','ons','tor','fre','lør'],
-# 	   );
-#       for(qw(MAANED Maaned maaned MAAN Maan maan),'MAANE.','Maane.','maane.'){
-# 	$SObibl_tid_strenger{$_}=$SObibl_tid_strenger{replace($_,"aa","å","AA","Å")};
-#       }
-#       $SObibl_tid_pattern=join("|",map{quotemeta($_)}
-#  	                           sort{length($b)<=>length($a)}
-#                                    keys %SObibl_tid_strenger);
-#       #uten sort kan "måned" bli "mared", fordi "mån"=>"mar"
-#     }
-#     $format=~s/($SObibl_tid_pattern)/$SObibl_tid_strenger{$1}[1+$lt[$SObibl_tid_strenger{$1}[0]]]/g;
-#
-#     $format=~s/TT|tt/HH/;
-#     $format=~s/ÅÅ/YY/g;$format=~s/åå/yy/g;
-#     $format=~s/YYYY             /1900+$lt[5]                  /gxe;
-#     $format=~s/(\s?)yyyy        /$lt[5]==(localtime)[5]?"":$1.(1900+$lt[5])/gxe;
-#     $format=~s/YY               /sprintf("%02d",$lt[5]%100)   /gxei;
-#     $format=~s/MM               /sprintf("%02d",$lt[4]+1)     /gxe;
-#     $format=~s/mm               /sprintf("%d",$lt[4]+1)       /gxe;
-#     $format=~s/DD               /sprintf("%02d",$lt[3])       /gxe;
-#     $format=~s/D(?![AaGgYyEeNn])/$lt[3]                       /gxe; #EN pga desember og wednesday
-#     $format=~s/dd               /sprintf("%d",$lt[3])         /gxe;
-#     $format=~s/hh12|HH12        /sprintf("%02d",$lt[2]<13?$lt[2]||12:$lt[2]-12)/gxe;
-#     $format=~s/HH24|HH24|HH|hh  /sprintf("%02d",$lt[2])       /gxe;
-#     $format=~s/MI               /sprintf("%02d",$lt[1])       /gxei;
-#     $format=~s/SS               /sprintf("%02d",$lt[0])       /gxei;
-#     $format=~s/UKENR            /sprintf("%02d",ukenr($time)) /gxei;
-#     $format=~s/UKE              /ukenr($time)                 /gxei;
-#     $format=~s/SS               /sprintf("%02d",$lt[0])       /gxei;
-#
-#     return $format;
-#   }
-#   else{
-#     return sprintf("%04d%02d%02d%02d%02d%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]);
-#   }
-# }
+#Se også L</tidstrk> og L</tidstr>
+
+our $SObibl_tid_pattern;
+our %SObibl_tid_strenger=
+	  ('MÅNED' => [4, 'JANUAR','FEBRUAR','MARS','APRIL','MAI','JUNI','JULI',
+		          'AUGUST','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER' ],
+	   'Måned' => [4, 'Januar','Februar','Mars','April','Mai','Juni','Juli',
+		          'August','September','Oktober','November','Desember'],
+	   'måned' => [4, 'januar','februar','mars','april','mai','juni','juli',
+		          'august','september','oktober','november','desember'],
+	   'MÅNE.' => [4, 'JAN.','FEB.','MARS','APR.','MAI','JUNI','JULI','AUG.','SEP.','OKT.','NOV.','DES.'],
+	   'Måne.' => [4, 'Jan.','Feb.','Mars','Apr.','Mai','Juni','Juli','Aug.','Sep.','Okt.','Nov.','Des.'],
+	   'måne.' => [4, 'jan.','feb.','mars','apr.','mai','juni','juli','aug.','sep.','okt.','nov.','des.'],
+	   'MÅNE'  => [4, 'JAN','FEB','MARS','APR','MAI','JUNI','JULI','AUG','SEP','OKT','NOV','DES'],
+	   'Måne'  => [4, 'Jan','Feb','Mars','Apr','Mai','Juni','Juli','Aug','Sep','Okt','Nov','Des'],
+	   'måne'  => [4, 'jan','feb','mars','apr','mai','juni','juli','aug','sep','okt','nov','des'],
+	   'MÅN'   => [4, 'JAN','FEB','MAR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DES'],
+	   'Mån'   => [4, 'Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'],
+	   'mån'   => [4, 'jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'],
+	   'MONTH' => [4, 'JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY',
+		          'AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'],
+	   'Month' => [4, 'January','February','March','April','May','June','July',
+		          'August','September','October','November','December'],
+	   'month' => [4, 'january','february','march','april','may','june','july',
+		          'august','september','october','november','december'],
+	   'MONT.' => [4, 'JAN.','FEB.','MAR.','APR.','MAY','JUNE','JULY','AUG.','SEP.','OCT.','NOV.','DEC.'],
+	   'Mont.' => [4, 'Jan.','Feb.','Mar.','Apr.','May','June','July','Aug.','Sep.','Oct.','Nov.','Dec.'],
+	   'mont.' => [4, 'jan.','feb.','mar.','apr.','may','june','july','aug.','sep.','oct.','nov.','dec.'],
+	   'MONT'  => [4, 'JAN','FEB','MAR','APR','MAY','JUNE','JULY','AUG','SEP','OCT','NOV','DEC'],
+	   'Mont'  => [4, 'Jan','Feb','Mar','Apr','May','June','July','Aug','Sep','Oct','Nov','Dec'],
+	   'mont'  => [4, 'jan','feb','mar','apr','may','june','july','aug','sep','oct','nov','dec'],
+	   'MON'   => [4, 'JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],
+	   'Mon'   => [4, 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+	   'mon'   => [4, 'jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'],
+	   'DAY'   => [6, 'SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'],
+	   'Day'   => [6, 'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
+	   'day'   => [6, 'sunday','monday','tuesday','wednesday','thursday','friday','saturday'],
+	   'DY'    => [6, 'SUN','MON','TUE','WED','THU','FRI','SAT'],
+	   'Dy'    => [6, 'Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+	   'dy'    => [6, 'sun','mon','tue','wed','thu','fri','sat'],
+	   'DAG'   => [6, 'SØNDAG','MANDAG','TIRSDAG','ONSDAG','TORSDAG','FREDAG','LØRDAG'],
+	   'Dag'   => [6, 'Søndag','Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag'],
+	   'dag'   => [6, 'søndag','mandag','tirsdag','onsdag','torsdag','fredag','lørdag'],
+	   'DG'    => [6, 'SØN','MAN','TIR','ONS','TOR','FRE','LØR'],
+	   'Dg'    => [6, 'Søn','Man','Tir','Ons','Tor','Fre','Lør'],
+	   'dg'    => [6, 'søn','man','tir','ons','tor','fre','lør'],
+	   );
+my $_tms_inited=0;
+sub tms_init {
+  return if $_tms_inited++;
+  for(qw(MAANED Maaned maaned MAAN Maan maan),'MAANE.','Maane.','maane.'){
+    $SObibl_tid_strenger{$_}=$SObibl_tid_strenger{replace($_,"aa","å","AA","Å")};
+  }
+  $SObibl_tid_pattern=join("|",map{quotemeta($_)}
+			       sort{length($b)<=>length($a)}
+			       keys %SObibl_tid_strenger);
+  #uten sort kan "måned" bli "mared", fordi "mån"=>"mar"
+}
+
+sub totime {
+
+}
+
+sub tms {
+  return undef if @_>1 and not defined $_[1];
+  return 1900+(localtime())[5] if @_==1 and $_[0] eq 'YYYY'; # quick tms('YYYY')
+  my($format,$time,$is_date)=@_;
+  $time=time() if !defined$time;
+  ($time,$format)=($format,$time) if @_>=2 and $format=~/^[\d+\:\-]+$/; #swap
+  my @lt=localtime($time);
+  if( $is_date ){
+    my $yy2c=sub{10+$_[0]>$lt[5]%100?"20":"19"}; #hm 10+
+    $time=totime(&$yy2c($1)."$1$2$3")."000000") if $time=~/^(\d\d)(\d\d)(\d\d)$/;
+    $time=totime("$1$2${3}000000")              if $time=~/^((?:18|19|20)\d\d)(\d\d)(\d\d)$/; #hm 18-20?
+  }
+  else {
+    $time = yyyymmddhh24miss_time("$1$2$3$4$5$6") #yyyymmddhh24miss_time ???
+      if $time=~/^((?:19|20|18)\d\d)          #yyyy
+                  (0[1-9]|1[012])             #mm
+                  (0[1-9]|[12]\d|3[01]) \-?   #dd
+                  ([01]\d|2[0-3])       \:?   #hh24
+                  ([0-5]\d)             \:?   #mi
+                  ([0-5]\d)             $/x;  #ss
+  }
+  tms_init() if !$_tms_inited;
+  if($format){
+    $format=~s/($SObibl_tid_pattern)/$SObibl_tid_strenger{$1}[1+$lt[$SObibl_tid_strenger{$1}[0]]]/g;
+    $format=~s/YYYY              / 1900+$lt[5]                  /gxe;
+    $format=~s/(\s?)yyyy         / $lt[5]==(localtime)[5]?"":$1.(1900+$lt[5])/gxe;
+    $format=~s/YY                / sprintf("%02d",$lt[5]%100)   /gxei;
+    $format=~s/MM                / sprintf("%02d",$lt[4]+1)     /gxe;
+    $format=~s/mm                / sprintf("%d",$lt[4]+1)       /gxe;
+    $format=~s/DD                / sprintf("%02d",$lt[3])       /gxe;
+    $format=~s/D(?![AaGgYyEeNn]) / $lt[3]                       /gxe; #EN pga desember og wednesday
+    $format=~s/dd                / sprintf("%d",$lt[3])         /gxe;
+    $format=~s/hh12|HH12         / sprintf("%02d",$lt[2]<13?$lt[2]||12:$lt[2]-12)/gxe;
+    $format=~s/HH24|HH24|HH|hh   / sprintf("%02d",$lt[2])       /gxe;
+    $format=~s/MI                / sprintf("%02d",$lt[1])       /gxei;
+    $format=~s/SS                / sprintf("%02d",$lt[0])       /gxei;
+    $format=~s/UKENR             / sprintf("%02d",ukenr($time)) /gxei;
+    $format=~s/UKE               / ukenr($time)                 /gxei;
+    $format=~s/SS                / sprintf("%02d",$lt[0])       /gxei;
+    return $format;
+  }
+  else{
+    return sprintf("%04d-%02d-%02dT%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]);
+  }
+}
 
 =head2 easter
 
@@ -5686,11 +5683,11 @@ sub serialize {
     return serialize(\$s,@r);
   }
   elsif(ref($$r) eq 'CODE'){
-    #warn "Forsøk på å serialisere (serialize) CODE";
+    #warn "Tried to serialize CODE";
     return 'sub{croak "Can not serialize CODE-references, see perhaps B::Deparse and Storable"}'
   }
   elsif(ref($$r) eq 'GLOB'){
-    warn "Forsøk på å serialisere (serialize) en GLOB";
+    warn "Tried to serialize a GLOB";
     return '\*STDERR'
   }
   else{
@@ -5707,9 +5704,6 @@ sub serialize {
 
 =head2 srlz
 
-Synonym to L</serialize>, men tar bort unødvendige fnuttegn rundt
-\w+-keys og tall-values (unntatt tall med ledende nuller). Eksempel:
-
 Synonym to L</serialize>, but remove unnecessary single quote chars around
 C<< \w+ >>-keys and number values (except numbers with leading zeros). Example:
 
@@ -5725,8 +5719,9 @@ srlz:
      updcol=>{Laerestednr=>18,Studietypenr=>18,Undervisningssted=>7,Url=>11},
      where=>'where 1=1');
 
-Todo: oppdatere L</serialize> til å gjøre det samme den riktige måten (foreløpig kjøres
-output fra serialize() gjennom to stk C<< s/// >>). L</srlz> vil bli beholdt som synonym.
+Todo: update L</serialize> to do the same, but in the right way. (For now 
+srlz runs the string from serialize() through two C<< s/// >>, this will break
+in certain cases). L</srlz> will be kept as a synonym (or the other way around).
 
 =cut
 
