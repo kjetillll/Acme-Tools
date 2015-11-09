@@ -4218,8 +4218,8 @@ sub tms {
   my @lt=localtime($time);
   if( $is_date ){
     my $yy2c=sub{10+$_[0]>$lt[5]%100?"20":"19"}; #hm 10+
-    $time=totime(&$yy2c($1)."$1$2$3")."000000") if $time=~/^(\d\d)(\d\d)(\d\d)$/;
-    $time=totime("$1$2${3}000000")              if $time=~/^((?:18|19|20)\d\d)(\d\d)(\d\d)$/; #hm 18-20?
+    $time=totime(&$yy2c($1)."$1$2$3")."000000" if $time=~/^(\d\d)(\d\d)(\d\d)$/;
+    $time=totime("$1$2${3}000000")             if $time=~/^((?:18|19|20)\d\d)(\d\d)(\d\d)$/; #hm 18-20?
   }
   else {
     $time = yyyymmddhh24miss_time("$1$2$3$4$5$6") #yyyymmddhh24miss_time ???
