@@ -4041,6 +4041,8 @@ YYYY-MM-DDTHH:MI:SS (in which T is litteral and HH is the 24-hour
 version of hours) or YYYYMMDD. Uses the current C<time()> if the
 second argument is missing or false.
 
+TODO: Formats with % as in C<man date> (C<%Y%m%d> and so on)
+
 B<Third argument: (optional> True or false. If true and first argument
 is eight digits: Its interpreted as a date like YYYYMMDD time string,
 not an epoch time.  If true and first argument is six digits its
@@ -4216,6 +4218,10 @@ sub tms {
   $time=time() if !defined$time;
   ($time,$format)=($format,$time) if @_>=2 and $format=~/^[\d+\:\-]+$/; #swap
   my @lt=localtime($time);
+  #todo? $is_date=0 if $time=~s/^\@(\-?\d)/$1/; #@n where n is sec since epoch makes it clear that its not a formatted, as in `date`
+  #todo? date --date='TZ="America/Los_Angeles" 09:00 next Fri' #`info date`
+  #      Fri Nov 13 18:00:00 CET 2015
+
   if( $is_date ){
     my $yy2c=sub{10+$_[0]>$lt[5]%100?"20":"19"}; #hm 10+
     $time=totime(&$yy2c($1)."$1$2$3")."000000" if $time=~/^(\d\d)(\d\d)(\d\d)$/;
@@ -4231,6 +4237,47 @@ sub tms {
                   ([0-5]\d)             $/x;  #ss
   }
   tms_init() if !$_tms_inited;
+  my %p=('%'=>'%',
+	 a=>'Dy',
+	 A=>'Day',
+	 b=>'Mon',
+	 b=>'Month',
+	 c=>'Dy Mon D HH:MI:SS YYYY',
+	 C=>'CC',
+	 d=>'DD',
+	 D=>'MM/DD/YY',
+	 e=>'D',
+	 F=>'YYYY-MM-DD',
+        #G=>'', 
+	 h=>'Month', H=>'HH24', I=>'HH12',
+	#Todo: j=>'DoY', #day of year
+	 k=>'H24', _H=>'H24',
+	 l=>'H12', _I=>'H12',
+	 m=>'MM', M=>'MI',
+	 n=>"\n",
+	#N=>'NS', #sprintf%09d,1e9*(time_fp()-time()) #000000000..999999999
+	 p=>'AM', #AM|PM upper (yes, opposite: date +%H%M%S%P%p)
+	 P=>'am', #am|pm lower
+	 S=>'SS',
+	 t=>"\t",
+	 T=>'HH24:MI:SS',
+	#u=>'DoW', #day of week 1..7, 1=monday
+	#U=>'WoYs', #week num of year 00..53, sunday as first day of week
+	#V=>'UKE',  #ISO week num of year 01..53, monday as first day of week
+	#w=>'DoW0', #day of week 0..6, 0=sunday
+	#W=>'WoYm', #week num of year 00..53, monday as first day of week, not ISO!
+	#x=>$ENV{locale's date representation}, #e.g. MM/DD/YY
+	#X=>$ENV{locale's time representation}, #e.g. HH/MI/SS
+	 y=>'YY',
+	 Y=>'YYYY',
+	#z=>'TZHHMI', #time zone hour minute e.g. -0430
+	#':z'=>'TZHH:MI',
+	#'::z'=>'TZHH:MI:SS',
+	#':::z'=>'TZ', #number of :'s necessary precision, e.g. -02 or +03:30
+	#Z=>'TZN', #e.g. CET, EDT, ...
+      );
+  my $pkeys=join"|",keys%p;
+  $format=~s,\%($pkeys),$p{$1},g;
   if($format){
     $format=~s/($SObibl_tid_pattern)/$SObibl_tid_strenger{$1}[1+$lt[$SObibl_tid_strenger{$1}[0]]]/g;
     $format=~s/YYYY              / 1900+$lt[5]                  /gxe;
