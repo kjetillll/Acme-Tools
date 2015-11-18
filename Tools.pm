@@ -4023,7 +4023,7 @@ sub openstr {
 
 =head1 TIME FUNCTIONS
 
-=head2 tms - timestring
+=head2 tms - timestring, inspiered by the date command and Oracle's to_char()
 
 TODO: doc and implementation is experimental.
 
@@ -4221,6 +4221,11 @@ sub tms {
   #todo? $is_date=0 if $time=~s/^\@(\-?\d)/$1/; #@n where n is sec since epoch makes it clear that its not a formatted, as in `date`
   #todo? date --date='TZ="America/Los_Angeles" 09:00 next Fri' #`info date`
   #      Fri Nov 13 18:00:00 CET 2015
+  #date --date="next Friday"  #--date or -d
+  #date --date="last friday"
+  #date --date="2 days ago"
+  #date --date="yesterday" #or tomorrow
+  #date --date="-1 day"  #date --date='10 week'
 
   if( $is_date ){
     my $yy2c=sub{10+$_[0]>$lt[5]%100?"20":"19"}; #hm 10+
@@ -6608,7 +6613,7 @@ sub install_acme_command_tools {
   }
 }
 sub cmd_conv { print conv(@ARGV)."\n"  }
-sub cmd_due {
+sub cmd_due { #TODO: output from tar tvf and ls and find -ls
   require Getopt::Std; my %o; Getopt::Std::getopts("zkmhcei" => \%o);
   require File::Find;
   no warnings 'uninitialized';
@@ -6629,7 +6634,7 @@ sub cmd_due {
     my($f,$s)=$o{k}?("%10.2f kb",sub{$_[0]/1024})
              :$o{m}?("%10.2f mb",sub{$_[0]/1024**2})
              :$o{h}?("%12s",     sub{bytes_readable($_[0])})
-             :      ("%10d b",   sub{$_[0]});
+             :      ("%12d b",   sub{$_[0]});
     my @e=$o{a}?(sort(keys%c))
          :$o{c}?(sort{$c{$a}<=>$c{$b} or $a cmp $b}keys%c)
          :      (sort{$b{$a}<=>$b{$b} or $a cmp $b}keys%c);
