@@ -92,6 +92,7 @@ our @EXPORT = qw(
   readdirectory
   basename
   dirname
+  wipe
   username
   range
   permutations
@@ -3818,6 +3819,34 @@ Returns the current linux/unix username, for example the string root
 sub basename {my($f,$s)=(@_,'');$s=quotemeta($s)if!ref($s);$f=~m,^(.*/)?([^/]*?)($s)?$,;$2}
 sub dirname  {shift=~m,^(.*)/,;length($1)?$1:'.'}
 sub username {(getpwuid($<))[0]}
+
+=head2 wipe
+
+Deletes a file by "wiping" it on the disk. Overwrites the file before deleting. (May not work properly on SSDs)
+
+B<Input:> Arg 1: A filename. Optional arg 2: number of times to overwrite file. Default 3.
+
+B<Output:> Same as the C<unlink()> (remove file): 1 for success, 0 or false for failure.
+
+=cut
+
+sub wipe {
+  my($file,$times)=@_;
+  $times||=3;
+  croak "ERROR: File $file nonexisting\n" if not -f $file or not -e $file;
+  my $size=-s$file;
+  open(WIFH,'+<',$file) or croak "ERROR: Unable to open $file: $!\n";
+  binmode(WIFH);
+  for(1..$times){
+    my $block=chr(int(rand(256))) x 1024;
+    for(0..($size/1024)){
+      seek(WIFH,$_*1024,0);
+      print WIFH $block;
+    }
+  }
+  close(WIFH);
+  unlink($file);
+}
 
 =head2 chall
 
