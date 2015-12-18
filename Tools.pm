@@ -6934,7 +6934,8 @@ sub sum      { &Acme::Tools::bfsum      }
 # + git add `cat MANIFEST`
 # + git status
 # + git commit -am versjon
-# + git push
+# + git push                    #eller:
+# + git push origin master
 # + http://pause.perl.org/
 # http://en.wikipedia.org/wiki/Birthday_problem#Approximations
 
