@@ -8,7 +8,8 @@ if($^O eq 'linux'){
   my $ntrp=sub{length(gzip(readfile($f).""))};
   my $n=&$ntrp;
   wipe($f,undef,1);
-  ok($n/&$ntrp>50);	
+  my $ratio=$n/&$ntrp;
+  ok($ratio>50 || !$INC{'Compress/Zlib.pm'}, "ratio $ratio > 50");
   ok(-s$f>5e3);
   wipe($f,1);
   ok(!-e$f);

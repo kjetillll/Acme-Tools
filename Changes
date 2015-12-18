@@ -2,6 +2,10 @@ Revision history for Perl extension Acme::Tools.
 
 See also HISTORY in Acme::Tools doc.
 
+0.17  Dec 2015   Subs: curb, openstr, pwgen, sleepms, sleepnm, srlz, tms, username,
+                 self_update, install_acme_command_tools
+                 Commands: conv, due, freq, wipe, xcat (see "Commands")
+
 0.16  Feb 2015   bigr, bound, cpad, isnum, parta, parth, read_conf, resolve_equation,
                  roman2int, trim.
                  Improved: conv (numbers, currency with auto-update),

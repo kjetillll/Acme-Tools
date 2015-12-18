@@ -212,6 +212,8 @@ Acme::Tools - Lots of more or less useful subs lumped together and exported into
 
  ...and more.
 
+=encoding utf8
+
 =head1 ABSTRACT
 
 About 120 more or less useful perl subroutines lumped together and exported into your namespace.
@@ -1101,68 +1103,68 @@ our %conv=(
 		  binary_radian => 1/256,
 		  brad          => 1/256,
                  },
-	 money =>{                        # rates at feb 13th 2015
-                  NOK => 1.000000000,     # norwegian kroner
-                  AED => 2.062607,        #
-                  ARS => 0.872666,        #
-                  AUD => 5.883676,        #
-                  BGN => 4.415369,        #
-                  BHD => 20.096754,       #
-                  BND => 5.594729,        #
-                  BRL => 2.674694,        #
-                  BTC => 1714.50835478131,# bitcoin
-                  XBT => 1714.50835478131,# bitcoin
-                 mBTC => 1.71450835478131,# bitcoin
-                 mXBT => 1.71450835478131,# bitcoin
-                  BWP => 0.783666,        #
-                  CAD => 6.079577,        #
-                  CHF => 8.125951,        #
-                  CLP => 0.012246,        #
-                  CNY => 1.214359,        #
-                  COP => 0.00317992,      #
-                  CZK => 0.312771,        #
-                  DKK => 1.160164,        #
-                  EUR => 8.635740,        #
-                  GBP => 11.669630,       #
-                  HKD => 0.976865,        #
-                  HRK => 1.119689,        #
-                  HUF => 0.028187,        #
-                  IDR => 0.00059556,      #
-                  ILS => 1.947183,        #
-                  INR => 0.122048,        #
-                  IRR => 0.00027282,      #
-                  ISK => 0.057573,        #
-                  JPY => 0.063792,        #
-                  KRW => 0.00689579,      #
-                  KWD => 25.654000,       #
-                  KZT => 0.040847,        #
-                  LKR => 0.057016,        #
-                  LTC => 13.477679419905, # litecoin
-                  LTL => 2.501083,        #
-                  LVL => 12.287621,       #
-                  LYD => 5.635074,        #
-                  MUR => 0.227179,        #
-                  MXN => 0.509277,        #
-                  MYR => 2.128165,        #
-                  NPR => 0.076177,        #
-                  NZD => 5.650167,        #
-                  OMR => 19.678606,       #
-                  PHP => 0.171276,        #
-                  PKR => 0.074698,        #
-                  PLN => 2.064177,        #
-                  QAR => 2.080563,        #
-                  RON => 1.943624,        #
-                  RUB => 0.119595,        #
-                  SAR => 2.019045,        #
-                  SEK => 0.900900,        #
-                  SGD => 5.594729,        #
-                  THB => 0.232321,        #
-                  TRY => 3.083376,        #
-                  TTD => 1.191966,        #
-                  TWD => 0.241858,        #
-                  USD => 7.576263,        #
-                  VEF => 1.193186,        #
-                  ZAR => 0.649438,        #
+	 money =>{                        # rates at dec 17 2015
+                  AED => 2.389117,        #
+                  ARS => 0.895122,        #
+                  AUD => 6.253619,        #
+                  BGN => 4.847575,        #
+                  BHD => 23.267384,       #
+                  BND => 6.184624,        #
+                  BRL => 2.260703,        #
+                  BTC => 3910.932213547,  #bitcoin
+                  BWP => 0.794654,        #
+                  CAD => 6.289957,        #
+                  CHF => 8.799974,        #
+                  CLP => 0.012410,        #
+                  CNY => 1.353406,        #
+                  COP => 0.00262229,      #
+                  CZK => 0.351171,        #
+                  DKK => 1.271914,        #
+                  EUR => 9.489926,        #
+                  GBP => 13.069440,       #
+                  HKD => 1.131783,        #
+                  HRK => 1.240878,        #
+                  HUF => 0.029947,        #
+                  IDR => 0.00062471,      #
+                  ILS => 2.254456,        #
+                  INR => 0.132063,        #
+                  IRR => 0.00029370,      #
+                  ISK => 0.067245,        #
+                  JPY => 0.071492,        #
+                  KRW => 0.00739237,      #
+                  KWD => 28.862497,       #
+                  KZT => 0.027766,        #
+                  LKR => 0.061173,        #
+                  LTC => 31.78895354018,  #litecoin
+                  LTL => 2.748472,        #
+                  LVL => 13.503025,       #
+                  LYD => 6.296978,        #
+                  MUR => 0.240080,        #
+                  MXN => 0.515159,        #
+                  MYR => 2.032465,        #
+                  NOK => 1.000000000,     #norwegian kroner
+                  NPR => 0.084980,        #
+                  NZD => 5.878331,        #
+                  OMR => 22.795994,       #
+                  PHP => 0.184839,        #
+                  PKR => 0.083779,        #
+                  PLN => 2.207243,        #
+                  QAR => 2.409162,        #
+                  RON => 2.101513,        #
+                  RUB => 0.122991,        #
+                  SAR => 2.339745,        #
+                  SEK => 1.023591,        #
+                  SGD => 6.184624,        #
+                  THB => 0.242767,        #
+                  TRY => 2.994338,        #
+                  TTD => 1.374484,        #
+                  TWD => 0.265806,        #
+                  USD => 8.774159,        #
+                  VEF => 1.395461,        #
+                  ZAR => 0.576487,        #
+                  XBT => 3910.932213547, # bitcoin
+                 mBTC => 3910.932213547, # bitcoin
+                 mXBT => 3910.932213547, # bitcoin
 		 },
           numbers =>{
 	    dec=>1,hex=>1,bin=>1,oct=>1,roman=>1,      des=>1,#des: spelling error in v0.15-0.16
@@ -2889,7 +2891,7 @@ sub pwgen {
     my $pw=join"",map substr($chars,rand($c),1),1..$len;
     for my $r (@req){
       if   (ref($r) eq 'CODE'  ){ local$_=$pw; &$r()    or next TRIAL }
-      elsif(ref($r) eq 'Regexp'){              $pw=~$$r or next TRIAL }
+      elsif(ref($r) eq 'Regexp'){ no warnings; $pw=~$r or next TRIAL }
       else                      { croak "pwgen: invalid req type $r ".ref($r) }
     }
     push@pw,$pw;
@@ -6614,6 +6616,8 @@ sub ftype {
   or undef;
 }
 
+=head1 COMMANDS
+
 =head2 install_acme_command_tools
 
  sudo perl -MAcme::Tools -e install_acme_command_tools
@@ -6622,13 +6626,14 @@ sub ftype {
  Wrote executable /usr/local/bin/xcat
  Wrote executable /usr/local/bin/freq
  Wrote executable /usr/local/bin/deldup
+ Wrote executable /usr/local/bin/wipe
 
 Examples of commands then made available:
 
- conv 1 USD EUR              #might show 0.88029 if thats the current currency rate. Uses conv()
- conv .5 in cm               #reveals that 1/2 inch is 1.27 cm, see doc on L</conv> for all supported units
- due [-h] /path/1/ /path/2/  #like du, but show statistics on file extentions instead of subdirs
- xcat file                   #like cat, zcat, bzcat or xzcat in one. Uses file extention to decide on which. Uses openstr()
+ conv 1 USD EUR                #might show 0.88029 if thats the current currency rate. Uses conv()
+ conv .5 in cm                 #reveals that 1/2 inch is 1.27 cm, see doc on conv() for all supported units
+ due [-h] /path/1/ /path/2/    #like du, but show statistics on file extentions instead of subdirs
+ xcat file                     #like cat, zcat, bzcat or xzcat in one. Uses file extention to decide. Uses openstr()
  freq file                     #reads file(s) or stdin and view counts of each byte 0-255
  deldup [-d] path1/ path2/     #reports (and optionally deletes) duplicate files NOT IMPLEMENTED YET!
  ccmd grep string /huge/file   #caches stdout+stderr for 15 minutes (default) for much faster results later
@@ -6754,9 +6759,13 @@ sub cmd_ccmd {
 }
 
 sub cmd_trunc { die "todo: trunc not ready yet"} #truncate a file, size 0, keep all other attr
-sub cmd_wipe  { die "todo: wipe not ready yet" } #wipe a file
 
-=head1 DATABASE STUFF - NOT IMPLEMENTED
+sub cmd_wipe  {
+  require Getopt::Std; my %o; Getopt::Std::getopts("n:k" => \%o);
+  wipe($_,$o{n},$o{k}) for @_;
+}
+
+=head1 DATABASE STUFF - NOT IMPLEMENTED YET
 
 Uses L<DBI>. Comming soon...
 
@@ -6906,7 +6915,7 @@ sub sum      { &Acme::Tools::bfsum      }
 # + endre $VERSION
 # + endre Release history under HISTORY
 # + endre årstall under COPYRIGHT AND LICENSE
-# + oppd default valutakurser
+# + oppd default valutakurser inkl datoen
 # + emacs Changes
 # + emacs README + aarstall
 # + emacs MANIFEST legg til ev nye t/*.t
@@ -6918,12 +6927,13 @@ sub sum      { &Acme::Tools::bfsum      }
 # + test evt i cygwin og mingw-perl
 # + pod2html Tools.pm > Tools.html ; firefox Tools.html 
 # + https://metacpan.org/pod/Acme::Tools
-# + http://cpants.cpanauthors.org/dist/Acme-Tools
-# + make dist
+# + http://cpants.cpanauthors.org/dist/Acme-Tools  #kvalitee
+# + perl Makefile.PL ; make test && make dist
 # + cp -p *tar.gz /htdocs/
 # + ci -l -mversjon -d `cat MANIFEST`
 # + git add `cat MANIFEST`
-# + git commit -a
+# + git status
+# + git commit -am versjon
 # + git push
 # + http://pause.perl.org/
 # http://en.wikipedia.org/wiki/Birthday_problem#Approximations
@@ -6966,6 +6976,9 @@ sub sum      { &Acme::Tools::bfsum      }
 
 Release history
 
+ 0.17  Dec 2015   Subs: curb, openstr, pwgen, sleepms, sleepnm, srlz, tms, username,
+                  self_update, install_acme_command_tools
+                  Commands: conv, due, freq, wipe, xcat (see "Commands")
  0.16  Feb 2015   bigr, curb, cpad, isnum, parta, parth, read_conf, resolve_equation,
                   roman2int, trim. Improved: conv (numbers, currency), range ("derivatives")
  0.15  Nov 2014   Improved doc
