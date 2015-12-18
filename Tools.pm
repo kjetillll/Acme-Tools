@@ -3824,28 +3824,33 @@ sub username {(getpwuid($<))[0]}
 
 Deletes a file by "wiping" it on the disk. Overwrites the file before deleting. (May not work properly on SSDs)
 
-B<Input:> Arg 1: A filename. Optional arg 2: number of times to overwrite file. Default 3.
+B<Input:>
+* Arg 1: A filename
+* Optional arg 2: number of times to overwrite file. Default is 3 if omitted, 0 or undef
+* Optional arg 3: keep (true/false), wipe() but no delete of file
 
 B<Output:> Same as the C<unlink()> (remove file): 1 for success, 0 or false for failure.
+
+See also: L<https://www.google.com/search?q=wipe+file>, L<http://www.dban.org/>
 
 =cut
 
 sub wipe {
-  my($file,$times)=@_;
+  my($file,$times,$keep)=@_;
   $times||=3;
   croak "ERROR: File $file nonexisting\n" if not -f $file or not -e $file;
   my $size=-s$file;
-  open(WIFH,'+<',$file) or croak "ERROR: Unable to open $file: $!\n";
-  binmode(WIFH);
+  open my $WIFH, '+<', $file or croak "ERROR: Unable to open $file: $!\n";
+  binmode($WIFH);
   for(1..$times){
-    my $block=chr(int(rand(256))) x 1024;
+    my $block=chr(int(rand(256))) x 1024;#hm
     for(0..($size/1024)){
-      seek(WIFH,$_*1024,0);
-      print WIFH $block;
+      seek($WIFH,$_*1024,0);
+      print $WIFH $block;
     }
   }
-  close(WIFH);
-  unlink($file);
+  close($WIFH);
+  $keep || unlink($file);
 }
 
 =head2 chall
@@ -6630,6 +6635,24 @@ Examples of commands then made available:
  ccmd "sleep 2;echo hello"     #slow first time. Note the quotes!
  ccmd "du -s ~/*|sort -n|tail" #ccmd store stdout+stderr in /tmp files (default)
 
+=head3 due
+
+Like C<du> command but views space used by file extentions instead of dirs. Options:
+
+ due [-options] [dirs] [files]
+ due -h          View bytes "human readable", i.e. C<8.72 MB> instead of C<9145662 b> (bytes)
+ due -k | -m     View bytes in kilobytes | megabytes (1024 | 1048576)
+ due -K          Like -k but uses 1000 instead of 1024
+ due -z          View two extentions if .z .Z .gz .bz2 .rz or .xz (.tar.gz, not just .gz)
+ due -M          Also show min, medium and max date (mtime) of files, give an idea of their age
+ due -P          Also show 10, 50 (medium) and 90 percentile of file date
+ due -MP         Both -M and -P, shows min, 10p, 50p, 90p and max
+ due -a          Sort output alphabetically by extention (default order is by size)
+ due -c          Sort output by number of files
+ due -i          Ignore case, .GZ and .gz is the same, output in lower case
+ due -t          Adds time of day to -M and -P output
+ due -e 'regex'  Exclude files (full path) matching regex. Ex: due -e '\.git'
+
 =cut
 
 sub install_acme_command_tools {
@@ -6642,33 +6665,53 @@ sub install_acme_command_tools {
   }
 }
 sub cmd_conv { print conv(@ARGV)."\n"  }
+  use Data::Dumper;
 sub cmd_due { #TODO: output from tar tvf and ls and find -ls
-  require Getopt::Std; my %o; Getopt::Std::getopts("zkmhcei" => \%o);
+  require Getopt::Std; my %o; Getopt::Std::getopts("zkKmhciMPate:" => \%o);
   require File::Find;
   no warnings 'uninitialized';
   die"$0: -h, -k or -m can not be used together\n" if $o{h}+$o{k}+$o{m}>1;
   die"$0: -c and -a can not be used together\n"    if $o{a}+$o{c}>1;
+  die"$0: -k and -m can not be used together\n"    if $o{k}+$o{m}>1;
   my @q=@ARGV; @q=('.') if !@q;
-  my(%c,%b,$cnt,$bts);
-  my $r=$o{z} ? qr/(\.[^\.\/]{1,10}(\.(z|Z|gz|bz2|rz))?)$/
+  my(%c,%b,$cnt,$bts,%mtime);
+  my $r=$o{z} ? qr/(\.[^\.\/]{1,10}(\.(z|Z|gz|bz2|rz|xz))?)$/
               : qr/(\.[^\.\/]{1,10})$/;
-    File::Find::find({wanted =>
+  my $rexcl=exists$o{e}?qr/$o{e}/:0;
+  File::Find::find({wanted =>
     sub {
       return if !-f$_;
-      my($ext,$sz)=(m/$r/?$1:"",-s$_);
+      return if $rexcl and $File::Find::name=~$rexcl;
+      my($sz,$mtime)=(stat($_))[7,9];
+      my $ext=m/$r/?$1:"";
       $ext=lc($ext) if $o{i};
       $cnt++;    $c{$ext}++;
       $bts+=$sz; $b{$ext}+=$sz;
+      $mtime{$ext}.=",$mtime" if $o{M} or $o{P};
+      1;
     } },@q);
-    my($f,$s)=$o{k}?("%10.2f kb",sub{$_[0]/1024})
-             :$o{m}?("%10.2f mb",sub{$_[0]/1024**2})
-             :$o{h}?("%12s",     sub{bytes_readable($_[0])})
-             :      ("%12d b",   sub{$_[0]});
-    my @e=$o{a}?(sort(keys%c))
-         :$o{c}?(sort{$c{$a}<=>$c{$b} or $a cmp $b}keys%c)
-         :      (sort{$b{$a}<=>$b{$b} or $a cmp $b}keys%c);
-    printf("%-10s %8d $f %7.2f%%\n",$_,$c{$_},&$s($b{$_}),100*$b{$_}/$bts) for @e;
-    printf("%-10s %8d $f\n","Sum",$cnt,&$s($bts));
+  my($f,$s)=$o{k}?("%14.2f kb",sub{$_[0]/1024})
+           :$o{K}?("%14.2f Kb",sub{$_[0]/1000})
+           :$o{m}?("%14.2f mb",sub{$_[0]/1024**2})
+           :$o{h}?("%14s",     sub{bytes_readable($_[0])})
+           :      ("%14d b",   sub{$_[0]});
+  my @e=$o{a}?(sort(keys%c))
+       :$o{c}?(sort{$c{$a}<=>$c{$b} or $a cmp $b}keys%c)
+       :      (sort{$b{$a}<=>$b{$b} or $a cmp $b}keys%c);
+  my @p=$o{P}?(10,50,90):(50);
+  my $perc=sub{
+    $o{M} or $o{P} or return"";
+    my @m=@_>0 ? do {grep$_, split",", $mtime{$_[0]}}
+               : do {grep$_, map {split","} values %mtime};
+    my @r=percentile(\@p,@m);
+    @r=(min(@m),@r,max(@m)) if $o{M};
+    @r=map int($_), @r;
+    my $fmt='YYYY/MM/DD'; $fmt.="-MM:MI:SS" if $o{t};
+    @r=map tms($_,$fmt), @r;
+    "  ".join(" ",@r);
+  };
+  printf("%-11s %8d $f %7.2f%%%s\n",$_,$c{$_},&$s($b{$_}),100*$b{$_}/$bts,&$perc($_)) for @e;
+  printf("%-11s %8d $f %7.2f%%%s\n","Sum",$cnt,&$s($bts),100,&$perc());
 }
 sub cmd_xcat {
   for my $fn (@_){
