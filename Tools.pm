@@ -3818,9 +3818,9 @@ Returns the current linux/unix username, for example the string root
 
 =cut
 
-sub basename {my($f,$s)=(@_,'');$s=quotemeta($s)if!ref($s);$f=~m,^(.*/)?([^/]*?)($s)?$,;$2}
-sub dirname  {shift=~m,^(.*)/,;length($1)?$1:'.'}
-sub username {(getpwuid($<))[0]}
+sub basename { my($f,$s)=(@_,'');$s=quotemeta($s)if!ref($s);$f=~m,^(.*/)?([^/]*?)($s)?$,;$2 }
+sub dirname  { $_[0]=~m,^(.*)/,;defined($1) && length($1) ? $1 : '.' }
+sub username { (getpwuid($<))[0] }
 
 =head2 wipe
 
