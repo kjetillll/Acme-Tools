@@ -3941,12 +3941,12 @@ version 5.?.?  It does not slurp the files or spawn new processes.
 sub md5sum {
   require Digest::MD5;
   my $fn=shift;
+  croak "md5sum: $fn is a directory (no md5sum)" if -d $fn;
   open my $FH, '<', $fn or croak "Could not open file $fn for md5sum() $!";
   binmode($FH);
   my $r = eval { Digest::MD5->new->addfile($FH)->hexdigest };
-  croak "md5sum: $fn is a directory (no md5sum)" if $@ and -d $fn;
   croak "md5sum on $fn failed ($@)\n" if $@;
-  return $r;
+  $r;
 }
 
 =head2 read_conf
