@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 package Acme::Tools;
 
-our $VERSION = '0.17';   #new version: C-s ny versjon
+our $VERSION = '0.171';   #new version: C-s ny versjon
 
 use 5.008;     #Perl 5.8 was released July 18th 2002
 use strict;
@@ -137,6 +137,7 @@ our @EXPORT = qw(
   read_conf
   openstr
   ldist
+  $Re_isnum
   isnum
   part
   parth
@@ -1613,7 +1614,8 @@ B<Output:> True or false (1 or 0)
 
 =cut
 
-sub isnum {(@_?$_[0]:$_)=~/^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) (?:[eE][\-\+]?\d+)?\s*$/x}
+our $Re_isnum=qr/^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) (?:[eE][\-\+]?\d+)?\s*$/x;
+sub isnum {(@_?$_[0]:$_)=~$Re_isnum}
 
 =head2 between
 
@@ -4186,8 +4188,8 @@ Der det ikke står annet: bruk store bokstaver.
 
 #Se også L</tidstrk> og L</tidstr>
 
-our $SObibl_tid_pattern;
-our %SObibl_tid_strenger=
+our $Tms_pattern;
+our %Tms_str=
 	  ('MÅNED' => [4, 'JANUAR','FEBRUAR','MARS','APRIL','MAI','JUNI','JULI',
 		          'AUGUST','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER' ],
 	   'Måned' => [4, 'Januar','Februar','Mars','April','Mai','Juni','Juli',
@@ -4235,11 +4237,11 @@ my $_tms_inited=0;
 sub tms_init {
   return if $_tms_inited++;
   for(qw(MAANED Maaned maaned MAAN Maan maan),'MAANE.','Maane.','maane.'){
-    $SObibl_tid_strenger{$_}=$SObibl_tid_strenger{replace($_,"aa","å","AA","Å")};
+    $Tms_str{$_}=$Tms_str{replace($_,"aa","å","AA","Å")};
   }
-  $SObibl_tid_pattern=join("|",map{quotemeta($_)}
+  $Tms_pattern=join("|",map{quotemeta($_)}
 			       sort{length($b)<=>length($a)}
-			       keys %SObibl_tid_strenger);
+			       keys %Tms_str);
   #uten sort kan "måned" bli "mared", fordi "mån"=>"mar"
 }
 
@@ -4247,12 +4249,46 @@ sub totime {
 
 }
 
+sub date_ok {
+  my($y,$m,$d)=@_;
+  return date_ok($1,$2,$3) if @_==1 and $_[0]=~/^(\d{4})(\d\d)(\d\d)$/;
+  return 0 if $y!~/^\d\d\d\d$/;
+  return 0 if $m<1||$m>12||$d<1||$d>(31,$y%4||$y%100==0&&$y%400?28:29,31,30,31,30,31,31,30,31,30,31)[$m-1];
+  return 1;
+}
+
+sub weeknum {
+  return weeknum(tms('YYYYMMDD')) if @_<1;
+  return weeknum($1,$2,$3) if @_==1 and $_[0]=~/^(\d{4})(\d\d)(\d\d)$/;
+  my($year,$month,$day)= @_;
+  eval{
+    if(@_<2){
+      if($year=~/^\d{8}$/) { ($year,$month,$day)=unpack("A4A2A2",$year) }
+      elsif($year>99999999){ ($year,$month,$day)=(localtime($year))[5,4,3]; $year+=1900; $month++ }
+      else {die}
+    }
+    elsif(@_!=3){croak}
+    croak if !date_ok(sprintf("%04d%02d%02d",$year,$month,$day));
+  };
+  croak "ERROR: Wrong args Acme::Tools::weeknum(".join(",",@_).")" if $@;
+  use integer;#heltallsdivisjon
+  my $y=$year+4800-(14-$month)/12;
+  my $j=$day+(153*($month+(14-$month)/12*12-3)+2)/5+365*$y+$y/4-$y/100+$y/400-32045;
+  my $d=($j+31741-$j%7)%146097%36524%1461;
+  return (($d-$d/1460)%365+$d/1460)/7+1;
+}
+
 sub tms {
-  return undef if @_>1 and not defined $_[1];
-  return 1900+(localtime())[5] if @_==1 and $_[0] eq 'YYYY'; # quick tms('YYYY')
+  return undef if @_>1 and not defined $_[1]; #time=undef => undef
+  if(@_==1){
+    my @lt=localtime();
+    $_[0] eq 'YYYY'     and return 1900+$lt[5];
+    $_[0] eq 'YYYYMMDD' and return sprintf("%04d%02d%02d",1900+$lt[5],1+$lt[4],$lt[3]); 
+    $_[0] =~ $Re_isnum  and @lt=localtime($_[0]) and return sprintf("%04d%02d%02d-%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]); 
+  }
   my($format,$time,$is_date)=@_;
-  $time=time() if !defined$time;
-  ($time,$format)=($format,$time) if @_>=2 and $format=~/^[\d+\:\-]+$/; #swap
+  $time=time_fp() if !defined$time;
+  ($time,$format)=($format,$time) if @_>=2 and $format=~/^[\d+\:\-\.]+$/; #swap /hm/
   my @lt=localtime($time);
   #todo? $is_date=0 if $time=~s/^\@(\-?\d)/$1/; #@n where n is sec since epoch makes it clear that its not a formatted, as in `date`
   #todo? date --date='TZ="America/Los_Angeles" 09:00 next Fri' #`info date`
@@ -4278,6 +4314,7 @@ sub tms {
                   ([0-5]\d)             $/x;  #ss
   }
   tms_init() if !$_tms_inited;
+  return sprintf("%04d%02d%02d-%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]) if !$format;
   my %p=('%'=>'%',
 	 a=>'Dy',
 	 A=>'Day',
@@ -4291,7 +4328,7 @@ sub tms {
 	 F=>'YYYY-MM-DD',
         #G=>'', 
 	 h=>'Month', H=>'HH24', I=>'HH12',
-	#Todo: j=>'DoY', #day of year
+	 j=>'DoY', #day of year
 	 k=>'H24', _H=>'H24',
 	 l=>'H12', _I=>'H12',
 	 m=>'MM', M=>'MI',
@@ -4302,10 +4339,10 @@ sub tms {
 	 S=>'SS',
 	 t=>"\t",
 	 T=>'HH24:MI:SS',
-	#u=>'DoW', #day of week 1..7, 1=monday
+	 u=>'DoW',  #day of week 1..7, 1=mon 7=sun
+	 w=>'DoW0', #day of week 0..6, 1=mon 0=sun
 	#U=>'WoYs', #week num of year 00..53, sunday as first day of week
 	#V=>'UKE',  #ISO week num of year 01..53, monday as first day of week
-	#w=>'DoW0', #day of week 0..6, 0=sunday
 	#W=>'WoYm', #week num of year 00..53, monday as first day of week, not ISO!
 	#x=>$ENV{locale's date representation}, #e.g. MM/DD/YY
 	#X=>$ENV{locale's time representation}, #e.g. HH/MI/SS
@@ -4319,28 +4356,32 @@ sub tms {
       );
   my $pkeys=join"|",keys%p;
   $format=~s,\%($pkeys),$p{$1},g;
-  if($format){
-    $format=~s/($SObibl_tid_pattern)/$SObibl_tid_strenger{$1}[1+$lt[$SObibl_tid_strenger{$1}[0]]]/g;
-    $format=~s/YYYY              / 1900+$lt[5]                  /gxe;
-    $format=~s/(\s?)yyyy         / $lt[5]==(localtime)[5]?"":$1.(1900+$lt[5])/gxe;
-    $format=~s/YY                / sprintf("%02d",$lt[5]%100)   /gxei;
-    $format=~s/MM                / sprintf("%02d",$lt[4]+1)     /gxe;
-    $format=~s/mm                / sprintf("%d",$lt[4]+1)       /gxe;
-    $format=~s/DD                / sprintf("%02d",$lt[3])       /gxe;
-    $format=~s/D(?![AaGgYyEeNn]) / $lt[3]                       /gxe; #EN pga desember og wednesday
-    $format=~s/dd                / sprintf("%d",$lt[3])         /gxe;
-    $format=~s/hh12|HH12         / sprintf("%02d",$lt[2]<13?$lt[2]||12:$lt[2]-12)/gxe;
-    $format=~s/HH24|HH24|HH|hh   / sprintf("%02d",$lt[2])       /gxe;
-    $format=~s/MI                / sprintf("%02d",$lt[1])       /gxei;
-    $format=~s/SS                / sprintf("%02d",$lt[0])       /gxei;
-    $format=~s/UKENR             / sprintf("%02d",ukenr($time)) /gxei;
-    $format=~s/UKE               / ukenr($time)                 /gxei;
-    $format=~s/SS                / sprintf("%02d",$lt[0])       /gxei;
-    return $format;
-  }
-  else{
-    return sprintf("%04d-%02d-%02dT%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]);
-  }
+  $format=~s/($Tms_pattern)/$Tms_str{$1}[1+$lt[$Tms_str{$1}[0]]]/g;
+  $format=~s/YYYY              / 1900+$lt[5]                    /gxe;
+  $format=~s/(\s?)yyyy         / $lt[5]==(localtime)[5]?"":$1.(1900+$lt[5])/gxe;
+  $format=~s/YY                / sprintf("%02d",$lt[5]%100)     /gxei;
+  $format=~s|CC                | sprintf("%02d",(1900+$lt[5])/100) |gxei;
+  $format=~s/MM                / sprintf("%02d",$lt[4]+1)       /gxe;
+  $format=~s/mm                / sprintf("%d",$lt[4]+1)         /gxe;
+  $format=~s,M/                ,               ($lt[4]+1).'/'   ,gxe;
+  $format=~s,/M                ,           '/'.($lt[4]+1)       ,gxe;
+  $format=~s/DD                / sprintf("%02d",$lt[3])         /gxe;
+  $format=~s/d0w|dow0          / $lt[6]                         /gxei;
+  $format=~s/dow               / $lt[6]?$lt[6]:7                /gxei;
+  $format=~s/d0y|doy0          / $lt[7]                         /gxei; #0-364 (365 leap)
+  $format=~s/doy               / $lt[7]+1                       /gxei; #1-365 (366 leap)
+  $format=~s/D(?![AaGgYyEeNn]) / $lt[3]                         /gxe; #EN pga desember og wednesday
+  $format=~s/dd                / sprintf("%d",$lt[3])           /gxe;
+  $format=~s/hh12|HH12         / sprintf("%02d",$lt[2]<13?$lt[2]||12:$lt[2]-12)/gxe;
+  $format=~s/HH24|HH24|HH|hh   / sprintf("%02d",$lt[2])         /gxe;
+  $format=~s/MI                / sprintf("%02d",$lt[1])         /gxei;
+  $format=~s{SS\.([1-9])      }{ sprintf("%0*.$1f",3+$1,$lt[0]+(repl($time,qr/^[^\.]+/)||0)) }gxei;
+  $format=~s/SS                / sprintf("%02d",$lt[0])         /gxei;
+  $format=~s/am|pm             / $lt[2]<13 ? 'am' : 'pm'        /gxe;
+  $format=~s/AM|PM             / $lt[2]<13 ? 'AM' : 'PM'        /gxe;
+  $format=~s/WWI|WW            / sprintf("%02d",weeknum($time)) /gxei;
+  $format=~s/W                 / weeknum($time)                 /gxei;
+  $format;
 }
 
 =head2 easter
@@ -6920,7 +6961,6 @@ sub sum      { &Acme::Tools::bfsum      }
 # + emacs README + aarstall
 # + emacs MANIFEST legg til ev nye t/*.t
 # + perl            Makefile.PL;make test
-# + /local/bin/perl Makefile.PL;make test
 # + /usr/bin/perl   Makefile.PL;make test
 # + perlbrew exec "perl ~/Acme-Tools/Makefile.PL ; time make test"
 # + perlbrew use perl-5.10.1; perl Makefile.PL; make test; perlbrew off
@@ -6977,7 +7017,7 @@ sub sum      { &Acme::Tools::bfsum      }
 
 Release history
 
- 0.17  Dec 2015   Subs: curb, openstr, pwgen, sleepms, sleepnm, srlz, tms, username,
+ 0.171 Dec 2015   Subs: curb, openstr, pwgen, sleepms, sleepnm, srlz, tms, username,
                   self_update, install_acme_command_tools
                   Commands: conv, due, freq, wipe, xcat (see "Commands")
  0.16  Feb 2015   bigr, curb, cpad, isnum, parta, parth, read_conf, resolve_equation,
