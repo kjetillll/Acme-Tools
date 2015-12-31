@@ -6987,7 +6987,7 @@ sub sum      { &Acme::Tools::bfsum      }
 
 Release history
 
- 0.171 Dec 2015   Subs: curb, openstr, pwgen, sleepms, sleepnm, srlz, tms, username,
+ 0.172 Dec 2015   Subs: curb, openstr, pwgen, sleepms, sleepnm, srlz, tms, username,
                   self_update, install_acme_command_tools
                   Commands: conv, due, freq, wipe, xcat (see "Commands")
  0.16  Feb 2015   bigr, curb, cpad, isnum, parta, parth, read_conf, resolve_equation,
