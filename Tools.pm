@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 package Acme::Tools;
 
-our $VERSION = '0.171';   #new version: C-s ny versjon
+our $VERSION = '0.172';   #new version: C-s ny versjon
 
 use 5.008;     #Perl 5.8 was released July 18th 2002
 use strict;
@@ -4061,13 +4061,11 @@ sub openstr {
 
 =head1 TIME FUNCTIONS
 
-=head2 tms - timestring, inspiered by the date command and Oracle's to_char()
+=head2 tms - timestring, works somewhat like the Gnu/Linux C<date> command and Oracle's C<to_char()>
 
-TODO: doc and implementation is experimental.
+Converts timestamps to more readable forms of time strings.
 
-Converts time stamps to more readable forms of time strings.
-
-Converts seconds since epoch and time strings YYYYMMDD-HH24:MI:SS  to other forms of time strings.
+Converts seconds since I<epoch> and time strings on the form C<YYYYMMDD-HH24:MI:SS> to other forms.
 
 B<Input:> One, two or three arguments.
 
@@ -4077,7 +4075,7 @@ B<Second argument: (optional)> An epock C<time()> number or a time
 string of the form YYYYMMDD-HH24:MI:SS or YYYYMMDDTHH:MI:SS or
 YYYY-MM-DDTHH:MI:SS (in which T is litteral and HH is the 24-hour
 version of hours) or YYYYMMDD. Uses the current C<time()> if the
-second argument is missing or false.
+second argument is missing.
 
 TODO: Formats with % as in C<man date> (C<%Y%m%d> and so on)
 
@@ -4094,95 +4092,67 @@ Prints C<< 3. july 1997 >> if thats the dato today:
 
   perl -MAcme::Tools -le 'print timestr("D. month YYYY")'
 
-  print timestr"HH24:MI");              # prints 23:55 if thats the time now
-  print timestr"HH24:MI",time());       # ...same,since time() is the default
-  print timestr"HH:MI",time()-5*60);    # prints 23:50 if that was the time 5 minutes ago
-  print timestr"HH:MI",time()-5*60*60); # print 18:55 if thats the time 5 hours ago
-  timestr"Day D. month YYYY HH:MI");    # Saturday  juli 2004 23:55       (stor L liten j)
-  timestr"dag D. Måned ÅÅÅÅ HH:MI");    # lørdag 3. Juli 2004 23:55       (omvendt)
-  timestr"DG DD. MONTH YYYY HH24:MI");  # LØR 03. JULY 2004 23:55         (HH24 = HH, month=engelsk)
-  timestr"DD-MON-YYYY");                # 03-MAY-2004                     (mon engelsk)
-  timestr"DD-MÅN-YYYY");                # 03-MAI-2004                     (mån norsk)
+  print tms("HH24:MI");              # prints 23:55 if thats the time now
+  tms("HH24:MI",time());             # ...same,since time() is the default
+  tms("HH:MI",time()-5*60);          # 23:50 if that was the time 5 minutes ago
+  tms("HH:MI",time()-5*60*60);       # 18:55 if thats the time 5 hours ago
+  tms("Day Month Dth YYYY HH:MI");   # Saturday July 1st 2004 23:55    (big S, big J)
+  tms("Day D. Month YYYY HH:MI");    # Saturday 8. July 2004 23:55     (big S, big J)
+  tms("DAY D. MONTH YYYY HH:MI");    # SATURDAY 8. JULY 2004 23:55     (upper)
+  tms("dy D. month YYYY HH:MI");     # sat 8. july 2004 23:55          (small s, small j)
+  tms("Dy DD. MON YYYY HH12:MI am"); # Sat 08. JUL 2004 11:55 pm       (HH12, am becomes pm if after 12)
+  tms("DD-MON-YYYY");                # 03-MAY-2004                     (mon, english)
 
-B<String in second argument:>
+The following list of codes in the first argument will be replaced:
 
-Formatstrengen kan innholde en eller flere av følgende koder.
-
-Formatstrengen kan inneholde tekst, som f.eks. C<< tid('Klokken er: HH:MI') >>.
-Teksten her vil ikke bli konvertert. Men det anbefales å holde tekst utenfor
-formatstrengen, siden framtidige koder kan erstatte noen tegn i teksten med tall.
-
-Der det ikke står annet: bruk store bokstaver.
-
-  YYYY    Årstallet med fire sifre
-  ÅÅÅÅ    Samme som YYYY (norsk)
-  YY      Årstallet med to sifre, f.eks. 04 for 2004 (anbefaler ikke å bruke tosifrede år)
-  ÅÅ      Samme som YY (norsk)
-  yyyy    Årtallet med fire sifre, men skriver ingenting dersom årstallet er årets (plass-sparing, ala tidstrk() ).
-  åååå    Samme som yyyy
-  MM      Måned, to sifre. F.eks. 08 for august.
-  DD      Dato, alltid to sifer. F.eks 01 for første dag i en måned.
-  D       Dato, ett eller to sifre. F.eks. 1 for første dag i en måned.
-  HH      Time. Fra 00, 01, 02 osv opp til 23.
-  HH24    Samme som HH. Ingen forskjell. Tatt med for å fjerne tvil om det er 00-12-11 eller 00-23
-  HH12    NB: Kl 12 blir 12, kl 13 blir 01, kl 14 blir 02 osv .... 23 blir 11,
-          MEN 00 ETTER MIDNATT BLIR 12 ! Oracle er også slik.
-  TT      Samme som HH. Ingen forskjell. Fra 00 til 23. TT24 og TT12 finnes ikke.
+  YYYY    Year, four digits
+  YY      Year, two digits, i.e. 04 instead of 2004
+  yyyy    Year, four digits, but nothing if its the current year
+  YYYY|HH:MI  Year if its another year than the current, a time in hours and minutes elsewise
+  MM      Month, two digits. I.e. 08 for August
+  DD      Day of month, two digits. I.e. 01 (not 1) for the first day in a month
+  D       Day of month, one digit. I.e. 1 (not 01)
+  HH      Hour. From 00 to 23.
+  HH24    Same as HH.
+  HH12    12 becomes 12 (never 00), 13 becomes 01, 14 02 and so on.
+          Note: 00 after midnight becomes 12 (am). Tip: always include the code
+          am in a format string that uses HH12.
   MI      Minutt. Fra 00 til 59.
   SS      Sekund. Fra 00 til 59.
+  am      Becomes am or pm
+  pm      Same
+  AM      Becomes AM or PM (upper case)
+  PM      Same
  
-  Måned   Skriver månedens fulle navn på norsk. Med stor førstebokstav, resten små.
-          F.eks. Januar, Februar osv. NB: Vær oppmerksom på at måneder på norsk normal
-          skrives med liten førstebokstav (om ikke i starten av setning). Alt for mange
-          gjør dette feil. På engelsk skrives de ofte med stor førstebokstav.
-  Måne    Skriver månedens navn forkortet og uten punktum. På norsk. De med tre eller
-          fire bokstaver forkortes ikke: Jan Feb Mars Apr Mai Juni Juli Aug Sep Okt Nov Des
-  Måne.   Samme som Måne, men bruker punktum der det forkortes. Bruker alltid fire tegn.
-          Jan. Feb. Mars Apr. Mai Juni Juli Aug. Sep. Okt. Nov. Des.
-  Mån     Tre bokstaver, norsk: Jan Feb Mar Apr Mai Jun Jul Aug Sep Okt Nov Des
+  Month   The full name of the month in English from January to December
+  MONTH   Same in upper case (JANUARY)
+  month   Same in lower case (january)
+  Mont    Jan Feb Mars Apr May June July Aug Sep Oct Nov Dec
+  Mont.   Jan. Feb. Mars Apr. May June July Aug. Sep. Oct. Nov. Dec. (always four chars)
+  Mon     Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec            (always three chars)
  
-  Month   Engelsk: January February May June July October December, ellers = norsk.
-  Mont    Engelsk: Jan Feb Mars Apr May June July Aug Sep Oct Nov Dec
-  Mont.   Engelsk: Jan. Feb. Mars Apr. May June July Aug. Sep. Oct. Nov. Dec.
-  Mon     Engelsk: Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
+  Day     The full name of the weekday. Sunday to Saturday
+  Dy      Three letters: Sun Mon Tue Wed Thu Fri Sat
+  DAY     Upper case
+  DY      Upper case
+  Dth     1st 2nd 3rd 4th 5th ... 11th 12th ... 20th 21st 22nd 23rd 24th ... 30th 31st
  
-  måned måne måne. mån       Samme, men med liten førstebokstav. På norsk.
-  month mont mont. mon       Samme, men med liten førstebokstav. På engelsk.
-  MÅNED MÅNE MÅNE. MÅN       Samme, men med alle bokstaver store. På norsk.
-  MONTH MONT MONT. MON       Samme, men med alle bokstaver store. På engelsk.
+  WW      Week number of the year 01-53 according to the ISO8601-definition (which most countries uses)
+  WWUS    Week number of the year 01-53 according to the most used definition in the USA.
+          Other definitions also exists.
+
+  epoch   Converts a time string from YYYYMMDD-HH24:MI:SS, YYYYMMDD-HH24:MI:SS, YYYYMMDDTHH:MI:SS,
+          YYYY-MM-DDTHH:MI:SS or YYYYMMDD to the number of seconds since January 1st 1970.
+          Commonly known as the Unix epoch.
  
-  Dag     Dagens navn på norsk. Stor førstebokstav, resten små. Mandag Tirsdag Onsdag Torsdag
-          Fredag Lørdag Søndag.
-  Dg      Dagens navn på norsk forkortet. Stor førstebokstav, resten små.
-          Alltid tre bokstaver: Man Tir Ons Tor Fre Lør Søn
-  Day     Samme som Dag, men på engelsk. Monday Tuesday Wednesday Thursday Friday Saturday Sunday
-  Dy      Samme som Dg, men på engelsk. Alltid tre bokstaver: Mon Tue Wed Thu Fri Sat Sun
+  JDN     Julian day number. Integer. The number of days since the day starting at noon on January 1 4713 BC
+  JD      Same as JDN but a float accounting for the time of day
  
-  dag dg day dy DAG DG DAY DY       ....du klarer sikkert å gjette...
- 
-  UKE     Ukenr ett eller to siffer. Bruker ISO-definisjonen som brukes stort sett i hele verden unntatt USA.
-  UKENR   Ukenr, alltid to siffer, 01 02 osv. Se uke() et annet sted i SO::Bibl for mer om dette.
- 
-  Gjenstår:  Dag- og månedsnavn på nynorsk og samisk.
- 
-  Gjenstår:  Dth => 1st eller 2nd hvis dato er den første eller andre
- 
-  Gjenstår:  M => Måned ett eller to sifre, slik D er dato med ett eller to. Vanskelig/umulig(?)
- 
-  Gjenstår:  J => "julian day"....
- 
-  Gjenstår:  Sjekke om den takler tidspunkt for svært lenge siden eller om svært lenge...
-             Kontroll med kanskje die ved input
- 
-  Gjenstår:  sub dit() (tid baklengs... eller et bedre navn) for å konvertere andre veien.
-             Som med to_date og to_char i Oracle. Se evt L<Date::Parse> isteden.
- 
-  Gjenstår:  Hvis formatstrengen er DDMMYY (evt DDMMÅÅ), og det finnes en tredje argument,
-             så vil den tredje argumenten sees på som personnummer og DD vil bli DD+40
-             eller MM vil bli MM+50 hvis personnummeret medfører D- eller S-type fødselsnr.
-             Hmm, kanskje ikke. Se heller  sub foedtdato  og  sub fnr  m.fl.
- 
-  Gjenstår:  Testing på tidspunkter på mer enn hundre år framover eller tilbake i tid.
+TODO:  sub smt() (tms backward... or something better named, converts the other way)
+       As to_date and to_char in Oracle. Se maybe L<Date::Parse> instead
+
+B<Third argument:> (optional) Is_date. False|true, default false. If true, the second argument is
+interpreted as a date of the form YYYYMMDD, not as a number of seconds since epoch (January 1st 1970).
 
 =cut
 

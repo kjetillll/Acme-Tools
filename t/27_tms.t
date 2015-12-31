@@ -3,6 +3,11 @@
 BEGIN{require 't/common.pl'}
 use Test::More tests => 38;
 
+$ENV{TZ}='CET';
+#$ENV{TZ}='Europe/Oslo';
+#$ENV{TZ}='Asia/Kolkata';
+use POSIX; POSIX::tzset;
+
 my $t =1450624919; #20151220-16:21:59 Sun
 my $t2=1000000000; #20150909-03:46:40 Sun
 my $t3=1560000000; #20190608-15:20:00 Sat
@@ -49,3 +54,14 @@ tst('59.000',$t,'SS.3');
 
 tst('354',$t,'doy');tst('353',$t,'doy0');tst('353',$t,'d0y');
 
+#--------------------------------------------------------------------------------
+
+my $tt='20151229-19:13';
+
+# more
+
+__END__
+http://stackoverflow.com/questions/753346/how-do-i-set-the-timezone-for-perls-localtime
+https://en.wikipedia.org/wiki/Tz_database
+perl -MPOSIX -le'      print for tzname' #GMT GMT
+perl -MPOSIX -le'tzset;print for tzname' #CET CEST
