@@ -1,12 +1,14 @@
 # make test
 # perl Makefile.PL; make; perl -Iblib/lib t/27_tms.t
 BEGIN{require 't/common.pl'}
-use Test::More tests => 38;
+use Test::More;
+if( $^O =~ /win/i ) {  plan skip_all => 'POSIX::tzset not ok on windows'  }
+else                {  plan tests    => 38                                }
 
 $ENV{TZ}='CET';
 #$ENV{TZ}='Europe/Oslo';
 #$ENV{TZ}='Asia/Kolkata';
-use POSIX; POSIX::tzset;
+require POSIX; POSIX::tzset;
 
 my $t =1450624919; #20151220-16:21:59 Sun
 my $t2=1000000000; #20150909-03:46:40 Sun

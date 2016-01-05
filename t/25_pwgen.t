@@ -5,6 +5,7 @@ BEGIN{require 't/common.pl'}
 use Test::More tests => 11;
 
 sub tstr{sprintf("    (%d trials, %.5f sec)",$Acme::Tools::Pwgen_trials, $Acme::Tools::Pwgen_sec)}
+#my $i=0; sub Acme::Tools::time_fp{++$i}
 
 do{
   local $Acme::Tools::Pwgen_max_sec=0.001;

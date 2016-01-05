@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 package Acme::Tools;
 
-our $VERSION = '0.172';   #new version: C-s ny versjon
+our $VERSION = '0.173';   #new version: C-s ny versjon
 
 use 5.008;     #Perl 5.8 was released July 18th 2002
 use strict;
@@ -2883,13 +2883,14 @@ sub pwgen {
   $chars||='A-Za-z0-9,-./&%_!';
   $req[0]||=\&pwgendefreq if !$_[2];
   $chars=~s/([$_])-([$_])/join("","$1".."$2")/eg  for ('a-z','A-Z','0-9');
-  my($c,$t,@pw)=(length($chars),time_fp());
+  my($c,$t,@pw,$d)=(length($chars),time_fp());
   ($Pwgen_trials,$Pwgen_sec)=(0,0);
   TRIAL:
   while(@pw<$num){
     croak "pwgen timeout after $Pwgen_trials trials"
-      if ++$Pwgen_trials >= $Pwgen_max_trials
-      or time_fp()-$t > $Pwgen_max_sec*$num;
+      if ++$Pwgen_trials   >= $Pwgen_max_trials
+      or ($d=time_fp()-$t) >  $Pwgen_max_sec*$num
+            and $d!~/^\d+$/; #jic int from time_fp
     my $pw=join"",map substr($chars,rand($c),1),1..$len;
     for my $r (@req){
       if   (ref($r) eq 'CODE'  ){ local$_=$pw; &$r()    or next TRIAL }
