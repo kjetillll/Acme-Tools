@@ -4054,10 +4054,10 @@ our @Openstrpath=(grep$_,split(":",$ENV{PATH}),qw(/usr/bin /bin /usr/local/bin))
 sub openstr {
   my($fn,$ext)=(shift()=~/^(.*?(?:\.(t?gz|bz2|xz))?)$/i);
   return $fn if !$ext;
-  my $prog=sub{@Openstrpath or return $_[0];(grep -x$_, map "$_/$_[0]", @Openstrpath)[0] or die};
+  my $prog=sub{@Openstrpath or return $_[0];(grep -x$_, map "$_/$_[0]", @Openstrpath)[0] or croak"$_[0] not found"};
   $fn =~ /^\s*>/
-      ?  "| ".(&$prog({qw/tgz gzip gz gzip bz2 bzip2 xz xz/   }->{lc($ext)})).$fn
-      :        &$prog({qw/tgz zcat gz zcat bz2 bzcat xz xzcat/}->{lc($ext)})." $fn |";
+      ?  "| ".(&$prog({qw/gz gzip bz2 bzip2 xz xz tgz gzip/   }->{lc($ext)})).$fn
+      :        &$prog({qw/gz zcat bz2 bzcat xz xzcat tgz zcat/}->{lc($ext)})." $fn |";
 }
 
 =head1 TIME FUNCTIONS
