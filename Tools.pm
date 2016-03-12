@@ -6669,6 +6669,7 @@ Like C<du> command but views space used by file extentions instead of dirs. Opti
  due -i          Ignore case, .GZ and .gz is the same, output in lower case
  due -t          Adds time of day to -M and -P output
  due -e 'regex'  Exclude files (full path) matching regex. Ex: due -e '\.git'
+ ls -l | due     Parses output of ls -l, find -ls, tar tvf and reports
 
 =cut
 
@@ -6684,7 +6685,7 @@ sub install_acme_command_tools {
 sub cmd_conv { print conv(@ARGV)."\n"  }
   use Data::Dumper;
 sub cmd_due { #TODO: output from tar tvf and ls and find -ls
-  require Getopt::Std; my %o; Getopt::Std::getopts("zkKmhciMPate:" => \%o);
+  my %o=_go("zkKmhciMPate:");
   require File::Find;
   no warnings 'uninitialized';
   die"$0: -h, -k or -m can not be used together\n" if $o{h}+$o{k}+$o{m}>1;
@@ -6695,18 +6696,33 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
   my $r=$o{z} ? qr/(\.[^\.\/]{1,10}(\.(z|Z|gz|bz2|rz|xz))?)$/
               : qr/(\.[^\.\/]{1,10})$/;
   my $rexcl=exists$o{e}?qr/$o{e}/:0;
-  File::Find::find({wanted =>
-    sub {
-      return if !-f$_;
-      return if $rexcl and $File::Find::name=~$rexcl;
-      my($sz,$mtime)=(stat($_))[7,9];
-      my $ext=m/$r/?$1:"";
+
+  if(-p STDIN){
+    while(<>){
+      next if !/(^| )\-[rwx\-sS]{9} +\d+ \w+ +\w+ +(\d+) [a-z]+\.? +\d+ +(?:\d\d:\d\d|\d{4}) (.*)$/;
+      my($sz,$f)=($2,$3);
+      my $ext=$f=~$r?$1:'';
       $ext=lc($ext) if $o{i};
       $cnt++;    $c{$ext}++;
       $bts+=$sz; $b{$ext}+=$sz;
-      $mtime{$ext}.=",$mtime" if $o{M} or $o{P};
-      1;
-    } },@q);
+      #$mtime{$ext}.=",$mtime" if
+                                  $o{M} || $o{P} and die"-M|-P not yet implemented for due STDIN";
+    }
+  }
+  else { #hm DRY
+    File::Find::find({wanted =>
+      sub {
+        return if !-f$_;
+        return if $rexcl and $File::Find::name=~$rexcl;
+        my($sz,$mtime)=(stat($_))[7,9];
+        my $ext=m/$r/?$1:'';
+        $ext=lc($ext) if $o{i};
+        $cnt++;    $c{$ext}++;
+        $bts+=$sz; $b{$ext}+=$sz;
+        $mtime{$ext}.=",$mtime" if $o{M} || $o{P};
+         1;
+      } },@q);
+  }
   my($f,$s)=$o{k}?("%14.2f kb",sub{$_[0]/1024})
            :$o{K}?("%14.2f Kb",sub{$_[0]/1000})
            :$o{m}?("%14.2f mb",sub{$_[0]/1024**2})
@@ -6773,9 +6789,11 @@ sub cmd_ccmd {
 sub cmd_trunc { die "todo: trunc not ready yet"} #truncate a file, size 0, keep all other attr
 
 sub cmd_wipe  {
-  require Getopt::Std; my %o; Getopt::Std::getopts("n:k" => \%o);
+  my %o=_go("n:k");
   wipe($_,$o{n},$o{k}) for @_;
 }
+
+sub _go { require Getopt::Std; my %o; Getopt::Std::getopts(shift() => \%o); %o }
 
 =head1 DATABASE STUFF - NOT IMPLEMENTED YET
 
