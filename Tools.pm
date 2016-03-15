@@ -6761,21 +6761,11 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
   my $r=$o{z} ? qr/(\.[^\.\/]{1,10}(\.(z|Z|gz|bz2|rz|xz))?)$/
               : qr/(\.[^\.\/]{1,10})$/;
   my $rexcl=exists$o{e}?qr/$o{e}/:0;
-<<<<<<< HEAD
-  File::Find::find({wanted =>
-    sub {
-      return if !-f$_;                                   no warnings;
-      return if $rexcl and $File::Find::name=~$rexcl;    use warnings;
-      my($sz,$mtime)=(stat($_))[7,9];
-      my $ext=m/$r/?$1:"";
-=======
-
   if(-p STDIN){
     while(<>){
       next if !/(^| )\-[rwx\-sS]{9} +\d+ \w+ +\w+ +(\d+) [a-z]+\.? +\d+ +(?:\d\d:\d\d|\d{4}) (.*)$/;
       my($sz,$f)=($2,$3);
       my $ext=$f=~$r?$1:'';
->>>>>>> 91988901a7c83a98e9169f2e7e6cedaef342feaf
       $ext=lc($ext) if $o{i};
       $cnt++;    $c{$ext}++;
       $bts+=$sz; $b{$ext}+=$sz;
