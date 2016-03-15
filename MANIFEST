@@ -31,6 +31,7 @@ t/25_pwgen.t
 t/26_openstr.t
 t/27_tms.t
 t/28_wipe.t
+t/29_cmd_z2z.t
 t/common.pl
 t/test_fork_bloom.pl
 t/test_k_m.pl
