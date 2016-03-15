@@ -119,6 +119,8 @@ our @EXPORT = qw(
   dserialize
   serialize
   srlz
+  cnttbl
+  nicenum
   bytes_readable
   distance
   tms
@@ -493,7 +495,7 @@ sub resolve(&@) {
     $fd   = &$fx($x[$n]+$delta*0.6) - &$fx($x[$n]-$delta*0.4) if $fd==0; #wiggle...
     $fd   = &$fx($x[$n]+$delta*0.3) - &$fx($x[$n]-$delta*0.7) if $fd==0;
     #warn "n=$n  fd=$fd\n";
-    croak "Div by zero: df(x) = $x[$n] at n'th iteration, n=$n" if $fd==0;
+    croak "Div by zero: df(x) = $x[$n] at n'th iteration, n=$n, delta=$delta, fx=$fx" if $fd==0;
     $Resolve_last_estimate=
     $x[$n+1]=$x[$n]-(&$fx($x[$n])-$g)/($fd/$delta);
     $Resolve_iterations=$n;
@@ -2516,17 +2518,17 @@ B<Differences between the two main methods described above:>
 
  Data: 1, 4, 6, 7, 8, 9, 22, 24, 39, 49, 555, 992
 
- Percentile  Method 1                    Method 2
-             (Acme::Tools::percentile  (Oracle)
-             and others)
- ----------- --------------------------- ---------
- 0           -2                          1
- 1           -1.61                       1.33
- 25          6.25                        6.75
- 50 (median) 15.5                        15.5
- 75          46.5                        41.5
- 99          1372.19                     943.93
- 100         1429                        992
+ Percentile    Method 1                      Method 2
+               (Acme::Tools::percentile      (Oracle)
+               and others)
+ ------------- ----------------------------- ---------
+ 0             -2                            1
+ 1             -1.61                         1.33
+ 25            6.25                          6.75
+ 50 (median)   15.5                          15.5
+ 75            46.5                          41.5
+ 99            1372.19                       943.93
+ 100           1429                          992
 
 Found like this:
 
@@ -2534,11 +2536,6 @@ Found like this:
 
 And like this in Oracle-databases:
 
- create table tmp (n number);
- insert into tmp values (1); insert into tmp values (4); insert into tmp values (6);
- insert into tmp values (7); insert into tmp values (8); insert into tmp values (9);
- insert into tmp values (22); insert into tmp values (24); insert into tmp values (39);
- insert into tmp values (49); insert into tmp values (555); insert into tmp values (992);
  select
    percentile_cont(0.00) within group(order by n) per0,
    percentile_cont(0.01) within group(order by n) per1,
@@ -2547,7 +2544,10 @@ And like this in Oracle-databases:
    percentile_cont(0.75) within group(order by n) per75,
    percentile_cont(0.99) within group(order by n) per99,
    percentile_cont(1.00) within group(order by n) per100
- from tmp;
+ from (
+   select 0+regexp_substr('1,4,6,7,8,9,22,24,39,49,555,992','[^,]+',1,i) n
+   from dual,(select level i from dual connect by level <= 12)
+ );
 
 (Oracle also provides a similar function: C<percentile_disc> where I<disc>
 is short for I<discrete>, meaning no interpolation is taking
@@ -4249,6 +4249,8 @@ sub weeknum {
   return (($d-$d/1460)%365+$d/1460)/7+1;
 }
 
+#perl -MAcme::Tools -le 'print "$_ ".tms($_."0501","day",1) for 2015..2026'
+
 sub tms {
   return undef if @_>1 and not defined $_[1]; #time=undef => undef
   if(@_==1){
@@ -5832,6 +5834,62 @@ sub srlz {
   $s;
 }
 
+=head2 cnttbl
+
+ my %nordic_country_population=(Norway=>5214890,Sweden=>9845155,Denmark=>5699220,Finland=>5496907,Iceland=>331310);
+ print cnttbl(\%nordic_country_population);
+ Iceland   331310   1.25%
+ Norway   5214890  19.61%
+ Finland  5496907  20.67%
+ Denmark  5699220  21.44%
+ Sweden   9845155  37.03%
+ SUM     26587482 100.00%
+
+Todo: Levels...:
+
+ my %sales=(
+  Toyota=>{Prius=>19,RAV=>12,Auris=>18,Avensis=>7},
+  Volvo=>{V40=>14, XC90=>4},
+  Nissan=>{Leaf=>19,Qashqai=>17},
+  Tesla=>{ModelS=>8}
+ );
+ print cnttbl(\%sales);
+ Toyota SUM 56
+ Volvo SUM 18
+ Nissan SUM 36
+ Tesla SUM 8
+ SUM SUM 56 100%
+
+=cut
+
+sub cnttbl {
+  my $hr=shift;
+  my $maxlen=max(3,map length($_),keys%$hr);
+  join"",ref((values%$hr)[0])
+  ?do{ map {my$o=$_;join("",map rpad($$o[0],$maxlen)." $_\n",split("\n",$$o[1]))}
+       map [$_,cnttbl($$hr{$_})],
+       sort keys%$hr }
+  :do{ my $sum=sum(values%$hr);
+       my $fmt=repl("%-xs %yd %6.2f%%\n",x=>$maxlen,y=>length($sum)); 
+       map sprintf($fmt,@$_,100*$$_[1]/$sum),
+       (map[$_,$$hr{$_}],sort{$$hr{$a}<=>$$hr{$b} or $a cmp $b}keys%$hr),
+       (['SUM',$sum]) }
+}
+
+=head2 nicenum
+
+ print 14.3 - 14.0;   #0.300000000000001
+ print 34.3 - 34.0;   #0.299999999999997
+ print nicenum( 14.3 - 14.0 );   #0.3
+ print nicenum( 34.3 - 34.0 );   #0.3
+
+=cut
+
+sub nicenum {croak "todo: nicenum not yet implemented";
+  my $n=shift;
+#  $n=~s,^\s*([-+]?\d*)\.(\d+?)9{5,}\d??(e-?\d+)$,$1.
+}
+
 
 =head2 sys
 
@@ -6628,6 +6686,13 @@ sub ftype {
   or undef;
 }
 
+sub ext2mime {
+  my $ext=shift(); #or filename
+  #http://www.sitepoint.com/web-foundations/mime-types-complete-list/
+  croak "todo: ext2mime not yet implemented";
+  #return "application/json";#feks
+}
+
 =head1 COMMANDS
 
 =head2 install_acme_command_tools
@@ -6697,8 +6762,8 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
   my $rexcl=exists$o{e}?qr/$o{e}/:0;
   File::Find::find({wanted =>
     sub {
-      return if !-f$_;
-      return if $rexcl and $File::Find::name=~$rexcl;
+      return if !-f$_;                                   no warnings;
+      return if $rexcl and $File::Find::name=~$rexcl;    use warnings;
       my($sz,$mtime)=(stat($_))[7,9];
       my $ext=m/$r/?$1:"";
       $ext=lc($ext) if $o{i};

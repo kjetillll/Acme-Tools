@@ -1,3 +1,4 @@
+# perl Makefile.PL; make; perl -Iblib/lib t/04_resolve.t
 BEGIN{require 't/common.pl'}
 use Test::More tests => 14;
 
