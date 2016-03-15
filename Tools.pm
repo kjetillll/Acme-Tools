@@ -6675,10 +6675,10 @@ Like C<du> command but views space used by file extentions instead of dirs. Opti
 
 sub install_acme_command_tools {
   my $dir=(grep -d$_, @_, '/usr/local/bin', '/usr/bin')[0];
-  for(qw( conv due xcat freq deldup ccmd )){
+  for( qw( conv due xcat freq deldup ccmd   2gz 2gzip 2bz2 2bzip2 2xz z2z ) ){
     unlink("$dir/$_");
     writefile("$dir/$_", "#!$^X\nuse Acme::Tools;\nAcme::Tools::cmd_$_(\@ARGV);\n");
-    sys("/bin/chmod +x $dir/$_");
+    sys("/bin/chmod +x $dir/$_"); #hm umask
     print "Wrote executable $dir/$_\n";
   }
 }
@@ -6706,7 +6706,7 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
       $cnt++;    $c{$ext}++;
       $bts+=$sz; $b{$ext}+=$sz;
       #$mtime{$ext}.=",$mtime" if
-                                  $o{M} || $o{P} and die"-M|-P not yet implemented for due STDIN";
+                                  $o{M} || $o{P} and die"due: -M and -P not yet implemented for STDIN";
     }
   }
   else { #hm DRY
@@ -6720,7 +6720,7 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
         $cnt++;    $c{$ext}++;
         $bts+=$sz; $b{$ext}+=$sz;
         $mtime{$ext}.=",$mtime" if $o{M} || $o{P};
-         1;
+	1;
       } },@q);
   }
   my($f,$s)=$o{k}?("%14.2f kb",sub{$_[0]/1024})
@@ -6750,6 +6750,7 @@ sub cmd_xcat {
   for my $fn (@_){
     my $os=openstr($fn);
     open my $FH, $os or warn "xcat: cannot open $os ($!)\n" and next;
+    #binmode($FH);#hm?
     print while <$FH>;
     close($FH);
   }
@@ -6762,13 +6763,11 @@ sub cmd_freq {
   printf("%4d %5s%8d".(++$i%3?$s:"\n"),$_,$m{$_}||chr,$f[$_]) for grep$f[$_],0..255;print "\n";
   my @no=grep!$f[$_],0..255; print "No bytes for these ".@no.": ".join(" ",@no)."\n";
 }
-
-sub cmd_deldup {
+sub cmd_deldup { #rename finddup with -d for delete
   # ~/test/deldup.pl #find and optionally delete duplicate files effiencently
   #http://www.commandlinefu.com/commands/view/3555/find-duplicate-files-based-on-size-first-then-md5-hash
   die "todo: deldup not ready yet"
 }
-
 #http://stackoverflow.com/questions/11900239/can-i-cache-the-output-of-a-command-on-linux-from-cli
 our $Ccmd_cache_dir='/tmp/acme-tools-ccmd-cache';
 our $Ccmd_cache_expire=15*60;  #default 15 minutes
@@ -6791,6 +6790,42 @@ sub cmd_trunc { die "todo: trunc not ready yet"} #truncate a file, size 0, keep 
 sub cmd_wipe  {
   my %o=_go("n:k");
   wipe($_,$o{n},$o{k}) for @_;
+}
+
+sub cmd_2gz    {cmd_z2z("-t","gz", @_)}
+sub cmd_2gzip  {cmd_z2z("-t","gz", @_)}
+sub cmd_2bz2   {cmd_z2z("-t","bz2",@_)}
+sub cmd_2bzip2 {cmd_z2z("-t","bz2",@_)}
+sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
+sub cmd_z2z {
+  local @ARGV=@_;
+  my %o=_go("pt:kvhf123456789");
+  my $t=$o{t}; #||{ ... }->{$0}...
+  $t=~/^(gz|bz2|xz)$/ or die;
+  for(@ARGV){
+    my $new=$_; $new=~s/(\.(gz|bz2|xz))?$/.$t/i or die;
+    my $ext=defined($2)?lc($2):'';
+    my $same=/^$new$/; $new.=".tmp" if $same; die if $o{k} and $same;
+    next if !-e$_ and warn"$_ do not exists\n";
+    next if !-r$_ and warn"$_ is not readable\n";
+    next if -e$new and !$o{f} and warn"$_ already exists, skipping\n";
+    my $unz={qw/gz gunzip bz2 bunzip2 xz unxz/}->{$ext}||'';
+    my $z=  {qw/gz gzip   bz2 bzip2   xz xz/}->{$t};
+    $z.=" -$_" for grep$o{$_},1..9;
+    my $cat=$o{p}?"pv":"cat";
+    my $cmd="$cat $_|$unz|$z>$new";
+    #cat /tmp/kontroll-linux.xz|unxz|tee >(wc -c>/tmp/p)|gzip|wc -c;cat /tmp/p
+    $cmd=~s,\|+,|,g;
+    print "cmd: $cmd\n";
+    sys($cmd);
+    chall($_,$new)||die;
+    my($szold,$sznew)=map{-s$_}($_,$new);
+    my $szorg=-s$_;
+    unlink $_ if!$o{k};
+    rename $new, replace($new,qr/.tmp$/) or die if $same;
+    printf "%6.1f%% %11db  => %11db  %s\n",100*$sznew/$szold,$szold,$sznew,$_                             if $o{v} and !$o{h};
+    printf "%6.1f%%  %9s => %9s  %s\n",100*$sznew/$szold,bytes_readable($szold),bytes_readable($sznew),$_ if $o{v} and  $o{h};
+  }
 }
 
 sub _go { require Getopt::Std; my %o; Getopt::Std::getopts(shift() => \%o); %o }
