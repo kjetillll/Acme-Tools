@@ -6879,16 +6879,17 @@ sub cmd_z2z {
     my $cat=$o{p}?"pv":"cat";
     my $cmd="$cat $_|$unz|$z>$new";
     #cat /tmp/kontroll-linux.xz|unxz|tee >(wc -c>/tmp/p)|gzip|wc -c;cat /tmp/p
-    $cmd=~s,\|+,|,g;
-    print "cmd: $cmd\n";
+    $cmd=~s,\|+,|,g; #print "cmd: $cmd\n";
     sys($cmd);
     chall($_,$new)||die;
     my($szold,$sznew)=map{-s$_}($_,$new);
-    my $szorg=-s$_;
-    unlink $_ if!$o{k};
-    rename $new, replace($new,qr/.tmp$/) or die if $same;
-    printf "%6.1f%% %11db  => %11db  %s\n",100*$sznew/$szold,$szold,$sznew,$_                             if $o{v} and !$o{h};
-    printf "%6.1f%%  %9s => %9s  %s\n",100*$sznew/$szold,bytes_readable($szold),bytes_readable($sznew),$_ if $o{v} and  $o{h};
+    unlink $_ if !$o{k};
+    rename($new, replace($new,qr/.tmp$/)) or die if $same;
+    if($o{v}){
+      my $pr=100*$sznew/$szold;
+      $o{h} ? printf("%6.1f%%  %9s => %9s  %s\n",      $pr,(map bytes_readable($_),$szold,$sznew),$_)
+            : printf("%6.1f%% %11d b  => %11d b  %s\n",$pr,$szold,$sznew,$_)
+    }
   }
 }
 
