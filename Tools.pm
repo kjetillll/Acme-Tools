@@ -6734,7 +6734,9 @@ Like C<du> command but views space used by file extentions instead of dirs. Opti
  due -i          Ignore case, .GZ and .gz is the same, output in lower case
  due -t          Adds time of day to -M and -P output
  due -e 'regex'  Exclude files (full path) matching regex. Ex: due -e '\.git'
- ls -l | due     Parses output of ls -l, find -ls, tar tvf and reports
+ ls -l | due     Parses output of ls -l, find -ls, tar tvf for size+filename and reports
+ find | due      List of filenames from stdin produces same as just command 'due'
+ ls | due        Reports on just files in current dir without recursing into subdirs
 
 =cut
 
@@ -6760,11 +6762,12 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
   my(%c,%b,$cnt,$bts,%mtime);
   my $r=$o{z} ? qr/(\.[^\.\/]{1,10}(\.(z|Z|gz|bz2|rz|xz))?)$/
               : qr/(\.[^\.\/]{1,10})$/;
-  my $rexcl=exists$o{e}?qr/$o{e}/:0;
+  my $qrexcl=exists$o{e}?qr/$o{e}/:0;
+  my $qrstdin=qr/(^| )\-[rwx\-sS]{9} +\d+ \w+ +\w+ +(\d+) [a-zA-Z]+\.? +\d+ +(?:\d\d:\d\d|\d{4}) (.*)$/;
   if(-p STDIN){
     while(<>){
-      next if !/(^| )\-[rwx\-sS]{9} +\d+ \w+ +\w+ +(\d+) [a-z]+\.? +\d+ +(?:\d\d:\d\d|\d{4}) (.*)$/;
-      my($sz,$f)=($2,$3);
+      chomp;
+      my($sz,$f)=/$qrstdin/?($2,$3):-f$_?(-s$_,$_):next;
       my $ext=$f=~$r?$1:'';
       $ext=lc($ext) if $o{i};
       $cnt++;    $c{$ext}++;
@@ -6777,7 +6780,7 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
     File::Find::find({wanted =>
       sub {
         return if !-f$_;
-        return if $rexcl and $File::Find::name=~$rexcl;
+        return if $qrexcl and $File::Find::name=~$qrexcl;
         my($sz,$mtime)=(stat($_))[7,9];
         my $ext=m/$r/?$1:'';
         $ext=lc($ext) if $o{i};
@@ -6863,7 +6866,7 @@ sub cmd_2bzip2 {cmd_z2z("-t","bz2",@_)}
 sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
 sub cmd_z2z {
   local @ARGV=@_;
-  my %o=_go("pt:kvhf123456789");
+  my %o=_go("pt:kvhon123456789");
   my $t=$o{t}; #||{ ... }->{$0}...
   $t=~/^(gz|bz2|xz)$/ or die;
   for(@ARGV){
@@ -6872,7 +6875,7 @@ sub cmd_z2z {
     my $same=/^$new$/; $new.=".tmp" if $same; die if $o{k} and $same;
     next if !-e$_ and warn"$_ do not exists\n";
     next if !-r$_ and warn"$_ is not readable\n";
-    next if -e$new and !$o{f} and warn"$_ already exists, skipping\n";
+    next if -e$new and !$o{o} and warn"$new already exists, skipping (use -o to overwrite)\n";
     my $unz={qw/gz gunzip bz2 bunzip2 xz unxz/}->{$ext}||'';
     #todo: my $cntfile="/tmp/acme-tools-z2z-wc-c.$$";
     #todo: my $cnt="tee >(wc -c>$cntfile)" if $ENV{SHELL}=~/bash/ and $o{v}; #hm dash vs bash
@@ -6884,7 +6887,7 @@ sub cmd_z2z {
     #cat /tmp/kontroll-linux.xz|unxz|tee >(wc -c>/tmp/p)|gzip|wc -c;cat /tmp/p
     $cmd=~s,\|+,|,g; #print "cmd: $cmd\n";
     sys($cmd);
-    chall($_,$new)||die;
+    chall($_,$new)||die if !$o{n};
     my($szold,$sznew)=map{-s$_}($_,$new);
     unlink $_ if !$o{k};
     rename($new, replace($new,qr/.tmp$/)) or die if $same;

@@ -10,7 +10,7 @@ writefile($tf,join" ",1..1e4);
 #print qx(ls -l $tf)."\n";
 my($last,$n);
 for(qw(gz bz2 xz gz xz bz2 gz)){
-  my $prog={qw/gz gzip bz2 bzipb2 xz xz/}->{$_};
+  my $prog={qw/gz gzip bz2 bzip2 xz xz/}->{$_};
   next if !qx(which $prog) and warn "Program $prog missing, test z2z -t $_" and ok(1);
   my $opt='-vt';
   $opt=~s,-,-h, if $n++>3;
