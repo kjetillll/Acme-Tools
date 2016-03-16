@@ -1,20 +1,20 @@
 # make test
 # perl Makefile.PL; make; perl -Iblib/lib t/29_cmd_z2z.t
 BEGIN{require 't/common.pl'}
-use Test::More tests => 3;
-if($^O eq 'linux'){
-  my $tf=tmp()."/acme-tools.cmd_z2z";
-  writefile($tf,join" ",1..1e5);
-  print qx(ls -l $tf)."\n";
-  #qx(gzip $tf);
-  #print qx(ls -l $tf.gz)."\n";
-  Acme::Tools::cmd_z2z("-vt","gz", "$tf");
-  Acme::Tools::cmd_z2z("-vt","bz2","$tf.gz");
-  Acme::Tools::cmd_z2z("-vt","xz", "$tf.bz2");
-  Acme::Tools::cmd_z2z("-vt","gz", "$tf.xz");
-  #print qx(ls -l $tf.bz2)."\n";
-  ok(1,"n$_") for 1..3
-}
-else{
-  ok(1) for 1..3
+use Test::More tests    => 7;
+warn <<"" and map ok(1),1..7 and exit if $^O!~/^(linux|cygwin)$/;
+Tests for cmd_z2z not available for $^O, only linux and cygwin
+
+my $tf=tmp()."/acme-tools.cmd_z2z";
+writefile($tf,join" ",1..1e4);
+#print qx(ls -l $tf)."\n";
+my($last,$n);
+for(qw(gz bz2 xz gz xz bz2 gz)){
+  my $prog={qw/gz gzip bz2 bzipb2 xz xz/}->{$_};
+  next if !qx(which $prog) and warn "Program $prog missing, test z2z -t $_" and ok(1);
+  my $opt='-vt';
+  $opt=~s,-,-h, if $n++>3;
+  Acme::Tools::cmd_z2z($opt,$_,"$tf$last");
+  ok( -s "$tf.$_" );
+  $last=".$_";
 }

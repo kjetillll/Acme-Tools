@@ -646,7 +646,7 @@ See: L<http://en.wikipedia.org/wiki/Units_of_measurement>
 
 =cut
 
-#TODO:  @arr2=conv(\@arr1,"from","to")         # is way faster than:
+#TODO:  @arr2=conv(\@arr1,"from","to")         # should be way faster than:
 #TODO:  @arr2=map conv($_,"from","to"),@arr1 
 #TODO:  conv(123456789,'b','h'); # h converts to something human-readable
 
@@ -6874,10 +6874,13 @@ sub cmd_z2z {
     next if !-r$_ and warn"$_ is not readable\n";
     next if -e$new and !$o{f} and warn"$_ already exists, skipping\n";
     my $unz={qw/gz gunzip bz2 bunzip2 xz unxz/}->{$ext}||'';
+    #todo: my $cntfile="/tmp/acme-tools-z2z-wc-c.$$";
+    #todo: my $cnt="tee >(wc -c>$cntfile)" if $ENV{SHELL}=~/bash/ and $o{v}; #hm dash vs bash
     my $z=  {qw/gz gzip   bz2 bzip2   xz xz/}->{$t};
     $z.=" -$_" for grep$o{$_},1..9;
     my $cat=$o{p}?"pv":"cat";
     my $cmd="$cat $_|$unz|$z>$new";
+     #todo: "$cat $_|$unz|$cnt|$z>$new";
     #cat /tmp/kontroll-linux.xz|unxz|tee >(wc -c>/tmp/p)|gzip|wc -c;cat /tmp/p
     $cmd=~s,\|+,|,g; #print "cmd: $cmd\n";
     sys($cmd);
@@ -6887,8 +6890,11 @@ sub cmd_z2z {
     rename($new, replace($new,qr/.tmp$/)) or die if $same;
     if($o{v}){
       my $pr=100*$sznew/$szold;
-      $o{h} ? printf("%6.1f%%  %9s => %9s  %s\n",      $pr,(map bytes_readable($_),$szold,$sznew),$_)
-            : printf("%6.1f%% %11d b  => %11d b  %s\n",$pr,$szold,$sznew,$_)
+      #todo: my $szuncmp=-s$cntfile&&time()-(stat($cntfile))[9]<10 ? qx(cat $cntfile) : '';
+      #todo: $o{h} ? printf("%6.1f%%  %9s => %9s => %9s %s\n",      $pr,(map bytes_readable($_),$szold,$szuncmp,$sznew),$_)
+      #todo:       : printf("%6.1f%% %11d b  => %11d b => %11 b  %s\n",$pr,$szold,$szuncmp,$sznew,$_)
+      $o{h} ? printf("%6.1f%%  %9s => %9s %s\n",      $pr,(map bytes_readable($_),$szold,$sznew),$_)
+            : printf("%6.1f%% %11d b => %11d b  %s\n",$pr,$szold,$sznew,$_)
     }
   }
 }
