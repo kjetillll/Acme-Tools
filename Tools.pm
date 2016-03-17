@@ -6864,11 +6864,14 @@ sub cmd_2gzip  {cmd_z2z("-t","gz", @_)}
 sub cmd_2bz2   {cmd_z2z("-t","bz2",@_)}
 sub cmd_2bzip2 {cmd_z2z("-t","bz2",@_)}
 sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
+#todo?: sub cmd_7z
 sub cmd_z2z {
   local @ARGV=@_;
   my %o=_go("pt:kvhon123456789");
-  my $t=$o{t}; #||{ ... }->{$0}...
-  $t=~/^(gz|bz2|xz)$/ or die;
+  my $t=repl(lc$o{t},qw/gzip gz bzip2 bz2/);
+  die "due: unknown compression type $o{t}, known are gz, bz2 and xz" if $t!~/^(gz|bz2|xz)$/;
+  die "due: pv for -p not found, install with sudo yum install pv, sudo apt-get install pv or similar\n"
+      if $o{p} and !qx(which pv);
   for(@ARGV){
     my $new=$_; $new=~s/(\.(gz|bz2|xz))?$/.$t/i or die;
     my $ext=defined($2)?lc($2):'';
