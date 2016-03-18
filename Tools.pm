@@ -6872,6 +6872,8 @@ sub cmd_z2z {
   die "due: unknown compression type $o{t}, known are gz, bz2 and xz" if $t!~/^(gz|bz2|xz)$/;
   die "due: pv for -p not found, install with sudo yum install pv, sudo apt-get install pv or similar\n"
       if $o{p} and !qx(which pv);
+  my $sum=sum(map -s$_,@ARGV);
+  print "Converting ".@ARGV." files, total ".bytes_readable($sum)."\n" if $o{v} and @ARGV>1;
   for(@ARGV){
     my $new=$_; $new=~s/(\.(gz|bz2|xz))?$/.$t/i or die;
     my $ext=defined($2)?lc($2):'';
@@ -6895,14 +6897,15 @@ sub cmd_z2z {
     unlink $_ if !$o{k};
     rename($new, replace($new,qr/.tmp$/)) or die if $same;
     if($o{v}){
-      my $pr=100*$sznew/$szold;
+      my $pr=sprintf"%0.1f%%",100*$sznew/$szold;
       #todo: my $szuncmp=-s$cntfile&&time()-(stat($cntfile))[9]<10 ? qx(cat $cntfile) : '';
       #todo: $o{h} ? printf("%6.1f%%  %9s => %9s => %9s %s\n",      $pr,(map bytes_readable($_),$szold,$szuncmp,$sznew),$_)
       #todo:       : printf("%6.1f%% %11d b  => %11d b => %11 b  %s\n",$pr,$szold,$szuncmp,$sznew,$_)
-      $o{h} ? printf("%6.1f%%  %9s => %9s %s\n",      $pr,(map bytes_readable($_),$szold,$sznew),$_)
-            : printf("%6.1f%% %11d b => %11d b  %s\n",$pr,$szold,$sznew,$_)
+      $o{h} ? printf("%6s %9s => %9s %s\n",       $pr,(map bytes_readable($_),$szold,$sznew),$_)
+            : printf("%6s %11d b => %11d b  %s\n",$pr,$szold,$sznew,$_)
     }
   }
+  #todo: total runtime, kb saved and so on...
 }
 
 sub _go { require Getopt::Std; my %o; Getopt::Std::getopts(shift() => \%o); %o }
