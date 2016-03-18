@@ -122,6 +122,7 @@ our @EXPORT = qw(
   cnttbl
   nicenum
   bytes_readable
+  sec_readable
   distance
   tms
   easter
@@ -1292,9 +1293,13 @@ sub conv_numbers {
 
 =head2 bytes_readable
 
-Input: a number
+Converts a number of bytes to something human readable.
 
-Output:
+Input 1: a number
+
+Input 2: optionally the number of decimals if >1000 B. Default is 2.
+
+Output: a string containing:
 
 the number with a B behind if the number is less than 1000
 
@@ -1316,18 +1321,65 @@ Examples:
  print bytes_readable(1181116006.4);                     # 1.10 GB
  print bytes_readable(1209462790553.6);                  # 1.10 TB
  print bytes_readable(1088516511498.24*1000);            # 990.00 TB
+ print bytes_readable(1088516511498.24*1000,3);          # 990.000 TB
+ print bytes_readable(1088516511498.24*1000,1);          # 990.0 TB
 
 =cut
 
 sub bytes_readable {
   my $bytes=shift();
+  my $d=shift()||2; #decimals
   return undef if !defined $bytes;
-  return "$bytes B"                      if abs($bytes)<=2** 0*1000; #bytes
-  return sprintf("%.2f kB",$bytes/2**10) if abs($bytes)<2**10*1000; #kilobyte
-  return sprintf("%.2f MB",$bytes/2**20) if abs($bytes)<2**20*1000; #megabyte
-  return sprintf("%.2f GB",$bytes/2**30) if abs($bytes)<2**30*1000; #gigabyte
-  return sprintf("%.2f TB",$bytes/2**40) if abs($bytes)<2**40*1000; #terrabyte
-  return sprintf("%.2f PB",$bytes/2**50); #petabyte, exabyte, zettabyte, yottabyte
+  return "$bytes B"                         if abs($bytes) <= 2** 0*1000; #bytes
+  return sprintf("%.*f kB",$d,$bytes/2**10) if abs($bytes) <  2**10*1000; #kilobyte
+  return sprintf("%.*f MB",$d,$bytes/2**20) if abs($bytes) <  2**20*1000; #megabyte
+  return sprintf("%.*f GB",$d,$bytes/2**30) if abs($bytes) <  2**30*1000; #gigabyte
+  return sprintf("%.*f TB",$d,$bytes/2**40) if abs($bytes) <  2**40*1000; #terrabyte
+  return sprintf("%.*f PB",$d,$bytes/2**50); #petabyte, exabyte, zettabyte, yottabyte
+}
+
+=head2 sec_readable
+
+Time written as C< 14h 37m > is often more humanly comprehensible than C< 52620 seconds >.
+
+ print sec_readable( 0 );           # 0s
+ print sec_readable( 0.0123 );      # 0.0123s
+ print sec_readable(-0.0123 );      # -0.0123s
+ print sec_readable( 1.23 );        # 1.23s
+ print sec_readable( 1 );           # 1s
+ print sec_readable( 9.87 );        # 9.87s
+ print sec_readable( 10 );          # 10s
+ print sec_readable( 10.1 );        # 10.1s
+ print sec_readable( 59 );          # 59s
+ print sec_readable( 59.123 );      # 59.1s
+ print sec_readable( 60 );          # 1m 0s
+ print sec_readable( 60.1 );        # 1m 0s
+ print sec_readable( 121 );         # 2m 1s
+ print sec_readable( 131 );         # 2m 11s
+ print sec_readable( 1331 );        # 22m 11s
+ print sec_readable(-1331 );        # -22m 11s
+ print sec_readable( 13331 );       # 3h 42m
+ print sec_readable( 133331 );      # 1d 13h
+ print sec_readable( 1333331 );     # 15d 10h
+ print sec_readable( 13333331 );    # 154d 7h
+ print sec_readable( 133333331 );   # 4yr 82d
+ print sec_readable( 1333333331 );  # 42yr 91d
+
+=cut
+
+sub sec_readable {
+  my $s=shift();
+  my($h,$d,$y)=(3600,24*3600,365.25*24*3600);
+   !defined$s     ? undef
+  :!length($s)    ? ''
+  :$s<0           ? '-'.sec_readable(-$s)
+  :$s<60 && int($s)==$s
+                  ? $s."s"
+  :$s<60          ? sprintf("%.*fs",int(3+-log($s)/log(10)),$s)
+  :$s<3600        ? int($s/60)."m " .($s%60)        ."s"
+  :$s<24*3600     ? int($s/$h)."h " .int(($s%$h)/60)."m"
+  :$s<366*24*3600 ? int($s/$d)."d " .int(($s%$d)/$h)."h"
+  :                 int($s/$y)."yr ".int(($s%$y)/$d)."d";
 }
 
 =head2 int2roman
@@ -6780,7 +6832,7 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
     File::Find::find({wanted =>
       sub {
         return if !-f$_;
-        return if $qrexcl and $File::Find::name=~$qrexcl;
+        return if $qrexcl and defined $File::Find::name and $File::Find::name=~$qrexcl;
         my($sz,$mtime)=(stat($_))[7,9];
         my $ext=m/$r/?$1:'';
         $ext=lc($ext) if $o{i};
@@ -6870,10 +6922,16 @@ sub cmd_z2z {
   my %o=_go("pt:kvhon123456789");
   my $t=repl(lc$o{t},qw/gzip gz bzip2 bz2/);
   die "due: unknown compression type $o{t}, known are gz, bz2 and xz" if $t!~/^(gz|bz2|xz)$/;
-  die "due: pv for -p not found, install with sudo yum install pv, sudo apt-get install pv or similar\n"
-      if $o{p} and !qx(which pv);
   my $sum=sum(map -s$_,@ARGV);
   print "Converting ".@ARGV." files, total ".bytes_readable($sum)."\n" if $o{v} and @ARGV>1;
+  my $cat='cat';
+  if($o{p}){ if(qx(which pv)){ $cat='pv' } else { warn repl(<<"",qr/^\s+/) } }
+    due: pv for -p not found, install with sudo yum install pv, sudo apt-get install pv or similar
+
+  my $sumnew=0;
+  my $start=time_fp();
+  my($i,$bsf)=(0,0);#bytes so far
+  $Eta{'z2z'}=[];eta('z2z',0,$sum);
   for(@ARGV){
     my $new=$_; $new=~s/(\.(gz|bz2|xz))?$/.$t/i or die;
     my $ext=defined($2)?lc($2):'';
@@ -6886,7 +6944,6 @@ sub cmd_z2z {
     #todo: my $cnt="tee >(wc -c>$cntfile)" if $ENV{SHELL}=~/bash/ and $o{v}; #hm dash vs bash
     my $z=  {qw/gz gzip   bz2 bzip2   xz xz/}->{$t};
     $z.=" -$_" for grep$o{$_},1..9;
-    my $cat=$o{p}?"pv":"cat";
     my $cmd="$cat $_|$unz|$z>$new";
      #todo: "$cat $_|$unz|$cnt|$z>$new";
     #cat /tmp/kontroll-linux.xz|unxz|tee >(wc -c>/tmp/p)|gzip|wc -c;cat /tmp/p
@@ -6894,18 +6951,36 @@ sub cmd_z2z {
     sys($cmd);
     chall($_,$new)||die if !$o{n};
     my($szold,$sznew)=map{-s$_}($_,$new);
+    $bsf+=-s$_;
     unlink $_ if !$o{k};
     rename($new, replace($new,qr/.tmp$/)) or die if $same;
     if($o{v}){
+      $sumnew+=$sznew;
       my $pr=sprintf"%0.1f%%",100*$sznew/$szold;
       #todo: my $szuncmp=-s$cntfile&&time()-(stat($cntfile))[9]<10 ? qx(cat $cntfile) : '';
       #todo: $o{h} ? printf("%6.1f%%  %9s => %9s => %9s %s\n",      $pr,(map bytes_readable($_),$szold,$szuncmp,$sznew),$_)
       #todo:       : printf("%6.1f%% %11d b  => %11d b => %11 b  %s\n",$pr,$szold,$szuncmp,$sznew,$_)
-      $o{h} ? printf("%6s %9s => %9s %s\n",       $pr,(map bytes_readable($_),$szold,$sznew),$_)
-            : printf("%6s %11d b => %11d b  %s\n",$pr,$szold,$sznew,$_)
+      my $str= $o{h}
+      ? sprintf("%-7s %9s => %9s %s",       $pr,(map bytes_readable($_),$szold,$sznew),$new)
+      : sprintf("%-7s %11d b => %11d b  %s",$pr,$szold,$sznew,$new);
+      if(@ARGV>1 and $sum>1e6){
+	$str.='  ETA:'.sec_readable(eta('z2z',$bsf,$sum)-time_fp()) if ++$i < 0+@ARGV and time_fp()-$start>2;
+	$str="$i/".@ARGV." $str";
+      }
+      print "$str\n";
     }
   }
-  #todo: total runtime, kb saved and so on...
+  if($o{v} and @ARGV>1){
+      my $bytes=$o{h}?'':'bytes ';
+      my $str=
+        sprintf "%d files compressed in %.3f seconds from %s to %s $bytes (%s bytes) %.1f%% of original\n",
+	  0+@ARGV,
+	  time_fp()-$start,
+	  (map{$o{h}?bytes_readable($_):$_}($sum,$sumnew,$sumnew-$sum)),
+	  100*$sumnew/$sum;
+      $str=~s,\((\d),(+$1,;
+      print $str;
+  }
 }
 
 sub _go { require Getopt::Std; my %o; Getopt::Std::getopts(shift() => \%o); %o }

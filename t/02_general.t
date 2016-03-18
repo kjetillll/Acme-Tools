@@ -2,7 +2,7 @@
 # perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
 
 BEGIN{require 't/common.pl'}
-use Test::More tests => 178;
+use Test::More tests => 171;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -394,20 +394,6 @@ sleeps(0.010);
 sleepms(10);
 sleepus(10000);
 sleepns(10000000);
-
-#--bytes_readable
-my %br=(
-   999                    => '999 B',
-   1000                   => '1000 B',
-   1024                   => '1.00 kB',
-   1153433                => '1.10 MB',
-   1181116006             => '1.10 GB',
-   1209462790553          => '1.10 TB',
-   1088516511498          => '0.99 TB'
-);
-my$br;
-ok(($br=bytes_readable($_)) eq $br{$_}, "bytes_readable($_) == $br (should be $br{$_})")
-  for sort {$a<=>$b} keys%br;
 
 #--isnum
 my @is=qw/222 2.2e123 +2 -1 -2.2123e-321/;
