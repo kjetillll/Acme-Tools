@@ -5,6 +5,7 @@ BEGIN{require 't/common.pl'}
 use Test::More tests => 11;
 
 sub tstr{sprintf("    (%d trials, %.5f sec)",$Acme::Tools::Pwgen_trials, $Acme::Tools::Pwgen_sec)}
+#my $i=0; sub Acme::Tools::time_fp{++$i}
 
 do{
   local $Acme::Tools::Pwgen_max_sec=0.001;
@@ -16,6 +17,7 @@ do{
 ok(length(pwgen())==8, 'default len 8');
 
 my $n=300;
+$Acme::Tools::Pwgen_max_sec=1;
 sub test{/^[a-z0-9]/i and /[A-Z]/ and /[a-z]/ and /\d/ and /[\,\-\.\/\&\%\_\!]/};
 my @pw=grep test(), pwgen(0,$n);
 ok(@pw==$n, "pwgen ok ".@pw.tstr());
@@ -35,4 +37,3 @@ sub ok50{ok(@pw==50,"".(shift()||'50        ').tstr())}
 @pw=grep/^[A-C]{2}\d\d$/,pwgen(4,50,'A-C0-3',qr/^[A-C]{2}\d\d$/);              ok50();
 @pw=grep Acme::Tools::pwgendefreq(),grep/^[A-O]/,pwgen(8,50,'','',qr/^[A-O]/); ok50();
 @pw=grep Acme::Tools::pwgendefreq(),grep!/[a-z]{3}/i,pwgen(8,50,'','',sub{!/[a-z]{3}/i}); ok50();
-
