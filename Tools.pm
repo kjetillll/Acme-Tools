@@ -631,7 +631,8 @@ Note2: Many units have synonyms: m, meter, meters ...
  volume:        l, L, _L, _l, cm3, m3, ft3, in3, liter, liters, litre, litres,
                 gal, gallon, gallon_imp, gallon_uk, gallon_us, gallons,
                 pint, pint_imp, pint_uk, pint_us, tsp, tablespoon, teaspoon,
-                floz, floz_uk, therm, thm, fat, bbl, Mbbl, MMbbl, drum
+                floz, floz_uk, therm, thm, fat, bbl, Mbbl, MMbbl, drum,
+                container (or container20), container40, container40HC, container45HC
 
 See: L<http://en.wikipedia.org/wiki/Units_of_measurement>
 
@@ -830,6 +831,11 @@ our %conv=(
 		  Mbbl      => 42*231*2.54**3,        #mille (thousand) oil barrels
 		  MMbbl     => 42*231*2.54**3*1000,   #mille mille (million) oil barrels
 		  drum      => 200,
+		  container     => 33.1e3,  #container20
+		  container20   => 33.1e3,
+		  container40   => 67.5e3,
+		  container40HC => 75.3e3,
+		  container45HC => 86.1e3,
 		 },
 	 time  =>{
 		  s           => 1,
