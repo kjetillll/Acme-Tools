@@ -26,6 +26,7 @@ our @EXPORT = qw(
   percentile
   $Resolve_iterations
   $Resolve_last_estimate
+  $Resolve_time
   resolve
   resolve_equation
   conv
@@ -407,7 +408,7 @@ The equation C<< x^2 - 4x - 21 = 0 >> has two solutions: -3 and 7.
 
 The result of C<resolve> will depend on the start position:
 
- print resolve { $_**2 - 4*$_ - 21 };                         # -3 with $_ as your x
+ print resolve(sub{ $_**2 - 4*$_ - 21 });                     # -3 with $_ as your x
  print resolve(sub{ my $x=shift; $x**2 - 4*$x - 21 });        # -3 more elaborate call
  print resolve(sub{ my $x=shift; $x**2 - 4*$x - 21 },0,3);    # 7  with start position 3
  print "Iterations: $Acme::Tools::Resolve_iterations\n";      # 3 or larger, about 10-15 is normal
@@ -452,7 +453,7 @@ L<http://en.wikipedia.org/wiki/Golden_ratio>
 
 TODO: fix fail for div by 0, e.g.:
 
- perl -MAcme::Tools -le'for(map$_/10,-4..20){printf"%9.4f  %s\n",$_,3*$_+$_**4-12}print resolve(sub{$x=shift;3*$x+$x**4-12},0,1)'
+ perl -MAcme::Tools -le'for(range(-.4,2,.01)){printf"%9.4f  %s\n",$_,3*$_+$_**4-12}print resolve(sub{$x=shift;3*$x+$x**4-12},0,1)'
  resolve(sub{ my $x=shift; $x**2 - 4*$x - 21 },undef,1.9)
  resolve_equation "x + 13*(3-x) = 17 - 1/x"
 
@@ -460,11 +461,13 @@ TODO: fix fail for div by 0, e.g.:
 
 our $Resolve_iterations;
 our $Resolve_last_estimate;
+our $Resolve_time;
 
 #sub resolve(\[&$]@) {
-sub resolve(&@) {
-  my($f,$g,$start,$delta,$iters,$sec)=@_;
-  $g=0         if !defined $g;
+#sub resolve(&@) { <=0.17
+sub resolve {
+  my($f,$goal,$start,$delta,$iters,$sec)=@_;
+  $goal=0      if !defined $goal;
   $start=0     if !defined $start;
   $delta=1e-4  if !defined $delta;
   $iters=100   if !defined $iters;
@@ -475,15 +478,16 @@ sub resolve(&@) {
   $Resolve_last_estimate=undef;
   croak "Should have at least 1 argument, a coderef" if !@_;
   croak "First argument should be a coderef" if ref($f) ne 'CODE';
-  
+
   my @x=($start);
   my $time_start=$sec>0?time_fp():undef;
-  my $timeout=0;
   my $ds=ref($start) eq 'Math::BigFloat' ? Math::BigFloat->div_scale() : undef;
   my $fx=sub{
     local$_=$_[0];
     my $fx=&$f($_);
-    if($fx=~/x/ and $fx=~/^[ \(\)\.\d\+\-\*\/x\=]+$/){
+    if($fx=~/x/ and $fx=~/^[ \(\)\.\d\+\-\*\/x\=\^]+$/){
+      $fx=~s/(\d)x/$1*x/g;
+      $fx=~s/\^/**/g;
       $fx=~s/^(.*)=(.*)$/($1)-($2)/;
       $fx=~s,x,\$_,g;
       $f=eval"sub{$fx}";
@@ -491,20 +495,24 @@ sub resolve(&@) {
     }
     $fx
   };
-  for my $n (0..$iters-1){
+  #warn "delta=$delta\n";
+  my $n=0;
+  while($n<=$iters-1){
     my $fd= &$fx($x[$n]+$delta*0.5) - &$fx($x[$n]-$delta*0.5);
-    $fd   = &$fx($x[$n]+$delta*0.6) - &$fx($x[$n]-$delta*0.4) if $fd==0; #wiggle...
-    $fd   = &$fx($x[$n]+$delta*0.3) - &$fx($x[$n]-$delta*0.7) if $fd==0;
-    #warn "n=$n  fd=$fd\n";
+    $fd   = &$fx($x[$n]+$delta*0.7) - &$fx($x[$n]-$delta*0.3) if $fd==0;# and warn"wigle 1\n";
+    $fd   = &$fx($x[$n]+$delta*0.2) - &$fx($x[$n]-$delta*0.8) if $fd==0;# and warn"wigle 2\n";
     croak "Div by zero: df(x) = $x[$n] at n'th iteration, n=$n, delta=$delta, fx=$fx" if $fd==0;
-    $Resolve_last_estimate=
-    $x[$n+1]=$x[$n]-(&$fx($x[$n])-$g)/($fd/$delta);
+    $x[$n+1]=$x[$n]-(&$fx($x[$n])-$goal)/($fd/$delta);
+    $Resolve_last_estimate=$x[$n+1];
+    #warn "n=$n  fd=$fd  x=$x[$n+1]\n";
     $Resolve_iterations=$n;
     last if $n>3 and $x[$n+1]==$x[$n] and $x[$n]==$x[$n-1];
+    last if $n>4 and $x[$n]!=0 and abs(1-$x[$n+1]/$x[$n])<1e-13; #sub{3*$_+$_**4-12}
     last if $n>3 and ref($x[$n+1]) eq 'Math::BigFloat' and substr($x[$n+1],0,$ds) eq substr($x[$n],0,$ds); #hm
     croak "Could not resolve, perhaps too little time given ($sec), iteratons=$n"
-      if $sec>0 and time_fp()-$time_start>$sec and $timeout=1;
+      if $sec>0 and ($Resolve_time=time_fp()-$time_start)>$sec;
     #warn "$n: ".$x[$n+1]."\n";
+    $n++;
   }
   croak "Could not resolve, perhaps too few iterations ($iters)" if @x>=$iters;
   return $x[-1];
@@ -524,8 +532,7 @@ is the default behaviour of L<resolve>.
 
 =cut
 
-#sub resolve_equation { my $e=shift;$e=~s/x/\$_/g;$e=~s/(.*)=(.*)/($1)-($2)/;resolve sub{eval$e},@_ }
-sub resolve_equation { my $e=shift;resolve sub{$e},@_ }
+sub resolve_equation { my $e=shift;resolve(sub{$e},@_)}
 
 =head2 conv
 
@@ -7218,7 +7225,7 @@ Kjetil Skotheim, E<lt>kjetil.skotheim@gmail.comE<gt>
 
 =head1 COPYRIGHT
 
-1995-2015, Kjetil Skotheim
+1995-2016, Kjetil Skotheim
 
 =head1 LICENSE
 
