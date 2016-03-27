@@ -31,7 +31,6 @@ ok($@=~/Could not resolve, perhaps too little time given/,'ok $@');
 ok( ($e=sprintf("%.12f",resolve(sub{3*$_ + $_**4 - 12}))) eq '1.632498783713',$e );
 #http://www.quickmath.com/webMathematica3/quickmath/equations/solve/basic.jsp#c=solve_stepssolveequation&v1=3x%2Bx%5E4-12%3D0&v2=x
 
-
 ok(log($e=resolve(sub{ $_**log($_)-$_},0,2)) == 1,"e=$e");
 ok( ($e=resolve(sub{$_**2+7*$_-60},0,1)) == 5,"e=$e, iters=$Resolve_iterations");
 ok( ($e=resolve_equation("x^2+7x-60"))   == 5,"e=$e, iters=$Resolve_iterations");
