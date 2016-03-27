@@ -1,0 +1,9 @@
+/blib/
+/Makefile
+/Makefile.old
+/MANIFEST.bak
+nytprof.out
+/pm_to_blib
+*.o
+*.bs
+*~
