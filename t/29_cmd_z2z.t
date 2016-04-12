@@ -22,6 +22,6 @@ for(qw(gz bz2 xz gz xz bz2 gz)){
 
 my @f=map"$tf.$_",1..4;
 my $n=0;
-writefile($_,join" ",map ++$n,1..5e5) for @f;
+writefile($_,join" ",map ++$n,1..1e5) for @f;
 Acme::Tools::cmd_z2z('-vpt','xz',@f);
 Acme::Tools::cmd_z2z('-vht','gz',map"$_.xz",@f);
