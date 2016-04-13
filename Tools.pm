@@ -6998,7 +6998,7 @@ sub cmd_z2z {
       if(@ARGV>1){
 	$i++;
 	$str=$i<@ARGV
-            ? "  ETA:'.sec_readable(eta('z2z',$bsf,$sum)-time_fp())." $str";
+            ? "  ETA:".sec_readable(eta('z2z',$bsf,$sum)-time_fp())." $str"
 	    : "   TA: 0s $str"
 	  if $sum>1e6;
         $str="$i/".@ARGV." $str";
