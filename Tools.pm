@@ -22,6 +22,7 @@ our @EXPORT = qw(
   geomavg
   harmonicavg
   stddev
+  rstddev
   median
   percentile
   $Resolve_iterations
@@ -2448,6 +2449,14 @@ sub stddev {
   my $sumx;  $sumx  += $_    for @$ar;
   sqrt( (@$ar*$sumx2-$sumx*$sumx)/(@$ar*(@$ar-1)) );
 }
+
+=head2 rstddev
+
+Relative stddev = stddev / avg
+
+=cut
+
+sub rstddev { stddev(@_) / avg(@_) }
 
 =head2 median
 
@@ -6984,13 +6993,17 @@ sub cmd_z2z {
       #todo: $o{h} ? printf("%6.1f%%  %9s => %9s => %9s %s\n",      $pr,(map bytes_readable($_),$szold,$szuncmp,$sznew),$_)
       #todo:       : printf("%6.1f%% %11d b  => %11d b => %11 b  %s\n",$pr,$szold,$szuncmp,$sznew,$_)
       my $str= $o{h}
-      ? sprintf("%-7s %9s => %9s %s",       $pr,(map bytes_readable($_),$szold,$sznew),$new)
-      : sprintf("%-7s %11d b => %11d b  %s",$pr,$szold,$sznew,$new);
-      if(@ARGV>1 and $sum>1e6){
-	$str.='  ETA:'.sec_readable(eta('z2z',$bsf,$sum)-time_fp()) if ++$i < 0+@ARGV and time_fp()-$start>2;
-	$str="$i/".@ARGV." $str";
+      ? sprintf("%-7s %9s => %9s",       $pr,(map bytes_readable($_),$szold,$sznew))
+      : sprintf("%-7s %11d b => %11d b", $pr,$szold,$sznew);
+      if(@ARGV>1){
+	$i++;
+	$str=$i<@ARGV
+            ? "  ETA:'.sec_readable(eta('z2z',$bsf,$sum)-time_fp())." $str";
+	    : "   TA: 0s $str"
+	  if $sum>1e6;
+        $str="$i/".@ARGV." $str";
       }
-      print "$str\n";
+      print "$str $new\n";
     }
   }
   if($o{v} and @ARGV>1){
