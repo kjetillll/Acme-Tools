@@ -451,12 +451,6 @@ L<Math::BigFloat>
 
 L<http://en.wikipedia.org/wiki/Golden_ratio>
 
-TODO: fix fail for div by 0, e.g.:
-
- perl -MAcme::Tools -le'for(range(-.4,2,.01)){printf"%9.4f  %s\n",$_,3*$_+$_**4-12}print resolve(sub{$x=shift;3*$x+$x**4-12},0,1)'
- resolve(sub{ my $x=shift; $x**2 - 4*$x - 21 },undef,1.9)
- resolve_equation "x + 13*(3-x) = 17 - 1/x"
-
 =cut
 
 our $Resolve_iterations;
@@ -1975,6 +1969,12 @@ sub repl {
   return $str;
 }
 
+sub brex($) {  #TODO: brace expand ala bash (better than glob which doesnt handle ..)
+  #echo {a{1,2},bb{10..30..5},ccc{X..Z}}
+  #a1 a2 bb10 bb15 bb20 bb25 bb30 cccX cccY cccZ
+  #return @arr;
+}
+
 
 =head1 ARRAYS
 
@@ -2934,7 +2934,7 @@ our $Pwgen_max_sec=0.01;     #max seconds/password before croak (for hard to fin
 our $Pwgen_max_trials=10000; #max trials/password  before croak (for hard to find requirements)
 our $Pwgen_sec=0;            #seconds used in last call to pwgen()
 our $Pwgen_trials=0;         #trials in last call to pwgen()
-sub pwgendefreq{/^[a-z\d].*[a-z\d]$/i and /[a-z]/ and /[A-Z]/ and /\d/ and /[,-.\/&%_!]/}
+sub pwgendefreq{/^[a-z].*[a-z\d]$/i and /[a-z]/ and /[A-Z]/ and /\d/ and /[,-.\/&%_!]/}
 sub pwgen {
   my($len,$num,$chars,@req)=@_;
   $len||=8;
@@ -3340,75 +3340,48 @@ sub unzipbin {
 
 =head2 gzip
 
-B<Input:> A string you want to compress. Text or binary.
+B<Input:> A string or reference to a string you want to compress. Text or binary.
 
 B<Output:> The binary compressed representation of that input string.
 
-C<gzip()> is really the same as C< Compress:Zlib::memGzip() > except
-that C<gzip()> just returns the input-string if for some reason L<Compress::Zlib>
-could not be C<required>. Not installed or not found.  (L<Compress::Zlib> is a built in module in newer perl versions).
+C<gzip()> is really just a wrapper for C< Compress:Zlib::memGzip() > and uses the same
+compression algorithm as the well known GNU program gzip found in most unix/linux/cygwin
+distros. Except C<gzip()> does this in-memory. (Both using the C-library C<zlib>).
 
-C<gzip()> uses the same compression algorithm as the well known GNU program gzip found in most unix/linux/cygwin distros. Except C<gzip()> does this in-memory. (Both using the C-library C<zlib>).
-
-=cut
-
-sub gzip {
-  my $s=shift();
-  eval{     # tries gzip, if it works it works, else returns the input
-    require Compress::Zlib;
-    $s=Compress::Zlib::memGzip(\$s);
-  };undef$@;
-  return $s;
-}
+ writefile( "file.gz", gzip("some string") );
 
 =head2 gunzip
 
-B<Input:> A binary compressed string. I.e. something returned from 
+B<Input:> A binary compressed string or a reference to such a string. I.e. something returned from 
 C<gzip()> earlier or read from a C<< .gz >> file.
 
 B<Output:> The original larger non-compressed string. Text or binary. 
 
-=cut
+C<gunzip()> is a wrapper for Compress::Zlib::memGunzip()
 
-sub gunzip {
-  my $s=shift();
-  eval {
-    require Compress::Zlib;
-    $s=Compress::Zlib::memGunzip(\$s);
-  };undef$@;
-  return $s;
-}
+ print gunzip( gzip("some string") );   #some string
 
 =head2 bzip2
 
-See L</gzip> and L</gunzip>.
+Same as L</gzip> and L</gunzip> except with a different compression algorithm (compresses more but is slower). Wrapper for Compress::Bzip2::memBzip.
 
-C<bzip2()> and C<bunzip2()> works just as  C<gzip()> and C<gunzip()>,
-but use another compression algorithm. This is usually better but slower
-than the C<gzip>-algorithm. Especially in the compression. Decompression speed is less different.
+Compared to gzip/gunzip, bzip2 compression is much slower, bunzip2 decompression not so much.
 
-See also C<man bzip2>, C<man bunzip2> and L<Compress::Bzip2>
+See also L<Compress::Bzip2>, C<man Compress::Bzip2>, C<man bzip2>, C<man bunzip2>.
 
-=cut
-
-sub bzip2 {
-  my $s=shift();
-  eval { require Compress::Bzip2; $s=Compress::Bzip2::memBzip($s) }; undef$@;
-  return $s;
-}
+ writefile( "file.bz2", bzip2("some string") );
+ print bunzip2( bzip2("some string") );   #some string
 
 =head2 bunzip2
 
-Decompressed something compressed by bzip2() or the data from a C<.bz2> file. See L</bzip2>.
+Decompressed something compressed by bzip2() or data from a C<.bz2> file. See L</bzip2>.
 
 =cut
 
-sub bunzip2 {
-  my $s=shift();
-  eval { require Compress::Bzip2; $s=Compress::Bzip2::memBunzip($s) }; undef$@;
-  return $s;
-}
-
+sub gzip    { my $s=shift(); eval"require Compress::Zlib"  if !$INC{'Compress/Zlib.pm'};  croak "Compress::Zlib not found"  if $@; Compress::Zlib::memGzip(    ref($s)?$s:\$s ) }
+sub gunzip  { my $s=shift(); eval"require Compress::Zlib"  if !$INC{'Compress/Zlib.pm'};  croak "Compress::Zlib not found"  if $@; Compress::Zlib::memGunzip(  ref($s)?$s:\$s ) }
+sub bzip2   { my $s=shift(); eval"require Compress::Bzip2" if !$INC{'Compress/Bzip2.pm'}; croak "Compress::Bzip2 not found" if $@; Compress::Bzip2::memBzip(   ref($s)?$s:\$s ) }
+sub bunzip2 { my $s=shift(); eval"require Compress::Bzip2" if !$INC{'Compress/Bzip2.pm'}; croak "Compress::Bzip2 not found" if $@; Compress::Bzip2::memBunzip( ref($s)?$s:\$s ) }
 
 =head1 NET, WEB, CGI-STUFF
 
@@ -6757,12 +6730,19 @@ sub ext2mime {
 =head2 install_acme_command_tools
 
  sudo perl -MAcme::Tools -e install_acme_command_tools
+
  Wrote executable /usr/local/bin/conv
  Wrote executable /usr/local/bin/due
  Wrote executable /usr/local/bin/xcat
  Wrote executable /usr/local/bin/freq
  Wrote executable /usr/local/bin/deldup
- Wrote executable /usr/local/bin/wipe
+ Wrote executable /usr/local/bin/ccmd
+ Wrote executable /usr/local/bin/z2z
+ Wrote executable /usr/local/bin/2gz
+ Wrote executable /usr/local/bin/2gzip
+ Wrote executable /usr/local/bin/2bz2
+ Wrote executable /usr/local/bin/2bzip2
+ Wrote executable /usr/local/bin/2xz
 
 Examples of commands then made available:
 
@@ -6771,10 +6751,39 @@ Examples of commands then made available:
  due [-h] /path/1/ /path/2/    #like du, but show statistics on file extentions instead of subdirs
  xcat file                     #like cat, zcat, bzcat or xzcat in one. Uses file extention to decide. Uses openstr()
  freq file                     #reads file(s) or stdin and view counts of each byte 0-255
- deldup [-d] path1/ path2/     #reports (and optionally deletes) duplicate files NOT IMPLEMENTED YET!
  ccmd grep string /huge/file   #caches stdout+stderr for 15 minutes (default) for much faster results later
  ccmd "sleep 2;echo hello"     #slow first time. Note the quotes!
  ccmd "du -s ~/*|sort -n|tail" #ccmd store stdout+stderr in /tmp files (default)
+ z2z [-pvk1-9o -t type] files  #convert from/to .gz/bz2/xz files, -p progress, -v verbose (output result),
+                               #-k keep org file, -o overwrite, 1-9 compression degree
+                               #2xz and 2bz2 depends on xz and bzip2 being installed on system
+ 2xz                           #same as z2z with -t xz
+ 2bz2                          #same as z2z with -t bz2
+ 2gz                           #same as z2z with -t gz
+
+ TODO :
+ finddup [-v -d -s -h] path1/ path2/
+                               #reports (+deletes with -d) duplicate files
+                               #finddup is NOT IMPLEMENTED YET! Use -s for symlink dups, -h for hardlink
+ rttop
+ trunc file(s)
+ wipe file(s)
+
+=head3 z2z
+
+=head3 2xz
+
+=head3 2bz2
+
+=head3 2gz
+
+The commands C<2xz>, C<2bz2> and C<2gz> are just synonyms for C<z2z> with an implicitly added option C<-t xz>, C<-t xz> or C<-t gz> accordingly.
+
+ z2z [-p -k -v -o -1 -2 -3 -4 -5 -6 -7 -8 -9 ] files
+
+Converts (recompresses) files from one compression sc
+
+
 
 =head3 due
 
@@ -6793,6 +6802,7 @@ Like C<du> command but views space used by file extentions instead of dirs. Opti
  due -i          Ignore case, .GZ and .gz is the same, output in lower case
  due -t          Adds time of day to -M and -P output
  due -e 'regex'  Exclude files (full path) matching regex. Ex: due -e '\.git'
+ TODO: due -l    TODO: Exclude hardlinks (dont count "same" file more than once, "man du")
  ls -l | due     Parses output of ls -l, find -ls, tar tvf for size+filename and reports
  find | due      List of filenames from stdin produces same as just command 'due'
  ls | due        Reports on just files in current dir without recursing into subdirs
@@ -6801,7 +6811,7 @@ Like C<du> command but views space used by file extentions instead of dirs. Opti
 
 sub install_acme_command_tools {
   my $dir=(grep -d$_, @_, '/usr/local/bin', '/usr/bin')[0];
-  for( qw( conv due xcat freq deldup ccmd   2gz 2gzip 2bz2 2bzip2 2xz z2z ) ){
+  for( qw( conv due xcat freq finddup ccmd trunc wipe rttop  z2z 2gz 2gzip 2bz2 2bzip2 2xz ) ){
     unlink("$dir/$_");
     writefile("$dir/$_", "#!$^X\nuse Acme::Tools;\nAcme::Tools::cmd_$_(\@ARGV);\n");
     sys("/bin/chmod +x $dir/$_"); #hm umask
@@ -6809,11 +6819,12 @@ sub install_acme_command_tools {
   }
 }
 sub cmd_conv { print conv(@ARGV)."\n"  }
-  use Data::Dumper;
+
 sub cmd_due { #TODO: output from tar tvf and ls and find -ls
-  my %o=_go("zkKmhciMPate:");
+  my %o=_go("zkKmhciMPate:l");
   require File::Find;
   no warnings 'uninitialized';
+  die"$0: -l not implemented yet\n"                if $o{l}; #man du: default is not to count hardlinks more than once, with -l it does
   die"$0: -h, -k or -m can not be used together\n" if $o{h}+$o{k}+$o{m}>1;
   die"$0: -c and -a can not be used together\n"    if $o{a}+$o{c}>1;
   die"$0: -k and -m can not be used together\n"    if $o{k}+$o{m}>1;
@@ -6822,7 +6833,9 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
   my $r=$o{z} ? qr/(\.[^\.\/]{1,10}(\.(z|Z|gz|bz2|rz|xz))?)$/
               : qr/(\.[^\.\/]{1,10})$/;
   my $qrexcl=exists$o{e}?qr/$o{e}/:0;
-  my $qrstdin=qr/(^| )\-[rwx\-sS]{9} +\d+ \w+ +\w+ +(\d+) [a-zA-Z]+\.? +\d+ +(?:\d\d:\d\d|\d{4}) (.*)$/;
+ #TODO: ought to work: tar cf - .|tar tvf -|due
+ #my $qrstdin=qr/(^| )\-[rwx\-sS]{9} +\d+ \w+ +\w+ +(\d+) [a-zA-Z]+\.? +\d+ +(?:\d\d:\d\d|\d{4}) (.*)$/;
+  my $qrstdin=qr/(^| )\-[rwx\-sS]{9} +(\d+ )?\w+[ \/]+\w+ +(\d+) [a-zA-Z]+\.? +\d+ +(?:\d\d:\d\d|\d{4}) (.*)$/;
   if(-p STDIN){
     while(<>){
       chomp;
@@ -6889,10 +6902,13 @@ sub cmd_freq {
   printf("%4d %5s%8d".(++$i%3?$s:"\n"),$_,$m{$_}||chr,$f[$_]) for grep$f[$_],0..255;print "\n";
   my @no=grep!$f[$_],0..255; print "No bytes for these ".@no.": ".join(" ",@no)."\n";
 }
-sub cmd_deldup { #rename finddup with -d for delete
+sub cmd_deldup {
+  cmd_finddup(@_);
+}
+sub cmd_finddup {
   # ~/test/deldup.pl #find and optionally delete duplicate files effiencently
   #http://www.commandlinefu.com/commands/view/3555/find-duplicate-files-based-on-size-first-then-md5-hash
-  die "todo: deldup not ready yet"
+  die "todo: finddup not ready yet"
 }
 #http://stackoverflow.com/questions/11900239/can-i-cache-the-output-of-a-command-on-linux-from-cli
 our $Ccmd_cache_dir='/tmp/acme-tools-ccmd-cache';
@@ -6991,6 +7007,10 @@ sub cmd_z2z {
 }
 
 sub _go { require Getopt::Std; my %o; Getopt::Std::getopts(shift() => \%o); %o }
+
+sub cmd_rttop { die "rttop: not implemented here yet.\n" }
+sub cmd_whichpm { die "whichpm: not implemented here yet.\n" } #-a (all, inkl VERSION og ls -l)
+sub cmd_catal { die "whichpm: not implemented here yet.\n" } #-a (all, inkl VERSION og ls -l)
 
 =head1 DATABASE STUFF - NOT IMPLEMENTED YET
 
@@ -7105,6 +7125,8 @@ Update Acme::Tools to newest version quick and dirty:
  pmview Acme::Tools                                     #view date and version after
 
 Does C<cd> to where Acme/Tools.pm are and then wget -N https://raw.githubusercontent.com/kjetillll/Acme-Tools/master/Tools.pm
+
+TODO: cmd_acme_tools_self_update, accept --no-check-certificate to use on curl
 
 =cut
 
