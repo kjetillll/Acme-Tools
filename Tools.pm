@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 package Acme::Tools;
 
-our $VERSION = '0.17';  #new version: C-s ny versjon
+our $VERSION = '0.173';   #new version: C-s ny versjon
 
 use 5.008;     #Perl 5.8 was released July 18th 2002
 use strict;
@@ -22,10 +22,12 @@ our @EXPORT = qw(
   geomavg
   harmonicavg
   stddev
+  rstddev
   median
   percentile
   $Resolve_iterations
   $Resolve_last_estimate
+  $Resolve_time
   resolve
   resolve_equation
   conv
@@ -92,6 +94,8 @@ our @EXPORT = qw(
   readdirectory
   basename
   dirname
+  wipe
+  username
   range
   permutations
   trigram
@@ -116,8 +120,13 @@ our @EXPORT = qw(
   cpad
   dserialize
   serialize
+  srlz
+  cnttbl
+  nicenum
   bytes_readable
+  sec_readable
   distance
+  tms
   easter
   time_fp
   sleep_fp
@@ -133,6 +142,7 @@ our @EXPORT = qw(
   read_conf
   openstr
   ldist
+  $Re_isnum
   isnum
   part
   parth
@@ -207,6 +217,8 @@ Acme::Tools - Lots of more or less useful subs lumped together and exported into
  my $color = random(['red','green','blue','yellow','orange']);
 
  ...and more.
+
+=encoding utf8
 
 =head1 ABSTRACT
 
@@ -397,7 +409,7 @@ The equation C<< x^2 - 4x - 21 = 0 >> has two solutions: -3 and 7.
 
 The result of C<resolve> will depend on the start position:
 
- print resolve { $_**2 - 4*$_ - 21 };                         # -3 with $_ as your x
+ print resolve(sub{ $_**2 - 4*$_ - 21 });                     # -3 with $_ as your x
  print resolve(sub{ my $x=shift; $x**2 - 4*$x - 21 });        # -3 more elaborate call
  print resolve(sub{ my $x=shift; $x**2 - 4*$x - 21 },0,3);    # 7  with start position 3
  print "Iterations: $Acme::Tools::Resolve_iterations\n";      # 3 or larger, about 10-15 is normal
@@ -440,21 +452,17 @@ L<Math::BigFloat>
 
 L<http://en.wikipedia.org/wiki/Golden_ratio>
 
-TODO: fix fail for div by 0, e.g.:
-
- perl -MAcme::Tools -le'for(map$_/10,-4..20){printf"%9.4f  %s\n",$_,3*$_+$_**4-12}print resolve(sub{$x=shift;3*$x+$x**4-12},0,1)'
- resolve(sub{ my $x=shift; $x**2 - 4*$x - 21 },undef,1.9)
- resolve_equation "x + 13*(3-x) = 17 - 1/x"
-
 =cut
 
 our $Resolve_iterations;
 our $Resolve_last_estimate;
+our $Resolve_time;
 
 #sub resolve(\[&$]@) {
-sub resolve(&@) {
-  my($f,$g,$start,$delta,$iters,$sec)=@_;
-  $g=0         if !defined $g;
+#sub resolve(&@) { <=0.17
+sub resolve {
+  my($f,$goal,$start,$delta,$iters,$sec)=@_;
+  $goal=0      if !defined $goal;
   $start=0     if !defined $start;
   $delta=1e-4  if !defined $delta;
   $iters=100   if !defined $iters;
@@ -465,15 +473,16 @@ sub resolve(&@) {
   $Resolve_last_estimate=undef;
   croak "Should have at least 1 argument, a coderef" if !@_;
   croak "First argument should be a coderef" if ref($f) ne 'CODE';
-  
+
   my @x=($start);
   my $time_start=$sec>0?time_fp():undef;
-  my $timeout=0;
   my $ds=ref($start) eq 'Math::BigFloat' ? Math::BigFloat->div_scale() : undef;
   my $fx=sub{
     local$_=$_[0];
     my $fx=&$f($_);
-    if($fx=~/x/ and $fx=~/^[ \(\)\.\d\+\-\*\/x\=]+$/){
+    if($fx=~/x/ and $fx=~/^[ \(\)\.\d\+\-\*\/x\=\^]+$/){
+      $fx=~s/(\d)x/$1*x/g;
+      $fx=~s/\^/**/g;
       $fx=~s/^(.*)=(.*)$/($1)-($2)/;
       $fx=~s,x,\$_,g;
       $f=eval"sub{$fx}";
@@ -481,20 +490,24 @@ sub resolve(&@) {
     }
     $fx
   };
-  for my $n (0..$iters-1){
+  #warn "delta=$delta\n";
+  my $n=0;
+  while($n<=$iters-1){
     my $fd= &$fx($x[$n]+$delta*0.5) - &$fx($x[$n]-$delta*0.5);
-    $fd   = &$fx($x[$n]+$delta*0.6) - &$fx($x[$n]-$delta*0.4) if $fd==0; #wiggle...
-    $fd   = &$fx($x[$n]+$delta*0.3) - &$fx($x[$n]-$delta*0.7) if $fd==0;
-    #warn "n=$n  fd=$fd\n";
-    croak "Div by zero: df(x) = $x[$n] at n'th iteration, n=$n" if $fd==0;
-    $Resolve_last_estimate=
-    $x[$n+1]=$x[$n]-(&$fx($x[$n])-$g)/($fd/$delta);
+    $fd   = &$fx($x[$n]+$delta*0.7) - &$fx($x[$n]-$delta*0.3) if $fd==0;# and warn"wigle 1\n";
+    $fd   = &$fx($x[$n]+$delta*0.2) - &$fx($x[$n]-$delta*0.8) if $fd==0;# and warn"wigle 2\n";
+    croak "Div by zero: df(x) = $x[$n] at n'th iteration, n=$n, delta=$delta, fx=$fx" if $fd==0;
+    $x[$n+1]=$x[$n]-(&$fx($x[$n])-$goal)/($fd/$delta);
+    $Resolve_last_estimate=$x[$n+1];
+    #warn "n=$n  fd=$fd  x=$x[$n+1]\n";
     $Resolve_iterations=$n;
     last if $n>3 and $x[$n+1]==$x[$n] and $x[$n]==$x[$n-1];
+    last if $n>4 and $x[$n]!=0 and abs(1-$x[$n+1]/$x[$n])<1e-13; #sub{3*$_+$_**4-12}
     last if $n>3 and ref($x[$n+1]) eq 'Math::BigFloat' and substr($x[$n+1],0,$ds) eq substr($x[$n],0,$ds); #hm
     croak "Could not resolve, perhaps too little time given ($sec), iteratons=$n"
-      if $sec>0 and time_fp()-$time_start>$sec and $timeout=1;
+      if $sec>0 and ($Resolve_time=time_fp()-$time_start)>$sec;
     #warn "$n: ".$x[$n+1]."\n";
+    $n++;
   }
   croak "Could not resolve, perhaps too few iterations ($iters)" if @x>=$iters;
   return $x[-1];
@@ -514,8 +527,7 @@ is the default behaviour of L<resolve>.
 
 =cut
 
-#sub resolve_equation { my $e=shift;$e=~s/x/\$_/g;$e=~s/(.*)=(.*)/($1)-($2)/;resolve sub{eval$e},@_ }
-sub resolve_equation { my $e=shift;resolve sub{$e},@_ }
+sub resolve_equation { my $e=shift;resolve(sub{$e},@_)}
 
 =head2 conv
 
@@ -602,7 +614,7 @@ Note2: Many units have synonyms: m, meter, meters ...
                COP, CZK, DKK, EUR, GBP, HKD, HRK, HUF, IDR, ILS, INR, IRR,
                ISK, JPY, KRW, KWD, KZT, LKR, LTL, LVL, LYD, MUR, MXN, MYR,
                NOK, NPR, NZD, OMR, PHP, PKR, PLN, QAR, RON, RUB, SAR, SEK,
-               SGD, THB, TRY, TTD, TWD, USD, VEF, ZAR,  BTC, LTC
+               SGD, THB, TRY, TTD, TWD, USD, VEF, ZAR,      BTC, LTC, mBTC, XBT
                Currency rates are automatically updated from the net
                at least every 24h since last update (on linux/cygwin).
 
@@ -637,7 +649,7 @@ See: L<http://en.wikipedia.org/wiki/Units_of_measurement>
 
 =cut
 
-#TODO:  @arr2=conv(\@arr1,"from","to")         # is way faster than:
+#TODO:  @arr2=conv(\@arr1,"from","to")         # should be way faster than:
 #TODO:  @arr2=map conv($_,"from","to"),@arr1 
 #TODO:  conv(123456789,'b','h'); # h converts to something human-readable
 
@@ -657,8 +669,12 @@ our %conv=(
 		  yd      => 0.0254*12*3,             #0.9144 m
 		  yard    => 0.0254*12*3,             #0.9144 m
 		  yards   => 0.0254*12*3,             #0.9144 m
+		  fathom  => 0.0254*12*3*2,           #1.8288 m
+		  fathoms => 0.0254*12*3*2,           #1.8288 m
 		  chain   => 0.0254*12*3*22,          #20.1168 m
+		  chains  => 0.0254*12*3*22,          #20.1168 m
 		  furlong => 0.0254*12*3*22*10,       #201.168 m
+		  furlongs=> 0.0254*12*3*22*10,       #201.168 m
 		  mi      => 0.0254*12*3*22*10*8,     #1609.344 m
 		  mile    => 0.0254*12*3*22*10*8,     #1609.344 m
 		  miles   => 0.0254*12*3*22*10*8,
@@ -680,6 +696,13 @@ our %conv=(
                   au                 => 149597870700, # by def, earth-sun
                  'astronomical unit' => 149597870700,
 		  planck             => 1.61619997e-35, #planck length
+		  #Norwegian (old) lengths:
+		  tomme   => 0.0254,
+		  tommer  => 0.0254,
+		  fot     => 0.0254*12,               #0.3048m
+		  alen    => 0.0254*12*2,             #0.6096m
+		  favn    => 0.0254*12*2*3,           #1.8288m
+		  kvart   => 0.0254*12*2/4,           #0.1524m a quarter alen
 		 },
 	 mass  =>{ #https://en.wikipedia.org/wiki/Unit_conversion#Mass
 		  g            => 1,
@@ -830,6 +853,9 @@ our %conv=(
 		  Mbbl      => 42*231*2.54**3,        #mille (thousand) oil barrels
 		  MMbbl     => 42*231*2.54**3*1000,   #mille mille (million) oil barrels
 		  drum      => 200,
+		  #Norwegian:
+                  meterfavn => 2 * 2 * 0.6,           #ved 2.4 m3
+                  storfavn  => 2 * 2 * 3,             #ved 12 m3
 		 },
 	 time  =>{
 		  s           => 1,
@@ -997,6 +1023,8 @@ our %conv=(
          pressure=>{
                   Pa      => 1,
                   _Pa     => 1,
+                  pa      => 1,
+                  _pa     => 1,
                   pascal  => 1,
                  'N/m2'   => 1,
                   bar     => 100000.0,
@@ -1083,65 +1111,68 @@ our %conv=(
 		  binary_radian => 1/256,
 		  brad          => 1/256,
                  },
-	 money =>{                        # rates at feb 13th 2015
-                  NOK => 1.000000000,     # norwegian kroner
-                  AED => 2.062607,        #
-                  ARS => 0.872666,        #
-                  AUD => 5.883676,        #
-                  BGN => 4.415369,        #
-                  BHD => 20.096754,       #
-                  BND => 5.594729,        #
-                  BRL => 2.674694,        #
-                  BTC => 1714.50835478131,# bitcoin
-                  BWP => 0.783666,        #
-                  CAD => 6.079577,        #
-                  CHF => 8.125951,        #
-                  CLP => 0.012246,        #
-                  CNY => 1.214359,        #
-                  COP => 0.00317992,      #
-                  CZK => 0.312771,        #
-                  DKK => 1.160164,        #
-                  EUR => 8.635740,        #
-                  GBP => 11.669630,       #
-                  HKD => 0.976865,        #
-                  HRK => 1.119689,        #
-                  HUF => 0.028187,        #
-                  IDR => 0.00059556,      #
-                  ILS => 1.947183,        #
-                  INR => 0.122048,        #
-                  IRR => 0.00027282,      #
-                  ISK => 0.057573,        #
-                  JPY => 0.063792,        #
-                  KRW => 0.00689579,      #
-                  KWD => 25.654000,       #
-                  KZT => 0.040847,        #
-                  LKR => 0.057016,        #
-                  LTC => 13.477679419905, # litecoin
-                  LTL => 2.501083,        #
-                  LVL => 12.287621,       #
-                  LYD => 5.635074,        #
-                  MUR => 0.227179,        #
-                  MXN => 0.509277,        #
-                  MYR => 2.128165,        #
-                  NPR => 0.076177,        #
-                  NZD => 5.650167,        #
-                  OMR => 19.678606,       #
-                  PHP => 0.171276,        #
-                  PKR => 0.074698,        #
-                  PLN => 2.064177,        #
-                  QAR => 2.080563,        #
-                  RON => 1.943624,        #
-                  RUB => 0.119595,        #
-                  SAR => 2.019045,        #
-                  SEK => 0.900900,        #
-                  SGD => 5.594729,        #
-                  THB => 0.232321,        #
-                  TRY => 3.083376,        #
-                  TTD => 1.191966,        #
-                  TWD => 0.241858,        #
-                  USD => 7.576263,        #
-                  VEF => 1.193186,        #
-                  ZAR => 0.649438,        #
+	 money =>{                        # rates at dec 17 2015
+                  AED => 2.389117,        #
+                  ARS => 0.895122,        #
+                  AUD => 6.253619,        #
+                  BGN => 4.847575,        #
+                  BHD => 23.267384,       #
+                  BND => 6.184624,        #
+                  BRL => 2.260703,        #
+                  BTC => 3910.932213547,  #bitcoin
+                  BWP => 0.794654,        #
+                  CAD => 6.289957,        #
+                  CHF => 8.799974,        #
+                  CLP => 0.012410,        #
+                  CNY => 1.353406,        #
+                  COP => 0.00262229,      #
+                  CZK => 0.351171,        #
+                  DKK => 1.271914,        #
+                  EUR => 9.489926,        #
+                  GBP => 13.069440,       #
+                  HKD => 1.131783,        #
+                  HRK => 1.240878,        #
+                  HUF => 0.029947,        #
+                  IDR => 0.00062471,      #
+                  ILS => 2.254456,        #
+                  INR => 0.132063,        #
+                  IRR => 0.00029370,      #
+                  ISK => 0.067245,        #
+                  JPY => 0.071492,        #
+                  KRW => 0.00739237,      #
+                  KWD => 28.862497,       #
+                  KZT => 0.027766,        #
+                  LKR => 0.061173,        #
+                  LTC => 31.78895354018,  #litecoin
+                  LTL => 2.748472,        #
+                  LVL => 13.503025,       #
+                  LYD => 6.296978,        #
+                  MUR => 0.240080,        #
+                  MXN => 0.515159,        #
+                  MYR => 2.032465,        #
+                  NOK => 1.000000000,     #norwegian kroner
+                  NPR => 0.084980,        #
+                  NZD => 5.878331,        #
+                  OMR => 22.795994,       #
+                  PHP => 0.184839,        #
+                  PKR => 0.083779,        #
+                  PLN => 2.207243,        #
+                  QAR => 2.409162,        #
+                  RON => 2.101513,        #
+                  RUB => 0.122991,        #
+                  SAR => 2.339745,        #
+                  SEK => 1.023591,        #
+                  SGD => 6.184624,        #
+                  THB => 0.242767,        #
+                  TRY => 2.994338,        #
+                  TTD => 1.374484,        #
+                  TWD => 0.265806,        #
+                  USD => 8.774159,        #
+                  VEF => 1.395461,        #
+                  ZAR => 0.576487,        #
+                  XBT => 3910.932213547, # bitcoin
+                 mBTC => 3910.932213547, # bitcoin
+                 mXBT => 3910.932213547, # bitcoin
 		 },
           numbers =>{
 	    dec=>1,hex=>1,bin=>1,oct=>1,roman=>1,      des=>1,#des: spelling error in v0.15-0.16
@@ -1170,27 +1201,29 @@ sub conv_prepare {
   $conv_prepare_time=time();
 }
 
+our $Currency_rates_url = 'http://calthis.com/currency-rates';
+our $Currency_rates_expire = 6*3600;
 sub conv_prepare_money {
   eval {
     require LWP::Simple;
     my $td=$^O=~/^(?:linux|cygwin)$/?"/tmp":"/tmp"; #hm wrong!
     my $fn="$td/acme-tools-currency-rates.data";
-    if( !-e$fn or 1 < -M$fn ){
-      my $url='http://calthis.com/currency-rates';
-     #my $url='http://solfrid.uio.no/currency-rates';
-      LWP::Simple::getstore($url,"$fn.$$.tmp"); # get ... see getrates.cmd
+    if( !-e$fn  or  time() - (stat($fn))[9] >= $Currency_rates_expire){
+      LWP::Simple::getstore($Currency_rates_url,"$fn.$$.tmp"); # get ... see getrates.cmd
       die "nothing downloaded" if !-s"$fn.$$.tmp";
       rename "$fn.$$.tmp",$fn;
       chmod 0666,$fn;
     }
     my $d=readfile($fn);
     my %r=$d=~/^\s*([A-Z]{3}) +(\d+\.\d+)\b/gm;
+    $r{lc($_)}=$r{$_} for keys%r;
     #warn serialize([minus([sort keys(%r)],[sort keys(%{$conv{money}})])],'minus'); #ARS,AED,COP,BWP,LVL,BHD,NPR,LKR,QAR,KWD,LYD,SAR,KZT,CLP,IRR,VEF,TTD,OMR,MUR,BND
     #warn serialize([minus([sort keys(%{$conv{money}})],[sort keys(%r)])],'minus'); #LTC,I44,BTC,BYR,TWI,NOK,XDR
     $conv{money}={%{$conv{money}},%r} if keys(%r)>20;
   };
-  $conv_prepare_money_time=time();
   carp "conv: conv_prepare_money (currency conversion automatic daily updated rates) - $@\n" if $@;
+  $conv{money}{"m$_"}=$conv{money}{$_}/1000 for qw/BTC XBT/;
+  $conv_prepare_money_time=time();
   1; #not yet
 }
 
@@ -1198,20 +1231,16 @@ sub conv {
   my($num,$from,$to)=@_;
   croak "conf requires 3 args" if @_!=3;
   conv_prepare() if !$conv_prepare_time;
-  my @types=map{
-             my $unit=$_;
-             [sort grep$conv{$_}{$unit},keys%conv],
-           }($from,$to);
-  my @err;
-  push @err, "from unit $from is unknown" if !@{$types[0]};
-  push @err, "to unit $to is unknown"     if !@{$types[1]};
+  my $types=sub{ my $unit=shift; [sort grep$conv{$_}{$unit}, keys%conv] };
+  my @types=map{ my $ru=$_; my $r;$r=&$types($_) and @$r and $$ru=$_ and last for ($$ru,uc($$ru),lc($$ru)); $r }(\$from,\$to);
+  my @err=map "Unit ".[$from,$to]->[$_]." is unknown",grep!@{$types[$_]},0..1;
   my @type=intersect(@types);
   push @err, "from=$from and to=$to has more than one possible conversions: ".join(", ", @type) if @type>1;
-  push @err, "from=$from (".join(",",@{$types[0]}||'?').") and "
-              ."to=$to   (".join(",",@{$types[1]}||'?').") has no known common unit type: ".join(", ", @type) if @type<1;
+  push @err, "from $from (".(join(",",@{$types[0]})||'?').") and "
+              ."to $to ("  .(join(",",@{$types[1]})||'?').") has no known common unit type.\n" if @type<1;
   croak join"\n",map"conv: $_",@err if @err;
   my $type=$type[0];
-  conv_prepare_money()        if $type eq 'money' and $conv_prepare_money_time < time()-24*3600; #1day
+  conv_prepare_money()        if $type eq 'money' and time() >= $conv_prepare_money_time + $Currency_rates_expire;
   return conv_temperature(@_) if $type eq 'temperature';
   return conv_number(@_)     if $type eq 'numbers';
   my $c=$conv{$type};
@@ -1268,9 +1297,13 @@ sub conv_number {
 
 =head2 bytes_readable
 
-Input: a number
+Converts a number of bytes to something human readable.
 
-Output:
+Input 1: a number
+
+Input 2: optionally the number of decimals if >1000 B. Default is 2.
+
+Output: a string containing:
 
 the number with a B behind if the number is less than 1000
 
@@ -1292,18 +1325,65 @@ Examples:
  print bytes_readable(1181116006.4);                     # 1.10 GB
  print bytes_readable(1209462790553.6);                  # 1.10 TB
  print bytes_readable(1088516511498.24*1000);            # 990.00 TB
+ print bytes_readable(1088516511498.24*1000,3);          # 990.000 TB
+ print bytes_readable(1088516511498.24*1000,1);          # 990.0 TB
 
 =cut
 
 sub bytes_readable {
   my $bytes=shift();
+  my $d=shift()||2; #decimals
   return undef if !defined $bytes;
-  return "$bytes B"                      if abs($bytes)<=2** 0*1000; #bytes
-  return sprintf("%.2f kB",$bytes/2**10) if abs($bytes)<2**10*1000; #kilobyte
-  return sprintf("%.2f MB",$bytes/2**20) if abs($bytes)<2**20*1000; #megabyte
-  return sprintf("%.2f GB",$bytes/2**30) if abs($bytes)<2**30*1000; #gigabyte
-  return sprintf("%.2f TB",$bytes/2**40) if abs($bytes)<2**40*1000; #terrabyte
-  return sprintf("%.2f PB",$bytes/2**50); #petabyte, exabyte, zettabyte, yottabyte
+  return "$bytes B"                         if abs($bytes) <= 2** 0*1000; #bytes
+  return sprintf("%.*f kB",$d,$bytes/2**10) if abs($bytes) <  2**10*1000; #kilobyte
+  return sprintf("%.*f MB",$d,$bytes/2**20) if abs($bytes) <  2**20*1000; #megabyte
+  return sprintf("%.*f GB",$d,$bytes/2**30) if abs($bytes) <  2**30*1000; #gigabyte
+  return sprintf("%.*f TB",$d,$bytes/2**40) if abs($bytes) <  2**40*1000; #terrabyte
+  return sprintf("%.*f PB",$d,$bytes/2**50); #petabyte, exabyte, zettabyte, yottabyte
+}
+
+=head2 sec_readable
+
+Time written as C< 14h 37m > is often more humanly comprehensible than C< 52620 seconds >.
+
+ print sec_readable( 0 );           # 0s
+ print sec_readable( 0.0123 );      # 0.0123s
+ print sec_readable(-0.0123 );      # -0.0123s
+ print sec_readable( 1.23 );        # 1.23s
+ print sec_readable( 1 );           # 1s
+ print sec_readable( 9.87 );        # 9.87s
+ print sec_readable( 10 );          # 10s
+ print sec_readable( 10.1 );        # 10.1s
+ print sec_readable( 59 );          # 59s
+ print sec_readable( 59.123 );      # 59.1s
+ print sec_readable( 60 );          # 1m 0s
+ print sec_readable( 60.1 );        # 1m 0s
+ print sec_readable( 121 );         # 2m 1s
+ print sec_readable( 131 );         # 2m 11s
+ print sec_readable( 1331 );        # 22m 11s
+ print sec_readable(-1331 );        # -22m 11s
+ print sec_readable( 13331 );       # 3h 42m
+ print sec_readable( 133331 );      # 1d 13h
+ print sec_readable( 1333331 );     # 15d 10h
+ print sec_readable( 13333331 );    # 154d 7h
+ print sec_readable( 133333331 );   # 4yr 82d
+ print sec_readable( 1333333331 );  # 42yr 91d
+
+=cut
+
+sub sec_readable {
+  my $s=shift();
+  my($h,$d,$y)=(3600,24*3600,365.25*24*3600);
+   !defined$s     ? undef
+  :!length($s)    ? ''
+  :$s<0           ? '-'.sec_readable(-$s)
+  :$s<60 && int($s)==$s
+                  ? $s."s"
+  :$s<60          ? sprintf("%.*fs",int(3+-log($s)/log(10)),$s)
+  :$s<3600        ? int($s/60)."m " .($s%60)        ."s"
+  :$s<24*3600     ? int($s/$h)."h " .int(($s%$h)/60)."m"
+  :$s<366*24*3600 ? int($s/$d)."d " .int(($s%$d)/$h)."h"
+  :                 int($s/$y)."yr ".int(($s%$y)/$d)."d";
 }
 
 =head2 int2roman
@@ -1592,7 +1672,8 @@ B<Output:> True or false (1 or 0)
 
 =cut
 
-sub isnum {(@_?$_[0]:$_)=~/^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) (?:[eE][\-\+]?\d+)?\s*$/x}
+our $Re_isnum=qr/^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) (?:[eE][\-\+]?\d+)?\s*$/x;
+sub isnum {(@_?$_[0]:$_)=~$Re_isnum}
 
 =head2 between
 
@@ -1889,6 +1970,12 @@ sub repl {
     defined $til ? $str=~s/$fra/$til/g : $str=~s/$fra//g;
   }
   return $str;
+}
+
+sub brex($) {  #TODO: brace expand ala bash (better than glob which doesnt handle ..)
+  #echo {a{1,2},bb{10..30..5},ccc{X..Z}}
+  #a1 a2 bb10 bb15 bb20 bb25 bb30 cccX cccY cccZ
+  #return @arr;
 }
 
 
@@ -2369,6 +2456,14 @@ sub stddev {
   sqrt( (@$ar*$sumx2-$sumx*$sumx)/(@$ar*(@$ar-1)) );
 }
 
+=head2 rstddev
+
+Relative stddev = stddev / avg
+
+=cut
+
+sub rstddev { stddev(@_) / avg(@_) }
+
 =head2 median
 
 Returns the median value of a list of numbers. The list do not have to
@@ -2497,17 +2592,17 @@ B<Differences between the two main methods described above:>
 
  Data: 1, 4, 6, 7, 8, 9, 22, 24, 39, 49, 555, 992
 
- Percentile  Method 1                    Method 2
-             (Acme::Tools::percentile  (Oracle)
-             and others)
- ----------- --------------------------- ---------
- 0           -2                          1
- 1           -1.61                       1.33
- 25          6.25                        6.75
- 50 (median) 15.5                        15.5
- 75          46.5                        41.5
- 99          1372.19                     943.93
- 100         1429                        992
+ Percentile    Method 1                      Method 2
+               (Acme::Tools::percentile      (Oracle)
+               and others)
+ ------------- ----------------------------- ---------
+ 0             -2                            1
+ 1             -1.61                         1.33
+ 25            6.25                          6.75
+ 50 (median)   15.5                          15.5
+ 75            46.5                          41.5
+ 99            1372.19                       943.93
+ 100           1429                          992
 
 Found like this:
 
@@ -2515,11 +2610,6 @@ Found like this:
 
 And like this in Oracle-databases:
 
- create table tmp (n number);
- insert into tmp values (1); insert into tmp values (4); insert into tmp values (6);
- insert into tmp values (7); insert into tmp values (8); insert into tmp values (9);
- insert into tmp values (22); insert into tmp values (24); insert into tmp values (39);
- insert into tmp values (49); insert into tmp values (555); insert into tmp values (992);
  select
    percentile_cont(0.00) within group(order by n) per0,
    percentile_cont(0.01) within group(order by n) per1,
@@ -2528,7 +2618,10 @@ And like this in Oracle-databases:
    percentile_cont(0.75) within group(order by n) per75,
    percentile_cont(0.99) within group(order by n) per99,
    percentile_cont(1.00) within group(order by n) per100
- from tmp;
+ from (
+   select 0+regexp_substr('1,4,6,7,8,9,22,24,39,49,555,992','[^,]+',1,i) n
+   from dual,(select level i from dual connect by level <= 12)
+ );
 
 (Oracle also provides a similar function: C<percentile_disc> where I<disc>
 is short for I<discrete>, meaning no interpolation is taking
@@ -2856,7 +2949,7 @@ our $Pwgen_max_sec=0.01;     #max seconds/password before croak (for hard to fin
 our $Pwgen_max_trials=10000; #max trials/password  before croak (for hard to find requirements)
 our $Pwgen_sec=0;            #seconds used in last call to pwgen()
 our $Pwgen_trials=0;         #trials in last call to pwgen()
-sub pwgendefreq{/^[a-z\d].*[a-z\d]$/i and /[a-z]/ and /[A-Z]/ and /\d/ and /[,-.\/&%_!]/}
+sub pwgendefreq{/^[a-z].*[a-z\d]$/i and /[a-z]/ and /[A-Z]/ and /\d/ and /[,-.\/&%_!]/}
 sub pwgen {
   my($len,$num,$chars,@req)=@_;
   $len||=8;
@@ -2864,17 +2957,18 @@ sub pwgen {
   $chars||='A-Za-z0-9,-./&%_!';
   $req[0]||=\&pwgendefreq if !$_[2];
   $chars=~s/([$_])-([$_])/join("","$1".."$2")/eg  for ('a-z','A-Z','0-9');
-  my($c,$t,@pw)=(length($chars),time_fp());
+  my($c,$t,@pw,$d)=(length($chars),time_fp());
   ($Pwgen_trials,$Pwgen_sec)=(0,0);
   TRIAL:
   while(@pw<$num){
     croak "pwgen timeout after $Pwgen_trials trials"
-      if ++$Pwgen_trials >= $Pwgen_max_trials
-      or time_fp()-$t > $Pwgen_max_sec*$num;
+      if ++$Pwgen_trials   >= $Pwgen_max_trials
+      or ($d=time_fp()-$t) >  $Pwgen_max_sec*$num
+            and $d!~/^\d+$/; #jic int from time_fp
     my $pw=join"",map substr($chars,rand($c),1),1..$len;
     for my $r (@req){
       if   (ref($r) eq 'CODE'  ){ local$_=$pw; &$r()    or next TRIAL }
-      elsif(ref($r) eq 'Regexp'){              $pw=~$$r or next TRIAL }
+      elsif(ref($r) eq 'Regexp'){ no warnings; $pw=~$r or next TRIAL }
       else                      { croak "pwgen: invalid req type $r ".ref($r) }
     }
     push@pw,$pw;
@@ -3257,75 +3351,48 @@ sub unzipbin {
 
 =head2 gzip
 
-B<Input:> A string you want to compress. Text or binary.
+B<Input:> A string or reference to a string you want to compress. Text or binary.
 
 B<Output:> The binary compressed representation of that input string.
 
-C<gzip()> is really the same as C< Compress:Zlib::memGzip() > except
-that C<gzip()> just returns the input-string if for some reason L<Compress::Zlib>
-could not be C<required>. Not installed or not found.  (L<Compress::Zlib> is a built in module in newer perl versions).
+C<gzip()> is really just a wrapper for C< Compress:Zlib::memGzip() > and uses the same
+compression algorithm as the well known GNU program gzip found in most unix/linux/cygwin
+distros. Except C<gzip()> does this in-memory. (Both using the C-library C<zlib>).
 
-C<gzip()> uses the same compression algorithm as the well known GNU program gzip found in most unix/linux/cygwin distros. Except C<gzip()> does this in-memory. (Both using the C-library C<zlib>).
-
-=cut
-
-sub gzip {
-  my $s=shift();
-  eval{     # tries gzip, if it works it works, else returns the input
-    require Compress::Zlib;
-    $s=Compress::Zlib::memGzip(\$s);
-  };undef$@;
-  return $s;
-}
+ writefile( "file.gz", gzip("some string") );
 
 =head2 gunzip
 
-B<Input:> A binary compressed string. I.e. something returned from 
+B<Input:> A binary compressed string or a reference to such a string. I.e. something returned from 
 C<gzip()> earlier or read from a C<< .gz >> file.
 
 B<Output:> The original larger non-compressed string. Text or binary. 
 
-=cut
+C<gunzip()> is a wrapper for Compress::Zlib::memGunzip()
 
-sub gunzip {
-  my $s=shift();
-  eval {
-    require Compress::Zlib;
-    $s=Compress::Zlib::memGunzip(\$s);
-  };undef$@;
-  return $s;
-}
+ print gunzip( gzip("some string") );   #some string
 
 =head2 bzip2
 
-See L</gzip> and L</gunzip>.
+Same as L</gzip> and L</gunzip> except with a different compression algorithm (compresses more but is slower). Wrapper for Compress::Bzip2::memBzip.
 
-C<bzip2()> and C<bunzip2()> works just as  C<gzip()> and C<gunzip()>,
-but use another compression algorithm. This is usually better but slower
-than the C<gzip>-algorithm. Especially in the compression. Decompression speed is less different.
+Compared to gzip/gunzip, bzip2 compression is much slower, bunzip2 decompression not so much.
 
-See also C<man bzip2>, C<man bunzip2> and L<Compress::Bzip2>
+See also L<Compress::Bzip2>, C<man Compress::Bzip2>, C<man bzip2>, C<man bunzip2>.
 
-=cut
-
-sub bzip2 {
-  my $s=shift();
-  eval { require Compress::Bzip2; $s=Compress::Bzip2::memBzip($s) }; undef$@;
-  return $s;
-}
+ writefile( "file.bz2", bzip2("some string") );
+ print bunzip2( bzip2("some string") );   #some string
 
 =head2 bunzip2
 
-Decompressed something compressed by bzip2() or the data from a C<.bz2> file. See L</bzip2>.
+Decompressed something compressed by bzip2() or data from a C<.bz2> file. See L</bzip2>.
 
 =cut
 
-sub bunzip2 {
-  my $s=shift();
-  eval { require Compress::Bzip2; $s=Compress::Bzip2::memBunzip($s) }; undef$@;
-  return $s;
-}
-
+sub gzip    { my $s=shift(); eval"require Compress::Zlib"  if !$INC{'Compress/Zlib.pm'};  croak "Compress::Zlib not found"  if $@; Compress::Zlib::memGzip(    ref($s)?$s:\$s ) }
+sub gunzip  { my $s=shift(); eval"require Compress::Zlib"  if !$INC{'Compress/Zlib.pm'};  croak "Compress::Zlib not found"  if $@; Compress::Zlib::memGunzip(  ref($s)?$s:\$s ) }
+sub bzip2   { my $s=shift(); eval"require Compress::Bzip2" if !$INC{'Compress/Bzip2.pm'}; croak "Compress::Bzip2 not found" if $@; Compress::Bzip2::memBzip(   ref($s)?$s:\$s ) }
+sub bunzip2 { my $s=shift(); eval"require Compress::Bzip2" if !$INC{'Compress/Bzip2.pm'}; croak "Compress::Bzip2 not found" if $@; Compress::Bzip2::memBunzip( ref($s)?$s:\$s ) }
 
 =head1 NET, WEB, CGI-STUFF
 
@@ -3614,6 +3681,7 @@ B<Output:> Nothing (for the time being). C<die()>s (C<croak($!)> really) if some
 
 =cut
 
+#todo: use openstr() as in readfile(), transparently gzip .gz filenames and so on
 sub writefile {
     my($filename,$text)=@_;
     if(ref($filename) eq 'ARRAY'){
@@ -3679,38 +3747,21 @@ With two input arguments, nothing (undef) is returned from C<readfile()>.
 =cut
 
 #http://blogs.perl.org/users/leon_timmermans/2013/05/why-you-dont-need-fileslurp.html
+#todo: readfile with grep-filter code ref in a third arg (avoid reading all into mem)
 
 sub readfile {
   my($filename,$ref)=@_;
-  if(!defined $ref){  #-- one argument
-      if(wantarray){
-	  my @data;
-	  readfile($filename,\@data);
-	  return @data;
-      }
-      else {
-	  my $data;
-	  readfile($filename,\$data);
-	  return $data;
-      }
+  if(@_==1){
+    if(wantarray){ my @data; readfile($filename,\@data); return @data }
+    else         { my $data; readfile($filename,\$data); return $data }
   }
-  else {                 #-- two arguments
-      #my $open=/\.gz$/?"zcat ...":/\.bz2$/?"bzcat ...":...
-      open(READFILE,'<',$filename) or croak($!);
-      if(ref($ref) eq 'SCALAR'){
-	  $$ref=join"",<READFILE>;
-      }
-      elsif(ref($ref) eq 'ARRAY'){
-	  while(my $l=<READFILE>){
-	      chomp($l);
-	      push @$ref, $l;
-	  }
-      }
-      else {
-	  croak;
-      }
-      close(READFILE);
-      return;
+  else {
+    open my $fh,openstr($filename) or croak("ERROR: readfile $! $?");
+    if   ( ref($ref) eq 'SCALAR') { $$ref=join"",<$fh> }
+    elsif( ref($ref) eq 'ARRAY' ) { while(my $l=<$fh>){ chomp($l); push @$ref, $l } }
+    else { croak "ERROR: Second arg to readfile should be a ref to a scalar og array" }
+    close($fh);
+    return;#?
   }
 }
 
@@ -3805,10 +3856,50 @@ the last /. Return just a one char C<< . >> (period string) if there is no direc
  dirname('/usr/bin/perl')                    # returns '/usr/bin'
  dirname('perl')                             # returns '.'
 
+=head2 username
+
+Returns the current linux/unix username, for example the string root
+
+ print username();                        #just (getpwuid($<))[0] but more readable perhaps
+
 =cut
 
-sub basename {my($f,$s)=(@_,'');$s=quotemeta($s)if!ref($s);$f=~m,^(.*/)?([^/]*?)($s)?$,;$2}
-sub dirname  {shift=~m,^(.*)/,;length($1)?$1:'.'}
+sub basename { my($f,$s)=(@_,'');$s=quotemeta($s)if!ref($s);$f=~m,^(.*/)?([^/]*?)($s)?$,;$2 }
+sub dirname  { $_[0]=~m,^(.*)/,;defined($1) && length($1) ? $1 : '.' }
+sub username { (getpwuid($<))[0] }
+
+=head2 wipe
+
+Deletes a file by "wiping" it on the disk. Overwrites the file before deleting. (May not work properly on SSDs)
+
+B<Input:>
+* Arg 1: A filename
+* Optional arg 2: number of times to overwrite file. Default is 3 if omitted, 0 or undef
+* Optional arg 3: keep (true/false), wipe() but no delete of file
+
+B<Output:> Same as the C<unlink()> (remove file): 1 for success, 0 or false for failure.
+
+See also: L<https://www.google.com/search?q=wipe+file>, L<http://www.dban.org/>
+
+=cut
+
+sub wipe {
+  my($file,$times,$keep)=@_;
+  $times||=3;
+  croak "ERROR: File $file nonexisting\n" if not -f $file or not -e $file;
+  my $size=-s$file;
+  open my $WIFH, '+<', $file or croak "ERROR: Unable to open $file: $!\n";
+  binmode($WIFH);
+  for(1..$times){
+    my $block=chr(int(rand(256))) x 1024;#hm
+    for(0..($size/1024)){
+      seek($WIFH,$_*1024,0);
+      print $WIFH $block;
+    }
+  }
+  close($WIFH);
+  $keep || unlink($file);
+}
 
 =head2 chall
 
@@ -3896,27 +3987,26 @@ version 5.?.?  It does not slurp the files or spawn new processes.
 sub md5sum {
   require Digest::MD5;
   my $fn=shift;
+  croak "md5sum: $fn is a directory (no md5sum)" if -d $fn;
   open my $FH, '<', $fn or croak "Could not open file $fn for md5sum() $!";
   binmode($FH);
   my $r = eval { Digest::MD5->new->addfile($FH)->hexdigest };
-  croak "md5sum: $fn is a directory (no md5sum)" if $@ and -d $fn;
   croak "md5sum on $fn failed ($@)\n" if $@;
-  return $r;
+  $r;
 }
 
 =head2 read_conf
 
-B<First argument:> A file name (string) or a reference to a string with settings in the format described below.
+B<First argument:> A file name or a reference to a string with settings in the format described below.
 
-B<Second argument, optional:> A reference to a hash with the settings from the file (or string reference).
+B<Second argument, optional:> A reference to a hash. This hash will have the settings from the file (or stringref).
 The hash do not have to be empty beforehand.
 
 Returns a hash with the settings as in this examples:
 
- my %conf = read_conf('/etc/thing/thing.conf');
+ my %conf = read_conf('/etc/your/thing.conf');
  print $conf{sectionA}{knobble};  #prints ABC if the file is as shown below
  print $conf{sectionA}{gobble};   #prints ZZZ, the last gobble
- print $conf{''}{switch};         #prints OK if the file is as shown below, the empty section
  print $conf{switch};             #prints OK here as well, unsectioned value
  print $conf{part2}{password};    #prints oh:no= x
 
@@ -3951,8 +4041,14 @@ both in the empty section in the returned hash and as top level key/values.
 C<read_conf> can be a simpler alternative to the core module L<Config::Std> which has
 its own hassles.
 
+ $Acme::Tools::Read_conf_empty_section=1;        #default 0 (was 1 in version 0.16)
+ my %conf = read_conf('/etc/your/thing.conf');
+ print $conf{''}{switch};                        #prints OK with the file above
+ print $conf{switch};                            #prints OK here as well
+
 =cut
 
+our $Read_conf_empty_section=0;
 sub read_conf {
   my($fn,$hr)=(@_,{});
   my $conf=ref($fn)?$$fn:readfile($fn);
@@ -3960,9 +4056,16 @@ sub read_conf {
   my($section,@l)=('',split"\n",$conf);
   while(@l) {
     my $l=shift@l;
-    my $ml=sub{my$v=shift;$v.="\n".shift@l while $v=~/^\{[^\}]*$/&&@l;$v=~s/^\{(.*)\}\s*$/$1/s;$v=~s,\\#,#,g;$v};
-    if   ( $l=~/^\s*\[\s*(.*?)\s*\]/            ) { $section=$1; $$hr{$1}||={} }
-    elsif( $l=~/^\s*([^\:\=]+)[:=]\s*(.*?)\s*$/ ) { my$v=&$ml($2);$$hr{$section}{$1}=$v; length($section) or $$hr{$1}=$v }
+    if( $l=~/^\s*\[\s*(.*?)\s*\]/ ) {
+      $section=$1;
+      $$hr{$1}||={};
+    }
+    elsif( $l=~/^\s*([^\:\=]+)[:=]\s*(.*?)\s*$/ ) {
+      my $ml=sub{my$v=shift;$v.="\n".shift@l while $v=~/^\{[^\}]*$/&&@l;$v=~s/^\{(.*)\}\s*$/$1/s;$v=~s,\\#,#,g;$v};
+      my $v=&$ml($2);
+      $$hr{$section}{$1}=$v if length($section) or $Read_conf_empty_section;
+      $$hr{$1}=$v if !length($section);
+    }
   }
   %$hr;
 }
@@ -3994,248 +4097,308 @@ our @Openstrpath=(grep$_,split(":",$ENV{PATH}),qw(/usr/bin /bin /usr/local/bin))
 sub openstr {
   my($fn,$ext)=(shift()=~/^(.*?(?:\.(t?gz|bz2|xz))?)$/i);
   return $fn if !$ext;
-  my $prog=sub{@Openstrpath or return $_[0];(grep -x$_, map "$_/$_[0]", @Openstrpath)[0] or die};
+  my $prog=sub{@Openstrpath or return $_[0];(grep -x$_, map "$_/$_[0]", @Openstrpath)[0] or croak"$_[0] not found"};
   $fn =~ /^\s*>/
-      ?  "| ".(&$prog({qw/tgz gzip gz gzip bz2 bzip2 xz xz/   }->{lc($ext)})).$fn
-      :        &$prog({qw/tgz zcat gz zcat bz2 bzcat xz xzcat/}->{lc($ext)})." $fn |";
+      ?  "| ".(&$prog({qw/gz gzip bz2 bzip2 xz xz tgz gzip/   }->{lc($ext)})).$fn
+      :        &$prog({qw/gz zcat bz2 bzcat xz xzcat tgz zcat/}->{lc($ext)})." $fn |";
 }
 
 =head1 TIME FUNCTIONS
 
-# head2 timestr
-#
-# Converts epoch or YYYYMMDD-HH24:MI:SS time string to other forms of time.
-#
-# B<Input:> One, two or three arguments.
-#
-# B<First argument:> A format string.
-#
-# B<Second argument: (optional)> An epock C<time()> number or a time
-# string of the form YYYYMMDD-HH24:MI:SS. I no second argument is gives,
-# picks the current C<time()>.
-#
-# B<Thirs argument: (optional> True eller false. If true and first argument is eight digits:
-# Its interpreted as a YYYYMMDD time string, not an epoch time.
-# If true and first argument is six digits its interpreted as a DDMMYY date.
-#
-# B<Output:> a date or clock string on the wanted form.
-#
-# B<Exsamples:>
-#
-# Prints C<< 3. july 1997 >> if thats the dato today:
-#
-#  perl -MAcme::Tools -le 'print timestr("D. month YYYY")'
-#
-#  print timestr"HH24:MI");              # prints 23:55 if thats the time now
-#  print timestr"HH24:MI",time());       # ...same,since time() is the default
-#  print timestr"HH:MI",time()-5*60);    # prints 23:50 if that was the time 5 minutes ago
-#  print timestr"HH:MI",time()-5*60*60); # print 18:55 if thats the time 5 hours ago
-#  timestr"Day D. month YYYY HH:MI");    # Saturday  juli 2004 23:55       (stor L liten j)
-#  timestr"dag D. Måned ÅÅÅÅ HH:MI");    # lørdag 3. Juli 2004 23:55       (omvendt)
-#  timestr"DG DD. MONTH YYYY HH24:MI");  # LØR 03. JULY 2004 23:55         (HH24 = HH, month=engelsk)
-#  timestr"DD-MON-YYYY");                # 03-MAY-2004                     (mon engelsk)
-#  timestr"DD-MÅN-YYYY");                # 03-MAI-2004                     (mån norsk)
-#
-# B<Formatstrengen i argument to:>
-#
-# Formatstrengen kan innholde en eller flere av følgende koder.
-#
-# Formatstrengen kan inneholde tekst, som f.eks. C<< tid('Klokken er: HH:MI') >>.
-# Teksten her vil ikke bli konvertert. Men det anbefales å holde tekst utenfor
-# formatstrengen, siden framtidige koder kan erstatte noen tegn i teksten med tall.
-#
-# Der det ikke står annet: bruk store bokstaver.
-#
-#  YYYY    Årstallet med fire sifre
-#  ÅÅÅÅ    Samme som YYYY (norsk)
-#  YY      Årstallet med to sifre, f.eks. 04 for 2004 (anbefaler ikke å bruke tosifrede år)
-#  ÅÅ      Samme som YY (norsk)
-#  yyyy    Årtallet med fire sifre, men skriver ingenting dersom årstallet er årets (plass-sparing, ala tidstrk() ).
-#  åååå    Samme som yyyy
-#  MM      Måned, to sifre. F.eks. 08 for august.
-#  DD      Dato, alltid to sifer. F.eks 01 for første dag i en måned.
-#  D       Dato, ett eller to sifre. F.eks. 1 for første dag i en måned.
-#  HH      Time. Fra 00, 01, 02 osv opp til 23.
-#  HH24    Samme som HH. Ingen forskjell. Tatt med for å fjerne tvil om det er 00-12-11 eller 00-23
-#  HH12    NB: Kl 12 blir 12, kl 13 blir 01, kl 14 blir 02 osv .... 23 blir 11,
-#          MEN 00 ETTER MIDNATT BLIR 12 ! Oracle er også slik.
-#  TT      Samme som HH. Ingen forskjell. Fra 00 til 23. TT24 og TT12 finnes ikke.
-#  MI      Minutt. Fra 00 til 59.
-#  SS      Sekund. Fra 00 til 59.
-#
-#  Måned   Skriver månedens fulle navn på norsk. Med stor førstebokstav, resten små.
-#          F.eks. Januar, Februar osv. NB: Vær oppmerksom på at måneder på norsk normal
-#          skrives med liten førstebokstav (om ikke i starten av setning). Alt for mange
-#          gjør dette feil. På engelsk skrives de ofte med stor førstebokstav.
-#  Måne    Skriver månedens navn forkortet og uten punktum. På norsk. De med tre eller
-#          fire bokstaver forkortes ikke: Jan Feb Mars Apr Mai Juni Juli Aug Sep Okt Nov Des
-#  Måne.   Samme som Måne, men bruker punktum der det forkortes. Bruker alltid fire tegn.
-#          Jan. Feb. Mars Apr. Mai Juni Juli Aug. Sep. Okt. Nov. Des.
-#  Mån     Tre bokstaver, norsk: Jan Feb Mar Apr Mai Jun Jul Aug Sep Okt Nov Des
-#
-#  Month   Engelsk: January February May June July October December, ellers = norsk.
-#  Mont    Engelsk: Jan Feb Mars Apr May June July Aug Sep Oct Nov Dec
-#  Mont.   Engelsk: Jan. Feb. Mars Apr. May June July Aug. Sep. Oct. Nov. Dec.
-#  Mon     Engelsk: Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
-#
-#  måned måne måne. mån       Samme, men med liten førstebokstav. På norsk.
-#  month mont mont. mon       Samme, men med liten førstebokstav. På engelsk.
-#  MÅNED MÅNE MÅNE. MÅN       Samme, men med alle bokstaver store. På norsk.
-#  MONTH MONT MONT. MON       Samme, men med alle bokstaver store. På engelsk.
-#
-#  Dag     Dagens navn på norsk. Stor førstebokstav, resten små. Mandag Tirsdag Onsdag Torsdag
-#          Fredag Lørdag Søndag.
-#  Dg      Dagens navn på norsk forkortet. Stor førstebokstav, resten små.
-#          Alltid tre bokstaver: Man Tir Ons Tor Fre Lør Søn
-#  Day     Samme som Dag, men på engelsk. Monday Tuesday Wednesday Thursday Friday Saturday Sunday
-#  Dy      Samme som Dg, men på engelsk. Alltid tre bokstaver: Mon Tue Wed Thu Fri Sat Sun
-#
-#  dag dg day dy DAG DG DAY DY       ....du klarer sikkert å gjette...
-#
-#  UKE     Ukenr ett eller to siffer. Bruker ISO-definisjonen som brukes stort sett i hele verden unntatt USA.
-#  UKENR   Ukenr, alltid to siffer, 01 02 osv. Se uke() et annet sted i SO::Bibl for mer om dette.
-#
-#
-#  Gjenstår:  Dag- og månedsnavn på nynorsk og samisk.
-#
-#  Gjenstår:  Dth => 1st eller 2nd hvis dato er den første eller andre
-#
-#  Gjenstår:  M => Måned ett eller to sifre, slik D er dato med ett eller to. Vanskelig/umulig(?)
-#
-#  Gjenstår:  J => "julian day"....
-#
-#  Gjenstår:  Sjekke om den takler tidspunkt for svært lenge siden eller om svært lenge...
-#             Kontroll med kanskje die ved input
-#
-#  Gjenstår:  sub dit() (tid baklengs... eller et bedre navn) for å konvertere andre veien.
-#             Som med to_date og to_char i Oracle. Se evt L<Date::Parse> isteden.
-#
-#  Gjenstår:  Hvis formatstrengen er DDMMYY (evt DDMMÅÅ), og det finnes en tredje argument,
-#             så vil den tredje argumenten sees på som personnummer og DD vil bli DD+40
-#             eller MM vil bli MM+50 hvis personnummeret medfører D- eller S-type fødselsnr.
-#             Hmm, kanskje ikke. Se heller  sub foedtdato  og  sub fnr  m.fl.
-#
-#  Gjenstår:  Testing på tidspunkter på mer enn hundre år framover eller tilbake i tid.
-#
-# Se også L</tidstrk> og L</tidstr>
-#
-# =cut
-#
-# our %SObibl_tid_strenger;
-# our $SObibl_tid_pattern;
-#
-# sub tid
-# {
-#   return undef if @_>1 and not defined $_[1];
-#   return 1900+(localtime())[5] if $_[0]=~/^(?:ÅÅÅÅ|YYYY)$/ and @_==1; # kjappis for tid("ÅÅÅÅ") og tid("YYYY")
-#
-#   my($format,$time,$er_dato)=@_;
-#
-#
-#   $time=time() if @_==1;
-#
-#   ($time,$format)=($format,$time)
-#     if $format=~/^[\d+\:\-]+$/; #swap hvis format =~ kun tall og : og -
-#
-#   $format=~s,([Mm])aa,$1å,;
-#   $format=~s,([Mm])AA,$1Å,;
-#
-#   $time = yyyymmddhh24miss_time("$1$2$3$4$5$6")
-#     if $time=~/^((?:19|20|18)\d\d)          #yyyy
-#                 (0[1-9]|1[012])             #mm
-#                 (0[1-9]|[12]\d|3[01]) \-?   #dd
-#                 ([01]\d|2[0-3])       \:?   #hh24
-#                 ([0-5]\d)             \:?   #mi
-#                 ([0-5]\d)             $/x;  #ss
-#
-#   $time = yyyymmddhh24miss_time(dato_ok("$1$2$3")."000000")
-#     if $time=~/^(\d\d)(\d\d)(\d\d)$/ and $er_dato;
-#
-#   $time = yyyymmddhh24miss_time("$1$2${3}000000")
-#     if $time=~/^((?:18|19|20)\d\d)(\d\d)(\d\d)$/ and $er_dato;
-#
-#   my @lt=localtime($time);
-#   if($format){
-#     unless(defined %SObibl_tid_strenger){
-#       %SObibl_tid_strenger=
-# 	  ('MÅNED' => [4, 'JANUAR','FEBRUAR','MARS','APRIL','MAI','JUNI','JULI',
-# 		          'AUGUST','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER' ],
-# 	   'Måned' => [4, 'Januar','Februar','Mars','April','Mai','Juni','Juli',
-# 		          'August','September','Oktober','November','Desember'],
-# 	   'måned' => [4, 'januar','februar','mars','april','mai','juni','juli',
-# 		          'august','september','oktober','november','desember'],
-# 	   'MÅNE.' => [4, 'JAN.','FEB.','MARS','APR.','MAI','JUNI','JULI','AUG.','SEP.','OKT.','NOV.','DES.'],
-# 	   'Måne.' => [4, 'Jan.','Feb.','Mars','Apr.','Mai','Juni','Juli','Aug.','Sep.','Okt.','Nov.','Des.'],
-# 	   'måne.' => [4, 'jan.','feb.','mars','apr.','mai','juni','juli','aug.','sep.','okt.','nov.','des.'],
-# 	   'MÅNE'  => [4, 'JAN','FEB','MARS','APR','MAI','JUNI','JULI','AUG','SEP','OKT','NOV','DES'],
-# 	   'Måne'  => [4, 'Jan','Feb','Mars','Apr','Mai','Juni','Juli','Aug','Sep','Okt','Nov','Des'],
-# 	   'måne'  => [4, 'jan','feb','mars','apr','mai','juni','juli','aug','sep','okt','nov','des'],
-# 	   'MÅN'   => [4, 'JAN','FEB','MAR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DES'],
-# 	   'Mån'   => [4, 'Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'],
-# 	   'mån'   => [4, 'jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'],
-#
-# 	   'MONTH' => [4, 'JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY',
-# 		          'AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'],
-# 	   'Month' => [4, 'January','February','March','April','May','June','July',
-# 		          'August','September','October','November','December'],
-# 	   'month' => [4, 'january','february','march','april','may','june','july',
-# 		          'august','september','october','november','december'],
-# 	   'MONT.' => [4, 'JAN.','FEB.','MAR.','APR.','MAY','JUNE','JULY','AUG.','SEP.','OCT.','NOV.','DEC.'],
-# 	   'Mont.' => [4, 'Jan.','Feb.','Mar.','Apr.','May','June','July','Aug.','Sep.','Oct.','Nov.','Dec.'],
-# 	   'mont.' => [4, 'jan.','feb.','mar.','apr.','may','june','july','aug.','sep.','oct.','nov.','dec.'],
-# 	   'MONT'  => [4, 'JAN','FEB','MAR','APR','MAY','JUNE','JULY','AUG','SEP','OCT','NOV','DEC'],
-# 	   'Mont'  => [4, 'Jan','Feb','Mar','Apr','May','June','July','Aug','Sep','Oct','Nov','Dec'],
-# 	   'mont'  => [4, 'jan','feb','mar','apr','may','june','july','aug','sep','oct','nov','dec'],
-# 	   'MON'   => [4, 'JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],
-# 	   'Mon'   => [4, 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
-# 	   'mon'   => [4, 'jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'],
-# 	   'DAY'   => [6, 'SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'],
-# 	   'Day'   => [6, 'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
-# 	   'day'   => [6, 'sunday','monday','tuesday','wednesday','thursday','friday','saturday'],
-# 	   'DY'    => [6, 'SUN','MON','TUE','WED','THU','FRI','SAT'],
-# 	   'Dy'    => [6, 'Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
-# 	   'dy'    => [6, 'sun','mon','tue','wed','thu','fri','sat'],
-# 	   'DAG'   => [6, 'SØNDAG','MANDAG','TIRSDAG','ONSDAG','TORSDAG','FREDAG','LØRDAG'],
-# 	   'Dag'   => [6, 'Søndag','Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag'],
-# 	   'dag'   => [6, 'søndag','mandag','tirsdag','onsdag','torsdag','fredag','lørdag'],
-# 	   'DG'    => [6, 'SØN','MAN','TIR','ONS','TOR','FRE','LØR'],
-# 	   'Dg'    => [6, 'Søn','Man','Tir','Ons','Tor','Fre','Lør'],
-# 	   'dg'    => [6, 'søn','man','tir','ons','tor','fre','lør'],
-# 	   );
-#       for(qw(MAANED Maaned maaned MAAN Maan maan),'MAANE.','Maane.','maane.'){
-# 	$SObibl_tid_strenger{$_}=$SObibl_tid_strenger{replace($_,"aa","å","AA","Å")};
-#       }
-#       $SObibl_tid_pattern=join("|",map{quotemeta($_)}
-#  	                           sort{length($b)<=>length($a)}
-#                                    keys %SObibl_tid_strenger);
-#       #uten sort kan "måned" bli "mared", fordi "mån"=>"mar"
-#     }
-#     $format=~s/($SObibl_tid_pattern)/$SObibl_tid_strenger{$1}[1+$lt[$SObibl_tid_strenger{$1}[0]]]/g;
-#
-#     $format=~s/TT|tt/HH/;
-#     $format=~s/ÅÅ/YY/g;$format=~s/åå/yy/g;
-#     $format=~s/YYYY             /1900+$lt[5]                  /gxe;
-#     $format=~s/(\s?)yyyy        /$lt[5]==(localtime)[5]?"":$1.(1900+$lt[5])/gxe;
-#     $format=~s/YY               /sprintf("%02d",$lt[5]%100)   /gxei;
-#     $format=~s/MM               /sprintf("%02d",$lt[4]+1)     /gxe;
-#     $format=~s/mm               /sprintf("%d",$lt[4]+1)       /gxe;
-#     $format=~s/DD               /sprintf("%02d",$lt[3])       /gxe;
-#     $format=~s/D(?![AaGgYyEeNn])/$lt[3]                       /gxe; #EN pga desember og wednesday
-#     $format=~s/dd               /sprintf("%d",$lt[3])         /gxe;
-#     $format=~s/hh12|HH12        /sprintf("%02d",$lt[2]<13?$lt[2]||12:$lt[2]-12)/gxe;
-#     $format=~s/HH24|HH24|HH|hh  /sprintf("%02d",$lt[2])       /gxe;
-#     $format=~s/MI               /sprintf("%02d",$lt[1])       /gxei;
-#     $format=~s/SS               /sprintf("%02d",$lt[0])       /gxei;
-#     $format=~s/UKENR            /sprintf("%02d",ukenr($time)) /gxei;
-#     $format=~s/UKE              /ukenr($time)                 /gxei;
-#     $format=~s/SS               /sprintf("%02d",$lt[0])       /gxei;
-#
-#     return $format;
-#   }
-#   else{
-#     return sprintf("%04d%02d%02d%02d%02d%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]);
-#   }
-# }
+=head2 tms - timestring, works somewhat like the Gnu/Linux C<date> command and Oracle's C<to_char()>
+
+Converts timestamps to more readable forms of time strings.
+
+Converts seconds since I<epoch> and time strings on the form C<YYYYMMDD-HH24:MI:SS> to other forms.
+
+B<Input:> One, two or three arguments.
+
+B<First argument:> A format string.
+
+B<Second argument: (optional)> An epock C<time()> number or a time
+string of the form YYYYMMDD-HH24:MI:SS or YYYYMMDDTHH:MI:SS or
+YYYY-MM-DDTHH:MI:SS (in which T is litteral and HH is the 24-hour
+version of hours) or YYYYMMDD. Uses the current C<time()> if the
+second argument is missing.
+
+TODO: Formats with % as in C<man date> (C<%Y%m%d> and so on)
+
+B<Third argument: (optional> True or false. If true and first argument
+is eight digits: Its interpreted as a date like YYYYMMDD time string,
+not an epoch time.  If true and first argument is six digits its
+interpreted as a date like DDMMYY (not YYMMDD!).
+
+B<Output:> a date or clock string on the wanted form.
+
+B<Examples:>
+
+Prints C<< 3. july 1997 >> if thats the dato today:
+
+  perl -MAcme::Tools -le 'print timestr("D. month YYYY")'
+
+  print tms("HH24:MI");              # prints 23:55 if thats the time now
+  tms("HH24:MI",time());             # ...same,since time() is the default
+  tms("HH:MI",time()-5*60);          # 23:50 if that was the time 5 minutes ago
+  tms("HH:MI",time()-5*60*60);       # 18:55 if thats the time 5 hours ago
+  tms("Day Month Dth YYYY HH:MI");   # Saturday July 1st 2004 23:55    (big S, big J)
+  tms("Day D. Month YYYY HH:MI");    # Saturday 8. July 2004 23:55     (big S, big J)
+  tms("DAY D. MONTH YYYY HH:MI");    # SATURDAY 8. JULY 2004 23:55     (upper)
+  tms("dy D. month YYYY HH:MI");     # sat 8. july 2004 23:55          (small s, small j)
+  tms("Dy DD. MON YYYY HH12:MI am"); # Sat 08. JUL 2004 11:55 pm       (HH12, am becomes pm if after 12)
+  tms("DD-MON-YYYY");                # 03-MAY-2004                     (mon, english)
+
+The following list of codes in the first argument will be replaced:
+
+  YYYY    Year, four digits
+  YY      Year, two digits, i.e. 04 instead of 2004
+  yyyy    Year, four digits, but nothing if its the current year
+  YYYY|HH:MI  Year if its another year than the current, a time in hours and minutes elsewise
+  MM      Month, two digits. I.e. 08 for August
+  DD      Day of month, two digits. I.e. 01 (not 1) for the first day in a month
+  D       Day of month, one digit. I.e. 1 (not 01)
+  HH      Hour. From 00 to 23.
+  HH24    Same as HH.
+  HH12    12 becomes 12 (never 00), 13 becomes 01, 14 02 and so on.
+          Note: 00 after midnight becomes 12 (am). Tip: always include the code
+          am in a format string that uses HH12.
+  MI      Minutt. Fra 00 til 59.
+  SS      Sekund. Fra 00 til 59.
+  am      Becomes am or pm
+  pm      Same
+  AM      Becomes AM or PM (upper case)
+  PM      Same
+ 
+  Month   The full name of the month in English from January to December
+  MONTH   Same in upper case (JANUARY)
+  month   Same in lower case (january)
+  Mont    Jan Feb Mars Apr May June July Aug Sep Oct Nov Dec
+  Mont.   Jan. Feb. Mars Apr. May June July Aug. Sep. Oct. Nov. Dec. (always four chars)
+  Mon     Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec            (always three chars)
+ 
+  Day     The full name of the weekday. Sunday to Saturday
+  Dy      Three letters: Sun Mon Tue Wed Thu Fri Sat
+  DAY     Upper case
+  DY      Upper case
+  Dth     1st 2nd 3rd 4th 5th ... 11th 12th ... 20th 21st 22nd 23rd 24th ... 30th 31st
+ 
+  WW      Week number of the year 01-53 according to the ISO8601-definition (which most countries uses)
+  WWUS    Week number of the year 01-53 according to the most used definition in the USA.
+          Other definitions also exists.
+
+  epoch   Converts a time string from YYYYMMDD-HH24:MI:SS, YYYYMMDD-HH24:MI:SS, YYYYMMDDTHH:MI:SS,
+          YYYY-MM-DDTHH:MI:SS or YYYYMMDD to the number of seconds since January 1st 1970.
+          Commonly known as the Unix epoch.
+ 
+  JDN     Julian day number. Integer. The number of days since the day starting at noon on January 1 4713 BC
+  JD      Same as JDN but a float accounting for the time of day
+ 
+TODO:  sub smt() (tms backward... or something better named, converts the other way)
+       As to_date and to_char in Oracle. Se maybe L<Date::Parse> instead
+
+B<Third argument:> (optional) Is_date. False|true, default false. If true, the second argument is
+interpreted as a date of the form YYYYMMDD, not as a number of seconds since epoch (January 1st 1970).
+
+=cut
+
+#Se også L</tidstrk> og L</tidstr>
+
+our $Tms_pattern;
+our %Tms_str=
+	  ('MÅNED' => [4, 'JANUAR','FEBRUAR','MARS','APRIL','MAI','JUNI','JULI',
+		          'AUGUST','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER' ],
+	   'Måned' => [4, 'Januar','Februar','Mars','April','Mai','Juni','Juli',
+		          'August','September','Oktober','November','Desember'],
+	   'måned' => [4, 'januar','februar','mars','april','mai','juni','juli',
+		          'august','september','oktober','november','desember'],
+	   'MÅNE.' => [4, 'JAN.','FEB.','MARS','APR.','MAI','JUNI','JULI','AUG.','SEP.','OKT.','NOV.','DES.'],
+	   'Måne.' => [4, 'Jan.','Feb.','Mars','Apr.','Mai','Juni','Juli','Aug.','Sep.','Okt.','Nov.','Des.'],
+	   'måne.' => [4, 'jan.','feb.','mars','apr.','mai','juni','juli','aug.','sep.','okt.','nov.','des.'],
+	   'MÅNE'  => [4, 'JAN','FEB','MARS','APR','MAI','JUNI','JULI','AUG','SEP','OKT','NOV','DES'],
+	   'Måne'  => [4, 'Jan','Feb','Mars','Apr','Mai','Juni','Juli','Aug','Sep','Okt','Nov','Des'],
+	   'måne'  => [4, 'jan','feb','mars','apr','mai','juni','juli','aug','sep','okt','nov','des'],
+	   'MÅN'   => [4, 'JAN','FEB','MAR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DES'],
+	   'Mån'   => [4, 'Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'],
+	   'mån'   => [4, 'jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'],
+	   'MONTH' => [4, 'JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY',
+		          'AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'],
+	   'Month' => [4, 'January','February','March','April','May','June','July',
+		          'August','September','October','November','December'],
+	   'month' => [4, 'january','february','march','april','may','june','july',
+		          'august','september','october','november','december'],
+	   'MONT.' => [4, 'JAN.','FEB.','MAR.','APR.','MAY','JUNE','JULY','AUG.','SEP.','OCT.','NOV.','DEC.'],
+	   'Mont.' => [4, 'Jan.','Feb.','Mar.','Apr.','May','June','July','Aug.','Sep.','Oct.','Nov.','Dec.'],
+	   'mont.' => [4, 'jan.','feb.','mar.','apr.','may','june','july','aug.','sep.','oct.','nov.','dec.'],
+	   'MONT'  => [4, 'JAN','FEB','MAR','APR','MAY','JUNE','JULY','AUG','SEP','OCT','NOV','DEC'],
+	   'Mont'  => [4, 'Jan','Feb','Mar','Apr','May','June','July','Aug','Sep','Oct','Nov','Dec'],
+	   'mont'  => [4, 'jan','feb','mar','apr','may','june','july','aug','sep','oct','nov','dec'],
+	   'MON'   => [4, 'JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],
+	   'Mon'   => [4, 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+	   'mon'   => [4, 'jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'],
+	   'DAY'   => [6, 'SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'],
+	   'Day'   => [6, 'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
+	   'day'   => [6, 'sunday','monday','tuesday','wednesday','thursday','friday','saturday'],
+	   'DY'    => [6, 'SUN','MON','TUE','WED','THU','FRI','SAT'],
+	   'Dy'    => [6, 'Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+	   'dy'    => [6, 'sun','mon','tue','wed','thu','fri','sat'],
+	   'DAG'   => [6, 'SØNDAG','MANDAG','TIRSDAG','ONSDAG','TORSDAG','FREDAG','LØRDAG'],
+	   'Dag'   => [6, 'Søndag','Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag'],
+	   'dag'   => [6, 'søndag','mandag','tirsdag','onsdag','torsdag','fredag','lørdag'],
+	   'DG'    => [6, 'SØN','MAN','TIR','ONS','TOR','FRE','LØR'],
+	   'Dg'    => [6, 'Søn','Man','Tir','Ons','Tor','Fre','Lør'],
+	   'dg'    => [6, 'søn','man','tir','ons','tor','fre','lør'],
+	   );
+my $_tms_inited=0;
+sub tms_init {
+  return if $_tms_inited++;
+  for(qw(MAANED Maaned maaned MAAN Maan maan),'MAANE.','Maane.','maane.'){
+    $Tms_str{$_}=$Tms_str{replace($_,"aa","å","AA","Å")};
+  }
+  $Tms_pattern=join("|",map{quotemeta($_)}
+			       sort{length($b)<=>length($a)}
+			       keys %Tms_str);
+  #uten sort kan "måned" bli "mared", fordi "mån"=>"mar"
+}
+
+sub totime {
+
+}
+
+sub date_ok {
+  my($y,$m,$d)=@_;
+  return date_ok($1,$2,$3) if @_==1 and $_[0]=~/^(\d{4})(\d\d)(\d\d)$/;
+  return 0 if $y!~/^\d\d\d\d$/;
+  return 0 if $m<1||$m>12||$d<1||$d>(31,$y%4||$y%100==0&&$y%400?28:29,31,30,31,30,31,31,30,31,30,31)[$m-1];
+  return 1;
+}
+
+sub weeknum {
+  return weeknum(tms('YYYYMMDD')) if @_<1;
+  return weeknum($1,$2,$3) if @_==1 and $_[0]=~/^(\d{4})(\d\d)(\d\d)$/;
+  my($year,$month,$day)= @_;
+  eval{
+    if(@_<2){
+      if($year=~/^\d{8}$/) { ($year,$month,$day)=unpack("A4A2A2",$year) }
+      elsif($year>99999999){ ($year,$month,$day)=(localtime($year))[5,4,3]; $year+=1900; $month++ }
+      else {die}
+    }
+    elsif(@_!=3){croak}
+    croak if !date_ok(sprintf("%04d%02d%02d",$year,$month,$day));
+  };
+  croak "ERROR: Wrong args Acme::Tools::weeknum(".join(",",@_).")" if $@;
+  use integer;#heltallsdivisjon
+  my $y=$year+4800-(14-$month)/12;
+  my $j=$day+(153*($month+(14-$month)/12*12-3)+2)/5+365*$y+$y/4-$y/100+$y/400-32045;
+  my $d=($j+31741-$j%7)%146097%36524%1461;
+  return (($d-$d/1460)%365+$d/1460)/7+1;
+}
+
+#perl -MAcme::Tools -le 'print "$_ ".tms($_."0501","day",1) for 2015..2026'
+
+sub tms {
+  return undef if @_>1 and not defined $_[1]; #time=undef => undef
+  if(@_==1){
+    my @lt=localtime();
+    $_[0] eq 'YYYY'     and return 1900+$lt[5];
+    $_[0] eq 'YYYYMMDD' and return sprintf("%04d%02d%02d",1900+$lt[5],1+$lt[4],$lt[3]); 
+    $_[0] =~ $Re_isnum  and @lt=localtime($_[0]) and return sprintf("%04d%02d%02d-%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]); 
+  }
+  my($format,$time,$is_date)=@_;
+  $time=time_fp() if !defined$time;
+  ($time,$format)=($format,$time) if @_>=2 and $format=~/^[\d+\:\-\.]+$/; #swap /hm/
+  my @lt=localtime($time);
+  #todo? $is_date=0 if $time=~s/^\@(\-?\d)/$1/; #@n where n is sec since epoch makes it clear that its not a formatted, as in `date`
+  #todo? date --date='TZ="America/Los_Angeles" 09:00 next Fri' #`info date`
+  #      Fri Nov 13 18:00:00 CET 2015
+  #date --date="next Friday"  #--date or -d
+  #date --date="last friday"
+  #date --date="2 days ago"
+  #date --date="yesterday" #or tomorrow
+  #date --date="-1 day"  #date --date='10 week'
+
+  if( $is_date ){
+    my $yy2c=sub{10+$_[0]>$lt[5]%100?"20":"19"}; #hm 10+
+    $time=totime(&$yy2c($1)."$1$2$3")."000000" if $time=~/^(\d\d)(\d\d)(\d\d)$/;
+    $time=totime("$1$2${3}000000")             if $time=~/^((?:18|19|20)\d\d)(\d\d)(\d\d)$/; #hm 18-20?
+  }
+  else {
+    $time = yyyymmddhh24miss_time("$1$2$3$4$5$6") #yyyymmddhh24miss_time ???
+      if $time=~/^((?:19|20|18)\d\d)          #yyyy
+                  (0[1-9]|1[012])             #mm
+                  (0[1-9]|[12]\d|3[01]) \-?   #dd
+                  ([01]\d|2[0-3])       \:?   #hh24
+                  ([0-5]\d)             \:?   #mi
+                  ([0-5]\d)             $/x;  #ss
+  }
+  tms_init() if !$_tms_inited;
+  return sprintf("%04d%02d%02d-%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]) if !$format;
+  my %p=('%'=>'%',
+	 a=>'Dy',
+	 A=>'Day',
+	 b=>'Mon',
+	 b=>'Month',
+	 c=>'Dy Mon D HH:MI:SS YYYY',
+	 C=>'CC',
+	 d=>'DD',
+	 D=>'MM/DD/YY',
+	 e=>'D',
+	 F=>'YYYY-MM-DD',
+        #G=>'', 
+	 h=>'Month', H=>'HH24', I=>'HH12',
+	 j=>'DoY', #day of year
+	 k=>'H24', _H=>'H24',
+	 l=>'H12', _I=>'H12',
+	 m=>'MM', M=>'MI',
+	 n=>"\n",
+	#N=>'NS', #sprintf%09d,1e9*(time_fp()-time()) #000000000..999999999
+	 p=>'AM', #AM|PM upper (yes, opposite: date +%H%M%S%P%p)
+	 P=>'am', #am|pm lower
+	 S=>'SS',
+	 t=>"\t",
+	 T=>'HH24:MI:SS',
+	 u=>'DoW',  #day of week 1..7, 1=mon 7=sun
+	 w=>'DoW0', #day of week 0..6, 1=mon 0=sun
+	#U=>'WoYs', #week num of year 00..53, sunday as first day of week
+	#V=>'UKE',  #ISO week num of year 01..53, monday as first day of week
+	#W=>'WoYm', #week num of year 00..53, monday as first day of week, not ISO!
+	#x=>$ENV{locale's date representation}, #e.g. MM/DD/YY
+	#X=>$ENV{locale's time representation}, #e.g. HH/MI/SS
+	 y=>'YY',
+	 Y=>'YYYY',
+	#z=>'TZHHMI', #time zone hour minute e.g. -0430
+	#':z'=>'TZHH:MI',
+	#'::z'=>'TZHH:MI:SS',
+	#':::z'=>'TZ', #number of :'s necessary precision, e.g. -02 or +03:30
+	#Z=>'TZN', #e.g. CET, EDT, ...
+      );
+  my $pkeys=join"|",keys%p;
+  $format=~s,\%($pkeys),$p{$1},g;
+  $format=~s/($Tms_pattern)/$Tms_str{$1}[1+$lt[$Tms_str{$1}[0]]]/g;
+  $format=~s/YYYY              / 1900+$lt[5]                    /gxe;
+  $format=~s/(\s?)yyyy         / $lt[5]==(localtime)[5]?"":$1.(1900+$lt[5])/gxe;
+  $format=~s/YY                / sprintf("%02d",$lt[5]%100)     /gxei;
+  $format=~s|CC                | sprintf("%02d",(1900+$lt[5])/100) |gxei;
+  $format=~s/MM                / sprintf("%02d",$lt[4]+1)       /gxe;
+  $format=~s/mm                / sprintf("%d",$lt[4]+1)         /gxe;
+  $format=~s,M/                ,               ($lt[4]+1).'/'   ,gxe;
+  $format=~s,/M                ,           '/'.($lt[4]+1)       ,gxe;
+  $format=~s/DD                / sprintf("%02d",$lt[3])         /gxe;
+  $format=~s/d0w|dow0          / $lt[6]                         /gxei;
+  $format=~s/dow               / $lt[6]?$lt[6]:7                /gxei;
+  $format=~s/d0y|doy0          / $lt[7]                         /gxei; #0-364 (365 leap)
+  $format=~s/doy               / $lt[7]+1                       /gxei; #1-365 (366 leap)
+  $format=~s/D(?![AaGgYyEeNn]) / $lt[3]                         /gxe; #EN pga desember og wednesday
+  $format=~s/dd                / sprintf("%d",$lt[3])           /gxe;
+  $format=~s/hh12|HH12         / sprintf("%02d",$lt[2]<13?$lt[2]||12:$lt[2]-12)/gxe;
+  $format=~s/HH24|HH24|HH|hh   / sprintf("%02d",$lt[2])         /gxe;
+  $format=~s/MI                / sprintf("%02d",$lt[1])         /gxei;
+  $format=~s{SS\.([1-9])      }{ sprintf("%0*.$1f",3+$1,$lt[0]+(repl($time,qr/^[^\.]+/)||0)) }gxei;
+  $format=~s/SS                / sprintf("%02d",$lt[0])         /gxei;
+  $format=~s/am|pm             / $lt[2]<13 ? 'am' : 'pm'        /gxe;
+  $format=~s/AM|PM             / $lt[2]<13 ? 'AM' : 'PM'        /gxe;
+  $format=~s/WWI|WW            / sprintf("%02d",weeknum($time)) /gxei;
+  $format=~s/W                 / weeknum($time)                 /gxei;
+  $format;
+}
 
 =head2 easter
 
@@ -5665,11 +5828,11 @@ sub serialize {
     return serialize(\$s,@r);
   }
   elsif(ref($$r) eq 'CODE'){
-    #warn "Forsøk på å serialisere (serialize) CODE";
+    #warn "Tried to serialize CODE";
     return 'sub{croak "Can not serialize CODE-references, see perhaps B::Deparse and Storable"}'
   }
   elsif(ref($$r) eq 'GLOB'){
-    warn "Forsøk på å serialisere (serialize) en GLOB";
+    warn "Tried to serialize a GLOB";
     return '\*STDERR'
   }
   else{
@@ -5684,15 +5847,103 @@ sub serialize {
   }
 }
 
+=head2 srlz
+
+Synonym to L</serialize>, but remove unnecessary single quote chars around
+C<< \w+ >>-keys and number values (except numbers with leading zeros). Example:
+
+serialize:
+
+ %s=('action'=>{'del'=>'0','ins'=>'0','upd'=>'18'},'post'=>'1348','pre'=>'1348',
+     'updcol'=>{'Laerestednr'=>'18','Studietypenr'=>'18','Undervisningssted'=>'7','Url'=>'11'},
+     'where'=>'where 1=1');
+
+srlz:
+
+ %s=(action=>{del=>0,ins=>0,upd=>18},post=>1348,pre=>1348,
+     updcol=>{Laerestednr=>18,Studietypenr=>18,Undervisningssted=>7,Url=>11},
+     where=>'where 1=1');
+
+Todo: update L</serialize> to do the same, but in the right way. (For now 
+srlz runs the string from serialize() through two C<< s/// >>, this will break
+in certain cases). L</srlz> will be kept as a synonym (or the other way around).
+
+=cut
+
+sub srlz {
+  my $s=serialize(@_);
+  $s=~s,'(\w+)'=>,$1=>,g;
+  $s=~s,=>'((0|[1-9]\d*)(\.\d+)?(e[-+]?\d+)?)',=>$1,gi;  #ikke ledende null!    hm                                                                                                                                          
+  $s;
+}
+
+=head2 cnttbl
+
+ my %nordic_country_population=(Norway=>5214890,Sweden=>9845155,Denmark=>5699220,Finland=>5496907,Iceland=>331310);
+ print cnttbl(\%nordic_country_population);
+ Iceland   331310   1.25%
+ Norway   5214890  19.61%
+ Finland  5496907  20.67%
+ Denmark  5699220  21.44%
+ Sweden   9845155  37.03%
+ SUM     26587482 100.00%
+
+Todo: Levels...:
+
+ my %sales=(
+  Toyota=>{Prius=>19,RAV=>12,Auris=>18,Avensis=>7},
+  Volvo=>{V40=>14, XC90=>4},
+  Nissan=>{Leaf=>19,Qashqai=>17},
+  Tesla=>{ModelS=>8}
+ );
+ print cnttbl(\%sales);
+ Toyota SUM 56
+ Volvo SUM 18
+ Nissan SUM 36
+ Tesla SUM 8
+ SUM SUM 56 100%
+
+=cut
+
+sub cnttbl {
+  my $hr=shift;
+  my $maxlen=max(3,map length($_),keys%$hr);
+  join"",ref((values%$hr)[0])
+  ?do{ map {my$o=$_;join("",map rpad($$o[0],$maxlen)." $_\n",split("\n",$$o[1]))}
+       map [$_,cnttbl($$hr{$_})],
+       sort keys%$hr }
+  :do{ my $sum=sum(values%$hr);
+       my $fmt=repl("%-xs %yd %6.2f%%\n",x=>$maxlen,y=>length($sum)); 
+       map sprintf($fmt,@$_,100*$$_[1]/$sum),
+       (map[$_,$$hr{$_}],sort{$$hr{$a}<=>$$hr{$b} or $a cmp $b}keys%$hr),
+       (['SUM',$sum]) }
+}
+
+=head2 nicenum
+
+ print 14.3 - 14.0;   #0.300000000000001
+ print 34.3 - 34.0;   #0.299999999999997
+ print nicenum( 14.3 - 14.0 );   #0.3
+ print nicenum( 34.3 - 34.0 );   #0.3
+
+=cut
+
+sub nicenum {croak "todo: nicenum not yet implemented";
+  my $n=shift;
+#  $n=~s,^\s*([-+]?\d*)\.(\d+?)9{5,}\d??(e-?\d+)$,$1.
+}
+
+
 =head2 sys
 
 Call instead of C<system> if you want C<die> (Carp::croak) when something fails.
 
- sub sys($){my$s=shift;system($s)==0 or croak"ERROR: sys($s) ($!) ($?)"}
+ sub sys($){ my$s=shift; my$r=system($s); $r==0 or croak"ERROR: system($s)==$r ($!) ($?)" }
+
 
 =cut
 
-sub sys($){ my$s=shift;system($s)==0 or croak"ERROR: sys($s) ($!) ($?)" }
+sub sys($){ my$s=shift; my$r=system($s); $r==0 or croak"ERROR: system($s)==$r ($!) ($?)" }
 
 =head2 recursed
 
@@ -6438,12 +6689,16 @@ sub bfdimensions {
   return ($m+0.5,min($maxk,max($mink,int($k+0.5))));
 }
 
+#crontab -e
+#01 4,10,16,22 * * * /usr/bin/perl -MAcme::Tools -e'Acme::Tools::_update_currency_file("/var/www/html/currency-rates")' > /dev/null 2>&1
+
 sub _update_currency_file { #call from cron
-  my $fn=shift()||'/var/www/currency-rates';
+  my $fn=shift()||'/var/www/html/currency-rates';
   my %exe=map+($_=>"/usr/bin/$_"),qw/curl ci/;-x$_ or die for values %exe;
   open my $F, '>', $fn or die"ERROR: Could not write file $fn ($!)\n";
   print $F "#-- Currency rates ".localtime()." (".time().")\n";
   print $F "#   File generated by Acme::Tools version $VERSION\n";
+  print $F "#   Updated every 6th hour on http://calthis.com/currency-rates\n";
   print $F "NOK 1.000000000\n";
   my $amount=1000;
   my $data=qx($exe{curl} -s "http://www.x-rates.com/table/?from=NOK&amount=$amount");
@@ -6474,12 +6729,103 @@ sub ftype {
   or undef;
 }
 
+sub ext2mime {
+  my $ext=shift(); #or filename
+  #http://www.sitepoint.com/web-foundations/mime-types-complete-list/
+  croak "todo: ext2mime not yet implemented";
+  #return "application/json";#feks
+}
+
+=head1 COMMANDS
+
+=head2 install_acme_command_tools
+
+ sudo perl -MAcme::Tools -e install_acme_command_tools
+
+ Wrote executable /usr/local/bin/conv
+ Wrote executable /usr/local/bin/due
+ Wrote executable /usr/local/bin/xcat
+ Wrote executable /usr/local/bin/freq
+ Wrote executable /usr/local/bin/deldup
+ Wrote executable /usr/local/bin/ccmd
+ Wrote executable /usr/local/bin/z2z
+ Wrote executable /usr/local/bin/2gz
+ Wrote executable /usr/local/bin/2gzip
+ Wrote executable /usr/local/bin/2bz2
+ Wrote executable /usr/local/bin/2bzip2
+ Wrote executable /usr/local/bin/2xz
+
+Examples of commands then made available:
+
+ conv 1 USD EUR                #might show 0.88029 if thats the current currency rate. Uses conv()
+ conv .5 in cm                 #reveals that 1/2 inch is 1.27 cm, see doc on conv() for all supported units
+ due [-h] /path/1/ /path/2/    #like du, but show statistics on file extentions instead of subdirs
+ xcat file                     #like cat, zcat, bzcat or xzcat in one. Uses file extention to decide. Uses openstr()
+ freq file                     #reads file(s) or stdin and view counts of each byte 0-255
+ ccmd grep string /huge/file   #caches stdout+stderr for 15 minutes (default) for much faster results later
+ ccmd "sleep 2;echo hello"     #slow first time. Note the quotes!
+ ccmd "du -s ~/*|sort -n|tail" #ccmd store stdout+stderr in /tmp files (default)
+ z2z [-pvk1-9o -t type] files  #convert from/to .gz/bz2/xz files, -p progress, -v verbose (output result),
+                               #-k keep org file, -o overwrite, 1-9 compression degree
+                               #2xz and 2bz2 depends on xz and bzip2 being installed on system
+ 2xz                           #same as z2z with -t xz
+ 2bz2                          #same as z2z with -t bz2
+ 2gz                           #same as z2z with -t gz
+
+ TODO :
+ finddup [-v -d -s -h] path1/ path2/
+                               #reports (+deletes with -d) duplicate files
+                               #finddup is NOT IMPLEMENTED YET! Use -s for symlink dups, -h for hardlink
+ rttop
+ trunc file(s)
+ wipe file(s)
+
+=head3 z2z
+
+=head3 2xz
+
+=head3 2bz2
+
+=head3 2gz
+
+The commands C<2xz>, C<2bz2> and C<2gz> are just synonyms for C<z2z> with an implicitly added option C<-t xz>, C<-t xz> or C<-t gz> accordingly.
+
+ z2z [-p -k -v -o -1 -2 -3 -4 -5 -6 -7 -8 -9 ] files
+
+Converts (recompresses) files from one compression sc
+
+
+
+=head3 due
+
+Like C<du> command but views space used by file extentions instead of dirs. Options:
+
+ due [-options] [dirs] [files]
+ due -h          View bytes "human readable", i.e. C<8.72 MB> instead of C<9145662 b> (bytes)
+ due -k | -m     View bytes in kilobytes | megabytes (1024 | 1048576)
+ due -K          Like -k but uses 1000 instead of 1024
+ due -z          View two extentions if .z .Z .gz .bz2 .rz or .xz (.tar.gz, not just .gz)
+ due -M          Also show min, medium and max date (mtime) of files, give an idea of their age
+ due -P          Also show 10, 50 (medium) and 90 percentile of file date
+ due -MP         Both -M and -P, shows min, 10p, 50p, 90p and max
+ due -a          Sort output alphabetically by extention (default order is by size)
+ due -c          Sort output by number of files
+ due -i          Ignore case, .GZ and .gz is the same, output in lower case
+ due -t          Adds time of day to -M and -P output
+ due -e 'regex'  Exclude files (full path) matching regex. Ex: due -e '\.git'
+ TODO: due -l    TODO: Exclude hardlinks (dont count "same" file more than once, "man du")
+ ls -l | due     Parses output of ls -l, find -ls, tar tvf for size+filename and reports
+ find | due      List of filenames from stdin produces same as just command 'due'
+ ls | due        Reports on just files in current dir without recursing into subdirs
+
+=cut
+
 sub install_acme_command_tools {
   my $dir=(grep -d$_, @_, '/usr/local/bin', '/usr/bin')[0];
-  for(qw( conv due xcat freq deldup )){
+  for( qw( conv due xcat freq finddup ccmd trunc wipe rttop  z2z 2gz 2gzip 2bz2 2bzip2 2xz ) ){
     unlink("$dir/$_");
     writefile("$dir/$_", "#!$^X\nuse Acme::Tools;\nAcme::Tools::cmd_$_(\@ARGV);\n");
-    sys("/bin/chmod +x $dir/$_");
+    sys("/bin/chmod +x $dir/$_"); #hm umask
     print "Wrote executable $dir/$_\n";
   }
 }
@@ -6495,39 +6841,83 @@ sub cmd_tconv { print conv(@ARGV)."\n"  }
 sub cmd_tdue {
 =======
 sub cmd_conv { print conv(@ARGV)."\n"  }
+<<<<<<< HEAD
 sub cmd_due {
 >>>>>>> 3e59031d19c8c51d5181464a9d4c2a3989016da1
   require Getopt::Std; my %o; Getopt::Std::getopts("zkmhcei" => \%o);
+=======
+
+sub cmd_due { #TODO: output from tar tvf and ls and find -ls
+  my %o=_go("zkKmhciMPate:l");
+>>>>>>> e7b7becfc0fde77bb83c5bee64b22d97ae93baf9
   require File::Find;
   no warnings 'uninitialized';
+  die"$0: -l not implemented yet\n"                if $o{l}; #man du: default is not to count hardlinks more than once, with -l it does
   die"$0: -h, -k or -m can not be used together\n" if $o{h}+$o{k}+$o{m}>1;
   die"$0: -c and -a can not be used together\n"    if $o{a}+$o{c}>1;
+  die"$0: -k and -m can not be used together\n"    if $o{k}+$o{m}>1;
   my @q=@ARGV; @q=('.') if !@q;
-  my(%c,%b,$cnt,$bts);
-  my $r=$o{z} ? qr/(\.[^\.\/]{1,10}(\.(z|Z|gz|bz2|rz))?)$/
+  my(%c,%b,$cnt,$bts,%mtime);
+  my $r=$o{z} ? qr/(\.[^\.\/]{1,10}(\.(z|Z|gz|bz2|rz|xz))?)$/
               : qr/(\.[^\.\/]{1,10})$/;
-    File::Find::find({wanted =>
-    sub {
-      return if !-f$_;
-      my($ext,$sz)=(m/$r/?$1:"",-s$_);
+  my $qrexcl=exists$o{e}?qr/$o{e}/:0;
+ #TODO: ought to work: tar cf - .|tar tvf -|due
+ #my $qrstdin=qr/(^| )\-[rwx\-sS]{9} +\d+ \w+ +\w+ +(\d+) [a-zA-Z]+\.? +\d+ +(?:\d\d:\d\d|\d{4}) (.*)$/;
+  my $qrstdin=qr/(^| )\-[rwx\-sS]{9} +(\d+ )?\w+[ \/]+\w+ +(\d+) [a-zA-Z]+\.? +\d+ +(?:\d\d:\d\d|\d{4}) (.*)$/;
+  if(-p STDIN){
+    while(<>){
+      chomp;
+      my($sz,$f)=/$qrstdin/?($2,$3):-f$_?(-s$_,$_):next;
+      my $ext=$f=~$r?$1:'';
       $ext=lc($ext) if $o{i};
       $cnt++;    $c{$ext}++;
       $bts+=$sz; $b{$ext}+=$sz;
-    } },@q);
-    my($f,$s)=$o{k}?("%10.2f kb",sub{$_[0]/1024})
-             :$o{m}?("%10.2f mb",sub{$_[0]/1024**2})
-             :$o{h}?("%12s",     sub{bytes_readable($_[0])})
-             :      ("%10d b",   sub{$_[0]});
-    my @e=$o{a}?(sort(keys%c))
-         :$o{c}?(sort{$c{$a}<=>$c{$b} or $a cmp $b}keys%c)
-         :      (sort{$b{$a}<=>$b{$b} or $a cmp $b}keys%c);
-    printf("%-10s %8d $f %7.2f%%\n",$_,$c{$_},&$s($b{$_}),100*$b{$_}/$bts) for @e;
-    printf("%-10s %8d $f\n","Sum",$cnt,&$s($bts));
+      #$mtime{$ext}.=",$mtime" if
+                                  $o{M} || $o{P} and die"due: -M and -P not yet implemented for STDIN";
+    }
+  }
+  else { #hm DRY
+    File::Find::find({wanted =>
+      sub {
+        return if !-f$_;
+        return if $qrexcl and defined $File::Find::name and $File::Find::name=~$qrexcl;
+        my($sz,$mtime)=(stat($_))[7,9];
+        my $ext=m/$r/?$1:'';
+        $ext=lc($ext) if $o{i};
+        $cnt++;    $c{$ext}++;
+        $bts+=$sz; $b{$ext}+=$sz;
+        $mtime{$ext}.=",$mtime" if $o{M} || $o{P};
+	1;
+      } },@q);
+  }
+  my($f,$s)=$o{k}?("%14.2f kb",sub{$_[0]/1024})
+           :$o{K}?("%14.2f Kb",sub{$_[0]/1000})
+           :$o{m}?("%14.2f mb",sub{$_[0]/1024**2})
+           :$o{h}?("%14s",     sub{bytes_readable($_[0])})
+           :      ("%14d b",   sub{$_[0]});
+  my @e=$o{a}?(sort(keys%c))
+       :$o{c}?(sort{$c{$a}<=>$c{$b} or $a cmp $b}keys%c)
+       :      (sort{$b{$a}<=>$b{$b} or $a cmp $b}keys%c);
+  my @p=$o{P}?(10,50,90):(50);
+  my $perc=sub{
+    $o{M} or $o{P} or return"";
+    my @m=@_>0 ? do {grep$_, split",", $mtime{$_[0]}}
+               : do {grep$_, map {split","} values %mtime};
+    my @r=percentile(\@p,@m);
+    @r=(min(@m),@r,max(@m)) if $o{M};
+    @r=map int($_), @r;
+    my $fmt='YYYY/MM/DD'; $fmt.="-MM:MI:SS" if $o{t};
+    @r=map tms($_,$fmt), @r;
+    "  ".join(" ",@r);
+  };
+  printf("%-11s %8d $f %7.2f%%%s\n",$_,$c{$_},&$s($b{$_}),100*$b{$_}/$bts,&$perc($_)) for @e;
+  printf("%-11s %8d $f %7.2f%%%s\n","Sum",$cnt,&$s($bts),100,&$perc());
 }
 sub cmd_xcat {
   for my $fn (@_){
     my $os=openstr($fn);
     open my $FH, $os or warn "xcat: cannot open $os ($!)\n" and next;
+    #binmode($FH);#hm?
     print while <$FH>;
     close($FH);
   }
@@ -6540,16 +6930,140 @@ sub cmd_freq {
   printf("%4d %5s%8d".(++$i%3?$s:"\n"),$_,$m{$_}||chr,$f[$_]) for grep$f[$_],0..255;print "\n";
   my @no=grep!$f[$_],0..255; print "No bytes for these ".@no.": ".join(" ",@no)."\n";
 }
-
 sub cmd_deldup {
-  # ~/test/deldup.pl #find duplicate files effiencently
+  cmd_finddup(@_);
+}
+sub cmd_finddup {
+  # ~/test/deldup.pl #find and optionally delete duplicate files effiencently
   #http://www.commandlinefu.com/commands/view/3555/find-duplicate-files-based-on-size-first-then-md5-hash
-  die "todo: not yet"
+  die "todo: finddup not ready yet"
+}
+#http://stackoverflow.com/questions/11900239/can-i-cache-the-output-of-a-command-on-linux-from-cli
+our $Ccmd_cache_dir='/tmp/acme-tools-ccmd-cache';
+our $Ccmd_cache_expire=15*60;  #default 15 minutes
+sub cmd_ccmd {
+  require Digest::MD5;
+  my $cmd=join" ",@_;
+  my $d="$Ccmd_cache_dir/".username();
+  makedir($d);
+  my $md5=Digest::MD5::md5_hex($cmd);
+  my($fno,$fne)=map"$d/cmd.$md5.std$_","out","err";
+  my $too_old=sub{time()-(stat(shift))[9] >= $Ccmd_cache_expire};
+  unlink grep &$too_old($_), <$d/*.std???>;
+  sys("($cmd) > $fno 2> $fne") if !-e$fno or &$too_old($fno);
+  print STDOUT "".readfile($fno);
+  print STDERR "".readfile($fne);
 }
 
-=head1 DATABASE STUFF
+sub cmd_trunc { die "todo: trunc not ready yet"} #truncate a file, size 0, keep all other attr
 
-Uses L<DBI>.
+sub cmd_wipe  {
+  my %o=_go("n:k");
+  wipe($_,$o{n},$o{k}) for @_;
+}
+
+sub cmd_2gz    {cmd_z2z("-t","gz", @_)}
+sub cmd_2gzip  {cmd_z2z("-t","gz", @_)}
+sub cmd_2bz2   {cmd_z2z("-t","bz2",@_)}
+sub cmd_2bzip2 {cmd_z2z("-t","bz2",@_)}
+sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
+#todo?: sub cmd_7z
+sub cmd_z2z {
+  local @ARGV=@_;
+  my %o=_go("pt:kvhon123456789");
+  my $t=repl(lc$o{t},qw/gzip gz bzip2 bz2/);
+  die "due: unknown compression type $o{t}, known are gz, bz2 and xz" if $t!~/^(gz|bz2|xz)$/;
+  my $sum=sum(map -s$_,@ARGV);
+  print "Converting ".@ARGV." files, total ".bytes_readable($sum)."\n" if $o{v} and @ARGV>1;
+  my $cat='cat';
+  if($o{p}){ if(qx(which pv)){ $cat='pv' } else { warn repl(<<"",qr/^\s+/) } }
+    due: pv for -p not found, install with sudo yum install pv, sudo apt-get install pv or similar
+
+  my $sumnew=0;
+  my $start=time_fp();
+  my($i,$bsf)=(0,0);#bytes so far
+  $Eta{'z2z'}=[];eta('z2z',0,$sum);
+  for(@ARGV){
+    my $new=$_; $new=~s/(\.(gz|bz2|xz))?$/.$t/i or die;
+    my $ext=defined($2)?lc($2):'';
+    my $same=/^$new$/; $new.=".tmp" if $same; die if $o{k} and $same;
+    next if !-e$_ and warn"$_ do not exists\n";
+    next if !-r$_ and warn"$_ is not readable\n";
+    next if -e$new and !$o{o} and warn"$new already exists, skipping (use -o to overwrite)\n";
+    my $unz={qw/gz gunzip bz2 bunzip2 xz unxz/}->{$ext}||'';
+    #todo: my $cntfile="/tmp/acme-tools-z2z-wc-c.$$";
+    #todo: my $cnt="tee >(wc -c>$cntfile)" if $ENV{SHELL}=~/bash/ and $o{v}; #hm dash vs bash
+    my $z=  {qw/gz gzip   bz2 bzip2   xz xz/}->{$t};
+    $z.=" -$_" for grep$o{$_},1..9;
+    my $cmd="$cat $_|$unz|$z>$new";
+     #todo: "$cat $_|$unz|$cnt|$z>$new";
+    #cat /tmp/kontroll-linux.xz|unxz|tee >(wc -c>/tmp/p)|gzip|wc -c;cat /tmp/p
+    $cmd=~s,\|+,|,g; #print "cmd: $cmd\n";
+    sys($cmd);
+    chall($_,$new)||die if !$o{n};
+    my($szold,$sznew)=map{-s$_}($_,$new);
+    $bsf+=-s$_;
+    unlink $_ if !$o{k};
+    rename($new, replace($new,qr/.tmp$/)) or die if $same;
+    if($o{v}){
+      $sumnew+=$sznew;
+      my $pr=sprintf"%0.1f%%",100*$sznew/$szold;
+      #todo: my $szuncmp=-s$cntfile&&time()-(stat($cntfile))[9]<10 ? qx(cat $cntfile) : '';
+      #todo: $o{h} ? printf("%6.1f%%  %9s => %9s => %9s %s\n",      $pr,(map bytes_readable($_),$szold,$szuncmp,$sznew),$_)
+      #todo:       : printf("%6.1f%% %11d b  => %11d b => %11 b  %s\n",$pr,$szold,$szuncmp,$sznew,$_)
+      my $str= $o{h}
+      ? sprintf("%-7s %9s => %9s",       $pr,(map bytes_readable($_),$szold,$sznew))
+      : sprintf("%-7s %11d b => %11d b", $pr,$szold,$sznew);
+      if(@ARGV>1){
+	$i++;
+	$str=$i<@ARGV
+            ? "  ETA:".sec_readable(eta('z2z',$bsf,$sum)-time_fp())." $str"
+	    : "   TA: 0s $str"
+	  if $sum>1e6;
+        $str="$i/".@ARGV." $str";
+      }
+      print "$str $new\n";
+    }
+  }
+  if($o{v} and @ARGV>1){
+      my $bytes=$o{h}?'':'bytes ';
+      my $str=
+        sprintf "%d files compressed in %.3f seconds from %s to %s $bytes (%s bytes) %.1f%% of original\n",
+	  0+@ARGV,
+	  time_fp()-$start,
+	  (map{$o{h}?bytes_readable($_):$_}($sum,$sumnew,$sumnew-$sum)),
+	  100*$sumnew/$sum;
+      $str=~s,\((\d),(+$1,;
+      print $str;
+  }
+}
+
+sub _go { require Getopt::Std; my %o; Getopt::Std::getopts(shift() => \%o); %o }
+
+sub cmd_rttop { die "rttop: not implemented here yet.\n" }
+sub cmd_whichpm { die "whichpm: not implemented here yet.\n" } #-a (all, inkl VERSION og ls -l)
+sub cmd_catal { die "whichpm: not implemented here yet.\n" } #-a (all, inkl VERSION og ls -l)
+
+=head1 DATABASE STUFF - NOT IMPLEMENTED YET
+
+Uses L<DBI>. Comming soon...
+
+  $Dbh
+  dlogin
+  dlogout
+  drow
+  drows
+  drowc
+  drowsc
+  dcols
+  dpk
+  dsel
+  ddo
+  dins
+  dupd
+  ddel
+  dcommit
+  drollback
 
 =cut
 
@@ -6631,7 +7145,35 @@ sub _dattrarg {
   splice @arg,1,0, ref($arg[-1]) eq 'HASH' ? pop(@arg) : {};
   @arg;
 }
-#SOON
+
+=head2 self_update
+
+Update Acme::Tools to newest version quick and dirty:
+
+ function pmview(){ ls -ld `perl -M$1 -le'$m=shift;$mi=$m;$mi=~s,::,/,g;print $INC{"$mi.pm"};warn"Version ".${$m."::VERSION"}."\n"' $1`;}
+
+ pmview Acme::Tools                                     #view date and version before
+ sudo perl -MAcme::Tools -e Acme::Tools::self_update    #update to newest version
+ pmview Acme::Tools                                     #view date and version after
+
+Does C<cd> to where Acme/Tools.pm are and then wget -N https://raw.githubusercontent.com/kjetillll/Acme-Tools/master/Tools.pm
+
+TODO: cmd_acme_tools_self_update, accept --no-check-certificate to use on curl
+
+=cut
+
+our $Wget;
+our $Self_update_url='https://raw.githubusercontent.com/kjetillll/Acme-Tools/master/Tools.pm'; #todo: change site
+sub self_update {
+  #in($^O,'linux','cygwin') or die"ERROR: self_update works on linux and cygwin only";
+  $Wget||=(grep -x$_,map"$_/wget",'/usr/bin','/bin','/usr/local/bin','.')[0]; #hm --no-check-certificate
+  -x$Wget or die"ERROR: wget ($Wget) executable not found\n";
+  my $d=dirname(__FILE__);
+  sys("cd $d; ls -l Tools.pm; md5sum Tools.pm");
+  sys("cd $d; $Wget -N ".($ARGV[0]||$Self_update_url));
+  sys("cd $d; ls -l Tools.pm; md5sum Tools.pm");
+}
+
 1;
 
 package Acme::Tools::BloomFilter;
@@ -6654,25 +7196,26 @@ sub sum      { &Acme::Tools::bfsum      }
 # + endre $VERSION
 # + endre Release history under HISTORY
 # + endre årstall under COPYRIGHT AND LICENSE
-# + oppd default valutakurser
+# + oppd default valutakurser inkl datoen
 # + emacs Changes
 # + emacs README + aarstall
 # + emacs MANIFEST legg til ev nye t/*.t
 # + perl            Makefile.PL;make test
-# + /local/bin/perl Makefile.PL;make test
 # + /usr/bin/perl   Makefile.PL;make test
 # + perlbrew exec "perl ~/Acme-Tools/Makefile.PL ; time make test"
 # + perlbrew use perl-5.10.1; perl Makefile.PL; make test; perlbrew off
 # + test evt i cygwin og mingw-perl
 # + pod2html Tools.pm > Tools.html ; firefox Tools.html 
 # + https://metacpan.org/pod/Acme::Tools
-# + http://cpants.cpanauthors.org/dist/Acme-Tools
-# + make dist
+# + http://cpants.cpanauthors.org/dist/Acme-Tools  #kvalitee
+# + perl Makefile.PL ; make test && make dist
 # + cp -p *tar.gz /htdocs/
 # + ci -l -mversjon -d `cat MANIFEST`
 # + git add `cat MANIFEST`
-# + git commit -a
-# + git push
+# + git status
+# + git commit -am versjon
+# + git push                    #eller:
+# + git push origin master
 # + http://pause.perl.org/
 # http://en.wikipedia.org/wiki/Birthday_problem#Approximations
 
@@ -6714,6 +7257,9 @@ sub sum      { &Acme::Tools::bfsum      }
 
 Release history
 
+ 0.172 Dec 2015   Subs: curb, openstr, pwgen, sleepms, sleepnm, srlz, tms, username,
+                  self_update, install_acme_command_tools
+                  Commands: conv, due, freq, wipe, xcat (see "Commands")
  0.16  Feb 2015   bigr, curb, cpad, isnum, parta, parth, read_conf, resolve_equation,
                   roman2int, trim. Improved: conv (numbers, currency), range ("derivatives")
  0.15  Nov 2014   Improved doc
@@ -6725,13 +7271,15 @@ Release history
 
 =head1 SEE ALSO
 
+L<https://github.com/kjetillll/Acme-Tools>
+
 =head1 AUTHOR
 
 Kjetil Skotheim, E<lt>kjetil.skotheim@gmail.comE<gt>
 
 =head1 COPYRIGHT
 
-1995-2015, Kjetil Skotheim
+1995-2016, Kjetil Skotheim
 
 =head1 LICENSE
 

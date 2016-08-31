@@ -5,6 +5,7 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     'NAME'		=> 'Acme::Tools',
     'VERSION_FROM'	=> 'Tools.pm', # finds $VERSION
+    'MIN_PERL_VERSION'  => '5.6.2',
     'PREREQ_PM'		=> {
 			    Compress::Zlib => 0.01,
 			    Time::HiRes    => 0.01,

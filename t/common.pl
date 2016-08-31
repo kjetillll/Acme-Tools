@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 use Test::More;
-use Acme::Tools 0.15;
+use Acme::Tools 0.173;
 sub ok_ref {
   my($s1,$s2) = (serialize($_[0]), serialize($_[1]));
   my $ok = ok($s1 eq $s2, $_[2]) or warn "s1=$s1\ns2=$s2\n";
