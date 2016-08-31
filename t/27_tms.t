@@ -1,7 +1,9 @@
+# tms() and other time stuff
 # make test
 # perl Makefile.PL; make; perl -Iblib/lib t/27_tms.t
 BEGIN{require 't/common.pl'}
 use Test::More;
+use Digest::MD5 'md5_hex';
 if( $^O=~/(?<!cyg)win/i ) { plan skip_all => 'POSIX::tzset not ok on windows'  }
 else                      { plan tests    => 38                                }
 
@@ -61,6 +63,57 @@ tst('354',$t,'doy');tst('353',$t,'doy0');tst('353',$t,'d0y');
 my $tt='20151229-19:13';
 
 # more
+
+#-- easter
+ok( '384f0eefc22c35d412ff01b2088e9e05' eq  md5_hex( join",", map{easter($_)} 1..5000), 'easter');
+
+sub EasterSunday { #https://no.wikipedia.org/wiki/P%C3%A5skeformelen
+  my $year=shift;
+  my $a = $year % 19;
+  my $b = int($year/100);
+  my $c = $year % 100;
+  my $d = int($b/4);
+  my $e = $b % 4;
+  my $f = int(($b+8)/25);   
+  my $g = int(($b-$f+1)/3);
+  my $h = (19*$a+$b-$d-$g+15) % 30;      
+  my $i = int($c/4);
+  my $k = $c % 4;
+  my $l = (32 + 2*$e + 2*$i - $h - $k) % 7;
+  my $m = int(($a+11*$h+22*$l)/451);
+  my $n = int(($h+$l-7*$m+114)/31);
+  my $p = ($h+$l-7*$m+114) % 31;
+  (++$p,$n);
+}
+my @diff;
+for(1498..1e4){ #1498..1e7 ok also!
+  my $e1=join",",easter($_);
+  my $e2=join",",EasterSunday($_);
+  push @diff, "easter year $_ e1=$e1 e2=$e2" if $e1 ne $e2;
+}
+ok(@diff==0,'easter formula1 and 2 eq from year 1498 to 10000');
+
+#--time_fp
+ok( time_fp() =~ /^\d+\.\d+$/ , 'time_fp' );
+
+#--sleep_fp
+sleep_fp(0.01); #init, require Time::HiRes
+my $t=time_fp();
+sleep_fp(0.1);
+my $diff=abs(time_fp()-$t-0.1);
+
+#-fails on many systems...virtual boxes?
+#$^O eq 'linux'
+#? ok($diff < 0.03, "sleep_fp, diff=$diff < 0.03")    #off 30% ok
+#: ok (1);
+
+sleeps(0.010);
+sleepms(10);
+sleepus(10000);
+sleepns(10000000);
+
+
+
 
 __END__
 http://stackoverflow.com/questions/753346/how-do-i-set-the-timezone-for-perls-localtime

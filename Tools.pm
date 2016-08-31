@@ -328,6 +328,8 @@ Implementation:
 
  sub gcd { my($a,$b,@r)=@_; @r ? gcd($a,gcd($b,@r)) : $b==0 ? $a : gcd($b, $a % $b) }
 
+One way of putting it: Keep replacing the larger of the two numbers with the difference between them until you got two equal numbers. Then thats the answer.
+
 L<http://en.wikipedia.org/wiki/Greatest_common_divisor>
 
 L<http://en.wikipedia.org/wiki/Euclidean_algorithm>
@@ -4439,6 +4441,10 @@ Example 2:
 
  my @e=map sprintf("%02d%02d", reverse(easter($_))), 1800..300000;
  print "First: ".min(@e)." Last: ".max(@e)."\n"; # First: 0322 Last: 0425
+
+Note: The Spencer Jones formula differs Oudins used in C<easter()> in some years
+before 1498. However, in that period the Julian calendar with a different formula was
+used anyway. Countries introduced the current Gregorian calendar between 1583 and 1926.
 
 =cut
 

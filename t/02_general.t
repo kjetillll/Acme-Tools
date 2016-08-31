@@ -2,7 +2,7 @@
 # perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
 
 BEGIN{require 't/common.pl'}
-use Test::More tests => 171;
+use Test::More tests => 170;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -373,27 +373,16 @@ END
 ok(upper('a-zæøåäëïöüÿâêîôûãõàèìòùáéíóúıñ' x 3) eq 'A-ZÆØÅÄËÏÖÜÿÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚİÑ' x 3, 'upper'); #hmm ÿ
 ok(lower('A-ZÆØÅÄËÏÖÜ.ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚİÑ' x 3) eq 'a-zæøåäëïöü.âêîôûãõàèìòùáéíóúıñ' x 3, 'lower'); #hmm .
 
-#-- easter
-ok( '384f0eefc22c35d412ff01b2088e9e05' eq  md5_hex( join",", map{easter($_)} 1..5000), 'easter');
 
 #--time_fp
 ok( time_fp() =~ /^\d+\.\d+$/ , 'time_fp' );
 
-#--sleep_fp
-sleep_fp(0.01); #init, require Time::HiRes
-my $t=time_fp();
-sleep_fp(0.1);
-my $diff=abs(time_fp()-$t-0.1);
 
 #-fails on many systems...virtual boxes?
 #$^O eq 'linux'
 #? ok($diff < 0.03, "sleep_fp, diff=$diff < 0.03")    #off 30% ok
 #: ok (1);
 
-sleeps(0.010);
-sleepms(10);
-sleepus(10000);
-sleepns(10000000);
 
 #--isnum
 my @is=qw/222 2.2e123 +2 -1 -2.2123e-321/;
@@ -417,4 +406,3 @@ basenametest('report2',      'report2.pl',qr/.\w+/);
 #--dirname
 ok(dirname('/tmp/brbbbb.pl') eq '/tmp'              ,'dirname');
 ok(dirname('brbbbb.pl') eq '.'                      ,'dirname');
-
