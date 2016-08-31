@@ -427,7 +427,7 @@ If either second, third or fourth argument is an instance of L<Math::BigFloat>, 
 
  use Acme::Tools;
  my $equation = sub{ $_ - 1 - 1/$_ };
- my $gr1 = resolve( $equation, 0,      1  ); # 
+ my $gr1 = resolve( $equation, 0,      1  ); #
  my $gr2 = resolve( $equation, 0, bigf(1) ); # 1/2 + sqrt(5)/2
  bigscale(50);
  my $gr3 = resolve( $equation, 0, bigf(1) ); # 1/2 + sqrt(5)/2
@@ -650,7 +650,7 @@ See: L<http://en.wikipedia.org/wiki/Units_of_measurement>
 =cut
 
 #TODO:  @arr2=conv(\@arr1,"from","to")         # should be way faster than:
-#TODO:  @arr2=map conv($_,"from","to"),@arr1 
+#TODO:  @arr2=map conv($_,"from","to"),@arr1
 #TODO:  conv(123456789,'b','h'); # h converts to something human-readable
 
 our %conv=(
@@ -993,7 +993,7 @@ our %conv=(
                    Wh           => 3600,
                    kWh          => 3600000, #3.6 million J
                    cal          => 4.1868,          # ~ 3600/860
-		   calorie      => 4.1868, 
+		   calorie      => 4.1868,
 		   calories     => 4.1868,
                    kcal         => 4.1868*1000,
 		   kilocalorie  => 4.1868*1000,
@@ -1041,8 +1041,8 @@ our %conv=(
 		  gb    => 1024**3,      #2**30 = 1073741824
 		  tb    => 1024**4,      #2**40 = 1099511627776
 		  pb    => 1024**5,      #2**50 = 1.12589990684262e+15
-		  eb    => 1024**6,      #2**60 = 
-		  zb    => 1024**7,      #2**70 = 
+		  eb    => 1024**6,      #2**60 =
+		  zb    => 1024**7,      #2**70 =
 		  yb    => 1024**8,      #2**80 =
                   KiB   => 1024,         #2**10
                   KiB   => 1024**2,      #2**20 = 1048576
@@ -1429,7 +1429,7 @@ sub int2roman {
 
 sub roman2int {
   my($r,$n,%c)=(shift,0,'',0,qw/I 1 V 5 X 10 L 50 C 100 D 500 M 1000/);
-  $r=~s/^-//?-roman2int($r): 
+  $r=~s/^-//?-roman2int($r):
   $r=~s/(C?)([DM])|(X?)([LCDM])|(I?)([VXLCDM])|(I)|(.)/
         croak "roman2int: Invalid number $r" if $8;
         $n += $c{$2||$4||$6||$7} - $c{$1||$3||$5||''}; ''/eg && $n
@@ -1450,7 +1450,7 @@ sub roman2int {
 #   : $r=~s,^IX,,i ?    9+roman2int($r)
 #   : $r=~s,^V,,i  ?    5+roman2int($r)
 #   : $r=~s,^IV,,i ?    4+roman2int($r)
-#   : $r=~s,^I,,i  ?    1+roman2int($r) 
+#   : $r=~s,^I,,i  ?    1+roman2int($r)
 #   : !length($r)  ?    0
 #   : croak "Invalid roman number $r";
 #}
@@ -1545,7 +1545,7 @@ C<< Math::BigInt->new() >>, C<< Math::BigFloat->new() >> and C<< Math::BigRat->n
   print 2**200;       # 1.60693804425899e+60
   print big(2)**200;  # 1606938044258990275541962092341162602522202993782792835301376
   print 2**big(200);  # 1606938044258990275541962092341162602522202993782792835301376
-  print big(2**200);  # 1606938044258990000000000000000000000000000000000000000000000 
+  print big(2**200);  # 1606938044258990000000000000000000000000000000000000000000000
 
   print 1/7;          # 0.142857142857143
   print 1/big(7);     # 0      because of integer arithmetics
@@ -1594,7 +1594,7 @@ sub bigr {
   else           { return      Math::BigRat->new($_[0])   }
 }
 sub big {
-  wantarray 
+  wantarray
   ? (map     /\./ ? bigf($_)    :        /\// ? bigr($_)    : bigi($_), @_)
   :   $_[0]=~/\./ ? bigf($_[0]) : $_[0]=~/\// ? bigr($_[0]) : bigi($_[0]);
 }
@@ -2257,7 +2257,6 @@ sub eqarr {
   ref($_) ne 'ARRAY' and croak for @arefs;
   @{$arefs[0]} != @{$arefs[$_]} and return undef for 1..$#arefs;
   my $ant;
-  
   for my $ar (@arefs[1..$#arefs]){
     for(0..@$ar-1){
       ++$ant and $ant>100 and croak ">100";  #TODO: feiler ved sammenligning av to tabeller > 10000(?) tall
@@ -3212,6 +3211,51 @@ sub hashtrans {
     }
   }
   return %new;
+}
+
+=head2 a2h
+
+B<Input:> array of arrays
+
+B<Output:> array of hashes
+
+Transforms an array of arrays (arrayrefs) to an array of hashes (hashrefs).
+
+Example:
+
+ my @h = a2h( ['Name', 'Age',  'Gender'],  #columns/keys
+              ['Alice', 20,    'F'],
+              ['Bob',   30,    'M'],
+              ['Eve',   undef, 'F'] );
+
+Result array @h:
+
+ (
+   {Name=>'Alice', Age=>20,    Gender=>'F'},
+   {Name=>'Bob',   Age=>30,    Gender=>'M'},
+   {Name=>'Eve',   Age=>undef, Gender=>'F'},
+ );
+
+=head2 h2a
+
+B<Input:> array of hashes
+
+B<Output:> array of arrays
+
+Opposite of L</a2h>
+
+=cut
+
+sub a2h {
+    my @col=@{shift@_};
+    return map { my%h;@h{@col}=@$_;\%h} @_;
+}
+
+sub h2a {
+    my %c;
+    map $c{$_}++, keys%$_ for @_;
+    my @c=sort{$c{$a}<=>$c{$b} or $a cmp $b}keys%c;
+    return (\@c,map[@$_{@c}],@_);
 }
 
 =head1 COMPRESSION
