@@ -16,7 +16,7 @@ t/10_md5sum.t
 t/11_part.t
 t/12_ht2t.t
 t/13_random.t
-t/14_brainfu.t
+t/14_brainfuck.t
 t/15_zip.t
 t/16_fractional.t
 t/17_roman.t
@@ -34,9 +34,10 @@ t/28_wipe.t
 t/29_cmd_z2z.t
 t/30_cnttbl.t
 t/31_readable.t
+t/32_a2h_h2a.t
 t/common.pl
-t/test_fork_bloom.pl
-t/test_k_m.pl
-t/test_md5sum.pl
-t/test_resolve_bigfloat.pl
+test_fork_bloom.pl
+test_k_m.pl
+test_md5sum.pl
+test_resolve_bigfloat.pl
 Tools.pm

@@ -8,9 +8,10 @@ WriteMakefile(
     'MIN_PERL_VERSION'  => '5.6.2',
     'PREREQ_PM'		=> {
 			    Compress::Zlib => 0.01,
-			    Time::HiRes => 0.01,
-			    MIME::Base64 => 0.01,
-			    Carp => 0.01,
+			    Time::HiRes    => 0.01,
+			    MIME::Base64   => 0.01,
+			    Carp           => 0.01,
+			    Test::More     => 0.01,
 			   #Compress::Bzip2 => 0.01, #hm
 			   #Term::ANSIColor => 0.01, #hm
 			   },
