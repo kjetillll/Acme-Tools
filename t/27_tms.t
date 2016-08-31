@@ -5,7 +5,7 @@ BEGIN{require 't/common.pl'}
 use Test::More;
 use Digest::MD5 'md5_hex';
 if( $^O=~/(?<!cyg)win/i ) { plan skip_all => 'POSIX::tzset not ok on windows'  }
-else                      { plan tests    => 38                                }
+else                      { plan tests    => 41                                }
 
 $ENV{TZ}='CET';
 #$ENV{TZ}='Europe/Oslo';
