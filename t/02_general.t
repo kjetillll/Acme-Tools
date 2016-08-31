@@ -390,7 +390,6 @@ my $diff=abs(time_fp()-$t-0.1);
 #? ok($diff < 0.03, "sleep_fp, diff=$diff < 0.03")    #off 30% ok
 #: ok (1);
 
-<<<<<<< HEAD
 #--bytes_readable
 my %br=(
    999                    => '999 B',
@@ -404,12 +403,11 @@ my %br=(
 my$br;
 ok(($br=bytes_readable($_)) eq $br{$_}, "bytes_readable($_) == $br (should be $br{$_})")
   for sort {$a<=>$b} keys%br;
-=======
-sleeps(0.010);
-sleepms(10);
-sleepus(10000);
-sleepns(10000000);
->>>>>>> e7b7becfc0fde77bb83c5bee64b22d97ae93baf9
+
+#sleeps(0.010);
+#sleepms(10);
+#sleepus(10000);
+#sleepns(10000000);
 
 #--isnum
 my @is=qw/222 2.2e123 +2 -1 -2.2123e-321/;
