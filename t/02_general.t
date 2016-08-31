@@ -390,24 +390,10 @@ my $diff=abs(time_fp()-$t-0.1);
 #? ok($diff < 0.03, "sleep_fp, diff=$diff < 0.03")    #off 30% ok
 #: ok (1);
 
-#--bytes_readable
-my %br=(
-   999                    => '999 B',
-   1000                   => '1000 B',
-   1024                   => '1.00 kB',
-   1153433                => '1.10 MB',
-   1181116006             => '1.10 GB',
-   1209462790553          => '1.10 TB',
-   1088516511498          => '0.99 TB'
-);
-my$br;
-ok(($br=bytes_readable($_)) eq $br{$_}, "bytes_readable($_) == $br (should be $br{$_})")
-  for sort {$a<=>$b} keys%br;
-
-#sleeps(0.010);
-#sleepms(10);
-#sleepus(10000);
-#sleepns(10000000);
+sleeps(0.010);
+sleepms(10);
+sleepus(10000);
+sleepns(10000000);
 
 #--isnum
 my @is=qw/222 2.2e123 +2 -1 -2.2123e-321/;

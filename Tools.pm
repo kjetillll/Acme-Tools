@@ -69,6 +69,8 @@ our @EXPORT = qw(
   zip
   subhash
   hashtrans
+  a2h
+  h2a
   zipb64
   zipbin
   unzipb64
@@ -427,7 +429,7 @@ If either second, third or fourth argument is an instance of L<Math::BigFloat>, 
 
  use Acme::Tools;
  my $equation = sub{ $_ - 1 - 1/$_ };
- my $gr1 = resolve( $equation, 0,      1  ); #
+ my $gr1 = resolve( $equation, 0,      1  ); # 
  my $gr2 = resolve( $equation, 0, bigf(1) ); # 1/2 + sqrt(5)/2
  bigscale(50);
  my $gr3 = resolve( $equation, 0, bigf(1) ); # 1/2 + sqrt(5)/2
@@ -650,7 +652,7 @@ See: L<http://en.wikipedia.org/wiki/Units_of_measurement>
 =cut
 
 #TODO:  @arr2=conv(\@arr1,"from","to")         # should be way faster than:
-#TODO:  @arr2=map conv($_,"from","to"),@arr1
+#TODO:  @arr2=map conv($_,"from","to"),@arr1 
 #TODO:  conv(123456789,'b','h'); # h converts to something human-readable
 
 our %conv=(
@@ -993,7 +995,7 @@ our %conv=(
                    Wh           => 3600,
                    kWh          => 3600000, #3.6 million J
                    cal          => 4.1868,          # ~ 3600/860
-		   calorie      => 4.1868,
+		   calorie      => 4.1868, 
 		   calories     => 4.1868,
                    kcal         => 4.1868*1000,
 		   kilocalorie  => 4.1868*1000,
@@ -1023,14 +1025,12 @@ our %conv=(
          pressure=>{
                   Pa      => 1,
                   _Pa     => 1,
-                  pa      => 1,
-                  _pa     => 1,
                   pascal  => 1,
                  'N/m2'   => 1,
                   bar     => 100000.0,
                   mbar    => 100.0,
-                  at      => 98066.5,    #technical atmosphere
-		  atm     => 101325.0,   #standard atmosphere
+                  at      =>  98066.5,   #technical atmosphere
+		  atm     => 101325.0,     #standard atmosphere
 		  torr    => 133.3224,
                   psi     => 6894.8,     #pounds per square inch
                  },
@@ -1041,8 +1041,8 @@ our %conv=(
 		  gb    => 1024**3,      #2**30 = 1073741824
 		  tb    => 1024**4,      #2**40 = 1099511627776
 		  pb    => 1024**5,      #2**50 = 1.12589990684262e+15
-		  eb    => 1024**6,      #2**60 =
-		  zb    => 1024**7,      #2**70 =
+		  eb    => 1024**6,      #2**60 = 
+		  zb    => 1024**7,      #2**70 = 
 		  yb    => 1024**8,      #2**80 =
                   KiB   => 1024,         #2**10
                   KiB   => 1024**2,      #2**20 = 1048576
@@ -1242,7 +1242,7 @@ sub conv {
   my $type=$type[0];
   conv_prepare_money()        if $type eq 'money' and time() >= $conv_prepare_money_time + $Currency_rates_expire;
   return conv_temperature(@_) if $type eq 'temperature';
-  return conv_number(@_)     if $type eq 'numbers';
+  return conv_numbers(@_)     if $type eq 'numbers';
   my $c=$conv{$type};
   my($cf,$ct)=@{$conv{$type}}{$from,$to};
   my $r= $cf>0 && $ct<0 ? -$ct/$num/$cf
@@ -1264,7 +1264,7 @@ sub conv_temperature { #http://en.wikipedia.org/wiki/Temperature#Conversion
   }->{$from.$to}->();
 }
 
-sub conv_number {
+sub conv_numbers {
   my($n,$fr,$to)=@_;
   my $dec=$fr eq 'dec'                    ? $n
          :$fr eq 'hex'                    ? hex($n)
@@ -1429,7 +1429,7 @@ sub int2roman {
 
 sub roman2int {
   my($r,$n,%c)=(shift,0,'',0,qw/I 1 V 5 X 10 L 50 C 100 D 500 M 1000/);
-  $r=~s/^-//?-roman2int($r):
+  $r=~s/^-//?-roman2int($r): 
   $r=~s/(C?)([DM])|(X?)([LCDM])|(I?)([VXLCDM])|(I)|(.)/
         croak "roman2int: Invalid number $r" if $8;
         $n += $c{$2||$4||$6||$7} - $c{$1||$3||$5||''}; ''/eg && $n
@@ -1450,7 +1450,7 @@ sub roman2int {
 #   : $r=~s,^IX,,i ?    9+roman2int($r)
 #   : $r=~s,^V,,i  ?    5+roman2int($r)
 #   : $r=~s,^IV,,i ?    4+roman2int($r)
-#   : $r=~s,^I,,i  ?    1+roman2int($r)
+#   : $r=~s,^I,,i  ?    1+roman2int($r) 
 #   : !length($r)  ?    0
 #   : croak "Invalid roman number $r";
 #}
@@ -1545,7 +1545,7 @@ C<< Math::BigInt->new() >>, C<< Math::BigFloat->new() >> and C<< Math::BigRat->n
   print 2**200;       # 1.60693804425899e+60
   print big(2)**200;  # 1606938044258990275541962092341162602522202993782792835301376
   print 2**big(200);  # 1606938044258990275541962092341162602522202993782792835301376
-  print big(2**200);  # 1606938044258990000000000000000000000000000000000000000000000
+  print big(2**200);  # 1606938044258990000000000000000000000000000000000000000000000 
 
   print 1/7;          # 0.142857142857143
   print 1/big(7);     # 0      because of integer arithmetics
@@ -1594,7 +1594,7 @@ sub bigr {
   else           { return      Math::BigRat->new($_[0])   }
 }
 sub big {
-  wantarray
+  wantarray 
   ? (map     /\./ ? bigf($_)    :        /\// ? bigr($_)    : bigi($_), @_)
   :   $_[0]=~/\./ ? bigf($_[0]) : $_[0]=~/\// ? bigr($_[0]) : bigi($_[0]);
 }
@@ -2257,6 +2257,7 @@ sub eqarr {
   ref($_) ne 'ARRAY' and croak for @arefs;
   @{$arefs[0]} != @{$arefs[$_]} and return undef for 1..$#arefs;
   my $ant;
+  
   for my $ar (@arefs[1..$#arefs]){
     for(0..@$ar-1){
       ++$ant and $ant>100 and croak ">100";  #TODO: feiler ved sammenligning av to tabeller > 10000(?) tall
@@ -2333,11 +2334,7 @@ Result:
 
 =head2 parta
 
-<<<<<<< HEAD
-Like C<parth> but returns an array of lists.
-=======
 Like L<parth> but returns an array of lists.
->>>>>>> 2d0bbd013488f004fef77fd8b4f2ab492748f876
 
  my @a = parta { length } qw/These are the words of this array/;
 
@@ -3178,8 +3175,12 @@ Note2: For perl version 5.20+ subhashes (hash slices returning keys as well as v
 
 =cut
 
-sub subhash {my $hr=shift;(map+($_=>$$hr{$_}),@_)}
-#sub subhash {my($hr,%h)=shift;@h{@_}=@$hr{@_};%h}
+sub subhash {
+  my $hr=shift;
+  my @r;
+  for(@_){ push@r,($_=>$$hr{$_}) }
+  return @r;
+}
 
 =head2 hashtrans
 
@@ -6873,27 +6874,10 @@ sub install_acme_command_tools {
     print "Wrote executable $dir/$_\n";
   }
 }
-<<<<<<< HEAD
-<<<<<<< HEAD
-#todo: cmd_tabdiff (fra sonyk)
-#todo: cmd_catlog (ala catal med /etc/catlog.conf, default er access_log)
-cmd_tconv() if $0 =~ /\b tconv $/x;
-cmd_tdue()  if $0 =~ /\b tdue $/x;
-=======
->>>>>>> 2d0bbd013488f004fef77fd8b4f2ab492748f876
-sub cmd_tconv { print conv(@ARGV)."\n"  }
-sub cmd_tdue {
-=======
 sub cmd_conv { print conv(@ARGV)."\n"  }
-<<<<<<< HEAD
-sub cmd_due {
->>>>>>> 3e59031d19c8c51d5181464a9d4c2a3989016da1
-  require Getopt::Std; my %o; Getopt::Std::getopts("zkmhcei" => \%o);
-=======
 
 sub cmd_due { #TODO: output from tar tvf and ls and find -ls
   my %o=_go("zkKmhciMPate:l");
->>>>>>> e7b7becfc0fde77bb83c5bee64b22d97ae93baf9
   require File::Find;
   no warnings 'uninitialized';
   die"$0: -l not implemented yet\n"                if $o{l}; #man du: default is not to count hardlinks more than once, with -l it does

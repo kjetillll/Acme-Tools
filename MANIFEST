@@ -34,6 +34,7 @@ t/28_wipe.t
 t/29_cmd_z2z.t
 t/30_cnttbl.t
 t/31_readable.t
+t/32_a2h_h2a.t
 t/common.pl
 test_fork_bloom.pl
 test_k_m.pl
