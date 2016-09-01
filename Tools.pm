@@ -53,7 +53,10 @@ our @EXPORT = qw(
   decode
   decode_num
   between
-  curb bound
+  curb
+  bound
+  log10
+  log2
   distinct
   in
   in_num
@@ -1678,6 +1681,11 @@ B<Input:> String to be tested on regexp C<< /^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) 
 
 B<Output:> True or false (1 or 0)
 
+ use Acme::Tools;
+ my @e=('     +32.12354E-21  ', 2.2, '9' x 99999, ' -123.12', '29,323.31', '29 323.31');
+ print isnum()       ? 'num' : 'str' for @e;  #prints num for every element except the last two
+ print $_=~$Re_isnum ? 'num' : 'str' for @e;  #same
+
 =cut
 
 our $Re_isnum=qr/^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) (?:[eE][\-\+]?\d+)?\s*$/x;
@@ -1725,6 +1733,8 @@ sub curb {
                 $val;
 }
 sub bound { curb(@_) }
+sub log10 { log($_[0])/log(10) }
+sub log2  { log($_[0])/log(2)  }
 
 =head1 STRINGS
 
@@ -7083,6 +7093,8 @@ sub _go { require Getopt::Std; my %o; Getopt::Std::getopts(shift() => \%o); %o }
 sub cmd_rttop { die "rttop: not implemented here yet.\n" }
 sub cmd_whichpm { die "whichpm: not implemented here yet.\n" } #-a (all, inkl VERSION og ls -l)
 sub cmd_catal { die "whichpm: not implemented here yet.\n" } #-a (all, inkl VERSION og ls -l)
+#todo: cmd_tabdiff (fra sonyk)
+#todo: cmd_catlog (ala catal med /etc/catlog.conf, default er access_log)
 
 =head1 DATABASE STUFF - NOT IMPLEMENTED YET
 
