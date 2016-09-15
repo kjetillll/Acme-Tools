@@ -467,6 +467,9 @@ our $Resolve_time;
 
 #sub resolve(\[&$]@) {
 #sub resolve(&@) { <=0.17
+#todo: perl -MAcme::Tools -le 'print resolve(sub{$_[0]**2-9431**2});print$Acme::Tools::Resolve_iterations'
+#    =>Div by zero: df(x) = 0 at n'th iteration, n=0, delta=0.0001, fx=CODE(0xc81d470) at -e line 1
+#todo: ren solve?
 sub resolve {
   my($f,$goal,$start,$delta,$iters,$sec)=@_;
   $goal=0      if !defined $goal;
@@ -596,7 +599,7 @@ Note2: Many units have synonyms: m, meter, meters ...
  current:      A, _A, N/m2
  
  energy:       BTU, Btu, J, Nm, W/s, Wh, Wps, Ws, _J, _eV,
-               cal, calorie, calories, eV, electronvolt,
+               cal, calorie, calories, eV, electronvolt, BeV,
                erg, ergs, foot-pound, foot-pounds, ftlb, joule, kWh,
                kcal, kilocalorie, kilocalories,
                newtonmeter, newtonmeters, th, thermie
@@ -688,6 +691,7 @@ our %conv=(
 		  miles   => 0.0254*12*3*22*10*8,
 		  league  => 0.0254*12*3*22*10*8*3,   #4828.032 m
 		  leagues => 0.0254*12*3*22*10*8*3,   #4828.032 m
+		  yard_imp           => 0.914398416,
 		  yard_imperical     => 0.914398416,
                   NM                 => 1852,           #nautical mile
                   nmi                => 1852,           #nautical mile
@@ -755,9 +759,9 @@ our %conv=(
                   Da           => 1.66053892173e-30, #atomic mass carbon-12
     		  slug         => 14600,
     		  sl           => 14600,
-                  eV           => 1.783e-33,    #e=mc2
-                  _eV          => 1.783e-33,
-		  electronvolt => 1.783e-33,
+                  eV           => 1.78266172802679e-33,    #e=mc2 = 1.60217646e-19 J / (2.99792458e8 m/s)**2
+                  _eV          => 1.78266172802679e-33,
+		  electronvolt => 1.78266172802679e-33,
                  'solar mass'  => 1.99e33,
                   solar_mass   => 1.99e33,
                   bag          => 60*1000, #60kg coffee
@@ -816,7 +820,7 @@ our %conv=(
                   qing      => 10000/0.15,  #China
                   dunam     => 10000/10,    #Middle East
                  'dönüm'    => 10000/10,    #Middle East
-                  stremmata =>10000/10,    #Greece
+                  stremmata => 10000/10,    #Greece
                   rai       => 10000/6.25,  #Thailand
                   cho       => 10000/1.008, #Japan
                   feddan    => 10000/2.381, #Egypt
@@ -979,7 +983,8 @@ our %conv=(
                  'J/s'     => 1,
                   Jps      => 1,
                   hp       => 746,
-                  hk       => 746,  #hestekrefter (norwegian, scandinavian)
+                  hk       => 746,        #hestekrefter (norwegian, scandinavian)
+		  PS       => 746/1.014,  #pferdestärken
 		 'kWh/yr'  => 1000    * 3600/(24*365), #kWh annually
                   Whpy     =>           3600/(24*365), #kWh annually
                   kWhpy    => 1000    * 3600/(24*365), #kWh annually
@@ -1020,9 +1025,23 @@ our %conv=(
 		   ergs         => 1e-7,
                    eV           => 1.60217656535e-19,
                    _eV          => 1.60217656535e-19,
+                   BeV          => 1.60217656535e-10,
   		   electronvolt => 1.60217656535e-19,
                    thermie      => 4.1868e6,
                    th           => 4.1868e6,
+		   hph          => 3600*746,
+		   PSh          => 3600*746/1.014,
+		   galatm_imp   => 460.63256925,
+		   galatm_US    => 383.5568490138,
+		   quad         => 1.05505585262e18,
+		   Ry           => 2.179872e-18,
+		   rydberg      => 2.179872e-18,
+		   th           => 4.1868e6,
+		   thermie      => 4.1868e6,
+                   boe          => 6.12e9,            #barrel of oil equivalent
+		   TCE          => 29.288e9,          #ton of coal equivalent
+		   toe          => 41.868e9,          #tonne of oil equivalent
+		   tTNT         => 4.184e9,           #ton of TNT equivalent
                  },
          force=> {
 	          newton=> 1,
@@ -7269,6 +7288,7 @@ sub sum      { &Acme::Tools::bfsum      }
 # + git push                    #eller:
 # + git push origin master
 # + http://pause.perl.org/
+# + tegnsett/utf8-kroell
 # http://en.wikipedia.org/wiki/Birthday_problem#Approximations
 
 # memoize_expire()           http://perldoc.perl.org/Memoize/Expire.html
