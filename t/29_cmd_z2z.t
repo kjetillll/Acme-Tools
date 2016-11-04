@@ -9,7 +9,7 @@ my $tmp=tmp();
 my $tf="$tmp/acme-tools.cmd_z2z";
 writefile($tf,join" ",1..1e3);
 #print qx(ls -l $tf)."\n";
-my($last,$n);
+my($last,$n)=("",0);
 for(qw(gz bz2 xz gz xz bz2 gz)){
   my $prog={qw/gz gzip bz2 bzip2 xz xz/}->{$_};
   next if !qx(which $prog) and warn "Program $prog missing, test z2z -t $_" and ok(1);
@@ -21,8 +21,8 @@ for(qw(gz bz2 xz gz xz bz2 gz)){
 }
 
 my @f=map"$tf.$_",1..4;
-my $n=0;
-writefile($_,join" ",map ++$n,1..1e4) for @f;
+my $nn=0;
+writefile($_,join" ",map ++$nn,1..1e4) for @f;
 my $b4=sum(map -s$_,@f);
 if( qx(which pv) and qx(which xz) ){
   Acme::Tools::cmd_z2z('-vpt','xz',@f);

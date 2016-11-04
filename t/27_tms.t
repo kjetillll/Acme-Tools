@@ -98,9 +98,9 @@ ok( time_fp() =~ /^\d+\.\d+$/ , 'time_fp' );
 
 #--sleep_fp
 sleep_fp(0.01); #init, require Time::HiRes
-my $t=time_fp();
+my $tfp=time_fp();
 sleep_fp(0.1);
-my $diff=abs(time_fp()-$t-0.1);
+my $diff=abs(time_fp()-$tfp-0.1);
 
 #-fails on many systems...virtual boxes?
 #$^O eq 'linux'

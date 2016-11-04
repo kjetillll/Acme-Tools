@@ -175,7 +175,7 @@ my $s=join"",map random([qw/hip hop and you dont stop/]), 1..1000;
 my %in=("\n&pi=3.14+0\n\n"=>gzip($s x 5),123=>123321);
 my %out=webparams(join("&",map{urlenc($_)."=".urlenc($in{$_})}sort keys%in));
 ok_ref( \%in, \%out, 'webparams 1' );
-ok_ref( $a={webparams("b=123&a=1&b=122&a=3&a=2%20")},{a=>'1,3,2 ',b=>'123,122'}, 'webparams 2' );
+ok_ref( $a={webparams("b=123&a=1&b=122&a=3&a=2%20")},{a=>'1,3,2 ',b=>'123,122'}, 'webparams 2' );undef$a;
 
 #--chall
 my $tmp=tmp();
