@@ -134,6 +134,7 @@ our @EXPORT = qw(
   tms
   easter
   time_fp
+  timems
   sleep_fp
   sleeps
   sleepms
@@ -152,6 +153,21 @@ our @EXPORT = qw(
   part
   parth
   parta
+  refa
+  refh
+  refs
+  refaa
+  refah
+  refha
+  refhh
+  pushr
+  popr
+  shiftr
+  unshiftr
+  splicer
+  keysr
+  valuesr
+  eachr
   ed
   $Edcursor
   brainfu
@@ -824,8 +840,8 @@ our %conv=(
                   rai       => 10000/6.25,  #Thailand
                   cho       => 10000/1.008, #Japan
                   feddan    => 10000/2.381, #Egypt
-                  earths    => 510072000*1000**2, #510072000 km2, surface area of earth
-		  barn      => 1e-28,       #physics
+                  earths    => 510072000e6, #510072000 km2, surface area of earth
+                  barn      => 1e-28,       #physics
                   outhouse  => 1e-34,       #physics
                   shed      => 1e-52,       #physics
         	 },
@@ -2388,6 +2404,92 @@ sub parth (&@) { my($c,%r)=(shift);       push @{ $r{ &$c     } }, $_ for @_; %r
 sub parta (&@) { my($c,@r)=(shift);       push @{ $r[ &$c     ] }, $_ for @_; @r }
 
 #sub mapn (&$@) { ... } like map but @_ contains n elems at a time, n=1 is map
+
+
+=head2 refa
+
+=head2 refh
+
+=head2 refs
+
+=head2 refaa
+
+=head2 refah
+
+=head2 refha
+
+=head2 refhh
+
+Returns true or false (1 or 0) if the argument is an arrayref, hashref, scalarref, ref to an array of arrays, ref to an array of hashes
+
+Examples:
+
+  my $ref_to_array  = [1,2,3];
+  my $ref_to_hash   = {1,100,2,200,3,300};
+  my $ref_to_scalar = \"String";
+  print "arrayref"  if ref($ref_to_array)  eq 'ARRAY';  #true
+  print "hashref"   if ref($ref_to_hash)   eq 'HASH';   #true
+  print "scalarref" if ref($ref_to_scalar) eq 'SCALAR'; #true
+  print "arrayref"  if refa($ref_to_array);             #also true, without: eq 'ARRAY'
+  print "hashref"   if refh($ref_to_hash);              #also true, without: eq 'HASH'
+  print "scalarref" if refs($ref_to_scalar);            #also true, without: eq 'SCALAR'
+
+  my $ref_to_array_of_arrays = [ [1,2,3], [2,4,8], [10,100,1000] ];
+  my $ref_to_array_of_hashes = [ {1=>10, 2=>100}, {first=>1, second=>2} ];
+  my $ref_to_hash_of_arrays  = { alice=>[1,2,3], bob=>[2,4,8], eve=>[10,100,1000] };
+  my $ref_to_hash_of_hashes  = { alice=>{a=>22,b=>11}, bob=>{a=>33,b=>66} };
+
+  print "aa"  if refaa($ref_to_array_of_arrays);         #true
+  print "ah"  if refah($ref_to_array_of_hashes);         #true
+  print "ha"  if refha($ref_to_hash_of_arrays);          #true
+  print "hh"  if refhh($ref_to_hash_of_hashes);          #true
+
+=cut
+
+sub refa  { ref($_[0]) eq 'ARRAY'  ? 1                         : ref($_[0]) ? 0 : undef }
+sub refh  { ref($_[0]) eq 'HASH'   ? 1                         : ref($_[0]) ? 0 : undef }
+sub refs  { ref($_[0]) eq 'SCALAR' ? 1                         : ref($_[0]) ? 0 : undef }
+sub refaa { ref($_[0]) eq 'ARRAY'  ? refa($_[0][0])            : ref($_[0]) ? 0 : undef }
+sub refah { ref($_[0]) eq 'ARRAY'  ? refh($_[0][0])            : ref($_[0]) ? 0 : undef }
+sub refha { ref($_[0]) eq 'HASH'   ? refa((values%{$_[0]})[0]) : ref($_[0]) ? 0 : undef }
+sub refhh { ref($_[0]) eq 'HASH'   ? refh((values%{$_[0]})[0]) : ref($_[0]) ? 0 : undef }
+
+
+=head2 pushr
+
+=head2 popr
+
+=head2 shiftr
+
+=head2 unshiftr
+
+=head2 splicer
+
+=head2 keysr
+
+=head2 valuesr
+
+=head2 eachr
+
+In Perl versions 5.12 - 5.22 push, pop, shift, unshift, splice, keys, values and each handled references to arrays and references to hashes. Example:
+
+ my $person={name=>'Gaga', array=>[1,2,3]};
+ push    $person{array}  , 4;  #works in perl 5.12-5.22 but not before and after
+ push @{ $person{array} }, 4;  #works in all perl5 versions
+ pushr   $person{array}  , 4;  #use Acme::Tools
+ popr    $person{array};       #returns 4
+
+=cut
+
+sub pushr    { push    @{shift()}, @_ } # ?    ($@)
+sub popr     { pop     @{shift()}, @_ }
+sub shiftr   { shift   @{shift()}     }
+sub unshiftr { unshift @{shift()}, @_ }
+sub splicer  { splice  @{shift()}, @_ }
+sub keysr    { keys    %{shift()}     }
+sub valuesr  { values  %{shift()}     }
+sub eachr    { ref($_[0]) eq 'ARRAY' ? each(@{shift()})
+              :ref($_[0]) eq 'HASH ' ? each(%{shift()}) : croak() }
 
 =head1 STATISTICS
 
@@ -4547,6 +4649,12 @@ sub time_fp {  # {return 0+gettimeofday} is just as well?
     return $sec+$mic/1e6; #1e6 not portable?
 }
 
+sub timems {
+    eval{ require Time::HiRes } or return time();
+    my($sec,$mic)=Time::HiRes::gettimeofday();
+    return $sec*1000+$mic/1e3;
+}
+
 =head2 sleep_fp
 
 sleep_fp() work as the built in C<< sleep() >> but also accepts fractional seconds:
@@ -4666,6 +4774,20 @@ sub sleep_until {
   my $sleep=$s-($time-nvl($Time_last_sleep_until,0));
   $Time_last_sleep_until=time;
   sleep_fp($sleep) if $sleep>0;
+}
+
+my %thr;
+sub throttle {
+  my($times,$mintime,$what)=@_;
+  $what||=join(":",@{[caller(1)]}[3,2]);
+  $thr{$what}||=[];
+  my $thr=$thr{$what};
+  push @$thr,time_fp();
+  return if @$thr<$times;
+  my $since=$$thr[-1]-shift(@$thr);
+  my $sleep=$since<$mintime?$mintime-$since:0;
+  sleep_fp($sleep);
+  return $sleep;
 }
 
 =head2 leapyear
@@ -6046,6 +6168,8 @@ current sub has been called by itself or not.
 
 sub recursed {(caller(1))[3] eq (caller(2))[3]?1:0}
 
+
+
 =head2 ed
 
 String editor commands
@@ -6116,7 +6240,6 @@ sub ed {
   $Edcursor=$p;
   $s;
 }
-
 
 #todo: sub unbless eller sub damn
 #todo: ..se også: use Data::Structure::Util qw/unbless/;
