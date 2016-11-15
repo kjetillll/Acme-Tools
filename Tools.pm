@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 package Acme::Tools;
 
-our $VERSION = '0.174';   #new version: C-s ny versjon
+our $VERSION = '0.18';   #new version: C-s ny versjon
 
 use 5.008;     #Perl 5.8 was released July 18th 2002
 use strict;
@@ -72,8 +72,6 @@ our @EXPORT = qw(
   zip
   subhash
   hashtrans
-  a2h
-  h2a
   zipb64
   zipbin
   unzipb64
@@ -153,6 +151,8 @@ our @EXPORT = qw(
   part
   parth
   parta
+  a2h
+  h2a
   refa
   refh
   refs
@@ -2402,9 +2402,7 @@ Two undefs at first (index positions 0 and 1) since there are no words of length
 sub part  (&@) { my($c,@r)=(shift,[],[]); push @{ $r[ &$c?0:1 ] }, $_ for @_; @r }
 sub parth (&@) { my($c,%r)=(shift);       push @{ $r{ &$c     } }, $_ for @_; %r }
 sub parta (&@) { my($c,@r)=(shift);       push @{ $r[ &$c     ] }, $_ for @_; @r }
-
 #sub mapn (&$@) { ... } like map but @_ contains n elems at a time, n=1 is map
-
 
 =head2 refa
 
@@ -3363,7 +3361,7 @@ Transforms an array of arrays (arrayrefs) to an array of hashes (hashrefs).
 
 Example:
 
- my @h = a2h( ['Name', 'Age',  'Gender'],  #columns/keys
+ my @h = a2h( ['Name', 'Age',  'Gender'],  #1st row become keys
               ['Alice', 20,    'F'],
               ['Bob',   30,    'M'],
               ['Eve',   undef, 'F'] );
@@ -3388,14 +3386,14 @@ Opposite of L</a2h>
 
 sub a2h {
     my @col=@{shift@_};
-    return map { my%h;@h{@col}=@$_;\%h} @_;
+    map { my%h;@h{@col}=@$_;\%h} @_;
 }
 
 sub h2a {
     my %c;
     map $c{$_}++, keys%$_ for @_;
     my @c=sort{$c{$a}<=>$c{$b} or $a cmp $b}keys%c;
-    return (\@c,map[@$_{@c}],@_);
+    (\@c,map[@$_{@c}],@_);
 }
 
 =head1 COMPRESSION
@@ -6081,7 +6079,7 @@ in certain cases). L</srlz> will be kept as a synonym (or the other way around).
 sub srlz {
   my $s=serialize(@_);
   $s=~s,'(\w+)'=>,$1=>,g;
-  $s=~s,=>'((0|[1-9]\d*)(\.\d+)?(e[-+]?\d+)?)',=>$1,gi;  #ikke ledende null!    hm                                                                                                                                          
+  $s=~s,=>'((0|[1-9]\d*)(\.\d+)?(e[-+]?\d+)?)',=>$1,gi;  #ikke ledende null!    hm
   $s;
 }
 
