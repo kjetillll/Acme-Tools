@@ -2480,14 +2480,19 @@ In Perl versions 5.12 - 5.22 push, pop, shift, unshift, splice, keys, values and
 =cut
 
 sub pushr    { push    @{shift()}, @_ } # ?    ($@)
-sub popr     { pop     @{shift()}, @_ }
+sub popr     { pop     @{shift()}     }
 sub shiftr   { shift   @{shift()}     }
 sub unshiftr { unshift @{shift()}, @_ }
-sub splicer  { splice  @{shift()}, @_ }
-sub keysr    { keys    %{shift()}     }
-sub valuesr  { values  %{shift()}     }
-sub eachr    { ref($_[0]) eq 'ARRAY' ? each(@{shift()})
-              :ref($_[0]) eq 'HASH ' ? each(%{shift()}) : croak() }
+sub splicer  { @_==1 ? splice( @{shift()} )
+              :@_==2 ? splice( @{shift()}, shift() )
+              :@_==3 ? splice( @{shift()}, shift(), shift() )
+              :@_>=4 ? splice( @{shift()}, shift(), shift(), @_ ) : die }
+sub keysr    { keys(   %{shift()} )   } #hm sort(keys%{shift()}) ?
+sub valuesr  { values( %{shift()} )    }
+sub eachr    { ref($_[0]) eq 'HASH'  ? each(%{shift()})
+              :ref($_[0]) eq 'ARRAY' ? each(@{shift()})
+              :                        croak("eachr needs hashref or arrayref got '".ref($_[0])."'") }
+#sub eachr    { each(%{shift()}) }
 
 =head1 STATISTICS
 
