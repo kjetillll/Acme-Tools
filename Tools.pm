@@ -6927,8 +6927,8 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
   die"$0: -k and -m can not be used together\n"    if $o{k}+$o{m}>1;
   my @q=@ARGV; @q=('.') if !@q;
   my(%c,%b,$cnt,$bts,%mtime);
-  my $r=$o{z} ? qr/(\.[^\.\/]{1,10}(\.(z|Z|gz|bz2|rz|xz))?)$/
-              : qr/(\.[^\.\/]{1,10})$/;
+  my $zext=$o{z}?'(\.(z|Z|gz|bz2|xz|rz|kr))?':'';
+  my $r=qr/(\.[^\.\/]{1,10}$zext)$/;
   my $qrexcl=exists$o{e}?qr/$o{e}/:0;
  #TODO: ought to work: tar cf - .|tar tvf -|due
  #my $qrstdin=qr/(^| )\-[rwx\-sS]{9} +\d+ \w+ +\w+ +(\d+) [a-zA-Z]+\.? +\d+ +(?:\d\d:\d\d|\d{4}) (.*)$/;
@@ -6967,18 +6967,18 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
   my @e=$o{a}?(sort(keys%c))
        :$o{c}?(sort{$c{$a}<=>$c{$b} or $a cmp $b}keys%c)
        :      (sort{$b{$a}<=>$b{$b} or $a cmp $b}keys%c);
-  my @p=$o{P}?(10,50,90):(50);
-  my $perc=sub{
-    $o{M} or $o{P} or return"";
-    my @m=@_>0 ? do {grep$_, split",", $mtime{$_[0]}}
-               : do {grep$_, map {split","} values %mtime};
-    my @r=percentile(\@p,@m);
-    @r=(min(@m),@r,max(@m)) if $o{M};
-    @r=map int($_), @r;
-    my $fmt='YYYY/MM/DD'; $fmt.="-MM:MI:SS" if $o{t};
-    @r=map tms($_,$fmt), @r;
-    "  ".join(" ",@r);
-  };
+  my $perc=!$o{M}&&!$o{P}?sub{""}:
+    sub{
+      my @p=$o{P}?(10,50,90):(50);
+      my @m=@_>0 ? do {grep$_, split",", $mtime{$_[0]}}
+                 : do {grep$_, map {split","} values %mtime};
+      my @r=percentile(\@p,@m);
+      @r=(min(@m),@r,max(@m)) if $o{M};
+      @r=map int($_), @r;
+      my $fmt=$o{t}?'YYYY/MM/DD-MM:MI:SS':'YYYY/MM/DD';
+      @r=map tms($_,$fmt), @r;
+      "  ".join(" ",@r);
+    };
   printf("%-11s %8d $f %7.2f%%%s\n",$_,$c{$_},&$s($b{$_}),100*$b{$_}/$bts,&$perc($_)) for @e;
   printf("%-11s %8d $f %7.2f%%%s\n","Sum",$cnt,&$s($bts),100,&$perc());
 }
