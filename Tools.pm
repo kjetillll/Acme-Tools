@@ -2490,7 +2490,7 @@ sub splicer  { @_==1 ? splice( @{shift()} )
 sub keysr    { keys(   %{shift()} )   } #hm sort(keys%{shift()}) ?
 sub valuesr  { values( %{shift()} )    }
 sub eachr    { ref($_[0]) eq 'HASH'  ? each(%{shift()})
-              :ref($_[0]) eq 'ARRAY' ? each(@{shift()})
+             #:ref($_[0]) eq 'ARRAY' ? each(@{shift()})  # perl 5.8.8 cannot compile each on array! eval?
               :                        croak("eachr needs hashref or arrayref got '".ref($_[0])."'") }
 #sub eachr    { each(%{shift()}) }
 
