@@ -162,20 +162,22 @@ ok_ref( {hashtrans(\%h)},
 #--ipaddr, ipnum
 my $ipnum=ipnum('www.uio.no'); # !defined implies no network
 my $ipaddr=defined$ipnum?ipaddr($ipnum):undef;
-ok( !defined $ipnum || $ipnum=~/^(\d+\.?){4}$/, 'ipnum');
-if(defined $ipaddr){
+if( defined $ipaddr ){
+  ok( $ipnum=~/^(\d+\.\d+\.\d+\.\d+)$/, 'ipnum'); #hm ip6
   ok( ipaddr($ipnum) eq 'www.uio.no' );
   ok( $Acme::Tools::IPADDR_memo{$ipnum} eq 'www.uio.no' );
   ok( $Acme::Tools::IPNUM_memo{'www.uio.no'} eq $ipnum );
 }
-else{ ok(1,'skip: no network') for 1..3 }
+else{
+  ok( 1, 'skip: no network') for 1..4
+}
 
 #--webparams, urlenc, urldec
 my $s=join"",map random([qw/hip hop and you dont stop/]), 1..1000;
 my %in=("\n&pi=3.14+0\n\n"=>gzip($s x 5),123=>123321);
 my %out=webparams(join("&",map{urlenc($_)."=".urlenc($in{$_})}sort keys%in));
 ok_ref( \%in, \%out, 'webparams 1' );
-ok_ref( $a={webparams("b=123&a=1&b=122&a=3&a=2%20")},{a=>'1,3,2 ',b=>'123,122'}, 'webparams 2' );
+ok_ref( $a={webparams("b=123&a=1&b=122&a=3&a=2%20")},{a=>'1,3,2 ',b=>'123,122'}, 'webparams 2' );undef$a;
 
 #--chall
 my $tmp=tmp();
