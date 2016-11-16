@@ -162,13 +162,15 @@ ok_ref( {hashtrans(\%h)},
 #--ipaddr, ipnum
 my $ipnum=ipnum('www.uio.no'); # !defined implies no network
 my $ipaddr=defined$ipnum?ipaddr($ipnum):undef;
-ok( !defined $ipnum || $ipnum=~/^(\d+\.?){4}$/, 'ipnum');
-if(defined $ipaddr){
+if( defined $ipaddr ){
+  ok( $ipnum=~/^(\d+\.\d+\.\d+\.\d+)$/, 'ipnum'); #hm ip6
   ok( ipaddr($ipnum) eq 'www.uio.no' );
   ok( $Acme::Tools::IPADDR_memo{$ipnum} eq 'www.uio.no' );
   ok( $Acme::Tools::IPNUM_memo{'www.uio.no'} eq $ipnum );
 }
-else{ ok(1,'skip: no network') for 1..3 }
+else{
+  ok( 1, 'skip: no network') for 1..4
+}
 
 #--webparams, urlenc, urldec
 my $s=join"",map random([qw/hip hop and you dont stop/]), 1..1000;
