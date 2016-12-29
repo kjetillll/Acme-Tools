@@ -2,7 +2,7 @@
 # perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
 
 BEGIN{require 't/common.pl'}
-use Test::More tests => 170;
+use Test::More tests => 172;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -408,3 +408,10 @@ basenametest('report2',      'report2.pl',qr/.\w+/);
 #--dirname
 ok(dirname('/tmp/brbbbb.pl') eq '/tmp'              ,'dirname');
 ok(dirname('brbbbb.pl') eq '.'                      ,'dirname');
+
+#--nicenum
+# print 14.3 - 14.0;              # 0.300000000000001
+# print 34.3 - 34.0;              # 0.299999999999997
+ok(nicenum( 14.3 - 14.0 )==0.3, 'nicenum');
+ok(nicenum( 34.3 - 34.0 )==0.3, 'nicenum');
+

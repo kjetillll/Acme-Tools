@@ -5,7 +5,7 @@ BEGIN{require 't/common.pl'}
 use Test::More;
 use Digest::MD5 'md5_hex';
 if( $^O=~/(?<!cyg)win/i ) { plan skip_all => 'POSIX::tzset not ok on windows'  }
-else                      { plan tests    => 41                                }
+else                      { plan tests    => 43                                }
 
 $ENV{TZ}='CET';
 #$ENV{TZ}='Europe/Oslo';
@@ -51,10 +51,12 @@ tst('1971',6e7,'CCYY');tst('20',16e8,'CC');
 tst('7',$t,'dow');tst('6',$t3,'dow');
 tst('0',$t,'d0w');tst('6',$t3,'d0w');tst('0',$t,'dow0');tst('6',$t3,'dow0');
 
-tst('59',    $t+0.1,'SS');
-tst('59.100',$t+0.1,'SS.3');
-tst('59.00090',$t+0.0009,'SS.5');
-tst('59.000',$t,'SS.3');
+tst('59',      $t+0.1,    'SS');
+tst('59',      $t+0.1,    'SS.0');
+tst('59.00',   $t,        'SS.2');
+tst('59.100',  $t+0.1,    'SS.3');
+tst('59.00090',$t+0.0009, 'SS.5');
+tst('59.000',  $t,        'SS.3');
 
 tst('354',$t,'doy');tst('353',$t,'doy0');tst('353',$t,'d0y');
 

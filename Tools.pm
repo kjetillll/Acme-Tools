@@ -4573,15 +4573,15 @@ sub tms {
   $format=~s/dow               / $lt[6]?$lt[6]:7                /gxei;
   $format=~s/d0y|doy0          / $lt[7]                         /gxei; #0-364 (365 leap)
   $format=~s/doy               / $lt[7]+1                       /gxei; #1-365 (366 leap)
-  $format=~s/D(?![AaGgYyEeNn]) / $lt[3]                         /gxe; #EN pga desember og wednesday
+  $format=~s/D(?![AaGgYyEeNn]) / $lt[3]                         /gxe;  #EN pga desember og wednesday
   $format=~s/dd                / sprintf("%d",$lt[3])           /gxe;
   $format=~s/hh12|HH12         / sprintf("%02d",$lt[2]<13?$lt[2]||12:$lt[2]-12)/gxe;
   $format=~s/HH24|HH24|HH|hh   / sprintf("%02d",$lt[2])         /gxe;
   $format=~s/MI                / sprintf("%02d",$lt[1])         /gxei;
   $format=~s{SS\.([1-9])      }{ sprintf("%0*.$1f",3+$1,$lt[0]+(repl($time,qr/^[^\.]+/)||0)) }gxei;
-  $format=~s/SS                / sprintf("%02d",$lt[0])         /gxei;
-  $format=~s/am|pm             / $lt[2]<13 ? 'am' : 'pm'        /gxe;
-  $format=~s/AM|PM             / $lt[2]<13 ? 'AM' : 'PM'        /gxe;
+  $format=~s/SS(?:\.0)?        / sprintf("%02d",$lt[0])         /gxei;
+  $format=~s/(?:am|pm|apm|xm)  / $lt[2]<13 ? 'am' : 'pm'        /gxe;
+  $format=~s/(?:AM|PM|APM|XM)  / $lt[2]<13 ? 'AM' : 'PM'        /gxe;
   $format=~s/WWI|WW            / sprintf("%02d",weeknum($time)) /gxei;
   $format=~s/W                 / weeknum($time)                 /gxei;
   $format;
@@ -6132,17 +6132,14 @@ sub cnttbl {
 
 =head2 nicenum
 
- print 14.3 - 14.0;   #0.300000000000001
- print 34.3 - 34.0;   #0.299999999999997
- print nicenum( 14.3 - 14.0 );   #0.3
- print nicenum( 34.3 - 34.0 );   #0.3
+ print 14.3 - 14.0;              # 0.300000000000001
+ print 34.3 - 34.0;              # 0.299999999999997
+ print nicenum( 14.3 - 14.0 );   # 0.3
+ print nicenum( 34.3 - 34.0 );   # 0.3
 
 =cut
 
-sub nicenum {croak "todo: nicenum not yet implemented";
-  my $n=shift;
-#  $n=~s,^\s*([-+]?\d*)\.(\d+?)9{5,}\d??(e-?\d+)$,$1.
-}
+sub nicenum { my $n=shift; $n=~s,((\d)\2\2\2\2\2\2\2)\d$,$1$2$2$2$2$2$2$2$2$2$2$2,; 0+$n }
 
 
 =head2 sys
@@ -7235,9 +7232,9 @@ sub cmd_z2z {
 
 sub _go { require Getopt::Std; my %o; Getopt::Std::getopts(shift() => \%o); %o }
 
-sub cmd_rttop { die "rttop: not implemented here yet.\n" }
+sub cmd_rttop   { die "rttop: not implemented here yet.\n" }
 sub cmd_whichpm { die "whichpm: not implemented here yet.\n" } #-a (all, inkl VERSION og ls -l)
-sub cmd_catal { die "whichpm: not implemented here yet.\n" } #-a (all, inkl VERSION og ls -l)
+sub cmd_catal   { die "catal: not implemented here yet.\n" } #-a (all, inkl VERSION og ls -l)
 #todo: cmd_tabdiff (fra sonyk)
 #todo: cmd_catlog (ala catal med /etc/catlog.conf, default er access_log)
 
