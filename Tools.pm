@@ -815,11 +815,11 @@ our %conv=(
                   sqyd    => (0.0254*12*3)**2,
                   yard2   => (0.0254*12*3)**2,
                   sqyard  => (0.0254*12*3)**2,
-                  rood      => 1210*(0.0254*12)**2,  # 1/4 acres
-                  roods     => 1210*(0.0254*12)**2,  # 1/4 acres
-		  ac        => 4840*(0.0254*12)**2,  # 4840 square yards
-		  acre      => 4840*(0.0254*12)**2,
-		  acres     => 4840*(0.0254*12)**2,
+                  rood      => 1210*(0.0254*12*3)**2,  # 1/4 acres
+                  roods     => 1210*(0.0254*12*3)**2,  # 1/4 acres
+		  ac        => 4840*(0.0254*12*3)**2,  # 4840 square yards = 1 chain x 1 furlong
+		  acre      => 4840*(0.0254*12*3)**2,
+		  acres     => 4840*(0.0254*12*3)**2,
                   homestead => 4840*(0.0254*12)**2 *160,      #160 acres US Surveyors or 1/4 sqmiles
                   township  => 4840*(0.0254*12)**2 *160*144,  #144 homesteads or 36 sqmiles
                   perches   => 4840*(0.0254*12)**2 /160,      #160 perches = 1 acre in sri lanka
