@@ -4305,7 +4305,9 @@ sub openstr {
 
 =head1 TIME FUNCTIONS
 
-=head2 tms - timestring, works somewhat like the Gnu/Linux C<date> command and Oracle's C<to_char()>
+=head2 tms
+
+Timestring, works somewhat like the Gnu/Linux C<date> command and Oracle's C<to_char()>
 
 Converts timestamps to more readable forms of time strings.
 
