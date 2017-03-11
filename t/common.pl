@@ -15,6 +15,6 @@ sub gz {
   return gzip(shift()) if $] >= 5.010;
   my $t=tmp().'/acme-tools.wipe2.tmp';
   writefile($t,shift());
-  qx(gzip<$t);
+  ''.qx(gzip<$t);
 }
 1;
