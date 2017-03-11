@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 package Acme::Tools;
 
-our $VERSION = '0.18';
+our $VERSION = '0.20';
 
 use 5.008;     #Perl 5.8 was released July 18th 2002
 use strict;
@@ -2481,12 +2481,13 @@ sub refhh { ref($_[0]) eq 'HASH'   ? refh((values%{$_[0]})[0]) : ref($_[0]) ? 0 
 
 =head2 eachr
 
-In Perl versions 5.12 - 5.22 push, pop, shift, unshift, splice, keys, values and each handled references to arrays and references to hashes. Example:
+In Perl versions 5.12 - 5.22 push, pop, shift, unshift, splice, keys, values and each
+handled references to arrays and references to hashes just as if they where arrays and hashes. Examples:
 
  my $person={name=>'Gaga', array=>[1,2,3]};
  push    $person{array}  , 4;  #works in perl 5.12-5.22 but not before and after
  push @{ $person{array} }, 4;  #works in all perl5 versions
- pushr   $person{array}  , 4;  #use Acme::Tools
+ pushr   $person{array}  , 4;  #use Acme::Tools and this should work in perl >= 5.8
  popr    $person{array};       #returns 4
 
 =cut
@@ -7488,13 +7489,18 @@ sub sum      { &Acme::Tools::bfsum      }
 
 Release history
 
- 0.18  Mar 2017   Subs: 
-                  Commands: 
- 0.172 Dec 2015   Subs: curb, openstr, pwgen, sleepms, sleepnm, srlz, tms, username,
-                  self_update, install_acme_command_tools
-                  Commands: conv, due, freq, wipe, xcat (see "Commands")
- 0.16  Feb 2015   bigr, curb, cpad, isnum, parta, parth, read_conf, resolve_equation,
-                  roman2int, trim. Improved: conv (numbers, currency), range ("derivatives")
+ 0.20  Mar 2017   Subs: a2h cnttbl h2a log10 log2 nicenum rstddev sec_readable
+                  throttle timems refa refaa refah refh refha refhh refs
+                  eachr globr keysr popr pushr shiftr splicer unshiftr valuesr
+                  Commands: 2bz2 2gz 2xz z2z
+
+ 0.172 Dec 2015   Subs: curb openstr pwgen sleepms sleepnm srlz tms username
+                  self_update install_acme_command_tools
+                  Commands: conv due freq wipe xcat (see "Commands")
+
+ 0.16  Feb 2015   bigr curb cpad isnum parta parth read_conf resolve_equation
+                  roman2int trim. Improved: conv (numbers currency) range ("derivatives")
+
  0.15  Nov 2014   Improved doc
  0.14  Nov 2014   New subs, improved tests and doc
  0.13  Oct 2010   Non-linux test issue, resolve. improved: bloom filter, tests, doc
@@ -7512,7 +7518,7 @@ Kjetil Skotheim, E<lt>kjetil.skotheim@gmail.comE<gt>
 
 =head1 COPYRIGHT
 
-1995-2016, Kjetil Skotheim
+1995-2017, Kjetil Skotheim
 
 =head1 LICENSE
 
