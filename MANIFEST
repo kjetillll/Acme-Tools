@@ -17,7 +17,7 @@ t/10_md5sum.t
 t/11_part.t
 t/12_ht2t.t
 t/13_random.t
-t/14_brainfuck.t
+t/14_brainfu.t
 t/15_zip.t
 t/16_fractional.t
 t/17_roman.t
