@@ -1,7 +1,7 @@
 #perl Makefile.PL;make;          perl -Iblib/lib t/09_rank_pushsort_binsearch.t
 #perl Makefile.PL;make;ATDEBUG=1 perl -Iblib/lib t/09_rank_pushsort_binsearch.t
 BEGIN{require 't/common.pl'}
-use Test::More tests => 58;
+use Test::More tests => 61;
 
 my @a=(1,10,20,50,70,90,120,130);
 testsearch(1,@a);
@@ -59,6 +59,14 @@ ok( binsearch(10,[20,15,10,5],undef,sub{$_[1]<=>$_[0]}) == 2);       # 2 search 
 ok( binsearch("c",["a","b","c","d"],undef,sub{$_[0]cmp$_[1]}) == 2); # 2 search arrays sorted alphanumerically
 ok( binsearchstr("b",["a","b","c","d"]) == 1);                       # 1 search arrays sorted alphanumerically
 
+my @data=( map {  {num=>$_,sqrt=>sqrt($_), square=>$_**2}  } grep !($_%7), 1..10000  );
+my($i1,$i2) = ( binsearch( {num=>8883}, \@data, undef, sub {$_[0]{num} <=> $_[1]{num}} ),
+                binsearch( {num=>8883}, \@data, undef, 'num' )                             );
+ok( $i1==1268, 'binsearch i1');
+ok( $i2==1268, 'binsearch i2' );
+#ok( $data[$i1]{square}==78907689 );
+ok( $Acme::Tools::Binsearch_steps == 10, 'binsearch 10 steps' );
+#print "i=$i   ".srlz(\$found,'f')."Binsearch_steps = $Acme::Tools::Binsearch_steps\n";
 
 deb "--------------------------------------------------------------------------------eqarr\n";
 ok( eqarr([1,2,3],[1,2,3],[1,2,3]) == 1 ,'eqarr 1');

@@ -22,7 +22,7 @@ t/16_fractional.t
 t/17_roman.t
 t/18_pad.t
 t/19_serialize.t
-t/20_range.t
+t/20_range_globr.t
 t/21_read_conf.t
 t/22_trim.t
 t/23_ed.t

@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 package Acme::Tools;
 
-our $VERSION = '0.18';   #new version: C-s ny versjon
+our $VERSION = '0.18';
 
 use 5.008;     #Perl 5.8 was released July 18th 2002
 use strict;
@@ -100,6 +100,7 @@ our @EXPORT = qw(
   wipe
   username
   range
+  globr
   permutations
   trigram
   sliding
@@ -2025,13 +2026,6 @@ sub repl {
   return $str;
 }
 
-sub brex($) {  #TODO: brace expand ala bash (better than glob which doesnt handle ..)
-  #echo {a{1,2},bb{10..30..5},ccc{X..Z}}
-  #a1 a2 bb10 bb15 bb20 bb25 bb30 cccX cccY cccZ
-  #return @arr;
-}
-
-
 =head1 ARRAYS
 
 =head2 min
@@ -2167,9 +2161,9 @@ should be sorted in ascending numerical order (se exceptions below).
 
 B<Third argument:>  Optional. Default false.
 
-If present, whether result I<not found> should return undef or a fractional position.
+If true, whether result I<not found> should return undef or a fractional position.
 
-If the third argument is false binsearcg returns undef if the element is not found.
+If the third argument is false binsearch returns undef if the element is not found.
 
 If the third argument is true binsearch returns 0.5 plus closest position below the searched value.
 
@@ -2179,14 +2173,28 @@ Returns C< -0.5 > if the searched element is less than all elements in the sorte
 
 Fourth argument: Optional. Default C<< sub { $_[0] <=> $_[1] } >>.
 
-If present, the fourth argument is a code-ref that alters the way binsearch compares two elements.
+If present, the fourth argument is either:
 
-B<Example:>
+=over 4
+
+=item * a code-ref that alters the way binsearch compares two elements, default is C<< sub{$_[0]<=>$_[1]} >>
+
+=item * a string that works as a hash key (column name), see example below
+
+=back
+
+B<Examples:>
 
  binsearch(10,[5,10,15,20]);                                # 1
  binsearch(10,[20,15,10,5],undef,sub{$_[1]<=>$_[0]});       # 2 search arrays sorted numerically in opposite order
  binsearch("c",["a","b","c","d"],undef,sub{$_[0]cmp$_[1]}); # 2 search arrays sorted alphanumerically
  binsearchstr("b",["a","b","c","d"]);                       # 1 search arrays sorted alphanumerically
+
+ my @data=(  map {  {num=>$_, sqrt=>sqrt($_), square=>$_**2}  }
+             grep !$_%7, 1..1000000   );
+ my $i = binsearch( {num=>913374}, \@data, undef, sub {$_[0]{num} <=> $_[1]{num}} );
+ my $i = binsearch( {num=>913374}, \@data, undef, 'num' );                           #same as previous line
+ my $found_hashref = defined $i ? $data[$i] : undef;
 
 =head2 binsearchstr
 
@@ -2201,7 +2209,11 @@ our $Binsearch_maxsteps=100;
 sub binsearch {
   my($search,$aref,$insertpos,$cmpsub)=@_; #search pos of search in array
   croak "binsearch did not get arrayref as second arg" if ref($aref) ne 'ARRAY';
-  croak "binsearch got fourth arg which is not a code-ref" if $cmpsub and ref($cmpsub) ne 'CODE';
+  croak "binsearch got fourth arg which is not a code-ref" if defined $cmpsub and ref($cmpsub) and ref($cmpsub) ne 'CODE';
+  if(defined $cmpsub and !ref($cmpsub)){
+      my $key=$cmpsub;
+      $cmpsub = sub{ $_[0]{$key} <=> $_[1]{$key} };
+  }
   return $insertpos ? -0.5 : undef if !@$aref;
   my($min,$max)=(0,$#$aref);
   $Binsearch_steps=0;
@@ -5178,6 +5190,30 @@ sub _range_accellerated {
   return @r;
 }
 
+=head2 globr
+
+Works like and uses Perls builtin C<< glob() >> function but adds support for ranges
+with C<< {from..to} >> and C<< {from..to..step} >>. Like brace expansion in bash.
+
+Examples:
+
+ my @arr = glob  "X{a,b,c,d}Z";         # return four element array: XaZ XbZ XcZ XdZ
+ my @arr = globr "X{a,b,c,d}Z";         # same as above
+ my @arr = globr "X{a..d}Z";            # same as above
+ my @arr = globr "X{a..d..2}Z";         # step 2, returns array: XaZ XcZ
+ my @arr = globr "X{aa..bz..13}Z";      # XaaZ XanZ XbaZ XbnZ
+ my @arr = globr "{1..12}b";            # 1b 2b 3b 4b 5b 6b 7b 8b 9b 10b 11b 12b
+ my @arr = globr "{01..12}b";           # 01b 02b 03b 04b 05b 06b 07b 08b 09b 10b 11b 12b
+ my @arr = globr "{01..12..3}b";        # 01b 04b 07b 10b
+
+=cut
+
+sub globr($) {
+  my $p=shift;
+  $p=~s/\{(\w+)\.\.(\w+)(\.\.(\d+))?\}/my$i=0;"{".join(",",grep{$4?!($i++%$4):1}$1..$2)."}";/eg;
+  glob $p;
+}
+
 =head2 permutations
 
 How many ways (permutations) can six people be placed around a table:
@@ -7452,6 +7488,8 @@ sub sum      { &Acme::Tools::bfsum      }
 
 Release history
 
+ 0.18  Mar 2017   Subs: 
+                  Commands: 
  0.172 Dec 2015   Subs: curb, openstr, pwgen, sleepms, sleepnm, srlz, tms, username,
                   self_update, install_acme_command_tools
                   Commands: conv, due, freq, wipe, xcat (see "Commands")
