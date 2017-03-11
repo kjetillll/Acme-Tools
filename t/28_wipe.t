@@ -5,7 +5,7 @@ use Test::More tests => 3;
 if($^O eq 'linux'){
   my $f=tmp().'/acme-tools.wipe.tmp';
   writefile($f,join(" ",map rand(),1..1000)); #system("ls -l $f");
-  my $ntrp=sub{length(gzip(readfile($f).""))};
+  my $ntrp=sub{length(gz(readfile($f).""))};
   my $n=&$ntrp;
   wipe($f,undef,1);
   my $ratio=$n/&$ntrp;
