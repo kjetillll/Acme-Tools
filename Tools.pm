@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 package Acme::Tools;
 
-our $VERSION = '0.20';
+our $VERSION = '0.21';
 
 use 5.008;     #Perl 5.8 was released July 18th 2002
 use strict;
@@ -656,7 +656,7 @@ Note2: Many units have synonyms: m, meter, meters ...
  radioactivity: Bq, becquerel, curie
  
  speed:        _m/s, km/h, km/t, kmh, kmph, kmt, m/s, mi/h, mph, mps,
-               kn, knot, knots, kt, mach, machs, c, fps, ft/s, ftps
+               kn, knot, knots, kt, kts, mach, machs, c, fps, ft/s, ftps
  
  temperature:  C, F, K, celsius, fahrenheit, kelvin
  
@@ -954,11 +954,12 @@ our %conv=(
                  'km/h'     => 1/3.6,
                   kmt       => 1/3.6, # t=time or temps (scandinavian and french and dutch)
                  'km/t'     => 1/3.6,
- 		  kn        => 1852/3600,
  		  kt        => 1852/3600,
+ 		  kts       => 1852/3600,
+ 		  kn        => 1852/3600,
  		  knot      => 1852/3600,
- 		  knop      => 1852/3600,    #scandinavian
  		  knots     => 1852/3600,
+ 		  knop      => 1852/3600,    #scandinavian
 		  c         => 299792458,    #speed of light
 		  mach      => 340.3,        #speed of sound
 		  machs     => 340.3,
@@ -6178,7 +6179,14 @@ sub cnttbl {
 
 =cut
 
-sub nicenum { my $n=shift; $n=~s,((\d)\2\2\2\2\2\2\2)\d$,$1$2$2$2$2$2$2$2$2$2$2$2,; 0+$n }
+our $Nicenum;
+sub nicenum { #hm
+  $Nicenum=$_[0];
+  $Nicenum=~s,(\.\d*)((\d)\3\3\3\3\3)\d$,$1$2$3$3$3$3$3$3$3$3$3,;
+  my $r=0+$Nicenum;
+  #warn "nn $_[0] --> $Nicenum --> $r\n";
+  $r;
+}
 
 
 =head2 sys
@@ -7491,18 +7499,20 @@ sub sum      { &Acme::Tools::bfsum      }
 
 Release history
 
+ 0.21  
+ 
  0.20  Mar 2017   Subs: a2h cnttbl h2a log10 log2 nicenum rstddev sec_readable
                   throttle timems refa refaa refah refh refha refhh refs
                   eachr globr keysr popr pushr shiftr splicer unshiftr valuesr
                   Commands: 2bz2 2gz 2xz z2z
-
+ 
  0.172 Dec 2015   Subs: curb openstr pwgen sleepms sleepnm srlz tms username
                   self_update install_acme_command_tools
                   Commands: conv due freq wipe xcat (see "Commands")
-
+ 
  0.16  Feb 2015   bigr curb cpad isnum parta parth read_conf resolve_equation
                   roman2int trim. Improved: conv (numbers currency) range ("derivatives")
-
+ 
  0.15  Nov 2014   Improved doc
  0.14  Nov 2014   New subs, improved tests and doc
  0.13  Oct 2010   Non-linux test issue, resolve. improved: bloom filter, tests, doc
@@ -7520,7 +7530,7 @@ Kjetil Skotheim, E<lt>kjetil.skotheim@gmail.comE<gt>
 
 =head1 COPYRIGHT
 
-1995-2017, Kjetil Skotheim
+2008-2017, Kjetil Skotheim
 
 =head1 LICENSE
 

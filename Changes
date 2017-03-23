@@ -2,6 +2,8 @@ Revision history for Perl extension Acme::Tools.
 
 See also HISTORY in Acme::Tools doc.
 
+0.21  
+
 0.20  Mar 2017   Subs: a2h cnttbl h2a log10 log2 nicenum rstddev sec_readable
                  throttle timems refa refaa refah refh refha refhh refs
                  eachr globr keysr popr pushr shiftr splicer unshiftr valuesr

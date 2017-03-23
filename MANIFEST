@@ -3,7 +3,7 @@ currency-rates.sh
 Makefile.PL
 MANIFEST
 README
-LICENCE
+LICENSE
 t/01_check_use.t
 t/02_general.t
 t/03_bloomfilter.t
