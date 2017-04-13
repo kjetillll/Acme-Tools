@@ -5703,7 +5703,8 @@ sub pivot {
   #print "H = ".join(", ",sort _sortsub keys%h)."\n";
   for my $rad (sort $sortsub_nedover keys(%h)){
     my @rad=(split($;,$rad),
-	     map{
+             map { defined($_)?$_:exists$opt{undefined}?$opt{undefined}:undef }
+	     map {
 	       if(/^\%/ and defined $opt_pro){
 		 my $sum=$h{$rad}{Sum};
 		 my $verdi=$h{$rad}{$_};
@@ -5717,7 +5718,7 @@ sub pivot {
 		 }
 	       }
 	       else{
-		 $h{$rad}{$_};
+                 $h{$rad}{$_};
 	       }
 	     }
 	     @feltfinnes);
@@ -6182,7 +6183,7 @@ sub cnttbl {
 our $Nicenum;
 sub nicenum { #hm
   $Nicenum=$_[0];
-  $Nicenum=~s,(\.\d*)((\d)\3\3\3\3\3)\d$,$1$2$3$3$3$3$3$3$3$3$3,;
+  $Nicenum=~s/([\.,]\d*)((\d)\3\3\3\3\3)\d$/$1$2$3$3$3$3$3$3$3$3$3/;
   my $r=0+$Nicenum;
   #warn "nn $_[0] --> $Nicenum --> $r\n";
   $r;
@@ -7499,7 +7500,7 @@ sub sum      { &Acme::Tools::bfsum      }
 
 Release history
 
- 0.21  
+ 0.21  Mar 2017   Improved nicenum() and its tests
  
  0.20  Mar 2017   Subs: a2h cnttbl h2a log10 log2 nicenum rstddev sec_readable
                   throttle timems refa refaa refah refh refha refhh refs
