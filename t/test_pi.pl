@@ -120,7 +120,7 @@ sub pi_bin { # http://www.experimentalmath.info/bbp-codes/bbp-alg.pdf
     my $mypi=0;
     for my $i (map bigf($_), 0..300){
 	$mypi += 1/16**$i * ( 4/(8*$i+1) - 2/(8*$i+4) - 1/(8*$i+5) - 1/(8*$i+6) );  #from Ferguson's PSLQ algorithm
-#	next if $i%10;
+	next if $i%10;
 	my $diff=$pi_big-$mypi;
 	printf "%9d:  %30.25f  %30.25f  %g  %5.2f\n", $i, $mypi, $diff, $diff, time_fp()-$start;
     }
@@ -138,3 +138,7 @@ gcc -s -Wall  -o gmp-chudnovsky gmp-chudnovsky.c -lgmp -lm
 wget http://beej.us/blog/data/pi-chudnovsky-gmp/chudnovsky_c.txt; mv chudnovsky_c.txt chudnovsky.c
 gcc -O2 -Wall -o chudnovsky chudnovsky.c -lgmp
 time ./chudnovsky 1000     #3.141592.......... 1000 decimals in 0.004s, 10000 in 0.22s, 100000 in 42s
+
+wget http://www.angio.net/pi/digits/pi1000000.txt
+time perl -nle'print $-[0]." ".($+[0]-$-[0])." ".substr($_,$-[0],$+[0]-$-[0]) while /(\d)\1\1\1\1\1+/g' pi1000000.txt #pos of 6+ consec same decs
+

@@ -2,7 +2,7 @@
 # perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
 
 BEGIN{require 't/common.pl'}
-use Test::More tests => 173;
+use Test::More tests => 172;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -303,11 +303,12 @@ ok( lcm(45,120,75) == 1800 );
                [1998,"Per",  "Height", "Winter",183],
                [1998,"Hilde","Weight", "Winter",62],
                [1998,"Hilde","Height", "Winter",168],
-               [1998,"Tone", "Weight", "Winter",71],
+               [1998,"Tone", "Weight", "Winter",0],
              );
 
 my @reportA=pivot(\@table,"Year","Name");
-ok(tablestring(\@reportA) eq <<'END', 'pivot A');
+my $ts; my $okA=
+ok(($ts=tablestring(\@reportA,{left=>0})) eq <<'END', 'pivot A'); warn srlz(\@reportA,'reportA','',1).$ts if !$okA;
 Year Name  Height Height Weight Weight
            Summer Winter Summer Winter
 ---- ----- ------ ------ ------ ------ 
@@ -318,7 +319,7 @@ Year Name  Height Height Weight Weight
 1998 Gina     171    171     64     64
 1998 Hilde    168    168     62     62
 1998 Per      182    183     76     74
-1998 Tone                    70     71
+1998 Tone                    70      0
 END
 
 my @reportB=pivot([map{$_=[@$_[0,3,2,1,4]]}(@t=@table)],"Year","Season");
@@ -329,7 +330,7 @@ Year Season Height Height Height Weight Weight Weight Weight
 1997 Summer    170    168    182     66     62     75     70
 1997 Winter    158    164    180     64     61     73     69
 1998 Summer    171    168    182     64     62     76     70
-1998 Winter    171    168    183     64     62     74     71
+1998 Winter    171    168    183     64     62     74      0
 
 my @reportC=pivot([map{$_=[@$_[1,2,0,3,4]]}(@t=@table)],"Name","Attribute");
 ok(tablestring(\@reportC) eq <<'', 'pivot C');
@@ -342,7 +343,7 @@ Hilde Height       168    164    168    168
 Hilde Weight        62     61     62     62
 Per   Height       182    180    182    183
 Per   Weight        75     73     76     74
-Tone  Weight        70     69     70     71
+Tone  Weight        70     69     70      0
 
 my @reportD=pivot([map{$_=[@$_[1,2,0,3,4]]}(@t=@table)],"Name");
 ok(tablestring(\@reportD) eq <<'', 'pivot D');
@@ -353,23 +354,7 @@ Name  Height Height Height Height Weight Weight Weight Weight
 Gina     170    158    171    171     66     64     64     64
 Hilde    168    164    168    168     62     61     62     62
 Per      182    180    182    183     75     73     76     74
-Tone                                  70     69     70     71
-
-#--tablestring
-
-ok( tablestring([[qw/AA BB CCCC/],[123,23,"d"],[12,23,34],[77,88,99],["lin\nes",12,"asdff\nfdsa\naa"],[0,22,"adf"]]) eq <<'END', 'tablestring' );
-AA  BB CCCC
---- -- ----- 
-123 23 d
-12  23 34
-77  88 99
-
-lin 12 asdff
-es     fdsa
-       aa
-
-    22 adf
-END
+Tone                                  70     69     70      0
 
 #-- upper, lower (utf8?)
 ok(upper('a-zæøåäëïöüÿâêîôûãõàèìòùáéíóúýñ' x 3) eq 'A-ZÆØÅÄËÏÖÜÿÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑ' x 3, 'upper'); #hmm ÿ

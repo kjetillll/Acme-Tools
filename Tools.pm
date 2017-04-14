@@ -5796,127 +5796,126 @@ As you can see, rows containing multi-lined cells gets an empty line before and 
 sub tablestring {
   my $tab=shift;
   my %o=$_[0] ? %{shift()} : ();
-  my $fjern_tom=$o{fjern_tomme_kolonner};
-  my $ikke_space=$o{ikke_space};
-  my $nodup=$o{nodup}||0;
-  my $ikke_hodestrek=$o{ikke_hodestrek};
-  my $pagesize=exists $o{pagesize} ? $o{pagesize}-3 : 9999999;
-  my $venstretvang=$o{venstre};
-  my(@bredde,@venstre,@hoeyde,@ikketom,@nodup);
-  my $hode=1;
+  my $remove_empty       = $o{remove_empty_columns};
+  my $no_multiline_space = $o{no_multiline_space};
+  my $nodup              = $o{nodup}||0;
+  my $no_header_line     = $o{no_header_line};
+  my $pagesize           = exists $o{pagesize} ? $o{pagesize}-3 : 9999999;
+  my $left_force         = $o{left};
+  my(@width,@left,@height,@not_empty,@nodup);
+  my $head=1;
   my $i=0;
   my $j;
   for(@$tab){
     $j=0;
-    $hoeyde[$i]=0;
+    $height[$i]=0;
     my $nodup_rad=$nodup;
     if(ref($_) eq 'ARRAY'){
       for(@$_){
-	my $celle=$_;
-	$bredde[$j]||=0;
+	my $cell=$_;
+	$width[$j]||=0;
 	if($nodup_rad and $i>0 and $$tab[$i][$j] eq $$tab[$i-1][$j] || ($nodup_rad=0)){
-	  $celle=$nodup==1?"":$nodup;
+	  $cell=$nodup==1?"":$nodup;
 	  $nodup[$i][$j]=1;
 	}
 	else{
-	  my $hoeyde=0;
-	  my $bredere;
+	  my $height=0;
+	  my $wider;
 	  no warnings;
-	  $ikketom[$j]=1 if !$hode && length($celle)>0;
-	  for(split("\n",$celle)){
-	    $bredere=/<input.+type=text.+size=(\d+)/i?$1:0;
+	  $not_empty[$j]=1 if !$head && length($cell)>0;
+	  for(split("\n",$cell)){
+	    $wider=/<input.+type=text.+size=(\d+)/i?$1:0; #hm
 	    s/<[^>]+>//g;
-	    $hoeyde++;
+	    $height++;
 	    s/&gt;/>/g;
 	    s/&lt;/</g;
-	    $bredde[$j]=length($_)+1+$bredere if length($_)+1+$bredere>$bredde[$j];
-	    $venstre[$j]=1 if $_ && !/^\s*[\-\+]?(\d+|\d*\.\d+)\s*\%?$/ && !$hode;
+	    $width[$j]=length($_)+1+$wider if length($_)+1+$wider>$width[$j];
+	    $left[$j]=1 if $_ && !/^\s*[\-\+]?(\d+|\d*\.\d+)\s*\%?$/ && !$head;
 	  }
-	  if( $hoeyde>1 && !$ikke_space){
-	    $hoeyde++ unless $hode;
-	    $hoeyde[$i-1]++ if $i>1 && $hoeyde[$i-1]==1;
+	  if( $height>1 && !$no_multiline_space){
+	    $height++ if !$head;
+	    $height[$i-1]++ if $i>1 && $height[$i-1]==1;
 	  }
-	  $hoeyde[$i]=$hoeyde if $hoeyde>$hoeyde[$i];
+	  $height[$i]=$height if $height>$height[$i];
 	}
 	$j++;
       }
     }
     else{
-      $hoeyde[$i]=1;
-      $ikke_hodestrek=1;
+      $height[$i]=1;
+      $no_header_line=1;
     }
-    $hode=0;
+    $head=0;
     $i++;
   }
-  $i=$#hoeyde;
-  $j=$#bredde;
-  if($i==0 or $venstretvang) { @venstre=map{1}(0..$j)                         }
-  else { for(0..$j){ $venstre[$_]=1 if !$ikketom[$_] }  }
-  my @tabut;
-  my $rad_startlinje=0;
-  my @overskrift;
-  my $overskrift_forrige;
+  $i=$#height;
+  $j=$#width;
+  if($i==0 or $left_force) { @left=map{1}(0..$j)                         }
+  else { for(0..$j){ $left[$_]=1 if !$not_empty[$_] }  }
+  my @tabout;
+  my $row_start_line=0;
+  my @header;
+  my $header_last;
   for my $x (0..$i){
     if($$tab[$x] eq '-'){
       my @tegn=map {$$tab[$x-1][$_]=~/\S/?"-":" "} (0..$j);
-      $tabut[$rad_startlinje]=join(" ",map {$tegn[$_] x ($bredde[$_]-1)} (0..$j));
+      $tabout[$row_start_line]=join(" ",map {$tegn[$_] x ($width[$_]-1)} (0..$j));
     }
     else{
       for my $y (0..$j){
-	next if $fjern_tom && !$ikketom[$y];
+	next if $remove_empty && !$not_empty[$y];
 	no warnings;
-	
-	my @celle=
-            !$overskrift_forrige&&$nodup&&$nodup[$x][$y]
-	    ?($nodup>0?():((" " x (($bredde[$y]-length($nodup))/2)).$nodup))
-            :split("\n",$$tab[$x][$y]);
-	for(0..($hoeyde[$x]-1)){
-	  my $linje=$rad_startlinje+$_;
-	  my $txt=shift @celle || '';
-	  $txt=sprintf("%*s",$bredde[$y]-1,$txt) if length($txt)>0 && !$venstre[$y] && ($x>0 || $ikke_hodestrek);
-	  $tabut[$linje].=$txt;
+	my @cell = !$header_last&&$nodup&&$nodup[$x][$y]
+     	         ? ($nodup>0?():((" " x (($width[$y]-length($nodup))/2)).$nodup))
+                 : split("\n",$$tab[$x][$y]);
+	for(0..($height[$x]-1)){
+	  my $line=$row_start_line+$_;
+	  my $txt=shift(@cell);
+	  $txt='' if !defined$txt;
+	  $txt=sprintf("%*s",$width[$y]-1,$txt) if length($txt)>0 && !$left[$y] && ($x>0 || $no_header_line);
+	  $tabout[$line].=$txt;
 	  if($y==$j){
-	    $tabut[$linje]=~s/\s+$//;
+	    $tabout[$line]=~s/\s+$//;
 	  }
 	  else{
-	    my $bredere;
-	       $bredere = $txt=~/<input.+type=text.+size=(\d+)/i?1+$1:0;
+	    my $wider;
+	       $wider = $txt=~/<input.+type=text.+size=(\d+)/i?1+$1:0;
 	    $txt=~s/<[^>]+>//g;
 	    $txt=~s/&gt;/>/g;
 	    $txt=~s/&lt;/</g;
-	    $tabut[$linje].= ' ' x ($bredde[$y]-length($txt)-$bredere);
+	    $tabout[$line].= ' ' x ($width[$y]-length($txt)-$wider);
 	  }
 	}
       }
     }
-    $rad_startlinje+=$hoeyde[$x];
+    $row_start_line+=$height[$x];
 
     #--lage streker?
-    if(not $ikke_hodestrek){
+    if(not $no_header_line){
       if($x==0){
 	for my $y (0..$j){
-	  next if $fjern_tom && !$ikketom[$y];
-	  $tabut[$rad_startlinje].=('-' x ($bredde[$y]-1))." ";
+	  next if $remove_empty && !$not_empty[$y];
+	  $tabout[$row_start_line].=('-' x ($width[$y]-1))." ";
 	}
-	$rad_startlinje++;
-	@overskrift=("",@tabut);
+	$row_start_line++;
+	@header=("",@tabout);
       }
       elsif(
 	    $x%$pagesize==0 || $nodup>0&&!$nodup[$x+1][$nodup-1]
 	    and $x+1<@$tab
-	    and !$ikke_hodestrek
+	    and !$no_header_line
 	    )
       {
-	push(@tabut,@overskrift);
-	$rad_startlinje+=@overskrift;
-	$overskrift_forrige=1;
+	push(@tabout,@header);
+	$row_start_line+=@header;
+	$header_last=1;
       }
       else{
-	$overskrift_forrige=0;
+	$header_last=0;
       }
     }
   }#for x
-  return join("\n",@tabut)."\n";
+  return join("\n",@tabout)."\n";
 }
 
 =head2 serialize
@@ -6089,8 +6088,8 @@ sub serialize {
   }
   else{
     my $tilbake;
-    my($pakke,$fil,$linje,$sub,$hasargs,$wantarray);
-      ($pakke,$fil,$linje,$sub,$hasargs,$wantarray)=caller($tilbake++) until $sub ne 'serialize' || $tilbake>20;
+    my($pakke,$fil,$line,$sub,$hasargs,$wantarray);
+      ($pakke,$fil,$line,$sub,$hasargs,$wantarray)=caller($tilbake++) until $sub ne 'serialize' || $tilbake>20;
     croak("serialize() argument should be reference!\n".
         "\$r=$r\n".
         "ref(\$r)   = ".ref($r)."\n".
