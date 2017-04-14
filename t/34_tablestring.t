@@ -1,7 +1,7 @@
 # make test
 # perl Makefile.PL; make; perl -Iblib/lib t/34_tablestring.t
 BEGIN{require 't/common.pl'}
-use Test::More tests => 3;
+use Test::More tests => 4;
 
 my @tab=(
    [qw/AA BBBBB CCCC/],

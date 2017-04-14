@@ -5318,7 +5318,7 @@ know that.
 
 =cut
 
-#TODO: se test_perl.pl
+#TODO: see t/test_perm.pl and t/test_perm2.pl
 
 sub permutations {
   my $code=ref($_[0]) eq 'CODE' ? shift() : undef;

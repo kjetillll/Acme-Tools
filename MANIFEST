@@ -43,7 +43,12 @@ t/test_binsearch_bench.pl
 t/test_fork_bloom.pl
 t/test_k_m.pl
 t/test_md5sum.pl
+t/test_perm.c
 t/test_perm.pl
+t/test_perm2.pl
+t/test_pi.pl
+t/test_pivot.pl
 t/test_resolve_bigfloat.pl
 t/test_speed_pushsort.pl
 Tools.pm
+
