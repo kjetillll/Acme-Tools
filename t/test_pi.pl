@@ -1,7 +1,11 @@
 use Acme::Tools;
 print "$Acme::Tools::PI\n";
 my $pi=bigf($PI);
-for(1..8){
+
+pi_1();
+
+sub pi_1 {
+  for(1..6){
     my $t=time_fp();
     my $to=10**$_;
     my $sum=bigf(0);
@@ -18,4 +22,5 @@ for(1..8){
       $pi-($mypi - 1/$to**1 + 1/$to**2 - 2/$to**3),
      #$pi-($mypi - 1/$to**1 + 1/$to**2 - 2/$to**3 - 2/$to**6),
       time_fp()-$t;
+  }
 }
