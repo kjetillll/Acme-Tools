@@ -1,7 +1,7 @@
 # make test
 # perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
 
-BEGIN{require 't/common.pl'}
+use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests => 169;
 use Digest::MD5 qw(md5_hex);
 

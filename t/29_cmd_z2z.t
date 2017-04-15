@@ -1,6 +1,6 @@
 # make test
 # perl Makefile.PL; make; perl -Iblib/lib t/29_cmd_z2z.t
-BEGIN{require 't/common.pl'}
+use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests    => 8;
 warn <<"" and map ok(1),1..8 and exit if $^O!~/^(linux|cygwin)$/;
 Tests for cmd_z2z not available for $^O, only linux and cygwin

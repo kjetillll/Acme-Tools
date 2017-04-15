@@ -1,7 +1,7 @@
 # make test
 # perl Makefile.PL; make; perl -Iblib/lib t/17_roman.t
 
-BEGIN{require 't/common.pl'}
+use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests => 30;
 
 my %rom=(MCCXXXIV=>1234,MCMLXXI=>1971,IV=>4,VI=>6,I=>1,V=>5,X=>10,L=>50,C=>100,D=>500,M=>1000,CDXCVII=>497);

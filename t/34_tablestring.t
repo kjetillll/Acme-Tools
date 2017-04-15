@@ -1,6 +1,6 @@
 # make test
 # perl Makefile.PL; make; perl -Iblib/lib t/34_tablestring.t
-BEGIN{require 't/common.pl'}
+use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests => 4;
 
 my @tab=(

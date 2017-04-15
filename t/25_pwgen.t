@@ -1,7 +1,7 @@
 # make test
 # perl Makefile.PL; make; perl -Iblib/lib t/25_pwgen.t
 
-BEGIN{require 't/common.pl'}
+use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests => 11;
 
 sub tstr{sprintf("    (%d trials, %.5f sec)",$Acme::Tools::Pwgen_trials, $Acme::Tools::Pwgen_sec)}
