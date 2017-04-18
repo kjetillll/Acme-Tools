@@ -7098,7 +7098,7 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
   my @q=@ARGV; @q=('.') if !@q;
   my(%c,%b,$cnt,$bts,%mtime);
   my $zext=$o{z}?'(\.(z|Z|gz|bz2|xz|rz|kr|lrz|rz))?':'';
-  $o{E}||=10;
+  $o{E}||=11;
   my $r=qr/(\.[^\.\/]{1,$o{E}}$zext)$/;
   my $qrexcl=exists$o{e}?qr/$o{e}/:0;
  #TODO: ought to work: tar cf - .|tar tvf -|due
