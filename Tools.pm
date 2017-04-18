@@ -7021,8 +7021,9 @@ Examples of commands then made available:
  ccmd grep string /huge/file   #caches stdout+stderr for 15 minutes (default) for much faster results later
  ccmd "sleep 2;echo hello"     #slow first time. Note the quotes!
  ccmd "du -s ~/*|sort -n|tail" #ccmd store stdout+stderr in /tmp files (default)
- z2z [-pvk1-9o -t type] files  #convert from/to .gz/bz2/xz files, -p progress, -v verbose (output result),
-                               #-k keep org file, -o overwrite, 1-9 compression degree
+ z2z [-pvk1-9oe -t type] files #convert from/to .gz/bz2/xz files, -p progress, -v verbose (output result),
+                               #-k keep org file, -o overwrite, 1-9 compression degree, -e for xz does "extreme"
+                               #compressions, very slow. For some data types this reduces size significantly
                                #2xz and 2bz2 depends on xz and bzip2 being installed on system
  2xz                           #same as z2z with -t xz
  2bz2                          #same as z2z with -t bz2
@@ -7048,8 +7049,7 @@ The commands C<2xz>, C<2bz2> and C<2gz> are just synonyms for C<z2z> with an imp
 
  z2z [-p -k -v -o -1 -2 -3 -4 -5 -6 -7 -8 -9 ] files
 
-Converts (recompresses) files from one compression sc
-
+Converts (recompresses) files from one compression type to another. For instance from .gz to .bz2
 
 
 =head3 due
@@ -7211,9 +7211,10 @@ sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
 #todo?: sub cmd_7z
 sub cmd_z2z {
   local @ARGV=@_;
-  my %o=_go("pt:kvhon123456789");
+  my %o=_go("pt:kvhon123456789e");
   my $t=repl(lc$o{t},qw/gzip gz bzip2 bz2/);
   die "due: unknown compression type $o{t}, known are gz, bz2 and xz" if $t!~/^(gz|bz2|xz)$/;
+  delete $o{e} if $o{e} and $o{t} ne 'xz' and warn "-e available only for type xz\n";
   my $sum=sum(map -s$_,@ARGV);
   print "Converting ".@ARGV." files, total ".bytes_readable($sum)."\n" if $o{v} and @ARGV>1;
   my $cat='cat';
@@ -7235,7 +7236,7 @@ sub cmd_z2z {
     #todo: my $cntfile="/tmp/acme-tools-z2z-wc-c.$$";
     #todo: my $cnt="tee >(wc -c>$cntfile)" if $ENV{SHELL}=~/bash/ and $o{v}; #hm dash vs bash
     my $z=  {qw/gz gzip   bz2 bzip2   xz xz/}->{$t};
-    $z.=" -$_" for grep$o{$_},1..9;
+    $z.=" -$_" for grep$o{$_},1..9,'e';
     my $cmd="$cat $_|$unz|$z>$new";
      #todo: "$cat $_|$unz|$cnt|$z>$new";
     #cat /tmp/kontroll-linux.xz|unxz|tee >(wc -c>/tmp/p)|gzip|wc -c;cat /tmp/p
