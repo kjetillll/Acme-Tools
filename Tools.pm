@@ -7088,7 +7088,7 @@ sub install_acme_command_tools {
 sub cmd_conv { print conv(@ARGV)."\n"  }
 
 sub cmd_due { #TODO: output from tar tvf and ls and find -ls
-  my %o=_go("zkKmhciMPate:l");
+  my %o=_go("zkKmhciMPate:lE:");
   require File::Find;
   no warnings 'uninitialized';
   die"$0: -l not implemented yet\n"                if $o{l}; #man du: default is not to count hardlinks more than once, with -l it does
@@ -7097,8 +7097,9 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
   die"$0: -k and -m can not be used together\n"    if $o{k}+$o{m}>1;
   my @q=@ARGV; @q=('.') if !@q;
   my(%c,%b,$cnt,$bts,%mtime);
-  my $zext=$o{z}?'(\.(z|Z|gz|bz2|xz|rz|kr))?':'';
-  my $r=qr/(\.[^\.\/]{1,10}$zext)$/;
+  my $zext=$o{z}?'(\.(z|Z|gz|bz2|xz|rz|kr|lrz|rz))?':'';
+  $o{E}||=10;
+  my $r=qr/(\.[^\.\/]{1,$o{E}}$zext)$/;
   my $qrexcl=exists$o{e}?qr/$o{e}/:0;
  #TODO: ought to work: tar cf - .|tar tvf -|due
  #my $qrstdin=qr/(^| )\-[rwx\-sS]{9} +\d+ \w+ +\w+ +(\d+) [a-zA-Z]+\.? +\d+ +(?:\d\d:\d\d|\d{4}) (.*)$/;
@@ -7148,9 +7149,10 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
       my $fmt=$o{t}?'YYYY/MM/DD-MM:MI:SS':'YYYY/MM/DD';
       @r=map tms($_,$fmt), @r;
       "  ".join(" ",@r);
-    };
-  printf("%-11s %8d $f %7.2f%%%s\n",$_,$c{$_},&$s($b{$_}),100*$b{$_}/$bts,&$perc($_)) for @e;
-  printf("%-11s %8d $f %7.2f%%%s\n","Sum",$cnt,&$s($bts),100,&$perc());
+  };
+  my $width=max( 10, grep $_, map length($_), @e );
+  printf("%-*s %8d $f %7.2f%%%s\n",$width,$_,$c{$_},&$s($b{$_}),100*$b{$_}/$bts,&$perc($_)) for @e;
+  printf("%-*s %8d $f %7.2f%%%s\n",$width,"Sum",$cnt,&$s($bts),100,&$perc());
 }
 sub cmd_xcat {
   for my $fn (@_){
