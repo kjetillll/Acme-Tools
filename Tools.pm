@@ -70,6 +70,7 @@ our @EXPORT = qw(
   not_intersect
   mix
   zip
+  subarr
   subhash
   hashtrans
   zipb64
@@ -2028,6 +2029,32 @@ sub repl {
 }
 
 =head1 ARRAYS
+
+=head2 subarr
+
+The equivalent of C<substr> on arrays or C<splice> without changing the array.
+Input: 1) array or arrayref, 2) offset and optionally 3) length. If the third argument
+is not present then subarr returns everything to the end of the array.
+
+ @top10    = subarr( @array, 0, 10);   # first 10
+ @last_two = subarr( @array, -2, 2);   # last 2
+ @last_two = subarr( $array_ref, -2);  # also last 2
+ @last_six = subarr $array_ref, -6;    # parens are optional
+
+The same can be obtained from C<< @array[$from..$to] >> but that dont work the same way with negative offsets and boundary control of length.
+
+=cut
+
+sub subarr(+$;$) {
+    my($a,$o,$l)=@_;
+    $o=@$a+$o if $o<0;
+    $o=0      if $o<0;
+    $o=@$a-1  if $o>@$a-1;
+    $l=@$a-$o if @_<3;
+    die       if $l<0;
+    $l=@$a-$o if $l>@$a-$o;
+    @$a[$o..$o+$l-1];
+}
 
 =head2 min
 
