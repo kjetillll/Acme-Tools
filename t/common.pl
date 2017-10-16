@@ -17,4 +17,5 @@ sub gz {
   writefile($t,shift());
   ''.qx(gzip<$t);
 }
+sub printed (&) { my $s; open local *STDOUT, '>', \$s; shift->(); $s }
 1;

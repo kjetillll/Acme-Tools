@@ -2660,8 +2660,8 @@ two stddevs 95%.  Normal distributions are sometimes called Gauss curves
 or Bell shapes. L<https://en.wikipedia.org/wiki/Standard_deviation>
 
  stddev(4,5,6,5,6,4,3,5,5,6,7,6,5,7,5,6,4)         # = 1.0914103126635
- avg(@testscores) + stddev(@testscores)            # = the score for IQ = 115 (by one definition)
- avg(@testscores) - stddev(@testscores)            # = the score for IQ = 85
+ avg(@testscores) + stddev(@testscores)            # = the score for one stddev above avg, 115
+ avg(@testscores) - stddev(@testscores)            # = the score for one stddev below avg, 85
 
 =cut
 
@@ -7176,23 +7176,24 @@ sub install_acme_command_tools {
 sub cmd_conv { print conv(@ARGV)."\n"  }
 
 sub cmd_due { #TODO: output from tar tvf and ls and find -ls
-  my %o=_go("zkKmhciMPate:lE:");
+  my %o;
+  my @q=_go("zkKmhciMPate:lE:",\%o,@_);
+  @q=('.') if !@q;
   require File::Find;
   no warnings 'uninitialized';
   die"$0: -l not implemented yet\n"                if $o{l}; #man du: default is not to count hardlinks more than once, with -l it does
   die"$0: -h, -k or -m can not be used together\n" if $o{h}+$o{k}+$o{m}>1;
   die"$0: -c and -a can not be used together\n"    if $o{a}+$o{c}>1;
   die"$0: -k and -m can not be used together\n"    if $o{k}+$o{m}>1;
-  my @q=@ARGV; @q=('.') if !@q;
   my(%c,%b,$cnt,$bts,%mtime);
   my $zext=$o{z}?'(\.(z|Z|gz|bz2|xz|rz|kr|lrz|rz))?':'';
   $o{E}||=11;
   my $r=qr/(\.[^\.\/]{1,$o{E}}$zext)$/;
   my $qrexcl=exists$o{e}?qr/$o{e}/:0;
  #TODO: ought to work: tar cf - .|tar tvf -|due
- #my $qrstdin=qr/(^| )\-[rwx\-sS]{9} +\d+ \w+ +\w+ +(\d+) [a-zA-Z]+\.? +\d+ +(?:\d\d:\d\d|\d{4}) (.*)$/;
-  my $qrstdin=qr/(^| )\-[rwx\-sS]{9} +(\d+ )?\w+[ \/]+\w+ +(\d+) [a-zA-Z]+\.? +\d+ +(?:\d\d:\d\d|\d{4}) (.*)$/;
   if(-p STDIN){
+   #my $qrstdin=qr/(^| )\-[rwx\-sS]{9} +\d+ \w+ +\w+ +(\d+) [a-zA-Z]+\.? +\d+ +(?:\d\d:\d\d|\d{4}) (.*)$/;
+    my $qrstdin=qr/(^| )\-[rwx\-sS]{9} +(\d+ )?\w+[ \/]+\w+ +(\d+) [a-zA-Z]+\.? +\d+ +(?:\d\d:\d\d|\d{4}) (.*)$/;
     while(<>){
       chomp;
       my($sz,$f)=/$qrstdin/?($2,$3):-f$_?(-s$_,$_):next;
@@ -7288,8 +7289,9 @@ sub cmd_trunc { die "todo: trunc not ready yet"} #truncate a file, size 0, keep 
 
 #todo:   wipe -n 4 filer*   #virker ikke! tror det er _go() som ikke virker
 sub cmd_wipe  {
-  my %o=_go("n:k");
-  wipe($_,$o{n},$o{k}) for @_;
+  my @argv=@_;
+  my %o=_go("n:k",\@argv);
+  wipe($_,$o{n},$o{k}) for @argv;
 }
 
 sub cmd_2gz    {cmd_z2z("-t","gz", @_)}
@@ -7369,7 +7371,16 @@ sub cmd_z2z {
   }
 }
 
-sub _go { require Getopt::Std; my %o; Getopt::Std::getopts(shift() => \%o); %o }
+sub _go {
+    my $switches=shift;
+    my $hashref=shift;
+    croak if $switches!~/^([a-z]:?)+$/i;
+    croak if ref($hashref) ne 'HASH';
+    local @ARGV=@_;
+    require Getopt::Std;
+    Getopt::Std::getopts(shift() => $hashref);
+    (@ARGV);
+}
 
 sub cmd_rttop   { die "rttop: not implemented here yet.\n" }
 sub cmd_whichpm { die "whichpm: not implemented here yet.\n" } #-a (all, inkl VERSION og ls -l)
