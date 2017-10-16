@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 package Acme::Tools;
 
-our $VERSION = '0.21';
+our $VERSION = '0.22';
 
 use 5.008;     #Perl 5.8 was released July 18th 2002
 use strict;
@@ -1465,15 +1465,49 @@ See L<http://en.wikipedia.org/wiki/Roman_numbers> for more.
 =cut
 
 #alternative algorithm: http://www.rapidtables.com/convert/number/how-number-to-roman-numerals.htm
+#see also t/17_roman.t sub int2roman_old
 sub int2roman {
-  my($n,@p)=(shift,[],[1],[1,1],[1,1,1],[1,2],[2],[2,1],[2,1,1],[2,1,1,1],[1,3],[3]);
-    !defined($n)? undef
+    my $n=shift;
+    !defined$n  ? undef
   : !length($n) ? ""
-  : int($n)!=$n ? croak"int2roman: $n is not an integer"
-  : $n==0       ? ""
   : $n<0        ? "-".int2roman(-$n)
-  : $n>3999     ? "M".int2roman($n-1000)
-  : join'',@{[qw/I V X L C D M/]}[map{my$i=$_;map($_+5-$i*2,@{$p[$n/10**(3-$i)%10]})}(0..3)];
+  : int($n)!=$n ? croak"int2roman: $n is not an integer"
+  : $] >= 5.014 ?        #s///r modifier introduced in perl v5.14
+        ("I" x $n)
+        =~s,I{1000},M,gr #unnecessary, but speedup for n>1000
+        =~s,I{100},C,gr  #unnecessary, but speedup for n>100
+        =~s,I{10},X,gr   #unnecessary, but speedup for n>10
+        =~s,IIIII,V,gr
+        =~s,IIII,IV,gr
+        =~s,VV,X,gr
+        =~s,VIV,IX,gr
+        =~s,XXXXX,L,gr
+        =~s,XXXX,XL,gr
+        =~s,LL,C,gr
+        =~s,LXL,XC,gr
+        =~s,CCCCC,D,gr
+        =~s,CCCC,CD,gr
+        =~s,DD,M,gr
+        =~s,DCD,CM,gr
+  : do {
+      $n="I" x $n;
+      $n=~s,I{1000},M,g; #unnecessary, but speedup for n>1000
+      $n=~s,I{100},C,g;  #unnecessary, but speedup for n>100
+      $n=~s,I{10},X,g;   #unnecessary, but speedup for n>10
+      $n=~s,IIIII,V,g;
+      $n=~s,IIII,IV,g;
+      $n=~s,VV,X,g;
+      $n=~s,VIV,IX,g;
+      $n=~s,XXXXX,L,g;
+      $n=~s,XXXX,XL,g;
+      $n=~s,LL,C,g;
+      $n=~s,LXL,XC,g;
+      $n=~s,CCCCC,D,g;
+      $n=~s,CCCC,CD,g;
+      $n=~s,DD,M,g;
+      $n=~s,DCD,CM,g;
+      $n
+     }
 }
 
 sub roman2int {
@@ -1762,6 +1796,8 @@ In the last example $v is changed because the argument is a reference. (To keep 
 
 =cut
 
+#TODO: undef min|max => dont curb min|max
+
 sub curb {
   my($val,$min,$max)=@_;
   croak "curb: wrong args" if @_!=3 or !defined$min or !defined$max or !defined$val or $min>$max;
@@ -2033,17 +2069,20 @@ sub repl {
 =head2 subarr
 
 The equivalent of C<substr> on arrays or C<splice> without changing the array.
-Input: 1) array or arrayref, 2) offset and optionally 3) length. If the third argument
-is not present then subarr returns everything to the end of the array.
+Input: 1) array or arrayref, 2) offset and optionally 3) length. Without a
+third argument, subarr returns the rest of the array.
 
  @top10    = subarr( @array, 0, 10);   # first 10
  @last_two = subarr( @array, -2, 2);   # last 2
  @last_two = subarr( $array_ref, -2);  # also last 2
  @last_six = subarr $array_ref, -6;    # parens are optional
 
-The same can be obtained from C<< @array[$from..$to] >> but that dont work the same way with negative offsets and boundary control of length.
+The same can be obtained from C<< @array[$from..$to] >> but that dont work the
+same way with negative offsets and boundary control of length.
 
 =cut
+
+#Todo: sjekk paastand over
 
 sub subarr(+$;$) {
     my($a,$o,$l)=@_;
@@ -2528,11 +2567,13 @@ sub splicer  { @_==1 ? splice( @{shift()} )
               :@_==2 ? splice( @{shift()}, shift() )
               :@_==3 ? splice( @{shift()}, shift(), shift() )
               :@_>=4 ? splice( @{shift()}, shift(), shift(), @_ ) : die }
-sub keysr    { keys(   %{shift()} )   } #hm sort(keys%{shift()}) ?
+sub keysr    { ref($_[0]) eq 'HASH' ? keys(%{shift()}) : keys(@{shift()})  } #hm sort(keys%{shift()}) ?
 sub valuesr  { values( %{shift()} )    }
 sub eachr    { ref($_[0]) eq 'HASH'  ? each(%{shift()})
              #:ref($_[0]) eq 'ARRAY' ? each(@{shift()})  # perl 5.8.8 cannot compile each on array! eval?
-              :                        croak("eachr needs hashref or arrayref got '".ref($_[0])."'") }
+		   :                        croak("eachr needs hashref or arrayref got '".ref($_[0])."'") }
+#sub mapr    # som scala: hvis map faar subref se kalles den sub paa hvert elem og resultatet returneres
+
 #sub eachr    { each(%{shift()}) }
 
 =head1 STATISTICS
@@ -6197,6 +6238,26 @@ sub cnttbl {
        (['SUM',$sum]) }
 }
 
+=head2 ref_deep
+
+NOT IMPLEMENTED
+
+Same as ref, but goes deeper.
+
+ print ref_deep( { 10=>[1,'ten'], 100=>[2,'houndred'], 1000=>[3,'thousand'] } );   # prints HASH_of_ARRAYS
+ print ref_deep( { 10=>'ten',     100=>[2,'houndred'], 1000=>[3,'thousand'] } );   # prints same (mixed, deepest)
+ print ref_deep( { 1=>[{a=>3,b=>6},{a=>1,b=>8}], 5=>[{a=>2,b=>5},{a=>7,b=>1}] } ); # HASH_of_ARRAYS_of_HASHES
+
+(Todo, not supported: circular, alternatives for mixed)
+
+=cut
+
+sub ref_deep {
+  my $s=shift; #
+}
+
+
+
 =head2 nicenum
 
  print 14.3 - 14.0;              # 0.300000000000001
@@ -7225,6 +7286,7 @@ sub cmd_ccmd {
 
 sub cmd_trunc { die "todo: trunc not ready yet"} #truncate a file, size 0, keep all other attr
 
+#todo:   wipe -n 4 filer*   #virker ikke! tror det er _go() som ikke virker
 sub cmd_wipe  {
   my %o=_go("n:k");
   wipe($_,$o{n},$o{k}) for @_;
