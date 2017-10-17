@@ -7340,7 +7340,7 @@ sub cmd_z2z {
     rename($new, replace($new,qr/.tmp$/)) or die if $same;
     if($o{v}){
       $sumnew+=$sznew;
-      my $pr=sprintf"%0.1f%%",100*$sznew/$szold;
+      my $pr=sprintf"%0.1f%%",$szold?100*$sznew/$szold:0;
       #todo: my $szuncmp=-s$cntfile&&time()-(stat($cntfile))[9]<10 ? qx(cat $cntfile) : '';
       #todo: $o{h} ? printf("%6.1f%%  %9s => %9s => %9s %s\n",      $pr,(map bytes_readable($_),$szold,$szuncmp,$sznew),$_)
       #todo:       : printf("%6.1f%% %11d b  => %11d b => %11 b  %s\n",$pr,$szold,$szuncmp,$sznew,$_)
@@ -7350,7 +7350,7 @@ sub cmd_z2z {
       if(@ARGV>1){
 	$i++;
 	$str=$i<@ARGV
-            ? "  ETA:".sec_readable(eta('z2z',$bsf,$sum)-time_fp())." $str"
+            ? "  ETA:".sprintf("%-8s",sec_readable(eta('z2z',$bsf,$sum)-time_fp()))." $str"
 	    : "   TA: 0s $str"
 	  if $sum>1e6;
         $str="$i/".@ARGV." $str";
