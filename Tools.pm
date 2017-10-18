@@ -7174,7 +7174,7 @@ sub install_acme_command_tools {
   }
 }
 sub cmd_conv { print conv(@ARGV)."\n"  }
-
+our @Due_fake_stdin;
 sub cmd_due { #TODO: output from tar tvf and ls and find -ls
   my %o;
   my @q=_go("zkKmhciMPate:lE:",\%o,@_);
@@ -7191,22 +7191,25 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
   my $r=qr/(\.[^\.\/]{1,$o{E}}$zext)$/;
   my $qrexcl=exists$o{e}?qr/$o{e}/:0;
  #TODO: ought to work: tar cf - .|tar tvf -|due
-  if(-p STDIN){
-   #my $qrstdin=qr/(^| )\-[rwx\-sS]{9} +\d+ \w+ +\w+ +(\d+) [a-zA-Z]+\.? +\d+ +(?:\d\d:\d\d|\d{4}) (.*)$/;
-    my $qrstdin=qr/(^| )\-[rwx\-sS]{9} +(\d+ )?\w+[ \/]+\w+ +(\d+) [a-zA-Z]+\.? +\d+ +(?:\d\d:\d\d|\d{4}) (.*)$/;
-    while(<>){
-      chomp;
-      my($sz,$f)=/$qrstdin/?($2,$3):-f$_?(-s$_,$_):next;
+  if(-p STDIN or @Due_fake_stdin){
+    my @f=@Due_fake_stdin;
+    my $str;
+    while($str=@Due_fake_stdin?shift(@f):<STDIN>){
+      chomp($str);
+      next if $str=~m,/$,;
+      my($sz,$f)=($str=~/(^| )\-[rwx\-sS]{9}\s+(?:\d )?(?:[\w\-]+(?:\/|\s+)[\w\-]+)\s+(\d+)\s+.*?([^\/]*\.[\w,\-]+)?$/?($2,$3):-f$str?(-s$str,$str):next);
+      #   1576142    240 -rw-r--r--   1 root     root       242153 april  4  2016 /opt/wine-staging/share/wine/wine.inf
       my $ext=$f=~$r?$1:'';
       $ext=lc($ext) if $o{i};
       $cnt++;    $c{$ext}++;
       $bts+=$sz; $b{$ext}+=$sz;
       #$mtime{$ext}.=",$mtime" if
                                   $o{M} || $o{P} and die"due: -M and -P not yet implemented for STDIN";
+      last if @Due_fake_stdin and !@f;
     }
   }
   else { #hm DRY
-    File::Find::find({wanted =>
+    File::Find::find({follow=>0, wanted =>
       sub {
         return if !-f$_;
         return if $qrexcl and defined $File::Find::name and $File::Find::name=~$qrexcl;
