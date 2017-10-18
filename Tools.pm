@@ -147,6 +147,7 @@ our @EXPORT = qw(
   pwgen
   read_conf
   openstr
+  printed
   ldist
   $Re_isnum
   isnum
@@ -4371,6 +4372,17 @@ sub openstr {
       ?  "| ".(&$prog({qw/gz gzip bz2 bzip2 xz xz tgz gzip/   }->{lc($ext)})).$fn
       :        &$prog({qw/gz zcat bz2 bzcat xz xzcat tgz zcat/}->{lc($ext)})." $fn |";
 }
+
+=head2 printed
+
+Redirects C<print> and C<printf> from STDOUT to a string which is returned.
+
+ my $p = printed { print "hello!" };     # now $p eq 'hello!'
+ my $p = printed { some_sub() };         # now $p contains whatever was printed by some_sub() and the subs call from it
+
+=cut
+    
+sub printed (&) { my $s; open local *STDOUT, '>', \$s; shift->(); $s } #todo catch stderr also?
 
 =head1 TIME FUNCTIONS
 
