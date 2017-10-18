@@ -1,12 +1,9 @@
 # make test
 # perl Makefile.PL; make; perl -Iblib/lib t/36_cmd_due.t
 
-#$s="-rw-rw---- 196806/so-fil  4199 2013-09-23 15:50 bjornnyl/nvb2/basisregelverk/oppgaver.txt";
-#use Acme::Tools; my @m=$s=~m,(^| )\-[rwx\-sS]{9} +(?:[\w\-]+/[\w\-]+)?\s+(\d+)\s+.*?(\.\w+)?$,; print srlz(\@m,'m');
-
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests    => 2;
-warn <<"" and map ok(1),1..1 and exit if $^O!~/^(linux|cygwin)$/;
+warn <<"" and map ok(1),1..2 and exit if $^O!~/^(linux|cygwin)$/;
 Tests for cmd_due not available for $^O, only linux and cygwin
 
 my $tmp=tmp();

@@ -7189,8 +7189,8 @@ sub cmd_conv { print conv(@ARGV)."\n"  }
 our @Due_fake_stdin;
 sub cmd_due { #TODO: output from tar tvf and ls and find -ls
   my %o;
-  my @q=_go("zkKmhciMPate:lE:",\%o,@_);
-  @q=('.') if !@q;
+  my @argv=_go("zkKmhciMPate:lE:",\%o,@_);
+  @argv=('.') if !@argv;
   require File::Find;
   no warnings 'uninitialized';
   die"$0: -l not implemented yet\n"                if $o{l}; #man du: default is not to count hardlinks more than once, with -l it does
@@ -7204,12 +7204,12 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
   my $qrexcl=exists$o{e}?qr/$o{e}/:0;
  #TODO: ought to work: tar cf - .|tar tvf -|due
   if(-p STDIN or @Due_fake_stdin){
-    my @f=@Due_fake_stdin;
-    my $str;
-    while($str=@Due_fake_stdin?shift(@f):<STDIN>){
-      chomp($str);
-      next if $str=~m,/$,;
-      my($sz,$f)=($str=~/(^| )\-[rwx\-sS]{9}\s+(?:\d )?(?:[\w\-]+(?:\/|\s+)[\w\-]+)\s+(\d+)\s+.*?([^\/]*\.[\w,\-]+)?$/?($2,$3):-f$str?(-s$str,$str):next);
+    my $stdin=join"",map"$_\n",@Due_fake_stdin;
+    open local *STDIN, '<', \$stdin or die "ERR: $! $?\n" if $stdin;
+    while(<STDIN>){
+      chomp;
+      next if /\/$/;
+      my($sz,$f)=(/(^| )\-[rwx\-sS]{9}\s+(?:\d )?(?:[\w\-]+(?:\/|\s+)[\w\-]+)\s+(\d+)\s+.*?([^\/]*\.[\w,\-]+)?$/?($2,$3):-f$_?(-s$_,$_):next);
       #   1576142    240 -rw-r--r--   1 root     root       242153 april  4  2016 /opt/wine-staging/share/wine/wine.inf
       my $ext=$f=~$r?$1:'';
       $ext=lc($ext) if $o{i};
@@ -7217,7 +7217,6 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
       $bts+=$sz; $b{$ext}+=$sz;
       #$mtime{$ext}.=",$mtime" if
                                   $o{M} || $o{P} and die"due: -M and -P not yet implemented for STDIN";
-      last if @Due_fake_stdin and !@f;
     }
   }
   else { #hm DRY
@@ -7232,7 +7231,7 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
         $bts+=$sz; $b{$ext}+=$sz;
         $mtime{$ext}.=",$mtime" if $o{M} || $o{P};
 	1;
-      } },@q);
+      } },@argv);
   }
   my($f,$s)=$o{k}?("%14.2f kb",sub{$_[0]/1024})
            :$o{K}?("%14.2f Kb",sub{$_[0]/1000})
@@ -7304,8 +7303,8 @@ sub cmd_trunc { die "todo: trunc not ready yet"} #truncate a file, size 0, keep 
 
 #todo:   wipe -n 4 filer*   #virker ikke! tror det er _go() som ikke virker
 sub cmd_wipe  {
-  my @argv=@_;
-  my %o=_go("n:k",\@argv);
+  my %o;
+  my @argv=_go("n:k",\%o,@_);
   wipe($_,$o{n},$o{k}) for @argv;
 }
 
@@ -7316,13 +7315,13 @@ sub cmd_2bzip2 {cmd_z2z("-t","bz2",@_)}
 sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
 #todo?: sub cmd_7z
 sub cmd_z2z {
-  local @ARGV=@_;
-  my %o=_go("pt:kvhon123456789e");
+  my %o;
+  my @argv=_go("pt:kvhon123456789e",\%o,@_);
   my $t=repl(lc$o{t},qw/gzip gz bzip2 bz2/);
   die "due: unknown compression type $o{t}, known are gz, bz2 and xz" if $t!~/^(gz|bz2|xz)$/;
   delete $o{e} if $o{e} and $o{t} ne 'xz' and warn "-e available only for type xz\n";
-  my $sum=sum(map -s$_,@ARGV);
-  print "Converting ".@ARGV." files, total ".bytes_readable($sum)."\n" if $o{v} and @ARGV>1;
+  my $sum=sum(map -s$_,@argv);
+  print "Converting ".@argv." files, total ".bytes_readable($sum)."\n" if $o{v} and @argv>1;
   my $cat='cat';
   if($o{p}){ if(qx(which pv)){ $cat='pv' } else { warn repl(<<"",qr/^\s+/) } }
     due: pv for -p not found, install with sudo yum install pv, sudo apt-get install pv or similar
@@ -7331,7 +7330,7 @@ sub cmd_z2z {
   my $start=time_fp();
   my($i,$bsf)=(0,0);#bytes so far
   $Eta{'z2z'}=[];eta('z2z',0,$sum);
-  for(@ARGV){
+  for(@argv){
     my $new=$_; $new=~s/(\.(gz|bz2|xz))?$/.$t/i or die;
     my $ext=defined($2)?lc($2):'';
     my $same=/^$new$/; $new.=".tmp" if $same; die if $o{k} and $same;
@@ -7362,22 +7361,22 @@ sub cmd_z2z {
       my $str= $o{h}
       ? sprintf("%-7s %9s => %9s",       $pr,(map bytes_readable($_),$szold,$sznew))
       : sprintf("%-7s %11d b => %11d b", $pr,$szold,$sznew);
-      if(@ARGV>1){
+      if(@argv>1){
 	$i++;
-	$str=$i<@ARGV
+	$str=$i<@argv
             ? "  ETA:".sprintf("%-8s",sec_readable(eta('z2z',$bsf,$sum)-time_fp()))." $str"
 	    : "   TA: 0s $str"
 	  if $sum>1e6;
-        $str="$i/".@ARGV." $str";
+        $str="$i/".@argv." $str";
       }
       print "$str $new\n";
     }
   }
-  if($o{v} and @ARGV>1){
+  if($o{v} and @argv>1){
       my $bytes=$o{h}?'':'bytes ';
       my $str=
         sprintf "%d files compressed in %.3f seconds from %s to %s $bytes (%s bytes) %.1f%% of original\n",
-	  0+@ARGV,
+	  0+@argv,
 	  time_fp()-$start,
 	  (map{$o{h}?bytes_readable($_):$_}($sum,$sumnew,$sumnew-$sum)),
 	  100*$sumnew/$sum;
@@ -7389,11 +7388,11 @@ sub cmd_z2z {
 sub _go {
     my $switches=shift;
     my $hashref=shift;
-    croak if $switches!~/^([a-z]:?)+$/i;
+    croak if $switches!~/^([a-z0-9]:?)+$/i;
     croak if ref($hashref) ne 'HASH';
     local @ARGV=@_;
     require Getopt::Std;
-    Getopt::Std::getopts(shift() => $hashref);
+    Getopt::Std::getopts($switches => $hashref);
     (@ARGV);
 }
 
