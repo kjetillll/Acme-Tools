@@ -4382,7 +4382,11 @@ Redirects C<print> and C<printf> from STDOUT to a string which is returned.
 
 =cut
     
-sub printed (&) { my $s; open local *STDOUT, '>', \$s; shift->(); $s } #todo catch stderr also?
+sub printed (&) { my $s; open(local *STDOUT, '>', \$s) or croak "ERR: $! $?"; shift->(); $s } #todo catch stderr also?
+#todo: sub stdin{}
+#todo: sub stdout{}
+#todo: sub stderr{}
+#todo: sub stdouterr{}
 
 =head1 TIME FUNCTIONS
 
@@ -7189,7 +7193,7 @@ sub cmd_conv { print conv(@ARGV)."\n"  }
 our @Due_fake_stdin;
 sub cmd_due { #TODO: output from tar tvf and ls and find -ls
   my %o;
-  my @argv=_go("zkKmhciMPate:lE:",\%o,@_);
+  my @argv=args("zkKmhciMPate:lE:",\%o,@_);
   @argv=('.') if !@argv;
   require File::Find;
   no warnings 'uninitialized';
@@ -7205,7 +7209,7 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
  #TODO: ought to work: tar cf - .|tar tvf -|due
   if(-p STDIN or @Due_fake_stdin){
     my $stdin=join"",map"$_\n",@Due_fake_stdin;
-    open local *STDIN, '<', \$stdin or die "ERR: $! $?\n" if $stdin;
+    open(local *STDIN, '<', \$stdin) or die "ERR: $! $?\n" if $stdin;
     while(<STDIN>){
       chomp;
       next if /\/$/;
@@ -7216,7 +7220,7 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
       $cnt++;    $c{$ext}++;
       $bts+=$sz; $b{$ext}+=$sz;
       #$mtime{$ext}.=",$mtime" if
-                                  $o{M} || $o{P} and die"due: -M and -P not yet implemented for STDIN";
+                                  $o{M} || $o{P} and die"due: -M and -P not yet implemented for STDIN\n";
     }
   }
   else { #hm DRY
@@ -7301,10 +7305,10 @@ sub cmd_ccmd {
 
 sub cmd_trunc { die "todo: trunc not ready yet"} #truncate a file, size 0, keep all other attr
 
-#todo:   wipe -n 4 filer*   #virker ikke! tror det er _go() som ikke virker
+#todo:   wipe -n 4 filer*   #virker ikke! tror det er args() som ikke virker
 sub cmd_wipe  {
   my %o;
-  my @argv=_go("n:k",\%o,@_);
+  my @argv=args("n:k",\%o,@_);
   wipe($_,$o{n},$o{k}) for @argv;
 }
 
@@ -7316,7 +7320,7 @@ sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
 #todo?: sub cmd_7z
 sub cmd_z2z {
   my %o;
-  my @argv=_go("pt:kvhon123456789e",\%o,@_);
+  my @argv=args("pt:kvhon123456789e",\%o,@_);
   my $t=repl(lc$o{t},qw/gzip gz bzip2 bz2/);
   die "due: unknown compression type $o{t}, known are gz, bz2 and xz" if $t!~/^(gz|bz2|xz)$/;
   delete $o{e} if $o{e} and $o{t} ne 'xz' and warn "-e available only for type xz\n";
@@ -7385,11 +7389,25 @@ sub cmd_z2z {
   }
 }
 
-sub _go {
+=head2 args
+
+Parses command line options and arguments:
+
+ my %opt;
+ my @argv=args('i:nJ123',\%opt,@ARGV);   #returns remaining command line elements after C<-o ptions> are parsed into C<%opt>.
+
+Uses C<Getopt::Std::getopts()>. First arg names the different one char
+options and an optional C<:> behind the letter or digit marks that the
+switch takes an argument.
+
+=cut
+
+sub args {
     my $switches=shift;
     my $hashref=shift;
-    croak if $switches!~/^([a-z0-9]:?)+$/i;
-    croak if ref($hashref) ne 'HASH';
+    my $re_sw='^([a-z0-9]:?)+$';
+    croak "ERR: args: first arg $switches dont match $re_sw\n" if $switches !~ /$re_sw/i;
+    croak "ERR: second arg to args() not hashref\n" if ref($hashref) ne 'HASH';
     local @ARGV=@_;
     require Getopt::Std;
     Getopt::Std::getopts($switches => $hashref);
