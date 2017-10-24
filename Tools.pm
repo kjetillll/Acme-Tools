@@ -7276,8 +7276,8 @@ sub cmd_resubst {
 		  :">$file.tmp$$";
       my $open_in=openstr($file);
       #      die srlz(\%o,'o','',1);
-      open my $I, '<', $open_in  or croak"ERR: open $open_in failed. $! $?\n";
-      open my $O,      $open_out or croak"ERR: open $open_out failed. $! $?\n";
+      open my $I, $open_in  or croak"ERR: open $open_in failed. $! $?\n";
+      open my $O, $open_out or croak"ERR: open $open_out failed. $! $?\n";
       my $c=0;
       while(<$I>){
 	$c+=s/$o{f}/$o{t}/;
