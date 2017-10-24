@@ -7114,6 +7114,7 @@ sub ext2mime {
  Wrote executable /usr/local/bin/2bz2
  Wrote executable /usr/local/bin/2bzip2
  Wrote executable /usr/local/bin/2xz
+ Wrote executable /usr/local/bin/resubst
 
 Examples of commands then made available:
 
@@ -7182,7 +7183,7 @@ Like C<du> command but views space used by file extentions instead of dirs. Opti
 
 sub install_acme_command_tools {
   my $dir=(grep -d$_, @_, '/usr/local/bin', '/usr/bin')[0];
-  for( qw( conv due xcat freq finddup ccmd trunc wipe rttop  z2z 2gz 2gzip 2bz2 2bzip2 2xz ) ){
+  for( qw( conv due xcat freq finddup ccmd trunc wipe rttop  z2z 2gz 2gzip 2bz2 2bzip2 2xz resubst) ){
     unlink("$dir/$_");
     writefile("$dir/$_", "#!$^X\nuse Acme::Tools;\nAcme::Tools::cmd_$_(\@ARGV);\n");
     sys("/bin/chmod +x $dir/$_"); #hm umask
@@ -7260,6 +7261,38 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
   my $width=max( 10, grep $_, map length($_), @e );
   printf("%-*s %8d $f %7.2f%%%s\n",$width,$_,$c{$_},&$s($b{$_}),100*$b{$_}/$bts,&$perc($_)) for @e;
   printf("%-*s %8d $f %7.2f%%%s\n",$width,"Sum",$cnt,&$s($bts),100,&$perc());
+}
+sub cmd_resubst {
+  my %o;
+  my $zo="123456789e";
+  my @argv=args("f:t:vn$zo",\%o,@_);
+  if(exists$o{t}){ $o{t}=~s,\\,\$, } else { $o{t}='' }
+  my($i,$tc)=(0,0);
+  for my $file (@argv){
+      my $zopt=join" ",map"-$_",grep$o{$_},split//,$zo;
+      my $open_out=$file=~/\.gz$/i ?"|gzip  $zopt>$file.tmp$$"
+                  :$file=~/\.bz2$/i?"|bzip2 $zopt>$file.tmp$$"
+                  :$file=~/\.xz$/i ?"|xz    $zopt>$file.tmp$$"
+		  :">$file.tmp$$";
+      my $open_in=openstr($file);
+      #      die srlz(\%o,'o','',1);
+      open my $I, '<', $open_in  or croak"ERR: open $open_in failed. $! $?\n";
+      open my $O,      $open_out or croak"ERR: open $open_out failed. $! $?\n";
+      my $c=0;
+      while(<$I>){
+	$c+=s/$o{f}/$o{t}/;
+	print $O $_;
+      }
+      close($I);close($O);
+      chall($file,"$file.tmp$$") or croak"ERR: chall $file\n" if !$o{n};
+      my($bfr,$bto)=(-s$file,-s"$file.tmp$$");
+      unlink $file or croak"ERR: cant rm $file\n";
+      rename"$file.tmp$$",$file;
+      $tc+=$c;
+      printf"%*d/%d %6d %6d %7db =>%8db %s\n",
+        length(0+@argv),++$i,0+@argv,$tc,$c,$bfr,$bto,$file if $o{v};
+  }
+  $tc;
 }
 sub cmd_xcat {
   for my $fn (@_){

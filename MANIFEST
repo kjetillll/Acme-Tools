@@ -40,6 +40,7 @@ t/33_refsubs.t
 t/34_tablestring.t
 t/35_subarr.t
 t/36_cmd_due.t
+t/37_cmd_resubst.t
 t/common.pl
 t/test_binsearch_bench.pl
 t/test_fork_bloom.pl
