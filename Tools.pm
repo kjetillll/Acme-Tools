@@ -7289,8 +7289,9 @@ sub cmd_resubst {
       unlink $file or croak"ERR: cant rm $file\n";
       my $newfile=$o{o}?repl($file,qr/\.(gz|bz2|xz)$/i,".$oext"):$file;
       rename("$file.tmp$$",$newfile) or croak"ERR: rename $file.tmp$$ -> $newfile failed\n";
-      printf"%*d/%d %6d %6d %7d =>%8d b %s\n",
-        length(0+@argv),++$i,0+@argv,$tc,$c,$bfr,$bto,$file if $o{v};
+      my $pr=$bfr?100*$bto/$bfr:0;
+      printf"%*d/%d %*s %7d =>%8d b (%2d%%) %s\n",
+        length(0+@argv),++$i,0+@argv,-13,"$tc/$c",$bfr,$bto,$pr,$file if $o{v};
   }
   $tc;
 }
