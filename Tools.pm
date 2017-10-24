@@ -4364,13 +4364,13 @@ PATH is empty.
 =cut
 
 our @Openstrpath=(grep$_,split(":",$ENV{PATH}),qw(/usr/bin /bin /usr/local/bin));
+sub openstr_prog { @Openstrpath or return $_[0];(grep -x$_, map "$_/$_[0]", @Openstrpath)[0] or croak"$_[0] not found" }
 sub openstr {
   my($fn,$ext)=(shift()=~/^(.*?(?:\.(t?gz|bz2|xz))?)$/i);
   return $fn if !$ext;
-  my $prog=sub{@Openstrpath or return $_[0];(grep -x$_, map "$_/$_[0]", @Openstrpath)[0] or croak"$_[0] not found"};
   $fn =~ /^\s*>/
-      ?  "| ".(&$prog({qw/gz gzip bz2 bzip2 xz xz tgz gzip/   }->{lc($ext)})).$fn
-      :        &$prog({qw/gz zcat bz2 bzcat xz xzcat tgz zcat/}->{lc($ext)})." $fn |";
+      ?  "| ".(openstr_prog({qw/gz gzip bz2 bzip2 xz xz tgz gzip/   }->{lc($ext)})).$fn
+      :        openstr_prog({qw/gz zcat bz2 bzcat xz xzcat tgz zcat/}->{lc($ext)})." $fn |";
 }
 
 =head2 printed
@@ -7265,15 +7265,14 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
 sub cmd_resubst {
   my %o;
   my $zo="123456789e";
-  my @argv=args("f:t:vn$zo",\%o,@_);
+  my @argv=args("f:t:vno:$zo",\%o,@_);
   if(exists$o{t}){ $o{t}=~s,\\,\$, } else { $o{t}='' }
   my($i,$tc)=(0,0);
   for my $file (@argv){
       my $zopt=join" ",map"-$_",grep$o{$_},split//,$zo;
-      my $open_out=$file=~/\.gz$/i ?"|gzip  $zopt>$file.tmp$$"
-                  :$file=~/\.bz2$/i?"|bzip2 $zopt>$file.tmp$$"
-                  :$file=~/\.xz$/i ?"|xz    $zopt>$file.tmp$$"
-		  :">$file.tmp$$";
+      my $oext=$o{o}?$o{o}:$file=~/\.(gz|bz2|xz)$/i?$1:'';
+      my $open_out_pre=$oext?"|".openstr_prog({qw/gz gzip bz2 bzip2 xz xz/}->{lc($oext)})." $zopt":'';
+      my $open_out="$open_out_pre > $file.tmp$$";
       my $open_in=openstr($file);
       #      die srlz(\%o,'o','',1);
       open my $I, $open_in  or croak"ERR: open $open_in failed. $! $?\n";
@@ -7283,13 +7282,14 @@ sub cmd_resubst {
 	$c+=s/$o{f}/$o{t}/;
 	print $O $_;
       }
+      $tc+=$c;
       close($I);close($O);
       chall($file,"$file.tmp$$") or croak"ERR: chall $file\n" if !$o{n};
       my($bfr,$bto)=(-s$file,-s"$file.tmp$$");
       unlink $file or croak"ERR: cant rm $file\n";
-      rename"$file.tmp$$",$file;
-      $tc+=$c;
-      printf"%*d/%d %6d %6d %7db =>%8db %s\n",
+      my $newfile=$o{o}?repl($file,qr/\.(gz|bz2|xz)$/i,".$oext"):$file;
+      rename("$file.tmp$$",$newfile) or croak"ERR: rename $file.tmp$$ -> $newfile failed\n";
+      printf"%*d/%d %6d %6d %7d =>%8d b %s\n",
         length(0+@argv),++$i,0+@argv,$tc,$c,$bfr,$bto,$file if $o{v};
   }
   $tc;
