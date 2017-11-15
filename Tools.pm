@@ -7192,9 +7192,10 @@ sub install_acme_command_tools {
 }
 sub cmd_conv { print conv(@ARGV)."\n"  }
 our @Due_fake_stdin;
-sub cmd_due { #TODO: output from tar tvf and ls and find -ls
+#TODO: output from tar tvf and ls and find -ls
+sub cmd_due {
   my %o;
-  my @argv=args("zkKmhciMPate:lE:",\%o,@_);
+  my @argv=args("zkKmhciMPate:lE:t",\%o,@_);
   @argv=('.') if !@argv;
   require File::Find;
   no warnings 'uninitialized';
@@ -7259,6 +7260,7 @@ sub cmd_due { #TODO: output from tar tvf and ls and find -ls
       "  ".join(" ",@r);
   };
   my $width=max( 10, grep $_, map length($_), @e );
+  @e=@e[-10..-1] if $o{t} and @e>10; #-t tail
   printf("%-*s %8d $f %7.2f%%%s\n",$width,$_,$c{$_},&$s($b{$_}),100*$b{$_}/$bts,&$perc($_)) for @e;
   printf("%-*s %8d $f %7.2f%%%s\n",$width,"Sum",$cnt,&$s($bts),100,&$perc());
 }
