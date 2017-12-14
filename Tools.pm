@@ -3947,6 +3947,12 @@ Example, this:
    ['file3.txt','The text....and hop'],
  ]);
 
+Automatic compression:
+
+ writefile('file.txt.gz','my text is compressed by /bin/gzip before written to the file');
+
+Extentions C<.gz>, C<.bz2> and C<.xz> are recognized for compression. See also C<readfile()> and C<openstr()>.
+
 B<Output:> Nothing (for the time being). C<die()>s (C<croak($!)> really) if something goes wrong.
 
 =cut
@@ -4013,6 +4019,12 @@ The last example can be rewritten:
  }
 
 With two input arguments, nothing (undef) is returned from C<readfile()>.
+
+Automatic decompression:
+
+ my $txt = readfile('file.txt.gz');  #uses /bin/gunzip to decompress content
+
+Extentions C<.gz>, C<.bz2> and C<.xz> are recognized for decompression. See also C<writefile()> and C<openstr()>.
 
 =cut
 
@@ -4360,6 +4372,8 @@ is returned instead of gzip if /bin is the first directory in
 $ENV{PATH} containing an executable file gzip. Dirs /usr/bin, /bin and
 /usr/local/bin is added to PATH in openstr(). They are checked even if
 PATH is empty.
+
+See also C<writefile()> and C<readfile()> for automatic compression and decompression using C<openstr>.
 
 =cut
 
