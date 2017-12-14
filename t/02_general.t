@@ -2,7 +2,7 @@
 # perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
 
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests => 169;
+use Test::More tests => 171;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -217,9 +217,16 @@ if($^O eq 'linux' and -w$tmp){
   else                       { ok(0,"open $fn") }
   ok("".readfile($fn) eq $data, 'readfile');
   ok(join(",",readfile($fn)) eq replace($data,"\n",","), 'readfile lines');
+  my $sz=-s$fn;
   unlink($fn);
+  writefile("$fn.gz",$data);
+  my $szgz=-s"$fn.gz";
+  ok($szgz/$sz < 0.1,             'writefile gz');
+  deb "gz ".($szgz/$sz);
+  ok(readfile("$fn.gz") eq $data, 'readfile gz');
+  unlink("$fn.gz");
 }
-else{ok(1) for 1..3}     # not linux
+else{ok(1) for 1..5}     # not linux
 
 #--permutations
 ok(join("-", map join("",@$_), permutations('a','b')) eq 'ab-ba', 'permutations 1');

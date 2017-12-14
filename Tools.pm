@@ -3958,7 +3958,7 @@ sub writefile {
 	writefile(@$_) for @$filename;
 	return;
     }
-    open(WRITEFILE,">",$filename) and binmode(WRITEFILE) or croak($!);
+    open(WRITEFILE,openstr(">$filename")) and binmode(WRITEFILE) or croak($!);
     if(!defined $text or !ref($text)){
 	print WRITEFILE $text;
     }
