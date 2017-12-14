@@ -4364,10 +4364,11 @@ PATH is empty.
 =cut
 
 our @Openstrpath=(grep$_,split(":",$ENV{PATH}),qw(/usr/bin /bin /usr/local/bin));
+our $Magic_openstr=1;
 sub openstr_prog { @Openstrpath or return $_[0];(grep -x$_, map "$_/$_[0]", @Openstrpath)[0] or croak"$_[0] not found" }
 sub openstr {
   my($fn,$ext)=(shift()=~/^(.*?(?:\.(t?gz|bz2|xz))?)$/i);
-  return $fn if !$ext;
+  return $fn if !$ext or !$Magic_openstr;
   $fn =~ /^\s*>/
       ?  "| ".(openstr_prog({qw/gz gzip bz2 bzip2 xz xz tgz gzip/   }->{lc($ext)})).$fn
       :        openstr_prog({qw/gz zcat bz2 bzcat xz xzcat tgz zcat/}->{lc($ext)})." $fn |";
@@ -7206,7 +7207,7 @@ sub cmd_due {
   my(%c,%b,$cnt,$bts,%mtime);
   my $zext=$o{z}?'(\.(z|Z|gz|bz2|xz|rz|kr|lrz|rz))?':'';
   $o{E}||=11;
-  my $r=qr/(\.[^\.\/]{1,$o{E}}$zext)$/;
+  my $r=qr/(\.[^\.\/]{1,$o{E}}$zext)$/i;
   my $qrexcl=exists$o{e}?qr/$o{e}/:0;
  #TODO: ought to work: tar cf - .|tar tvf -|due
   if(-p STDIN or @Due_fake_stdin){

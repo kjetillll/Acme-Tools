@@ -9,7 +9,8 @@ Tests for cmd_due not available for $^O, only linux and cygwin
 my $tmp=tmp();
 my %f=( a=>10, b=>20, c=>30 );
 my $i=1;
-for my $ext (qw( .gz .xz .TXT .doc .doc.gz),""){
+$Acme::Tools::Magic_openstr=0;
+for my $ext (qw( .gz .xz .txt .doc .doc.gz),""){
   writefile("$tmp/$_$ext","x" x ($f{$_}*$i++)) for sort(keys%f);
 }
 #print qx(find $tmp -ls),"\n" if $ENV{ATDEBUG}; #!deb()
