@@ -7284,7 +7284,7 @@ sub cmd_resubst {
   my $zo="123456789e";
   my @argv=args("f:t:vno:$zo",\%o,@_);
   if(exists$o{t}){ $o{t}=~s,\\,\$, } else { $o{t}='' }
-  my($i,$tc)=(0,0);
+  my($i,$tc,$tbfr,$tbto)=(0,0,0,0);
   for my $file (@argv){
       my $zopt=join" ",map"-$_",grep$o{$_},split//,$zo;
       my $oext=$o{o}?$o{o}:$file=~/\.(gz|bz2|xz)$/i?$1:'';
@@ -7306,9 +7306,17 @@ sub cmd_resubst {
       unlink $file or croak"ERR: cant rm $file\n";
       my $newfile=$o{o}?repl($file,qr/\.(gz|bz2|xz)$/i,".$oext"):$file;
       rename("$file.tmp$$",$newfile) or croak"ERR: rename $file.tmp$$ -> $newfile failed\n";
-      my $pr=$bfr?100*$bto/$bfr:0;
-      printf"%*d/%d %*s %7d =>%8d b (%2d%%) %s\n",
-        length(0+@argv),++$i,0+@argv,-13,"$tc/$c",$bfr,$bto,$pr,$file if $o{v};
+      if($o{v}){
+	my $pr=$bfr?100*$bto/$bfr:0;
+	printf "%*d/%d %*s %7d =>%8d b (%2d%%) %s\n",
+	  length(0+@argv), ++$i, 0+@argv, -13, "$tc/$c", $bfr, $bto, $pr, $file;
+	$tbfr+=$bfr;
+	$tbto+=$bto;
+      }
+  }
+  if($o{v} and @argv>1){
+      printf "Replaces: %d  Bytes before: %d  After: %d   Change: %.1f%%\n",
+        $tc, $tbfr, $tbto, $tbfr?100*($tbto-$tbfr)/$tbfr:0
   }
   $tc;
 }
