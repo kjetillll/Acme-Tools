@@ -7309,7 +7309,7 @@ sub cmd_resubst {
       if($o{v}){
 	my $pr=$bfr?100*$bto/$bfr:0;
 	printf "%*d/%d %*s %7d =>%8d b (%2d%%) %s\n",
-	  length(0+@argv), ++$i, 0+@argv, -13, "$tc/$c", $bfr, $bto, $pr, $file;
+	  length(0+@argv), ++$i, 0+@argv, -15, "$tc/$c", $bfr, $bto, $pr, $file;
 	$tbfr+=$bfr;
 	$tbto+=$bto;
       }
