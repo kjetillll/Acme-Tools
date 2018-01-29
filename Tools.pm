@@ -7113,35 +7113,34 @@ sub ext2mime {
   #return "application/json";#feks
 }
 
-sub base64 ($;$) {
-    if ($] >= 5.006) {
-        require bytes;
-	croak "The Base64 encoding is only defined for bytes"
-          if bytes::length($_[0]) > length($_[0])
-          or $] >= 5.008 && $_[0] =~ /[^\0-\xFF]/
-    }
-    use integer;
-    my $eol=$_[1];
-    $eol="\n" if !defined$eol;
-    my $res = pack("u", $_[0]);
-    $res =~ s/^.//mg;              # del 1st char every line
-    $res =~ s/\n//g;               # remove \n
-    $res =~ tr|` -_|AA-Za-z0-9+/|; # `# help emacs
-    my $padding=(3-length($_[0])%3)%3; # = padding   
-    $res=~s/.{$padding}$/'=' x $padding/e if $padding;
-    $res=~s/(.{1,76})/$1$eol/g if length($eol);
-    $res;
+sub base64 ($;$) { #
+  if ($] >= 5.006) {
+    require bytes;
+    croak "The Base64 encoding is only defined for bytes"
+      if bytes::length($_[0]) > length($_[0])
+      or $] >= 5.008 && $_[0] =~ /[^\0-\xFF]/
+  }
+  use integer; #needed?
+  my $eol=defined$_[1]?$_[1]:"\n";
+  my $res=pack("u",$_[0]);
+  $res=~s/^.//mg;
+  $res=~s/\n//g;
+  $res=~tr|` -_|AA-Za-z0-9+/|;
+  my $pad=(3-length($_[0])%3)%3;
+  $res=~s/.{$pad}$/'=' x $pad/e if $pad;
+  $res=~s/(.{1,76})/$1$eol/g if length($eol); #todo !=76
+  $res;
 }
 
 sub unbase64 ($) {
-    local($^W) = 0; # unpack("u",...) gives bogus warning in 5.00[123]                                                            
-    use integer; #needed?
-    my $s=shift;
-    $s=~tr|A-Za-z0-9+=/||cd;            # remove non-base64 chars                                                             
-    croak "Length ".length($s)." of base64 data not a multiple of 4" if length($s)%4;
-    $s=~s/=+$//;
-    $s=~tr|A-Za-z0-9+/| -_|;
-    length($s)?unpack("u",join'',map(chr(32+length($_)*3/4).$_,$s=~/(.{1,60})/gs)):"";
+  local($^W) = 0; # unpack("u",...) gives bogus warning in 5.00[123]                                                            
+  use integer; #needed?
+  my $s=shift;
+  $s=~tr|A-Za-z0-9+=/||cd;            # remove non-base64 chars                                                             
+  croak "Length ".length($s)." of base64 data not a multiple of 4" if length($s)%4;
+  $s=~s/=+$//;
+  $s=~tr|A-Za-z0-9+/| -_|;
+  length($s) ? unpack("u",join'',map(chr(32+length($_)*3/4).$_,$s=~/(.{1,60})/gs)) : "";
 }
 
 
