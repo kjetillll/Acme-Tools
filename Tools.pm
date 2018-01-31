@@ -223,16 +223,18 @@ Acme::Tools - Lots of more or less useful subs lumped together and exported into
 
  print sum(1,2,3);                   # 6
  print avg(2,3,4,6);                 # 3.75
+ print median(2,3,4,6);              # 3.5
+ print percentile(25, 101..199);     # 125
 
- my @list = minus(\@listA, \@listB); # set operations
- my @list = union(\@listA, \@listB); # set operations
+ my @list = minus(\@listA, \@listB); # set operation
+ my @list = union(\@listA, \@listB); # set operation
 
  print length(gzip("abc" x 1000));   # far less than 3000
 
  writefile("/dir/filename",$string); # convenient
- my $s=readfile("/dir/filename");    # also conventient
+ my $s=readfile("/dir/filename");    # also convenient
 
- print "yes!" if between($pi,3,4);
+ print "yes!" if between($PI,3,4);
 
  print percentile(0.05, @numbers);
 
@@ -242,7 +244,12 @@ Acme::Tools - Lots of more or less useful subs lumped together and exported into
  my $dice = random(1,6);
  my $color = random(['red','green','blue','yellow','orange']);
 
- ...and more.
+ pushr $arrayref[$num], @stuff;      # push @{ $arrayref[$num] }, @stuff ... popr, shiftr, unshiftr
+
+ print 2**200;       # 1.60693804425899e+60
+ print big(2)**200;  # 1606938044258990275541962092341162602522202993782792835301376
+
+ ...and much more.
 
 =encoding utf8
 
@@ -1635,7 +1642,7 @@ C<< Math::BigInt->new() >>, C<< Math::BigFloat->new() >> and C<< Math::BigRat->n
 
   print 1/7;          # 0.142857142857143
   print 1/big(7);     # 0      because of integer arithmetics
-  print 1/big(7.0);   # 0      because 7.0 is viewed as an integer
+  print 1/big(7.0);   # 0      because 7.0 is viewed as an integer, see bigf below
   print 1/big('7.0'); # 0.1428571428571428571428571428571428571429
   print 1/bigf(7);    # 0.1428571428571428571428571428571428571429
   print bigf(1/7);    # 0.142857142857143   probably not what you wanted
@@ -5238,7 +5245,7 @@ One or more numeric arguments:
 
 First: x (first returned element)
 
-Second: y (last but not including)
+Second: y (up to y but not including y)
 
 Third: step, default 1. The step between each returned element
 
@@ -5254,8 +5261,8 @@ If three arguments: The default step is 1. Use a third argument to use a differe
 
 B<Examples:>
 
- print join ",", range(11);         # prints 0,1,2,3,4,5,6,7,8,9,10      (but not 11)
- print join ",", range(2,11);       # 2,3,4,5,6,7,8,9,10          (but not 11)
+ print join ",", range(11);         # prints 0,1,2,3,4,5,6,7,8,9,10  (but not 11)
+ print join ",", range(2,11);       # 2,3,4,5,6,7,8,9,10             (but not 11)
  print join ",", range(11,2,-1);    # 11,10,9,8,7,6,5,4,3
  print join ",", range(2,11,3);     # 2,5,8
  print join ",", range(11,2,-3);    # 11,8,5
@@ -5271,7 +5278,7 @@ Use C<range> in L<List::Gen> to get a similar lazy generator in Perl.
 =cut
 
 sub range {
-  return _range_accellerated(@_) if @_>3;  #se under
+  return _range_accellerated(@_) if @_>3;  #see below
   my($x,$y,$jump)=@_;
   return (  0 .. $x-1 ) if @_==1;
   return ( $x .. $y-1 ) if @_==2;
@@ -5323,14 +5330,14 @@ sub globr($) {
 
 How many ways (permutations) can six people be placed around a table:
 
- If one person:          one
- If two persons:         two     (they can swap places)
- If three persons:       six
- If four persons:         24
- If five persons:        120
- If six  persons:        720
+ One person:          one way
+ Two persons:         two ways  (they can swap places)
+ Three persons:         6
+ Four persons:         24
+ Five persons:        120
+ Six  persons:        720
 
-The formula is C<x!> where the postfix unary operator C<!>, also known as I<faculty> is defined like:
+The formula is C<x!> where the postfix unary operator C<!>, also known as I<faculty> is defined as:
 C<x! = x * (x-1) * (x-2) ... * 1>. Example: C<5! = 5 * 4 * 3 * 2 * 1 = 120>.Run this to see the 100 first C<< n! >>
 
  perl -MAcme::Tools -le'$i=big(1);print "$_!=",$i*=$_ for 1..100'
@@ -5484,7 +5491,7 @@ Input: two or more arrayrefs with accordingly x, y, z and so on number of elemen
 Output: An array of x * y * z number of arrayrefs. The arrays being the cartesian product of the input arrays.
 
 It can be useful to think of this as joins in SQL. In C<select> statements with
-more tables behind C<from>, but without any C<where> condition to join the tables.
+more than one table behind C<from>, but without any C<where> condition to join the tables.
 
 B<Advanced usage, with condition(s):>
 
@@ -5520,7 +5527,7 @@ Prints the same as this:
    }
  }
 
-B<And this:> (with a condition: the sum of the first two should be dividable with 3)
+B<This:> with a condition: the sum of the first two should be divisible by 3:
 
  for( cart( \@a1, \@a2, sub{sum(@$_)%3==0}, \@a3 ) ) {
    my($a1,$a2,$a3)=@$_;
@@ -5557,13 +5564,13 @@ B<Example, hash-mode:>
 
 Returns hashrefs instead of arrayrefs:
 
- my @cards=cart(             #5200 cards: 100 decks of 52 cards
-   deck  => [1..100],
-   value => [qw/2 3 4 5 6 7 8 9 10 J Q K A/],
-   col   => [qw/heart diamond club star/],
+ my @cards=cart(          # @card gets 5200 hashrefs, 100 decks of 52 cards
+   deck => [1..100],
+   rank => [qw(2 3 4 5 6 7 8 9 10 J Q K A)],
+   suit => [qw(heart diamond club star)],
  );
  for my $card ( mix(@cards) ) {
-   print "From deck number $$card{deck} we got $$card{value} $$card{col}\n";
+   print "From deck number $$card{deck} we got $$card{rank} $$card{suit}\n";
  }
 
 Note: using sub-ref filters do not work (yet) in hash-mode. Use grep on result instead.
@@ -5584,7 +5591,7 @@ sub cart {
   return @res;
 }
 
-sub cart_easy { #not tested/exported http://stackoverflow.com/questions/2457096/in-perl-how-can-i-get-the-cartesian-product-of-multiple-sets
+sub cart_easy { #not tested, not exported http://stackoverflow.com/questions/2457096/in-perl-how-can-i-get-the-cartesian-product-of-multiple-sets
   my $last = pop @_;
   @_ ? (map {my$left=$_; map [@$left, $_], @$last } cart_easy(@_) )
      : (map [$_], @$last);
