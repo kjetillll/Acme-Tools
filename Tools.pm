@@ -1893,7 +1893,7 @@ sub trim {
   my $s=shift;
   if(ref($s) eq 'SCALAR'){ $$s=~s,^\s+|(?<=\s)\s+|\s+$,,g; return $$s}
   if(ref($s) eq 'ARRAY') { trim(\$_) for @$s; return $s }
-  $s=~s,^\s+|(?<=\s)\s+|\s+$,,g;
+  $s=~s,^\s+|(?<=\s)\s+|\s+$,,g if defined $s;
   $s;
 }
 
