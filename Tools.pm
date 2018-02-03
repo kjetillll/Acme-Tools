@@ -70,6 +70,8 @@ our @EXPORT = qw(
   not_intersect
   mix
   zip
+  sim
+  sim_perm
   subarr
   subhash
   hashtrans
@@ -2184,6 +2186,75 @@ sub zip {
   return @res;
 }
 
+=head2 sim
+
+=cut
+    
+sub sim {
+  require String::Similarity;
+  my($str,@r)=@_;
+  @r==1 and return String::Similarity::similarity(@_); #to param
+  my($min,$mindiff);
+  if(ref($r[0]) eq 'ARRAY'){
+    ($min,$mindiff)=@r[1,2];
+    @r=@{$r[0]};
+  }
+  $min||=0;
+  my $likest;
+  my $simlikest;
+  my $simnestlikest;
+  my $idlikest;
+  for(@r){
+    my($s,$id)=ref($_) eq 'ARRAY' ? @$_ : ($_);
+    my $sim=String::Similarity::similarity($str,$s,$simnestlikest);
+    if($sim>=$simlikest){
+      $simnestlikest=$simlikest;
+      $likest=$s;
+      $simlikest=$sim;
+      $idlikest=$id if defined $id;
+    }
+    elsif($sim>=$simnestlikest){
+      $simnestlikest=$sim;
+    }
+  }
+  my@ret=($simlikest,$likest);
+  @ret=(undef,undef) if $simnestlikest>0 and $simlikest-$simnestlikest<$mindiff;
+  @ret=(undef,undef) if $simlikest<$min;
+  @ret=(@ret,$simnestlikest,$simlikest,$likest);
+  push(@ret, $ret[0] ? $idlikest : undef) if defined $idlikest;
+  return wantarray?@ret:$ret[0];
+}
+
+=head2 sim_perm
+
+=cut
+
+sub sim_perm {
+  require String::Similarity;
+  my($s1,$s2)=map upper($_), @_;
+  $s1=~s/^\s*(.+?)\s*$/$1/;
+  $s2=~s/^\s*(.+?)\s*$/$1/;
+  croak if not length($s1) or not length($s2);
+  my $max;
+  for(cart([permutations(split(/[\s,]+/,$s1))],
+           [permutations(split(/[\s,]+/,$s2))]))
+  {
+    my($n1,$n2)=@$_;
+    if(@$n1>@$n2){    pop@$n1 while @$n1>@$n2 }
+    else         {    pop@$n2 while @$n1<@$n2 }
+    my($str1,$str2)=map join(" ",@$_),($n1,$n2);
+    if(defined $max){
+      my $sim=String::Similarity::similarity($str1,$str2,$max);
+      $max=$sim if $sim>$max;
+    }
+    else {
+      $max=String::Similarity::similarity($str1,$str2);
+    }
+    last if $max==1;
+  }
+  return $max;
+}
+    
 
 =head2 pushsort
 
