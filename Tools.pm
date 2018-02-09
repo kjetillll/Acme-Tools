@@ -173,6 +173,8 @@ our @EXPORT = qw(
   keysr
   valuesr
   eachr
+  aoh2sql
+  aoh2xls
   base64
   unbase64
   ed
@@ -2656,6 +2658,78 @@ sub eachr    { ref($_[0]) eq 'HASH'  ? each(%{shift()})
 #sub mapr    # som scala: hvis map faar subref se kalles den sub paa hvert elem og resultatet returneres
 
 #sub eachr    { each(%{shift()}) }
+
+sub aoh2sql {
+    my($aoh,$conf)=@_;
+    my %def=(
+	name=>'my_table',
+	number=>'numeric',
+	varchar=>'varchar',
+	date=>'date',
+	varchar_maxlen=>4000,
+	drop=>0,  # 1 drop table if exists, 2 plain drop
+	end=>"commit;\n",
+	begin=>"begin;\n",
+	);
+    my %conf=(%def,@_<2?():%$conf);
+    $conf{$_}||=$def{$_} for keys%def;
+    my %col;
+    map $col{$_}++, keys %$_ for @$aoh;
+    my @col=sort keys %col;
+    my @colerr=grep!/^[a-z]\w+$/i,@col;
+    croak "Invalid column name(s): @colerr" if @colerr;
+    my(%t,%tdb);
+    for my $c (@col){
+	my($l,$s,$p,$nn,%ant,$t)=(0,0,0,0);
+	for my $r (@$aoh){
+	    my $v=$$r{$c};
+	    next if !defined$v or $v!~/\S/;
+	    $nn++;
+	    $l=length($v) if length($v)>$l;
+	    no warnings 'uninitialized';
+	    if($v=~/^(18|19|20)\d\d(0[1-9]|1[0-2])(0[1-9]|1\d|2\d|3[01])-?\d\d:?\d\d:?\d\d$/ and $conf{date}){
+		$ant{date}++;
+		next;
+	    }
+	    elsif($v=~/^\s*[-+]?(\d*)(\.\d+)?([Ee]\-?\d+)?\s*$/ and length("$1$2") and $conf{number}){
+		$ant{number}++;
+		$s=length("$1.$2") if length("$1.$2")>$s;#hm
+		$p=length($2)-1 if $2 and length($2)-1>$p;
+		next;
+	    }
+	    else {
+		$ant{varchar}++;
+	    }
+	}
+	$t||='varchar' if $ant{varchar}  or  $ant{number} and $ant{date};
+	$t||='number'  if $ant{number};
+	$t||='date'    if $ant{date};
+	$t||='varchar'; #hm
+	$l=$conf{varchar_maxlen} if $conf{varchar_maxlen} and $l>$conf{varchar_maxlen};
+	$l||=1;
+	my $tdb;
+	$tdb="$conf{$t}($l)"    if $t eq 'varchar';
+	$tdb="$conf{$t}($s)"    if $t eq 'number' and $p==0;
+	$tdb="$conf{$t}($s,$p)" if $t eq 'number' and $p>0 and ++$s;
+	$tdb.=" not null" if $nn == 0+@$aoh;
+	$t{$c}=$t;
+	$tdb{$c}=$tdb;
+    }
+    my $sql="create table $conf{name} ( ".
+	join(",",map sprintf("\n  %-30s %s",$_,$tdb{$_}), @col). "\n);\n\n";
+    my $val=sub{my($v,$t)=@_;!length($v)?'null':$t eq 'number' ? $v : "'".repl($v,"\'","''")."'"};
+    for my $r (@$aoh){
+	my $v=join",",map &$val($$r{$_},$t{$_}), @col;
+	$sql.="insert into $conf{name} values ($v);\n";
+    }
+    $sql="drop table $conf{name};\n\n$sql" if $conf{drop};
+    $sql="$conf{begin}\n$sql" if $conf{begin};
+    $sql.=$conf{end};
+    $sql;
+}
+
+sub aoh2xls { croak "Not implemented yet: aoh2xls" }
+
 
 =head1 STATISTICS
 
@@ -7393,7 +7467,7 @@ sub cmd_due {
 sub cmd_resubst {
   my %o;
   my $zo="123456789e";
-  my @argv=args("f:t:vno:$zo",\%o,@_);
+  my @argv=args("f:t:vno:g$zo",\%o,@_);
   if(exists$o{t}){ $o{t}=~s,\\,\$, } else { $o{t}='' }
   my($i,$tc,$tbfr,$tbto)=(0,0,0,0);
   for my $file (@argv){
@@ -7406,10 +7480,8 @@ sub cmd_resubst {
       open my $I, $open_in  or croak"ERR: open $open_in failed. $! $?\n";
       open my $O, $open_out or croak"ERR: open $open_out failed. $! $?\n";
       my $c=0;
-      while(<$I>){
-	$c+=s/$o{f}/$o{t}/;
-	print $O $_;
-      }
+      my $mod=$o{g}?'g':'';
+      eval"while(<\$I>){ \$c+=s/\$o{f}/$o{t}/$mod;print \$O \$_ }";
       $tc+=$c;
       close($I);close($O);
       chall($file,"$file.tmp$$") or croak"ERR: chall $file\n" if !$o{n};
@@ -7516,7 +7588,7 @@ sub cmd_z2z {
     #todo: my $cnt="tee >(wc -c>$cntfile)" if $ENV{SHELL}=~/bash/ and $o{v}; #hm dash vs bash
     my $z=  {qw/gz gzip   bz2 bzip2   xz xz/}->{$t};
     $z.=" -$_" for grep$o{$_},1..9,'e';
-    my $cmd="$cat $_|$unz|$z>$new";
+    my $cmd=qq($cat "$_"|$unz|$z>"$new");
      #todo: "$cat $_|$unz|$cnt|$z>$new";
     #cat /tmp/kontroll-linux.xz|unxz|tee >(wc -c>/tmp/p)|gzip|wc -c;cat /tmp/p
     $cmd=~s,\|+,|,g; #print "cmd: $cmd\n";
