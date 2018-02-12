@@ -2661,12 +2661,13 @@ sub eachr    { ref($_[0]) eq 'HASH'  ? each(%{shift()})
 
 sub aoh2sql {
     my($aoh,$conf)=@_;
-    my %def=(
+    my %def=( #defaults
 	name=>'my_table',
 	number=>'numeric',
 	varchar=>'varchar',
 	date=>'date',
 	varchar_maxlen=>4000,
+	create=>1,
 	drop=>0,  # 1 drop table if exists, 2 plain drop
 	end=>"commit;\n",
 	begin=>"begin;\n",
@@ -2715,14 +2716,16 @@ sub aoh2sql {
 	$t{$c}=$t;
 	$tdb{$c}=$tdb;
     }
-    my $sql="create table $conf{name} ( ".
-	join(",",map sprintf("\n  %-30s %s",$_,$tdb{$_}), @col). "\n);\n\n";
+    my $sql;
+    $sql="create table $conf{name} (".
+	 join(",",map sprintf("\n  %-30s %s",$_,$tdb{$_}), @col). "\n);\n\n" if $conf{create};
     my $val=sub{my($v,$t)=@_;!length($v)?'null':$t eq 'number' ? $v : "'".repl($v,"\'","''")."'"};
     for my $r (@$aoh){
 	my $v=join",",map &$val($$r{$_},$t{$_}), @col;
 	$sql.="insert into $conf{name} values ($v);\n";
     }
-    $sql="drop table $conf{name};\n\n$sql" if $conf{drop};
+    $sql="drop table $conf{name};\n\n$sql" if $conf{drop}==1;
+    $sql="drop table if exists $conf{name};\n\n$sql" if $conf{drop}>=2;
     $sql="$conf{begin}\n$sql" if $conf{begin};
     $sql.=$conf{end};
     $sql;
@@ -7467,7 +7470,7 @@ sub cmd_due {
 sub cmd_resubst {
   my %o;
   my $zo="123456789e";
-  my @argv=args("f:t:vno:g$zo",\%o,@_);
+  my @argv=args("f:t:vno:gi$zo",\%o,@_);
   if(exists$o{t}){ $o{t}=~s,\\,\$, } else { $o{t}='' }
   my($i,$tc,$tbfr,$tbto)=(0,0,0,0);
   for my $file (@argv){
@@ -7480,7 +7483,7 @@ sub cmd_resubst {
       open my $I, $open_in  or croak"ERR: open $open_in failed. $! $?\n";
       open my $O, $open_out or croak"ERR: open $open_out failed. $! $?\n";
       my $c=0;
-      my $mod=$o{g}?'g':'';
+      my $mod=join"",grep$o{$_},qw(g i);
       eval"while(<\$I>){ \$c+=s/\$o{f}/$o{t}/$mod;print \$O \$_ }";
       $tc+=$c;
       close($I);close($O);
