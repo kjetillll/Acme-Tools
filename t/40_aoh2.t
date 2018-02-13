@@ -93,3 +93,7 @@ $worksheet->write(1,    $col, 'Hi Excel!');
 $worksheet->write('A3', 1.2345);
 $worksheet->write('A4', '=SIN(PI()/4)');
 ok(1);
+
+#wget https://en.wikipedia.org/wiki/List_of_largest_cities_and_towns_in_Tennessee_by_population
+#perl -MAcme::Tools -le'print aoh2sql([a2h(ht2t(join("",<>),"listings"))],{name=>"list",fix_colnames=>1})' List_of_largest_cities_and_towns_in_Tennessee_by_population |xz -9e|wcc
+#perl -MAcme::Tools -le'print aoh2sql([a2h(ht2t(join("",<>),"listings"))],{drop=>2,name=>"list",fix_colnames=>1})' List_of_largest_cities_and_towns_in_Tennessee_by_population |sqlite3 brb.sqlite

@@ -2671,6 +2671,7 @@ sub aoh2sql {
 	drop=>0,  # 1 drop table if exists, 2 plain drop
 	end=>"commit;\n",
 	begin=>"begin;\n",
+	fix_colnames=>0,
 	);
     my %conf=(%def,@_<2?():%$conf);
     $conf{$_}||=$def{$_} for keys%def;
@@ -2678,7 +2679,7 @@ sub aoh2sql {
     map $col{$_}++, keys %$_ for @$aoh;
     my @col=sort keys %col;
     my @colerr=grep!/^[a-z]\w+$/i,@col;
-    croak "Invalid column name(s): @colerr" if @colerr;
+    croak "Invalid column name(s): @colerr" if @colerr and !$conf{fix_colnames};
     my(%t,%tdb);
     for my $c (@col){
 	my($l,$s,$p,$nn,%ant,$t)=(0,0,0,0);
@@ -2718,7 +2719,7 @@ sub aoh2sql {
     }
     my $sql;
     $sql="create table $conf{name} (".
-	 join(",",map sprintf("\n  %-30s %s",$_,$tdb{$_}), @col). "\n);\n\n" if $conf{create};
+	 join(",",map sprintf("\n  %-30s %s",s/\W+//gr,$tdb{$_}), @col). "\n);\n\n" if $conf{create};
     my $val=sub{my($v,$t)=@_;!length($v)?'null':$t eq 'number' ? $v : "'".repl($v,"\'","''")."'"};
     for my $r (@$aoh){
 	my $v=join",",map &$val($$r{$_},$t{$_}), @col;
