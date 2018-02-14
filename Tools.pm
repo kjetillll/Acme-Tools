@@ -178,6 +178,7 @@ our @EXPORT = qw(
   base64
   unbase64
   ed
+  changed
   $Edcursor
   brainfu
   brainfu2perl
@@ -6563,6 +6564,30 @@ sub ed {
   }
   $Edcursor=$p;
   $s;
+}
+
+=head2 changed
+
+ while(<>){
+    my $line=$_;
+    print "\n" if changed(/^\d\d\d\d-\d\d-(\d\d)/);
+    print "\n" if changed(substr($_,8,2));
+ }
+
+=cut
+
+our %Changed_lastval;
+sub changed {
+    my $now=join($;,@_);
+    my $key=join($;,caller());
+    my $e=exists $Changed_lastval{$key};
+    if($e){
+	my $last=$Changed_lastval{$key};
+	return if  defined $last and  defined $now and $last eq $now
+               or !defined $last and !defined $now;
+    }
+    $Changed_lastval{$key}=$now;
+    return $e;
 }
 
 #todo: sub unbless eller sub damn
