@@ -6574,6 +6574,12 @@ sub ed {
     print "\n" if changed(substr($_,8,2));
  }
 
+Returns undef, 0 or 1. Undef if its the first time C<changed> is
+called on that perl line. 0 if not the first time and the parameters
+differ from the last call on that line. 1 if not the first time and
+the parameters is the exact same as they where on the previous call on
+that line of perl source code.
+
 =cut
 
 our %Changed_lastval;
@@ -6583,11 +6589,11 @@ sub changed {
     my $e=exists $Changed_lastval{$key};
     if($e){
 	my $last=$Changed_lastval{$key};
-	return if  defined $last and  defined $now and $last eq $now
-               or !defined $last and !defined $now;
+	return 0 if  defined $last and  defined $now and $last eq $now
+                 or !defined $last and !defined $now;
     }
     $Changed_lastval{$key}=$now;
-    return $e;
+    return $e?1:undef;
 }
 
 #todo: sub unbless eller sub damn
