@@ -8034,7 +8034,7 @@ sub sum      { &Acme::Tools::bfsum      }
 # + test evt i cygwin og mingw-perl
 # + pod2html Tools.pm > Tools.html ; firefox Tools.html
 # + https://metacpan.org/pod/Acme::Tools
-# + http://cpants.cpanauthors.org/dist/Acme-Tools  #kvalitee
+# + http://cpants.cpanauthors.org/dist/Acme-Tools   #kvalitee
 # + perl Makefile.PL ; make test && make dist
 # + cp -p *tar.gz /htdocs/
 # + ci -l -mversjon -d `cat MANIFEST`
