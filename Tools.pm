@@ -2138,15 +2138,17 @@ same way with negative offsets and boundary control of length.
 
 #Todo: sjekk paastand over
 
-sub subarr(+$;$) {
-    my($a,$o,$l)=@_;
-    $o=@$a+$o if $o<0;
-    $o=0      if $o<0;
-    $o=@$a-1  if $o>@$a-1;
-    $l=@$a-$o if @_<3;
-    die       if $l<0;
-    $l=@$a-$o if $l>@$a-$o;
-    @$a[$o..$o+$l-1];
+
+#sub subarr(+$;$) { #perl>=5.14        # t/35_subarr.t
+sub subarr { #perl<5.14
+  my($a,$o,$l)=@_;
+  $o=@$a+$o if $o<0;
+  $o=0      if $o<0;
+  $o=@$a-1  if $o>@$a-1;
+  $l=@$a-$o if @_<3;
+  die       if $l<0;
+  $l=@$a-$o if $l>@$a-$o;
+  @$a[$o..$o+$l-1];
 }
 
 =head2 min
