@@ -2740,7 +2740,7 @@ sub eachr    { ref($_[0]) eq 'HASH'  ? each(%{shift()})
 
 #sub eachr    { each(%{shift()}) }
 
-=head aoh2sql
+=head2 aoh2sql
 
   my @oceania=map{$$_{Continent}=>'OCE';$_} (
   {Area=>undef,   Capital=>'Pago Pago',        Code=>'AS', Name=>'American Samoa',                       Population=>54343}, 
@@ -8031,7 +8031,7 @@ sub sum      { &Acme::Tools::bfsum      }
 # + perlbrew exec "perl Makefile.PL ; make test" | grep -P '^(perl-|All tests successful)'
 # + perlbrew use perl-5.10.1; perl Makefile.PL; make test; perlbrew off
 # + test evt i cygwin og mingw-perl
-# + pod2html Tools.pm > Tools.html ; firefox Tools.html 
+# + pod2html Tools.pm > Tools.html ; firefox Tools.html
 # + https://metacpan.org/pod/Acme::Tools
 # + http://cpants.cpanauthors.org/dist/Acme-Tools  #kvalitee
 # + perl Makefile.PL ; make test && make dist
