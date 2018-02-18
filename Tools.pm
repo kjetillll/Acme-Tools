@@ -2731,7 +2731,7 @@ sub splicer  { @_==1 ? splice( @{shift()} )
               :@_==2 ? splice( @{shift()}, shift() )
               :@_==3 ? splice( @{shift()}, shift(), shift() )
               :@_>=4 ? splice( @{shift()}, shift(), shift(), @_ ) : die }
-sub keysr    { ref($_[0]) eq 'HASH' ? keys(%{shift()}) : keys(@{shift()})  } #hm sort(keys%{shift()}) ?
+sub keysr    { ref($_[0]) eq 'HASH' ? keys(%{shift()}) : keysr({@{shift()}})  } #hm sort(keys%{shift()}) ?
 sub valuesr  { values( %{shift()} )    }
 sub eachr    { ref($_[0]) eq 'HASH'  ? each(%{shift()})
              #:ref($_[0]) eq 'ARRAY' ? each(@{shift()})  # perl 5.8.8 cannot compile each on array! eval?
