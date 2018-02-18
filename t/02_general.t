@@ -405,7 +405,8 @@ ok(dirname('brbbbb.pl') eq '.'                      ,'dirname');
 # print 14.3 - 14.0;              # 0.300000000000001
 # print 34.3 - 34.0;              # 0.299999999999997
 
-#--failes rarely: http://www.cpantesters.org/cpan/report/fddd1d18-1b2c-11e7-9d0d-a625a53c07fe
+#--fails sometimes, dunno why:
+#http://www.cpantesters.org/cpan/report/fddd1d18-1b2c-11e7-9d0d-a625a53c07fe ( x 20, others also)
 #my($inn,$n,$nn)=(0);
 #my $nndebugstr=sub{++$inn;"nicenum$inn $n --> $Acme::Tools::Nicenum --> $nn"};
 #$nn=nicenum( $n = 14.3 - 14.0 ); cmp_ok($nn,'==',0.3,   &$nndebugstr);

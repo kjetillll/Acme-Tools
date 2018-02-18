@@ -7845,6 +7845,7 @@ sub sum      { &Acme::Tools::bfsum      }
 1;
 
 # Ny versjon:
+# + git clone https://github.com/kjetillll/Acme-Tools.git
 # + c-s todo
 # + endre $VERSION
 # + endre Release history under HISTORY
