@@ -2,7 +2,7 @@
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests    => 10;
 eval 'require String::Similarity';
-if($@){ ok(1) for 1..8; exit }
+if($@){ ok(1) for 1..10; exit }
 
 for(["Humphrey DeForest Bogart",  "Bogart Humphrey DeForest" ],
     ["Humphrey Bogart",           "Humphrey Gump Bogart"],
