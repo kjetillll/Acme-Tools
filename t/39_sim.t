@@ -1,6 +1,6 @@
 # make;perl -Iblib/lib t/39_sim.t
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests    => 8;
+use Test::More tests    => 10;
 eval 'require String::Similarity';
 if($@){ ok(1) for 1..8; exit }
 
@@ -16,9 +16,8 @@ for(["Humphrey DeForest Bogart",  "Bogart Humphrey DeForest" ],
   ok( $s < $sp );
   ok( $sp >= 0.85 );
 }
-<<".";
-my($n1,$n2)=( "Humphrey DeForest Bogart", "Bogart Humphrey DeForest"  );
-my $start=time_fp();
-sim_perm($n1,$n2)."\n" for 1..100;
-deb sprintf("%.5fs\n",time_fp()-$start);
-.
+
+#my($n1,$n2)=( "Humphrey DeForest Bogart", "Bogart Humphrey DeForest"  );
+#my $start=time_fp();
+#sim_perm($n1,$n2)."\n" for 1..100;
+#deb sprintf("%.5fs\n",time_fp()-$start);
