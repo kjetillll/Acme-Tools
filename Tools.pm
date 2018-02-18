@@ -4723,8 +4723,9 @@ Redirects C<print> and C<printf> from STDOUT to a string which is returned.
  my $p = printed { some_sub() };         # now $p contains whatever was printed by some_sub() and the subs call from it
 
 =cut
-    
+
 sub printed (&) { my $s; open(local *STDOUT, '>', \$s) or croak "ERR: $! $?"; shift->(); $s } #todo catch stderr also?
+
 #todo: sub stdin{}
 #todo: sub stdout{}
 #todo: sub stderr{}
