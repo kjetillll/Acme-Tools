@@ -1526,23 +1526,23 @@ sub int2roman {
   : !length($n) ? ""
   : $n<0        ? "-".int2roman(-$n)
   : int($n)!=$n ? croak"int2roman: $n is not an integer"
-  : $] >= 5.014 ?        #s///r modifier introduced in perl v5.14
-        ("I" x $n)
-        =~s,I{1000},M,gr #unnecessary, but speedup for n>1000
-        =~s,I{100},C,gr  #unnecessary, but speedup for n>100
-        =~s,I{10},X,gr   #unnecessary, but speedup for n>10
-        =~s,IIIII,V,gr
-        =~s,IIII,IV,gr
-        =~s,VV,X,gr
-        =~s,VIV,IX,gr
-        =~s,XXXXX,L,gr
-        =~s,XXXX,XL,gr
-        =~s,LL,C,gr
-        =~s,LXL,XC,gr
-        =~s,CCCCC,D,gr
-        =~s,CCCC,CD,gr
-        =~s,DD,M,gr
-        =~s,DCD,CM,gr
+#  : $] >= 5.014 ?        #s///r modifier introduced in perl v5.14
+#        ("I" x $n)
+#        =~s,I{1000},M,gr #unnecessary, but speedup for n>1000
+#        =~s,I{100},C,gr  #unnecessary, but speedup for n>100
+#        =~s,I{10},X,gr   #unnecessary, but speedup for n>10
+#        =~s,IIIII,V,gr
+#        =~s,IIII,IV,gr
+#        =~s,VV,X,gr
+#        =~s,VIV,IX,gr
+#        =~s,XXXXX,L,gr
+#        =~s,XXXX,XL,gr
+#        =~s,LL,C,gr
+#        =~s,LXL,XC,gr
+#        =~s,CCCCC,D,gr
+#        =~s,CCCC,CD,gr
+#        =~s,DD,M,gr
+#        =~s,DCD,CM,gr
   : do {
       $n="I" x $n;
       $n=~s,I{1000},M,g; #unnecessary, but speedup for n>1000
