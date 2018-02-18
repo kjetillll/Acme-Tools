@@ -8,6 +8,8 @@ for(["Humphrey DeForest Bogart",  "Bogart Humphrey DeForest" ],
     ["Humphrey Bogart",           "Humphrey Gump Bogart"],
     ["Humphrey deforest Bogart",  "Bogart DeForest"],
     ["Humfrey DeForest Boghart",  "BOGART HUMPHREY"],
+#   ["Humfrey Deforest Boghart",  "BOGART D. HUMFREY"], #todo
+    ["Humphrey",                  "Bogart Humphrey"],
 ){
   my($s,$sp)=(sim(@$_),sim_perm(@$_));
   deb sprintf("%-34s %-34s %7.2f vs %7.2f\n",@$_,$s,$sp);

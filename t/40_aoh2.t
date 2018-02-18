@@ -1,34 +1,35 @@
 # make;perl -Iblib/lib t/40_aoh2.t
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests => 2;
-my @oceania=map{$$_{Continent}=>'OCE';$_} (
-  {Area=>undef,   Capital=>'Pago Pago',        Code=>'AS', Name=>'American Samoa',                       Population=>54343}, 
-  {Area=>7686850, Capital=>'Canberra',         Code=>'AU', Name=>'Australia',                            Population=>22751014}, 
-  {Area=>undef,   Capital=>'West Island',      Code=>'CC', Name=>'Cocos (Keeling) Islands',              Population=>596}, 
-  {Area=>240,     Capital=>'Avarua',           Code=>'CK', Name=>'Cook Islands',                         Population=>9838}, 
-  {Area=>undef,   Capital=>'Flying Fish Cove', Code=>'CX', Name=>'Christmas Island',                     Population=>1530}, 
-  {Area=>18270,   Capital=>'Suva',             Code=>'FJ', Name=>'Fiji',                                 Population=>909389}, 
-  {Area=>702,     Capital=>'Palikir',          Code=>'FM', Name=>'Micronesia, Federated States of',      Population=>105216}, 
-  {Area=>549,     Capital=>'Hagatna (Agana)',  Code=>'GU', Name=>'Guam',                                 Population=>161785}, 
-  {Area=>undef,   Capital=>undef,              Code=>'HM', Name=>'Heard Island and McDonald Islands',    Population=>0}, 
-  {Area=>811,     Capital=>'Tarawa',           Code=>'KI', Name=>'Kiribati',                             Population=>105711}, 
-  {Area=>181.3,   Capital=>'Majuro',           Code=>'MH', Name=>'Marshall Islands',                     Population=>72191}, 
-  {Area=>19060,   Capital=>'Noumea',           Code=>'NC', Name=>'New Caledonia',                        Population=>271615}, 
-  {Area=>undef,   Capital=>'Kingston',         Code=>'NF', Name=>'Norfolk Island',                       Population=>2210}, 
-  {Area=>21,      Capital=>'Yaren District',   Code=>'NR', Name=>'Nauru',                                Population=>9540}, 
-  {Area=>260,     Capital=>'Alofi',            Code=>'NU', Name=>'Niue',                                 Population=>1190}, 
-  {Area=>268680,  Capital=>'Wellington',       Code=>'NZ', Name=>'New Zealand',                          Population=>4438393}, 
-  {Area=>undef,   Capital=>'Papeete',          Code=>'PF', Name=>'French Polynesia',                     Population=>282703}, 
-  {Area=>462840,  Capital=>'Port Moresby',     Code=>'PG', Name=>'Papua New Guinea',                     Population=>6672429}, 
-  {Area=>undef,   Capital=>'Adamstown',        Code=>'PN', Name=>'Pitcairn',                             Population=>48}, 
-  {Area=>458,     Capital=>'Melekeok',         Code=>'PW', Name=>'Palau',                                Population=>21265}, 
-  {Area=>28450,   Capital=>'Honiara',          Code=>'SB', Name=>'Solomon Islands',                      Population=>622469}, 
-  {Area=>undef,   Capital=>undef,              Code=>'TK', Name=>'Tokelau',                              Population=>1337}, 
-  {Area=>26,      Capital=>'Funafuti',         Code=>'TV', Name=>'Tuvalu',                               Population=>10869}, 
-  {Area=>undef,   Capital=>undef,              Code=>'UM', Name=>'United States Minor Outlying Islands', Population=>undef}, 
-  {Area=>12200,   Capital=>'Port-Vila',        Code=>'VU', Name=>'Vanuatu',                              Population=>272264}, 
-  {Area=>undef,   Capital=>'Mata-Utu',         Code=>'WF', Name=>'Wallis and Futuna',                    Population=>15500}, 
-  {Area=>2944,    Capital=>'Apia',             Code=>'WS', Name=>'Samoa (Western)',                      Population=>197773}
+use Test::More tests => 3;
+my @oceania=a2h(
+  [qw(Area      Population Capital             Code  Name)],
+  [   undef,    54343,    'Pago Pago',        'AS', 'American Samoa'],
+  [   7686850,  22751014, 'Canberra',         'AU', 'Australia'],
+  [   undef,    596,      'West Island',      'CC', 'Cocos (Keeling) Islands'],
+  [   240,      9838,     'Avarua',           'CK', 'Cook Islands'],
+  [   undef,    1530,     'Flying Fish Cove', 'CX', 'Christmas Island'],
+  [   18270,    909389,   'Suva',             'FJ', 'Fiji'],
+  [   702,      105216,   'Palikir',          'FM', 'Micronesia, Federated States of'],
+  [   549,      161785,   'Hagatna (Agana)',  'GU', 'Guam'],
+  [   undef,    0,         undef,             'HM', 'Heard Island and McDonald Islands'],
+  [   811,      105711,   'Tarawa',           'KI', 'Kiribati'],
+  [   181.3,    72191,    'Majuro',           'MH', 'Marshall Islands'],
+  [   19060,    271615,   'Noumea',           'NC', 'New Caledonia'],
+  [   undef,    2210,     'Kingston',         'NF', 'Norfolk Island'],
+  [   21,       9540,     'Yaren District',   'NR', 'Nauru'],
+  [   260,      1190,     'Alofi',            'NU', 'Niue'],
+  [   268680,   4438393,  'Wellington',       'NZ', 'New Zealand'],
+  [   undef,    282703,   'Papeete',          'PF', 'French Polynesia'],
+  [   462840,   6672429,  'Port Moresby',     'PG', 'Papua New Guinea'],
+  [   undef,    48,       'Adamstown',        'PN', 'Pitcairn'],
+  [   458,      21265,    'Melekeok',         'PW', 'Palau'],
+  [   28450,    622469,   'Honiara',          'SB', 'Solomon Islands'],
+  [   undef,    1337,      undef,             'TK', 'Tokelau'],
+  [   26,       10869,    'Funafuti',         'TV', 'Tuvalu'],
+  [   undef,    undef,     undef,             'UM', 'United States Minor Outlying Islands'],
+  [   12200,    272264,   'Port-Vila',        'VU', 'Vanuatu'],
+  [   undef,    15500,    'Mata-Utu',         'WF', 'Wallis and Futuna'],
+  [   2944,     197773,   'Apia',             'WS', 'Samoa (Western)']
 );
 my $sql1=aoh2sql(\@oceania,{name=>'country',drop=>2});
 my $sql2=<<'.';
@@ -75,6 +76,10 @@ commit;
 .
 is( $sql1, $sql2, 'correct' );
 
+my $sql3=aoh2sql(\@oceania,{name=>'country',create=>0});
+$sql2=~s,^(drop|create) table.*?;\n\n,,sgm;
+
+is( $sql3, $sql2, 'correct without drop and create' );
 eval{ require Spreadsheet::WriteExcel };
 if($@){
 	ok(1,'Spreadsheet::WriteExcel not installed, skip test for aoh2xls()');

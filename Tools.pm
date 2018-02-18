@@ -2191,6 +2191,20 @@ sub zip {
 
 =head2 sim
 
+B<Input:> Two or more strings
+
+B<Output:> A number 0 - 1 indicating the similarity between two strings.
+
+Requires L<String::Similarity> where the real magic happens.
+
+ sim("Donald Duck", "Donald E. Knuth");    # returns 0.615
+ sim("Kalle Anka", "Kalle And")'           # returns 0.842
+ sim("Kalle Anka", "Kalle Anka");          # returns 1
+ sim("Kalle Anka", "kalle anka");          # returns 0.8
+ sim(map lc, "Kalle Anka", "kalle anka");  # returns 1
+
+Todo: more doc
+
 =cut
     
 sub sim {
@@ -2229,6 +2243,31 @@ sub sim {
 }
 
 =head2 sim_perm
+
+B<Input:> Two strings
+
+B<Output:> A number 0 - 1 indicating the maximum similarity between two strings tested
+against all permutations of both strings split on C<< [\s,]+ >> and where the string
+with most words (i.e. names) are cut to as many words as the one with least words.
+
+Requires L<String::Similarity> where the real magic happens.
+
+While sim() is case sensitive, sim_perm() is not.
+
+ Name1                              Name2                                 sim() sim_perm()
+ ---------------------------------- ------------------------------------- ----- ----------
+ Humphrey DeForest Bogart           Bogart Humphrey DeForest               0.71       1.00
+ Humphrey Bogart                    Humphrey Gump Bogart                   0.86       1.00
+ Humphrey deforest Bogart           Bogart DeForest                        0.41       1.00
+ Humfrey DeForest Boghart           BOGART HUMPHREY                        0.05       0.87
+ Humphrey                           Bogart Humphrey                        0.70       1.00
+ Humfrey Deforest Boghart           BOGART D. HUMFREY                      0.15       0.78 *)
+
+sim_perm() was written to identify double-profiles in databases: two people with
+either the same (or similar) email or phone number or zip code and similar enough
+names are going on the list of probable doubles.
+
+*) Todo: should be higher than 0.78, deal with initials better
 
 =cut
 
@@ -2660,6 +2699,94 @@ sub eachr    { ref($_[0]) eq 'HASH'  ? each(%{shift()})
 
 #sub eachr    { each(%{shift()}) }
 
+=head aoh2sql
+
+  my @oceania=map{$$_{Continent}=>'OCE';$_} (
+  {Area=>undef,   Capital=>'Pago Pago',        Code=>'AS', Name=>'American Samoa',                       Population=>54343}, 
+  {Area=>7686850, Capital=>'Canberra',         Code=>'AU', Name=>'Australia',                            Population=>22751014}, 
+  {Area=>undef,   Capital=>'West Island',      Code=>'CC', Name=>'Cocos (Keeling) Islands',              Population=>596}, 
+  {Area=>240,     Capital=>'Avarua',           Code=>'CK', Name=>'Cook Islands',                         Population=>9838}, 
+  {Area=>undef,   Capital=>'Flying Fish Cove', Code=>'CX', Name=>'Christmas Island',                     Population=>1530}, 
+  {Area=>18270,   Capital=>'Suva',             Code=>'FJ', Name=>'Fiji',                                 Population=>909389}, 
+  {Area=>702,     Capital=>'Palikir',          Code=>'FM', Name=>'Micronesia, Federated States of',      Population=>105216}, 
+  {Area=>549,     Capital=>'Hagatna (Agana)',  Code=>'GU', Name=>'Guam',                                 Population=>161785}, 
+  {Area=>811,     Capital=>'Tarawa',           Code=>'KI', Name=>'Kiribati',                             Population=>105711}, 
+  {Area=>181.3,   Capital=>'Majuro',           Code=>'MH', Name=>'Marshall Islands',                     Population=>72191}, 
+  {Area=>19060,   Capital=>'Noumea',           Code=>'NC', Name=>'New Caledonia',                        Population=>271615}, 
+  {Area=>undef,   Capital=>'Kingston',         Code=>'NF', Name=>'Norfolk Island',                       Population=>2210}, 
+  {Area=>21,      Capital=>'Yaren District',   Code=>'NR', Name=>'Nauru',                                Population=>9540}, 
+  {Area=>260,     Capital=>'Alofi',            Code=>'NU', Name=>'Niue',                                 Population=>1190}, 
+  {Area=>268680,  Capital=>'Wellington',       Code=>'NZ', Name=>'New Zealand',                          Population=>4438393}, 
+  {Area=>undef,   Capital=>'Papeete',          Code=>'PF', Name=>'French Polynesia',                     Population=>282703}, 
+  {Area=>462840,  Capital=>'Port Moresby',     Code=>'PG', Name=>'Papua New Guinea',                     Population=>6672429}, 
+  {Area=>undef,   Capital=>'Adamstown',        Code=>'PN', Name=>'Pitcairn',                             Population=>48}, 
+  {Area=>458,     Capital=>'Melekeok',         Code=>'PW', Name=>'Palau',                                Population=>21265}, 
+  {Area=>28450,   Capital=>'Honiara',          Code=>'SB', Name=>'Solomon Islands',                      Population=>622469}, 
+  {Area=>undef,   Capital=>undef,              Code=>'TK', Name=>'Tokelau',                              Population=>1337}, 
+  {Area=>26,      Capital=>'Funafuti',         Code=>'TV', Name=>'Tuvalu',                               Population=>10869}, 
+  {Area=>12200,   Capital=>'Port-Vila',        Code=>'VU', Name=>'Vanuatu',                              Population=>272264}, 
+  {Area=>undef,   Capital=>'Mata-Utu',         Code=>'WF', Name=>'Wallis and Futuna',                    Population=>15500}, 
+  {Area=>2944,    Capital=>'Apia',             Code=>'WS', Name=>'Samoa (Western)',                      Population=>197773}
+  );
+
+ print aoh2sql(\@oceania,{
+    name=>'country',
+    drop=>2,
+   #number=>'numeric',    #default
+   #varchar=>'varchar',   #default, change to varchar2 if Oracle
+   #date=>'date',         #default, perhaps change to 'timestamp with time zone' if postgres
+   #varchar_maxlen=>4000, #default, 4000 (used to be?) is max in Oracle
+   #create=>1,            #default, use 0 to dont include create table 
+   #drop=>0,              #default 0: dont include drop table x; 1: drop table x; 2: drop table if exists x;
+   #end=>"commit;\n",
+   #begin=>"begin;\n",
+   #fix_colnames=>0,
+ });
+
+Returns:
+
+ begin;
+ 
+ drop table if exists country;
+ 
+ create table country (
+   Area                           numeric(9,1),
+   Capital                        varchar(16),
+   Code                           varchar(2) not null,
+   Name                           varchar(36) not null,
+   Population                     numeric(9)
+ );
+ 
+ insert into country values (null,'Pago Pago','AS','American Samoa',54343);
+ insert into country values (7686850,'Canberra','AU','Australia',22751014);
+ insert into country values (null,'West Island','CC','Cocos (Keeling) Islands',596);
+ insert into country values (240,'Avarua','CK','Cook Islands',9838);
+ insert into country values (null,'Flying Fish Cove','CX','Christmas Island',1530);
+ insert into country values (18270,'Suva','FJ','Fiji',909389);
+ insert into country values (702,'Palikir','FM','Micronesia, Federated States of',105216);
+ insert into country values (549,'Hagatna (Agana)','GU','Guam',161785);
+ insert into country values (811,'Tarawa','KI','Kiribati',105711);
+ insert into country values (181.3,'Majuro','MH','Marshall Islands',72191);
+ insert into country values (19060,'Noumea','NC','New Caledonia',271615);
+ insert into country values (null,'Kingston','NF','Norfolk Island',2210);
+ insert into country values (21,'Yaren District','NR','Nauru',9540);
+ insert into country values (260,'Alofi','NU','Niue',1190);
+ insert into country values (268680,'Wellington','NZ','New Zealand',4438393);
+ insert into country values (null,'Papeete','PF','French Polynesia',282703);
+ insert into country values (462840,'Port Moresby','PG','Papua New Guinea',6672429);
+ insert into country values (null,'Adamstown','PN','Pitcairn',48);
+ insert into country values (458,'Melekeok','PW','Palau',21265);
+ insert into country values (28450,'Honiara','SB','Solomon Islands',622469);
+ insert into country values (null,null,'TK','Tokelau',1337);
+ insert into country values (26,'Funafuti','TV','Tuvalu',10869);
+ insert into country values (12200,'Port-Vila','VU','Vanuatu',272264);
+ insert into country values (null,'Mata-Utu','WF','Wallis and Futuna',15500);
+ insert into country values (2944,'Apia','WS','Samoa (Western)',197773);
+ commit;
+
+
+=cut
+
 sub aoh2sql {
     my($aoh,$conf)=@_;
     my %def=( #defaults
@@ -2674,8 +2801,8 @@ sub aoh2sql {
 	begin=>"begin;\n",
 	fix_colnames=>0,
 	);
-    my %conf=(%def,@_<2?():%$conf);
-    $conf{$_}||=$def{$_} for keys%def;
+    my %conf=(%def,(@_<2?():%$conf));
+#    $conf{$_}||=$def{$_} for keys%def;
     my %col;
     map $col{$_}++, keys %$_ for @$aoh;
     my @col=sort keys %col;
@@ -7856,7 +7983,8 @@ sub sum      { &Acme::Tools::bfsum      }
 # + emacs MANIFEST legg til ev nye t/*.t
 # + perl            Makefile.PL;make test
 # + /usr/bin/perl   Makefile.PL;make test
-# + perlbrew exec "perl ~/Acme-Tools/Makefile.PL ; time make test"
+# + perlbrew exec "perl Makefile.PL ; time make test"
+# + perlbrew exec "perl Makefile.PL ; make test" | grep -P '^(perl-|All tests successful)'
 # + perlbrew use perl-5.10.1; perl Makefile.PL; make test; perlbrew off
 # + test evt i cygwin og mingw-perl
 # + pod2html Tools.pm > Tools.html ; firefox Tools.html 
