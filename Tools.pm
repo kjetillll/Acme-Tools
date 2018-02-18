@@ -7430,11 +7430,10 @@ sub ext2mime {
 sub base64 ($;$) { #
   if ($] >= 5.006) {
     require bytes;
-    croak "The Base64 encoding is only defined for bytes"
+    croak "base64 failed: only defined for bytes"
       if bytes::length($_[0]) > length($_[0])
       or $] >= 5.008 && $_[0] =~ /[^\0-\xFF]/
   }
-  use integer; #needed?
   my $eol=defined$_[1]?$_[1]:"\n";
   my $res=pack("u",$_[0]);
   $res=~s/^.//mg;
@@ -7447,11 +7446,9 @@ sub base64 ($;$) { #
 }
 
 sub unbase64 ($) {
-  local($^W) = 0; # unpack("u",...) gives bogus warning in 5.00[123]                                                            
-  use integer; #needed?
   my $s=shift;
-  $s=~tr|A-Za-z0-9+=/||cd;            # remove non-base64 chars                                                             
-  croak "Length ".length($s)." of base64 data not a multiple of 4" if length($s)%4;
+  $s=~tr,0-9a-zA-Z+=/,,cd;
+  croak "unbase64 failed: length ".length($s)." not multiple of 4" if length($s)%4;
   $s=~s/=+$//;
   $s=~tr|A-Za-z0-9+/| -_|;
   length($s) ? unpack("u",join'',map(chr(32+length($_)*3/4).$_,$s=~/(.{1,60})/gs)) : "";
