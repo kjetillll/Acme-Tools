@@ -3,7 +3,8 @@
 
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests    => 2;
-warn <<"" and map ok(1),1..2 and exit if $^O!~/^(linux|cygwin)$/;
+my $gzip=(grep -x$_, '/bin/gzip', '/usr/bin/gzip')[0];
+warn <<"" and map ok(1),1..2 and exit if $^O!~/^(linux|cygwin)$/ or !$gzip;
 Tests for cmd_due not available for $^O, only linux and cygwin
 
 my $tmp=tmp();
@@ -13,8 +14,7 @@ sub test {
   my($ok,@a)=@_;
   my $p=printed{Acme::Tools::cmd_resubst(@a)};
   $p=~s,/tmp/\w+,/tmp/x,g;
-  ok($p eq $ok);
-  print "$p vs\n$ok" if $p ne $ok;
+  is($p, $ok);
 }
 test(<<"",'-v','-f',6,map"$tmp/$_",1..20);
  1/20 26/26               560 =>     534 b (95%) /tmp/x/1
@@ -39,7 +39,7 @@ test(<<"",'-v','-f',6,map"$tmp/$_",1..20);
 20/20 523/25              560 =>     535 b (95%) /tmp/x/20
 Replaces: 523  Bytes before: 11253  After: 10730   Change: -4.6%
 
-qx(gzip $tmp/*);
+qx($gzip $tmp/*);
 test(<<"",'-o','bz2','-9','-v','-f',7,map"$tmp/$_.gz",1..20);
  1/20 26/26               270 =>     241 b (89%) /tmp/x/1.gz
  2/20 53/27               270 =>     244 b (90%) /tmp/x/2.gz

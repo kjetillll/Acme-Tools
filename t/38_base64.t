@@ -1,5 +1,5 @@
 # make test
-# perl Makefile.PL; make; perl -Iblib/lib t/37_base64.t
+# perl Makefile.PL; make; perl -Iblib/lib t/38_base64.t
 
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests    => 24;
@@ -16,8 +16,8 @@ for(0..1000){
   }
   $s.=$_;
 }
-if($^O eq 'linux'){
-  $s=qx(ps aux|base64 -w 1000);
+if($^O eq 'linux' and -x '/usr/bin/base64'){
+  $s=qx(base64 -w 1000 Tools.pm);
   $b64=encode_base64($s);
   $b64_2=base64($s);
   my $s2=unbase64($b64);
