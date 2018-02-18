@@ -602,7 +602,7 @@ B<Units, types of measurement and currencies supported by C<conv> are:>
 
 Note: units starting with the symbol _ means that all metric
 prefixes from yocto 10^-24 to yotta 10^+24 is supported, so _m means
-km, mm, cm, µm and so on. And _N means kN, MN GN and so on.
+km, mm, cm, Âµm and so on. And _N means kN, MN GN and so on.
 
 Note2: Many units have synonyms: m, meter, meters ...
 
@@ -615,11 +615,11 @@ Note2: Many units have synonyms: m, meter, meters ...
  
  area:         a, ar, are, ares, bunder, ca, centiare, cho, cm2,
                daa, decare, decares, deciare, dekar,
-               djerib, m2, dunam, dönüm, earths, feddan, ft2, gongqing, ha
+               djerib, m2, dunam, dÃ¶nÃ¼m, earths, feddan, ft2, gongqing, ha
                ha, hectare, hectares, hektar, jerib, km2, m2, manzana,
                mi2, mm2, mu, qing, rai, sotka,
                sqcm, sqft, sqkm, sqm, sqmi, sqmm
-               stremmata, um2, µm2
+               stremmata, um2, Âµm2
  
  bytes:        Eb, Gb, Kb, KiB, Mb, Pb, Tb, Yb, Zb, b, byte,
                kb, kilobyte,  mb, megabyte,
@@ -643,7 +643,7 @@ Note2: Many units have synonyms: m, meter, meters ...
                in, inch, inches, km, league, lightyear, ls, ly,
                m, meter, meters, mi, mil, mile, miles,
                nautical mile, nautical miles, nmi,
-               parsec, pc, planck, yard, yard_imperical, yd, Å, ångstrøm
+               parsec, pc, planck, yard, yard_imperical, yd, Ã…, Ã¥ngstrÃ¸m
  
  mass:         Da, _eV, _g, bag, carat, ct, dwt, eV, electronvolt, g,
                grain, grains, gram, grams, kilo, kilos, kt, lb, lb_av,
@@ -730,8 +730,8 @@ our %conv=(
                   nmi                => 1852,           #nautical mile
                   'nautical mile'    => 1852,
                   'nautical miles'   => 1852,
-                  'Å'                => 1e-10,
-                  'ångstrøm'         => 1e-10,
+                  'Ã…'                => 1e-10,
+                  'Ã¥ngstrÃ¸m'         => 1e-10,
 		  ly                 => 299792458*3600*24*365.25,
 		  lightyear          => 299792458*3600*24*365.25, # = 9460730472580800 by def
 		  ls                 => 299792458,      #light-second
@@ -804,7 +804,7 @@ our %conv=(
                   dm2     => 0.1**2,
                   cm2     => 0.01**2,
                   mm2     => 0.001**2,
-		 'µm2'    => 1e-6**2,
+		 'Âµm2'    => 1e-6**2,
 		  um2     => 1e-6**2,
                   sqm     => 1,
                   sqcm    => 0.01**2,
@@ -819,7 +819,7 @@ our %conv=(
                   decare  => 1000,
                   decares => 1000,
                   daa     => 1000,
-                 'mål'    => 1000,
+                 'mÃ¥l'    => 1000,
                   ha      => 10000,
                   hektar  => 10000,
                   hectare => 10000,
@@ -852,7 +852,7 @@ our %conv=(
                   mu        => 10000/15,    #China
                   qing      => 10000/0.15,  #China
                   dunam     => 10000/10,    #Middle East
-                 'dönüm'    => 10000/10,    #Middle East
+                 'dÃ¶nÃ¼m'    => 10000/10,    #Middle East
                   stremmata => 10000/10,    #Greece
                   rai       => 10000/6.25,  #Thailand
                   cho       => 10000/1.008, #Japan
@@ -1018,7 +1018,7 @@ our %conv=(
                   Jps      => 1,
                   hp       => 746,
                   hk       => 746,        #hestekrefter (norwegian, scandinavian)
-		  PS       => 746/1.014,  #pferdestärken
+		  PS       => 746/1.014,  #pferdestÃ¤rken
 		 'kWh/yr'  => 1000    * 3600/(24*365), #kWh annually
                   Whpy     =>           3600/(24*365), #kWh annually
                   kWhpy    => 1000    * 3600/(24*365), #kWh annually
@@ -1175,69 +1175,72 @@ our %conv=(
 		  binary_radian => 1/256,
 		  brad          => 1/256,
                  },
-	 money =>{                        # rates at dec 17 2015
-                  AED => 2.389117,        #
-                  ARS => 0.895122,        #
-                  AUD => 6.253619,        #
-                  BGN => 4.847575,        #
-                  BHD => 23.267384,       #
-                  BND => 6.184624,        #
-                  BRL => 2.260703,        #
-                  BTC => 3910.932213547,  #bitcoin
-                  BWP => 0.794654,        #
-                  CAD => 6.289957,        #
-                  CHF => 8.799974,        #
-                  CLP => 0.012410,        #
-                  CNY => 1.353406,        #
-                  COP => 0.00262229,      #
-                  CZK => 0.351171,        #
-                  DKK => 1.271914,        #
-                  EUR => 9.489926,        #
-                  GBP => 13.069440,       #
-                  HKD => 1.131783,        #
-                  HRK => 1.240878,        #
-                  HUF => 0.029947,        #
-                  IDR => 0.00062471,      #
-                  ILS => 2.254456,        #
-                  INR => 0.132063,        #
-                  IRR => 0.00029370,      #
-                  ISK => 0.067245,        #
-                  JPY => 0.071492,        #
-                  KRW => 0.00739237,      #
-                  KWD => 28.862497,       #
-                  KZT => 0.027766,        #
-                  LKR => 0.061173,        #
-                  LTC => 31.78895354018,  #litecoin
-                  LTL => 2.748472,        #
-                  LVL => 13.503025,       #
-                  LYD => 6.296978,        #
-                  MUR => 0.240080,        #
-                  MXN => 0.515159,        #
-                  MYR => 2.032465,        #
-                  NOK => 1.000000000,     #norwegian kroner
-                  NPR => 0.084980,        #
-                  NZD => 5.878331,        #
-                  OMR => 22.795994,       #
-                  PHP => 0.184839,        #
-                  PKR => 0.083779,        #
-                  PLN => 2.207243,        #
-                  QAR => 2.409162,        #
-                  RON => 2.101513,        #
-                  RUB => 0.122991,        #
-                  SAR => 2.339745,        #
-                  SEK => 1.023591,        #
-                  SGD => 6.184624,        #
-                  THB => 0.242767,        #
-                  TRY => 2.994338,        #
-                  TTD => 1.374484,        #
-                  TWD => 0.265806,        #
-                  USD => 8.774159,        #
-                  VEF => 1.395461,        #
-                  ZAR => 0.576487,        #
-                  XBT => 3910.932213547, # bitcoin
-                 mBTC => 3910.932213547, # bitcoin
-                 mXBT => 3910.932213547, # bitcoin
-		 },
+	 money =>{                      # rates at 18th feb 2018
+           NOK => 1.000000000,          #norwegian kroner
+           AED => 2.118503,             #united arab emirates dirham 
+           ARS => 0.393725,             #argentina peso
+           AUD => 6.162408,             #australian dollar
+           BCH => 12118.36327559,       #bitcoin cash
+           BGN => 4.937892,             #bulgarian lev
+           BHD => 20.692023,            #bahrain dinar
+           BND => 5.931982,             #brunei dollar
+           BRL => 2.407647,             #brazilian real
+           BTC => 84864.0984477,        #bitcoin
+           BWP => 0.825478,             #botswana pulaa
+           CAD => 6.201377,             #canadian dollar
+           CHF => 8.391971,             #switzerland franc
+           CLP => 0.013110,             #chili peso
+           CNY => 1.226451,             #china yuan/renminbi
+           COP => 0.00274549,           #colombian peso
+           CZK => 0.380706,             #czech koruna
+           DKK => 1.295957,             #danish kroner
+           ETC => 257.8101864767,       #ethereum-classic
+           ETH => 7410.657012902,       #ethereum
+           EUR => 9.657677,             #euro
+           'â‚¬' => 9.657677,             #euro, symbol
+           GBP => 10.913727,            #great britain pound, british pound
+           'Â£' => 10.913727,            #great britain pound, british pound, symbol
+           HKD => 0.994705,             #hong kong dollar
+           HRK => 1.301015,             #croatian kuna
+           HUF => 0.030922,             #hungarian forint
+           IDR => 0.00057358,           #indonesian rupia
+           ILS => 2.191990,             #israel new shekel
+           INR => 0.121070,             #indian rupee
+           IRR => 0.00020984,           #iranian rial
+           ISK => 0.077647,             #icelandic kroner
+           JPY => 0.073271,             #japanish yen
+           KRW => 0.00729673,           #south korean won
+           KWD => 25.925147,            #kuwait dinar
+           KZT => 0.024338,             #kazakhstanian tenge
+           LKR => 0.050121,             #sri lanka rupee
+           LTC => 1782.926421562,       #litecoin
+           LYD => 5.866758,             #libyan dinar
+           MUR => 0.239306,             #mauritius
+           MXN => 0.418798,             #mexico peso
+           MYR => 1.998096,             #malaysian ringgit
+           NPR => 0.075316,             #nepal rupee
+           NZD => 5.745187,             #new zealand dollar
+           OMR => 20.234592,            #oman rial
+           PHP => 0.148869,             #philippines peso
+           PKR => 0.070338,             #pakistan rupee
+           PLN => 2.319848,             #poland zloty
+           QAR => 2.137418,             #qatar rial
+           RON => 2.070137,             #romaina new nei
+           RUB => 0.137791,             #russia rouble / rubel
+           SAR => 2.074720,             #saudi arabia riyal
+           SEK => 0.976704,             #swedish kroner
+           SGD => 5.931982,             #singapore dollar
+           THB => 0.248282,             #thailand baht
+           TRY => 2.076265,             #turkish new lira
+           TTD => 1.150931,             #trinidad/tobago dollar
+           TWD => 0.267321,             #taiwan dollar
+           USD => 7.780201,             #us dollar
+          '$'  => 7.780201,             #us doller, symbol
+           VEF => 0.778994,             #venezuelan bolivares fuertes
+           XBT => 84864.0984477,        #synonym for BTC
+           XRP => 8.96808208868,        #ripple
+           ZAR => 0.667117,             #south africa rand
+          },
           numbers =>{
 	    dec=>1,hex=>1,bin=>1,oct=>1,roman=>1,      des=>1,#des: spelling error in v0.15-0.16
             dusin=>1,dozen=>1,doz=>1,dz=>1,gross=>144,gr=>144,gro=>144,great_gross=>12*144,small_gross=>10*12,
@@ -1248,7 +1251,7 @@ our $conv_prepare_money_time=0;
 sub conv_prepare {
   my %b    =(da  =>1e+1, h    =>1e+2, k    =>1e+3, M     =>1e+6,          G   =>1e+9, T   =>1e+12, P    =>1e+15, E   =>1e+18, Z    =>1e+21, Y    =>1e+24, H    =>1e+27);
   my %big  =(deca=>1e+1, hecto=>1e+2, kilo =>1e+3, mega  =>1e+6,          giga=>1e+9, tera=>1e+12, peta =>1e+15, exa =>1e+18, zetta=>1e+21, yotta=>1e+24, hella=>1e+27);
-  my %s    =(d   =>1e-1, c    =>1e-2, m    =>1e-3,'µ'    =>1e-6, u=>1e-6, n   =>1e-9, p   =>1e-12, f    =>1e-15, a   =>1e-18, z    =>1e-21, y    =>1e-24);
+  my %s    =(d   =>1e-1, c    =>1e-2, m    =>1e-3,'Âµ'    =>1e-6, u=>1e-6, n   =>1e-9, p   =>1e-12, f    =>1e-15, a   =>1e-18, z    =>1e-21, y    =>1e-24);
   my %small=(deci=>1e-1, centi=>1e-2, milli=>1e-3, micro =>1e-6,          nano=>1e-9, pico=>1e-12, femto=>1e-15, atto=>1e-18, zepto=>1e-21, yocto=>1e-24);
   # myria=> 10000              #obsolete
   # demi => 1/2, double => 2   #obsolete
@@ -1833,9 +1836,9 @@ sub log2  { log($_[0])/log(2)  }
 
 Returns input string as uppercase or lowercase.
 
-Can be used if Perls build in C<uc()> and C<lc()> for some reason does not convert æøå or other latin letters outsize a-z.
+Can be used if Perls build in C<uc()> and C<lc()> for some reason does not convert Ã¦Ã¸Ã¥ or other latin letters outsize a-z.
 
-Converts C<< æøåäëïöüÿâêîôûãõàèìòùáéíóúıñğ >> to and from C<< ÆØÅÄËÏÖÜ?ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚİÑĞ >>
+Converts C<< Ã¦Ã¸Ã¥Ã¤Ã«Ã¯Ã¶Ã¼Ã¿Ã¢ÃªÃ®Ã´Ã»Ã£ÃµÃ Ã¨Ã¬Ã²Ã¹Ã¡Ã©Ã­Ã³ÃºÃ½Ã±Ã° >> to and from C<< Ã†Ã˜Ã…Ã„Ã‹ÃÃ–Ãœ?Ã‚ÃŠÃÃ”Ã›ÃƒÃ•Ã€ÃˆÃŒÃ’Ã™ÃÃ‰ÃÃ“ÃšÃÃ‘Ã >>
 
 See also C<< perldoc -f uc >> and C<< perldoc -f lc >>
 
@@ -1887,8 +1890,8 @@ Center pads. Pads the string both on left and right equal to the given length. C
 
 =cut
 
-sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-zæøåäëïöüÿâêîôûãõàèìòùáéíóúıñğ/A-ZÆØÅÄËÏÖÜÿÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚİÑĞ/;$s}
-sub lower {no warnings;my $s=@_?shift:$_;$s=~tr/A-ZÆØÅÄËÏÖÜÿÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚİÑĞ/a-zæøåäëïöüÿâêîôûãõàèìòùáéíóúıñğ/;$s}
+sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-zÃ¦Ã¸Ã¥Ã¤Ã«Ã¯Ã¶Ã¼Ã¿Ã¢ÃªÃ®Ã´Ã»Ã£ÃµÃ Ã¨Ã¬Ã²Ã¹Ã¡Ã©Ã­Ã³ÃºÃ½Ã±Ã°/A-ZÃ†Ã˜Ã…Ã„Ã‹ÃÃ–ÃœÃ¿Ã‚ÃŠÃÃ”Ã›ÃƒÃ•Ã€ÃˆÃŒÃ’Ã™ÃÃ‰ÃÃ“ÃšÃÃ‘Ã/;$s}
+sub lower {no warnings;my $s=@_?shift:$_;$s=~tr/A-ZÃ†Ã˜Ã…Ã„Ã‹ÃÃ–ÃœÃ¿Ã‚ÃŠÃÃ”Ã›ÃƒÃ•Ã€ÃˆÃŒÃ’Ã™ÃÃ‰ÃÃ“ÃšÃÃ‘Ã/a-zÃ¦Ã¸Ã¥Ã¤Ã«Ã¯Ã¶Ã¼Ã¿Ã¢ÃªÃ®Ã´Ã»Ã£ÃµÃ Ã¨Ã¬Ã²Ã¹Ã¡Ã©Ã­Ã³ÃºÃ½Ã±Ã°/;$s}
 
 sub trim {
   return trim($_) if !@_;
@@ -3711,7 +3714,7 @@ Gives:
 
 =cut
 
-#Hashtrans brukes automatisk når første argument er -1 i sub hashtabell()
+#Hashtrans brukes automatisk nÃ¥r fÃ¸rste argument er -1 i sub hashtabell()
 
 sub hashtrans {
   my $h=shift;
@@ -3979,8 +3982,8 @@ C<HostnameLookups Off> in Apache C<httpd.conf> and then use I<ipaddr> afterwards
 our %IPADDR_memo;
 sub ipaddr {
   my $ipnr=shift;
-  #NB, 2-tallet på neste kodelinje er ikke det samme på alle os,
-  #men ser ut til å funke i linux og hpux. Den Riktige Måten(tm)
+  #NB, 2-tallet pÃ¥ neste kodelinje er ikke det samme pÃ¥ alle os,
+  #men ser ut til Ã¥ funke i linux og hpux. Den Riktige MÃ¥ten(tm)
   #er konstanten AF_INET i Socket eller IO::Socket-pakken.
   return $IPADDR_memo{$ipnr} ||= gethostbyaddr(pack("C4",split("\\.",$ipnr)),2);
 }
@@ -4089,7 +4092,7 @@ chars can be URL encodes this way, but it's necessary just on some.
 
 Example:
 
- $search="Østdal, Åge";
+ $search="Ã˜stdal, Ã…ge";
  my $url="http://machine.somewhere.com/search?q=" . urlenc($search);
  print $url;
 
@@ -4107,7 +4110,7 @@ sub urlenc {
 
 Opposite of L</urlenc>.
 
-Example, this returns 'C< ø>'. That is space and C<< ø >>.
+Example, this returns 'C< Ã¸>'. That is space and C<< Ã¸ >>.
 
  urldec('+%C3')
 
@@ -4788,25 +4791,25 @@ interpreted as a date of the form YYYYMMDD, not as a number of seconds since epo
 
 =cut
 
-#Se også L</tidstrk> og L</tidstr>
+#Se ogsÃ¥ L</tidstrk> og L</tidstr>
 
 our $Tms_pattern;
 our %Tms_str=
-	  ('MÅNED' => [4, 'JANUAR','FEBRUAR','MARS','APRIL','MAI','JUNI','JULI',
+	  ('MÃ…NED' => [4, 'JANUAR','FEBRUAR','MARS','APRIL','MAI','JUNI','JULI',
 		          'AUGUST','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER' ],
-	   'Måned' => [4, 'Januar','Februar','Mars','April','Mai','Juni','Juli',
+	   'MÃ¥ned' => [4, 'Januar','Februar','Mars','April','Mai','Juni','Juli',
 		          'August','September','Oktober','November','Desember'],
-	   'måned' => [4, 'januar','februar','mars','april','mai','juni','juli',
+	   'mÃ¥ned' => [4, 'januar','februar','mars','april','mai','juni','juli',
 		          'august','september','oktober','november','desember'],
-	   'MÅNE.' => [4, 'JAN.','FEB.','MARS','APR.','MAI','JUNI','JULI','AUG.','SEP.','OKT.','NOV.','DES.'],
-	   'Måne.' => [4, 'Jan.','Feb.','Mars','Apr.','Mai','Juni','Juli','Aug.','Sep.','Okt.','Nov.','Des.'],
-	   'måne.' => [4, 'jan.','feb.','mars','apr.','mai','juni','juli','aug.','sep.','okt.','nov.','des.'],
-	   'MÅNE'  => [4, 'JAN','FEB','MARS','APR','MAI','JUNI','JULI','AUG','SEP','OKT','NOV','DES'],
-	   'Måne'  => [4, 'Jan','Feb','Mars','Apr','Mai','Juni','Juli','Aug','Sep','Okt','Nov','Des'],
-	   'måne'  => [4, 'jan','feb','mars','apr','mai','juni','juli','aug','sep','okt','nov','des'],
-	   'MÅN'   => [4, 'JAN','FEB','MAR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DES'],
-	   'Mån'   => [4, 'Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'],
-	   'mån'   => [4, 'jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'],
+	   'MÃ…NE.' => [4, 'JAN.','FEB.','MARS','APR.','MAI','JUNI','JULI','AUG.','SEP.','OKT.','NOV.','DES.'],
+	   'MÃ¥ne.' => [4, 'Jan.','Feb.','Mars','Apr.','Mai','Juni','Juli','Aug.','Sep.','Okt.','Nov.','Des.'],
+	   'mÃ¥ne.' => [4, 'jan.','feb.','mars','apr.','mai','juni','juli','aug.','sep.','okt.','nov.','des.'],
+	   'MÃ…NE'  => [4, 'JAN','FEB','MARS','APR','MAI','JUNI','JULI','AUG','SEP','OKT','NOV','DES'],
+	   'MÃ¥ne'  => [4, 'Jan','Feb','Mars','Apr','Mai','Juni','Juli','Aug','Sep','Okt','Nov','Des'],
+	   'mÃ¥ne'  => [4, 'jan','feb','mars','apr','mai','juni','juli','aug','sep','okt','nov','des'],
+	   'MÃ…N'   => [4, 'JAN','FEB','MAR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DES'],
+	   'MÃ¥n'   => [4, 'Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'],
+	   'mÃ¥n'   => [4, 'jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'],
 	   'MONTH' => [4, 'JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY',
 		          'AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'],
 	   'Month' => [4, 'January','February','March','April','May','June','July',
@@ -4828,23 +4831,23 @@ our %Tms_str=
 	   'DY'    => [6, 'SUN','MON','TUE','WED','THU','FRI','SAT'],
 	   'Dy'    => [6, 'Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
 	   'dy'    => [6, 'sun','mon','tue','wed','thu','fri','sat'],
-	   'DAG'   => [6, 'SØNDAG','MANDAG','TIRSDAG','ONSDAG','TORSDAG','FREDAG','LØRDAG'],
-	   'Dag'   => [6, 'Søndag','Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag'],
-	   'dag'   => [6, 'søndag','mandag','tirsdag','onsdag','torsdag','fredag','lørdag'],
-	   'DG'    => [6, 'SØN','MAN','TIR','ONS','TOR','FRE','LØR'],
-	   'Dg'    => [6, 'Søn','Man','Tir','Ons','Tor','Fre','Lør'],
-	   'dg'    => [6, 'søn','man','tir','ons','tor','fre','lør'],
+	   'DAG'   => [6, 'SÃ˜NDAG','MANDAG','TIRSDAG','ONSDAG','TORSDAG','FREDAG','LÃ˜RDAG'],
+	   'Dag'   => [6, 'SÃ¸ndag','Mandag','Tirsdag','Onsdag','Torsdag','Fredag','LÃ¸rdag'],
+	   'dag'   => [6, 'sÃ¸ndag','mandag','tirsdag','onsdag','torsdag','fredag','lÃ¸rdag'],
+	   'DG'    => [6, 'SÃ˜N','MAN','TIR','ONS','TOR','FRE','LÃ˜R'],
+	   'Dg'    => [6, 'SÃ¸n','Man','Tir','Ons','Tor','Fre','LÃ¸r'],
+	   'dg'    => [6, 'sÃ¸n','man','tir','ons','tor','fre','lÃ¸r'],
 	   );
 my $_tms_inited=0;
 sub tms_init {
   return if $_tms_inited++;
   for(qw(MAANED Maaned maaned MAAN Maan maan),'MAANE.','Maane.','maane.'){
-    $Tms_str{$_}=$Tms_str{replace($_,"aa","å","AA","Å")};
+    $Tms_str{$_}=$Tms_str{replace($_,"aa","Ã¥","AA","Ã…")};
   }
   $Tms_pattern=join("|",map{quotemeta($_)}
 			       sort{length($b)<=>length($a)}
 			       keys %Tms_str);
-  #uten sort kan "måned" bli "mared", fordi "mån"=>"mar"
+  #uten sort kan "mÃ¥ned" bli "mared", fordi "mÃ¥n"=>"mar"
 }
 
 sub totime {
@@ -5112,7 +5115,7 @@ Estimated time of arrival (ETA).
 
 =cut
 
-#http://en.wikipedia.org/wiki/Kalman_filter god idé?
+#http://en.wikipedia.org/wiki/Kalman_filter god idÃ©?
 our %Eta;
 our $Eta_forgetfulness=2;
 sub eta {
@@ -5344,34 +5347,34 @@ sub qrlist (@) {
 
 Perhaps easier to use than L<Term::ANSIColor> ?
 
-B<Input:> One argument. A string where the char C<¤> have special
+B<Input:> One argument. A string where the char C<Â¤> have special
 meaning and is replaced by color codings depending on the letter
-following the C<¤>.
+following the C<Â¤>.
 
-B<Output:> The same string, but with C<¤letter> replaced by ANSI color
+B<Output:> The same string, but with C<Â¤letter> replaced by ANSI color
 codes respected by many types terminal windows. (xterm, telnet, ssh,
 telnet, rlog, vt100, cygwin, rxvt and such...).
 
 B<Codes for ansicolor():>
 
- ¤r red
- ¤g green
- ¤b blue
- ¤y yellow
- ¤m magenta
- ¤B bold
- ¤u underline
- ¤c clear
- ¤¤ reset, quits and returns to default text color.
+ Â¤r red
+ Â¤g green
+ Â¤b blue
+ Â¤y yellow
+ Â¤m magenta
+ Â¤B bold
+ Â¤u underline
+ Â¤c clear
+ Â¤Â¤ reset, quits and returns to default text color.
 
 B<Example:>
 
- print ansicolor("This is maybe ¤ggreen¤¤?");
+ print ansicolor("This is maybe Â¤ggreenÂ¤Â¤?");
 
 Prints I<This is maybe green?> where the word I<green> is shown in green.
 
 If L<Term::ANSIColor> is not installed or not found, returns the input
-string with every C<¤> including the following code letters
+string with every C<Â¤> including the following code letters
 removed. (That is: ansicolor is safe to use even if Term::ANSIColor is
 not installed, you just don't get the colors).
 
@@ -5381,10 +5384,10 @@ See also L<Term::ANSIColor>.
 
 sub ansicolor {
   my $txt=shift;
-  eval{require Term::ANSIColor} or return replace($txt,qr/¤./);
-  my %h=qw/r red  g green  b blue  y yellow  m magenta  B bold  u underline  c clear  ¤ reset/;
+  eval{require Term::ANSIColor} or return replace($txt,qr/Â¤./);
+  my %h=qw/r red  g green  b blue  y yellow  m magenta  B bold  u underline  c clear  Â¤ reset/;
   my $re=join"|",keys%h;
-  $txt=~s/¤($re)/Term::ANSIColor::color($h{$1})/ge;
+  $txt=~s/Â¤($re)/Term::ANSIColor::color($h{$1})/ge;
   return $txt;
 }
 
@@ -6124,7 +6127,7 @@ sub _sortsub {
   my @b=split $;,$b;
   for(0..$#a){
     my $c=$a[$_]<=>$b[$_];
-    return $c if $c and "$a[$_]$b[$_]"!~/[iI][nN][fF]|ş/i; # inf(inity)
+    return $c if $c and "$a[$_]$b[$_]"!~/[iI][nN][fF]|Ã¾/i; # inf(inity)
     $c=$a[$_]cmp$b[$_];
     return $c if $c;
   }
@@ -6724,7 +6727,7 @@ sub changed {
 }
 
 #todo: sub unbless eller sub damn
-#todo: ..se også: use Data::Structure::Util qw/unbless/;
+#todo: ..se ogsÃ¥: use Data::Structure::Util qw/unbless/;
 #todo: ...og: Acme::Damn sin damn()
 #todo? sub swap($$) http://www.idg.no/computerworld/article242008.ece
 #todo? catal
@@ -7397,9 +7400,15 @@ sub _update_currency_file { #call from cron
   my @data=ht2t($data,"Alphabetical order"); shift @data;
   @data=map "$$_[1] ".($$_[4]>1e-2?$$_[4]:$$_[2]?sprintf("%.8f",$amount/$$_[2]):0)."\n",@data;
   my %data=map split,@data;
-  my@tc=qx($exe{curl} -s https://btc-e.com/api/3/ticker/btc_usd-ltc_usd)=~/avg.?:(\d+\.?\d*)/g;
-  push @data,"BTC ".($tc[0]*$data{USD})."\n";
-  push @data,"LTC ".($tc[1]*$data{USD})."\n";
+  my $json=qx( $exe{curl} -s https://api.coinmarketcap.com/v1/ticker/ );
+  eval "require JSON;"; die if $@;
+  my $arr=JSON::decode_json($json);
+  for my $c (qw(BTC LTC XBT ETH XRP BCH ETC)) {
+      my @a=grep$$_{symbol} eq $c,@$arr;
+      next if @a != 1 or !$a[0]{price_usd};
+      push @data, "$c ".($a[0]{price_usd}*$data{USD})."\n";
+  }
+  #die srlz(\@data,'data');
   print $F sort(@data);
   close($F);
   qx($exe{ci} -l -m. -d $fn) if -w"$fn,v";
@@ -7675,7 +7684,7 @@ sub cmd_freq {
   my(@f,$i);
   map $f[$_]++, unpack("C*",$_) while <>;
   my $s=" " x 12;map{print"$_$s$_$s$_\n"}("BYTE  CHAR   COUNT","---- ----- -------");
-  my %m=(145,"DOS-æ",155,"DOS-ø",134,"DOS-å",146,"DOS-Æ",157,"DOS-Ø",143,"DOS-Å",map{($_," ")}0..31);
+  my %m=(145,"DOS-Ã¦",155,"DOS-Ã¸",134,"DOS-Ã¥",146,"DOS-Ã†",157,"DOS-Ã˜",143,"DOS-Ã…",map{($_," ")}0..31);
   printf("%4d %5s%8d".(++$i%3?$s:"\n"),$_,$m{$_}||chr,$f[$_]) for grep$f[$_],0..255;print "\n";
   my @no=grep!$f[$_],0..255; print "No bytes for these ".@no.": ".join(" ",@no)."\n";
 }
@@ -7973,7 +7982,7 @@ sub sum      { &Acme::Tools::bfsum      }
 # + c-s todo
 # + endre $VERSION
 # + endre Release history under HISTORY
-# + endre årstall under COPYRIGHT AND LICENSE
+# + endre Ã¥rstall under COPYRIGHT AND LICENSE
 # + oppd default valutakurser inkl datoen
 # + emacs Changes
 # + emacs README + aarstall
@@ -8037,6 +8046,8 @@ sub sum      { &Acme::Tools::bfsum      }
 
 Release history
 
+ 0.22  Feb 2018   subs: subarr, sim, sim_perm, aoh2sql. command: resubst
+ 
  0.21  Mar 2017   Improved nicenum() and its tests
  
  0.20  Mar 2017   Subs: a2h cnttbl h2a log10 log2 nicenum rstddev sec_readable
@@ -8068,7 +8079,7 @@ Kjetil Skotheim, E<lt>kjetil.skotheim@gmail.comE<gt>
 
 =head1 COPYRIGHT
 
-2008-2017, Kjetil Skotheim
+2008-2018, Kjetil Skotheim
 
 =head1 LICENSE
 
