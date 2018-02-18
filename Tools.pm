@@ -2886,7 +2886,7 @@ sub aoh2sql {
     }
     my $sql;
     $sql="create table $conf{name} (".
-	 join(",",map sprintf("\n  %-30s %s",s/\W+//gr,$tdb{$_}), @col). "\n);\n\n" if $conf{create};
+	 join(",",map sprintf("\n  %-30s %s",do{s/\W+//g;$_},$tdb{$_}), @col). "\n);\n\n" if $conf{create};
     my $val=sub{my($v,$t)=@_;!length($v)?'null':$t eq 'number' ? $v : "'".repl($v,"\'","''")."'"};
     for my $r (@$aoh){
 	my $v=join",",map &$val($$r{$_},$t{$_}), @col;
