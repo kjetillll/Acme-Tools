@@ -271,6 +271,14 @@ Subs created and collected since the mid-90s.
  sudo cpan Acme::Tools
  sudo cpanm Acme::Tools   # after: sudo apt-get install cpanminus make   # for Ubuntu 12.04
 
+Or to get the very newest:
+
+ git clone https://github.com/kjetillll/Acme-Tools.git
+ cd Acme-Tools
+ perl Makefile.PL
+ make test
+ sudo make install
+
 =head1 EXPORT
 
 Almost every sub, about 90 of them.
