@@ -1,22 +1,22 @@
 # make test
 # perl Makefile.PL; make; perl -Iblib/lib t/37_cmd_resubst.t
-
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests    => 2;
+use Test::More tests => 2;
 my $gzip=(grep -x$_, '/bin/gzip', '/usr/bin/gzip')[0];
-warn <<"" and map ok(1),1..2 and exit if $^O!~/^(linux|cygwin)$/ or !$gzip;
-Tests for cmd_due not available for $^O, only linux and cygwin
-
+SKIP:{
+skip "- cmd_due not available for $^O (only linux and cygwin)", 2 if $^O!~/^(linux|cygwin)$/;
+skip "- gzip not found", 2                                        if !$gzip;
 my $tmp=tmp();
+#die $tmp;
 srand(7);
 writefile("$tmp/$_",join("",map{"$_ ".($_%10?"":rand())."\n"}1..100)) for 1..20;
 sub test {
-  my($ok,@a)=@_;
+  my($n,$ok,@a)=@_;
   my $p=printed{Acme::Tools::cmd_resubst(@a)};
-  $p=~s,/tmp/\w+,/tmp/x,g;
-  is($p, $ok);
+  $p=~s,\s\S*/tmp/\S*/([^\/\s]+), /tmp/x/$1,g;
+  is($p, $ok, "test $n");
 }
-test(<<".",'-v','-f',6,map"$tmp/$_",1..20);
+test(1,<<".",'-v','-f',6,map"$tmp/$_",1..20);
  1/20 26/26               560 =>     534 b (95%) /tmp/x/1
  2/20 50/24               563 =>     539 b (95%) /tmp/x/2
  3/20 78/28               564 =>     536 b (95%) /tmp/x/3
@@ -40,7 +40,7 @@ test(<<".",'-v','-f',6,map"$tmp/$_",1..20);
 Replaces: 523  Bytes before: 11253  After: 10730   Change: -4.6%
 .
 qx($gzip $tmp/*);
-test(<<".",'-o','bz2','-9','-v','-f',7,map"$tmp/$_.gz",1..20);
+test(2,<<".",'-o','bz2','-9','-v','-f',7,map"$tmp/$_.gz",1..20);
  1/20 26/26               270 =>     241 b (89%) /tmp/x/1.gz
  2/20 53/27               270 =>     244 b (90%) /tmp/x/2.gz
  3/20 81/28               269 =>     250 b (92%) /tmp/x/3.gz
@@ -63,3 +63,4 @@ test(<<".",'-o','bz2','-9','-v','-f',7,map"$tmp/$_.gz",1..20);
 20/20 525/25              271 =>     244 b (90%) /tmp/x/20.gz
 Replaces: 525  Bytes before: 5397  After: 4874   Change: -9.7%
 .
+}
