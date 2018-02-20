@@ -7,7 +7,7 @@ use Test::More tests => 11;
 sub tstr{sprintf("    (%d trials, %.5f sec)",$Acme::Tools::Pwgen_trials, $Acme::Tools::Pwgen_sec)}
 
 SKIP: {
-  skip "- strangely pwgen-croak-test fails on windows sometime", 2 if $^O ne 'linuxb';
+  skip "- strangely pwgen-croak-test fails on windows sometime", 2 if $^O ne 'linux';
   local $Acme::Tools::Pwgen_max_sec=0.001;
   eval{pwgen(3)}; ok($@=~/pwgen.*25_pwgen.t/,"pwgen croak works: ".trim($@));
   local $Acme::Tools::Pwgen_max_trials=3;
