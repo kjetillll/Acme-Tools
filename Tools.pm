@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 package Acme::Tools;
 
-our $VERSION = '0.22';
+our $VERSION = '0.23';
 
 use 5.008;     #Perl 5.8 was released July 18th 2002
 use strict;
@@ -33,6 +33,7 @@ our @EXPORT = qw(
   conv
   rank
   rankstr
+  egrep
   eqarr
   sorted
   sortedstr
@@ -2538,6 +2539,26 @@ sub rank {
 }
 sub rankstr {wantarray?(rank(@_,sub{$_[0]cmp$_[1]})):rank(@_,sub{$_[0]cmp$_[1]})}
 
+=head2 egrep
+
+=cut
+
+sub egrep {
+    my($code,$i,$package)=(shift,-1,(caller)[0]);
+    my %h=map{($_=>"$package::$_")}qw(i n prev next prevr nextr);
+    grep {
+	no strict 'refs';
+	local ${$h{i}}     = ++$i;
+	local ${$h{n}}     = $i+1;
+	local ${$h{prev}}  = $i>0?$_[$i-1]:undef;
+	local ${$h{next}}  = $i<$#_?$_[$i+1]:undef;
+	local ${$h{prevr}} = $_[$i>0?$i-1:$#_];
+	local ${$h{nextr}} = $_[$i<$#_?$i+1:0];
+	&$code;
+    }
+    @_;
+}
+
 =head2 eqarr
 
 B<Input:> Two or more references to arrays.
@@ -3729,7 +3750,7 @@ Example:
 
 Note: The values are NOT deep copied when they are references. (Use C<< Storable::dclone() >> to do that).
 
-Note2: For perl version 5.20+ subhashes (hash slices returning keys as well as values) is built in like this:
+Note2: For perl versions >= 5.20 subhashes (hash slices returning keys as well as values) is built in like this:
 
  %scandinavia = %population{'Norway','Sweden','Denmark'};
 
@@ -4677,7 +4698,7 @@ sub read_conf {
       $section=$1;
       $$hr{$1}||={};
     }
-    elsif( $l=~/^\s*([^\:\=]+)[:=]\s*(.*?)\s*$/ ) {
+    elsif( $l=~/^\s*([^\:\=]+?)\s*[:=]\s*(.*?)\s*$/ ) {
       my $ml=sub{my$v=shift;$v.="\n".shift@l while $v=~/^\{[^\}]*$/&&@l;$v=~s/^\{(.*)\}\s*$/$1/s;$v=~s,\\#,#,g;$v};
       my $v=&$ml($2);
       $$hr{$section}{$1}=$v if length($section) or $Read_conf_empty_section;
@@ -6559,7 +6580,7 @@ in certain cases). L</srlz> will be kept as a synonym (or the other way around).
 sub srlz {
   my $s=serialize(@_);
   $s=~s,'(\w+)'=>,$1=>,g;
-  $s=~s,=>'((0|[1-9]\d*)(\.\d+)?(e[-+]?\d+)?)',=>$1,gi;  #ikke ledende null!    hm
+  $s=~s,=>'([+-]?(0|[1-9]\d*)(\.\d+)?([eE][-+]?\d+)?)',=>$1,g;  #ikke ledende null!    hm
   $s;
 }
 
@@ -7501,9 +7522,11 @@ sub base64 ($;$) { #
   $res;
 }
 
+our $Fix_unbase64=0;
 sub unbase64 ($) {
   my $s=shift;
   $s=~tr,0-9a-zA-Z+=/,,cd;
+  if($Fix_unbase64){ $s.='=' while length($s)%4 }
   croak "unbase64 failed: length ".length($s)." not multiple of 4" if length($s)%4;
   $s=~s/=+$//;
   $s=~tr|A-Za-z0-9+/| -_|;
@@ -7769,6 +7792,8 @@ sub cmd_wipe  {
   wipe($_,$o{n},$o{k}) for @argv;
 }
 
+sub which { my $prog=shift; -x "$_/$prog" and return "$_/$prog" for split /:/, $ENV{PATH} }
+
 sub cmd_2gz    {cmd_z2z("-t","gz", @_)}
 sub cmd_2gzip  {cmd_z2z("-t","gz", @_)}
 sub cmd_2bz2   {cmd_z2z("-t","bz2",@_)}
@@ -7784,7 +7809,7 @@ sub cmd_z2z {
   my $sum=sum(map -s$_,@argv);
   print "Converting ".@argv." files, total ".bytes_readable($sum)."\n" if $o{v} and @argv>1;
   my $cat='cat';
-  if($o{p}){ if(qx(which pv)){ $cat='pv' } else { warn repl(<<"",qr/^\s+/) } }
+  if($o{p}){ if(which('pv')){ $cat='pv' } else { warn repl(<<"",qr/^\s+/) } }
     due: pv for -p not found, install with sudo yum install pv, sudo apt-get install pv or similar
 
   my $sumnew=0;
