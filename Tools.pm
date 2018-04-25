@@ -806,13 +806,14 @@ our %conv=(
 		  tonn         => 1000000,
 		  tonne        => 1000000,
 		  tonnes       => 1000000,
-		  seer         => 933.1,
+		  seer         => 933.1,         #~14400 grains (if 933.104304), India, Aden, Saudi-Arabia
+		  maund        => 37320,         #avg of Indias different mauds, ~ 40 x seer
 		  lb           => 453.59237,
 		  lbs          => 453.59237,
 		  lb_av        => 453.59237,
 		  lb_t         => 373.2417216,   #5760 grains
 		  lb_troy      => 373.2417216,
-		  pound        => 453.59237,
+		  pound        => 453.59237,     #7000 grains
 		  pounds       => 453.59237,
                   pound_av     => 453.59237,
                   pound_troy   => 373.2417216,
@@ -920,10 +921,12 @@ our %conv=(
 		  gal       => 231*2.54**3/1000, #3.785411784, #231 cubic inches
 		  gallon    => 231*2.54**3/1000,
 		  gallons   => 231*2.54**3/1000,
-		  gallon_us => 231*2.54**3/1000,
+		  gallon_us => 231*2.54**3/1000, #231 cubic inches
+		  gallon_wine=>231*2.54**3/1000,
 		  gallon_uk => 4.54609,
 		  gallon_imp=> 4.54609,
 		  gallon_us_dry => 4.40488377086, # ~ 9.25**2*pi*2.54**3/1000 L
+		  #hogshead, gill, pail, jigger, jackpot, The Science of Measurement - A Historical Survey (Klein)
 		  m3        => 10**3,      #1000 L
 		  cm3       => 0.1**3,     #0.001 L
                   in3       => 0.254**3,   #0.016387064 L
@@ -937,6 +940,8 @@ our %conv=(
                   pint_uk   => 4.54609/8,
                   pint_imp  => 4.54609/8,
                   pint_us   => 3.785411784/8,         #0.473176473
+		  quart     => 4.54609/4,             #2*pint
+		  pottle    => 4.54609/2,             #2*quart = gallon_uk/2
 		  therm     => 2.74e3,                #? 100000BTUs?   (!= thermie)
 		  thm       => 2.74e3,                #?               (!= th)
                   fat       => 42*231*2.54**3/1000,
@@ -4625,6 +4630,7 @@ version 5.?.?  It does not slurp the files or spawn new processes.
 sub md5sum {
   require Digest::MD5;
   my $fn=shift;
+  return Digest::MD5::md5_hex($$fn) if ref($fn) eq 'SCALAR';
   croak "md5sum: $fn is a directory (no md5sum)" if -d $fn;
   open my $FH, '<', $fn or croak "Could not open file $fn for md5sum() $!";
   binmode($FH);
