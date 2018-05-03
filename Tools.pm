@@ -386,6 +386,7 @@ L<http://en.wikipedia.org/wiki/Euclidean_algorithm>
 =cut
 
 sub gcd { my($a,$b,@r)=@_; @r ? gcd($a,gcd($b,@r)) : $b==0 ? $a : gcd($b, $a % $b) }
+#hm sub gcd { my($a,$b)=@_; ($a,$b)=($b,$a%$b) while $b; $a }
 
 =head2 lcm
 
@@ -7469,7 +7470,7 @@ sub _update_currency_file { #call from cron
   print $F "#   Updated every 6th hour on http://calthis.com/currency-rates\n";
   print $F "NOK 1.000000000\n";
   my $amount=1000;
-  my $data=qx($exe{curl} -s "http://www.x-rates.com/table/?from=NOK&amount=$amount");
+  my $data=qx($exe{curl} -s "https://www.x-rates.com/table/?from=NOK&amount=$amount");
   $data=~s,to=([A-Z]{3})(.)>,$2>$1</td><td>,g;
   my @data=ht2t($data,"Alphabetical order"); shift @data;
   @data=map "$$_[1] ".($$_[4]>1e-2?$$_[4]:$$_[2]?sprintf("%.8f",$amount/$$_[2]):0)."\n",@data;
