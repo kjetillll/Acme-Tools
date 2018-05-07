@@ -7628,7 +7628,7 @@ Like C<du> command but views space used by file extentions instead of dirs. Opti
 
 sub install_acme_command_tools {
   my $dir=(grep -d$_, @_, '/usr/local/bin', '/usr/bin')[0];
-  for( qw( conv due xcat freq finddup ccmd trunc wipe rttop  z2z 2gz 2gzip 2bz2 2bzip2 2xz resubst) ){
+  for( qw( conv due xcat freq finddup ccmd trunc wipe rttop  z2z 2gz 2gzip 2bz2 2bzip2 2xz resubst zsize) ){
     unlink("$dir/$_");
     writefile("$dir/$_", "#!$^X\nuse Acme::Tools;\nAcme::Tools::cmd_$_(\@ARGV);\n");
     sys("/bin/chmod +x $dir/$_"); #hm umask
@@ -7901,6 +7901,51 @@ sub args {
     require Getopt::Std;
     Getopt::Std::getopts($switches => $hashref);
     (@ARGV);
+}
+
+#cat Tools.pm|perl -I. /usr/local/bin/zsize -tp
+#cat Tools.pm|perl -I. /usr/local/bin/zsize -tp -
+#cat Tools.pm|perl -I. /usr/local/bin/zsize -tp Tools.pm
+sub cmd_zsize {
+  my %o;
+  my @argv=args("heEpt",\%o,@_);
+  my $stdin=!@argv || join(",",@argv) eq '-';
+  @argv=("/tmp/acme-tools.$$.stdin") if $stdin;
+  writefile($argv[0],join("",<STDIN>)) if $stdin;
+  my @prog=grep qx(which $_), qw(gzip bzip2 xz zstd);
+  for my $f (@argv){
+      my $sf=-s$f;
+      print "--- $f does not exists\n" and next if !-e$f;
+      print "--- $f is not a file\n" and next if !-f$f;
+      print "--- $f ($sf b) is not readable\n" and next if !-r$f;
+      print "--- $sf b  ".bytes_readable($sf)."  ".($stdin?"-":$f)."\n";
+      next if !$sf;
+      my @t;
+      for my $prog (@prog){
+	  next if !qx(which $prog);
+	  my @l=1..9;
+	  push @l,map"e$_",1..9 if $prog eq 'xz' and $o{e};
+	  @l=map"e$_",1..9      if $prog eq 'xz' and $o{E};
+	  @l=map 10+$_,@l       if $prog eq 'zstd';
+	  printf "%-6s",$prog;
+	  push @t, $prog, [] if $o{t};
+	  for my $l (@l){
+	      my $t=time_fp();
+	      my $b=qx(cat $f|$prog -$l|wc -c);
+	      push@{$t[-1]},time_fp()-$t if $o{t};
+	      $o{p} ? printf("%9.1f%% ",100*$b/$sf)
+	     :$o{h} ? printf("%10s ",bytes_readable($b))
+             :        printf("%10d ",$b);
+	  }
+	  print "\n";
+      }
+      while(@t){
+	  printf "%-6s",shift@t;
+	  printf "%9.3fs ",$_ for @{shift(@t)};
+	  print "\n";
+      }
+  }
+  unlink $argv[0] if $stdin;
 }
 
 sub cmd_rttop   { die "rttop: not implemented here yet.\n" }
