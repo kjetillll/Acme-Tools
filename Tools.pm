@@ -2573,7 +2573,7 @@ sub egrep {
     my($code,$i,$package)=(shift,-1,(caller)[0]);
     my %h=map{($_=>"$package::$_")}qw(i n prev next prevr nextr);
     grep {
-	no strict 'refs';
+	#no strict 'refs'; #"no" not allowed in expression in perl5.16
 	local ${$h{i}}     = ++$i;
 	local ${$h{n}}     = $i+1;
 	local ${$h{prev}}  = $i>0?$_[$i-1]:undef;
