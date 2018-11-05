@@ -1961,8 +1961,11 @@ Center pads. Pads the string both on left and right equal to the given length. C
 
 =cut
 
-sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-z�����������������������������/A-Z�����������������������������/;$s}
-sub lower {no warnings;my $s=@_?shift:$_;$s=~tr/A-Z�����������������������������/a-z�����������������������������/;$s}
+#sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-z�����������������������������/A-Z�����������������������������/;$s}
+#sub lower {no warnings;my $s=@_?shift:$_;$s=~tr/A-Z�����������������������������/a-z�����������������������������/;$s}
+
+sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-zæøåäëïöüÿâêîôûãõàèìòùáéíóúýñ/A-ZÆØÅÄËÏÖÜŸÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑ/;$s}
+sub lower {no warnings;my $s=@_?shift:$_;$s=~tr/A-ZÆØÅÄËÏÖÜŸÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑ/a-zæøåäëïöüÿâêîôûãõàèìòùáéíóúýñ/;$s}
 
 sub trim {
   return trim($_) if !@_;
