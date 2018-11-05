@@ -654,7 +654,7 @@ Note2: Many units have synonyms: m, meter, meters ...
                in, inch, inches, km, league, lightyear, ls, ly,
                m, meter, meters, mi, mil, mile, miles,
                nautical mile, nautical miles, nmi,
-               parsec, pc, planck, yard, yard_imperical, yd, å, ångstrøm
+               parsec, pc, planck, yard, yard_imperical, yd, Å, ångstrøm, angstrom
 
  mass:         Da, _eV, _g, bag, carat, ct, dwt, eV, electronvolt, g,
                grain, grains, gram, grams, kilo, kilos, kt, lb, lb_av,
@@ -741,8 +741,9 @@ our %conv=(
                   nmi                => 1852,           #nautical mile
                   'nautical mile'    => 1852,
                   'nautical miles'   => 1852,
-                  'å'                => 1e-10,
+                  'Å'                => 1e-10,
                   'ångstrøm'         => 1e-10,
+                  'angstrom'         => 1e-10,
 		  ly                 => 299792458*3600*24*365.25,
 		  lightyear          => 299792458*3600*24*365.25, # = 9460730472580800 by def
 		  ls                 => 299792458,      #light-second
