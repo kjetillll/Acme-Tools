@@ -626,11 +626,11 @@ Note2: Many units have synonyms: m, meter, meters ...
 
  area:         a, ar, are, ares, bunder, ca, centiare, cho, cm2,
                daa, decare, decares, deciare, dekar,
-               djerib, m2, dunam, d¤n¤m, earths, feddan, ft2, gongqing, ha
+               djerib, m2, dunam, dönöm, earths, feddan, ft2, gongqing, ha
                ha, hectare, hectares, hektar, jerib, km2, m2, manzana,
                mi2, mm2, mu, qing, rai, sotka,
                sqcm, sqft, sqkm, sqm, sqmi, sqmm
-               stremmata, um2, m2
+               stremmata, um2, µm2
 
  bytes:        Eb, Gb, Kb, KiB, Mb, Pb, Tb, Yb, Zb, b, byte,
                kb, kilobyte,  mb, megabyte,
