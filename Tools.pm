@@ -613,7 +613,7 @@ B<Units, types of measurement and currencies supported by C<conv> are:>
 
 Note: units starting with the symbol _ means that all metric
 prefixes from yocto 10^-24 to yotta 10^+24 is supported, so _m means
-km, mm, cm, µm and so on. And _N means kN, MN GN and so on.
+km, cm, mm, µm and so on. And _N means kN, MN GN and so on.
 
 Note2: Many units have synonyms: m, meter, meters ...
 
@@ -626,11 +626,11 @@ Note2: Many units have synonyms: m, meter, meters ...
 
  area:         a, ar, are, ares, bunder, ca, centiare, cho, cm2,
                daa, decare, decares, deciare, dekar,
-               djerib, m2, dunam, d�n�m, earths, feddan, ft2, gongqing, ha
+               djerib, m2, dunam, d¤n¤m, earths, feddan, ft2, gongqing, ha
                ha, hectare, hectares, hektar, jerib, km2, m2, manzana,
                mi2, mm2, mu, qing, rai, sotka,
                sqcm, sqft, sqkm, sqm, sqmi, sqmm
-               stremmata, um2, �m2
+               stremmata, um2, m2
 
  bytes:        Eb, Gb, Kb, KiB, Mb, Pb, Tb, Yb, Zb, b, byte,
                kb, kilobyte,  mb, megabyte,
@@ -654,7 +654,7 @@ Note2: Many units have synonyms: m, meter, meters ...
                in, inch, inches, km, league, lightyear, ls, ly,
                m, meter, meters, mi, mil, mile, miles,
                nautical mile, nautical miles, nmi,
-               parsec, pc, planck, yard, yard_imperical, yd, �, �ngstr�m
+               parsec, pc, planck, yard, yard_imperical, yd, å, ångstrøm
 
  mass:         Da, _eV, _g, bag, carat, ct, dwt, eV, electronvolt, g,
                grain, grains, gram, grams, kilo, kilos, kt, lb, lb_av,
@@ -741,8 +741,8 @@ our %conv=(
                   nmi                => 1852,           #nautical mile
                   'nautical mile'    => 1852,
                   'nautical miles'   => 1852,
-                  '�'                => 1e-10,
-                  '�ngstr�m'         => 1e-10,
+                  'å'                => 1e-10,
+                  'ångstrøm'         => 1e-10,
 		  ly                 => 299792458*3600*24*365.25,
 		  lightyear          => 299792458*3600*24*365.25, # = 9460730472580800 by def
 		  ls                 => 299792458,      #light-second
@@ -853,7 +853,7 @@ our %conv=(
                   dm2     => 0.1**2,
                   cm2     => 0.01**2,
                   mm2     => 0.001**2,
-		 '�m2'    => 1e-6**2,
+		 'µm2'    => 1e-6**2,
 		  um2     => 1e-6**2,
                   sqm     => 1,
                   sqcm    => 0.01**2,
@@ -868,7 +868,7 @@ our %conv=(
                   decare  => 1000,
                   decares => 1000,
                   daa     => 1000,
-                 'm�l'    => 1000,
+                 'mål'    => 1000,
                   ha      => 10000,
                   hektar  => 10000,
                   hectare => 10000,
@@ -901,7 +901,7 @@ our %conv=(
                   mu        => 10000/15,    #China
                   qing      => 10000/0.15,  #China
                   dunam     => 10000/10,    #Middle East
-                 'd�n�m'    => 10000/10,    #Middle East
+                 'dönüm'    => 10000/10,    #Middle East
                   stremmata => 10000/10,    #Greece
                   rai       => 10000/6.25,  #Thailand
                   cho       => 10000/1.008, #Japan
@@ -1071,7 +1071,7 @@ our %conv=(
                   Jps      => 1,
                   hp       => 746,
                   hk       => 746,        #hestekrefter (norwegian, scandinavian)
-		  PS       => 746/1.014,  #pferdest�rken
+		  PS       => 746/1.014,  #pferdestärken
 		 'kWh/yr'  => 1000    * 3600/(24*365), #kWh annually
                   Whpy     =>           3600/(24*365), #kWh annually
                   kWhpy    => 1000    * 3600/(24*365), #kWh annually
@@ -1251,7 +1251,7 @@ our %conv=(
            ETH => 7410.657012902,       #ethereum
            EUR => 9.657677,             #euro
            GBP => 10.913727,            #great britain pound, british pound
-           '�' => 10.913727,            #great britain pound, british pound, symbol
+           '£' => 10.913727,            #great britain pound, british pound symbol
            HKD => 0.994705,             #hong kong dollar
            HRK => 1.301015,             #croatian kuna
            HUF => 0.030922,             #hungarian forint
@@ -1303,7 +1303,7 @@ our $conv_prepare_money_time=0;
 sub conv_prepare {
   my %b    =(da  =>1e+1, h    =>1e+2, k    =>1e+3, M     =>1e+6,          G   =>1e+9, T   =>1e+12, P    =>1e+15, E   =>1e+18, Z    =>1e+21, Y    =>1e+24, H    =>1e+27);
   my %big  =(deca=>1e+1, hecto=>1e+2, kilo =>1e+3, mega  =>1e+6,          giga=>1e+9, tera=>1e+12, peta =>1e+15, exa =>1e+18, zetta=>1e+21, yotta=>1e+24, hella=>1e+27);
-  my %s    =(d   =>1e-1, c    =>1e-2, m    =>1e-3,'�'    =>1e-6, u=>1e-6, n   =>1e-9, p   =>1e-12, f    =>1e-15, a   =>1e-18, z    =>1e-21, y    =>1e-24);
+  my %s    =(d   =>1e-1, c    =>1e-2, m    =>1e-3,'µ'    =>1e-6, u=>1e-6, n   =>1e-9, p   =>1e-12, f    =>1e-15, a   =>1e-18, z    =>1e-21, y    =>1e-24);
   my %small=(deci=>1e-1, centi=>1e-2, milli=>1e-3, micro =>1e-6,          nano=>1e-9, pico=>1e-12, femto=>1e-15, atto=>1e-18, zepto=>1e-21, yocto=>1e-24);
   # myria=> 10000              #obsolete
   # demi => 1/2, double => 2   #obsolete
@@ -1907,9 +1907,9 @@ sub logn  { log($_[0])/log($_[1]) }
 
 Returns input string as uppercase or lowercase.
 
-Can be used if Perls build in C<uc()> and C<lc()> for some reason does not convert ��� or other latin1 letters outsize a-z.
+Can be used if Perls build in C<uc()> and C<lc()> for some reason does not convert æøå or other latin1 letters outsize a-z.
 
-Converts C<< ����������������������������� >> to and from C<< ��������?�������������������� >>
+Converts C<<  >>
 
 See also C<< perldoc -f uc >> and C<< perldoc -f lc >>
 
@@ -1961,11 +1961,8 @@ Center pads. Pads the string both on left and right equal to the given length. C
 
 =cut
 
-#sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-z�����������������������������/A-Z�����������������������������/;$s}
-#sub lower {no warnings;my $s=@_?shift:$_;$s=~tr/A-Z�����������������������������/a-z�����������������������������/;$s}
-
-sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-zæøåäëïöüÿâêîôûãõàèìòùáéíóúýñ/A-ZÆØÅÄËÏÖÜŸÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑ/;$s}
-sub lower {no warnings;my $s=@_?shift:$_;$s=~tr/A-ZÆØÅÄËÏÖÜŸÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑ/a-zæøåäëïöüÿâêîôûãõàèìòùáéíóúýñ/;$s}
+sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-zæøåäëïöü.âêîôûãõàèìòùáéíóúýñ/A-ZÆØÅÄËÏÖÜ.ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑ/;$s}
+sub lower {no warnings;my $s=@_?shift:$_;$s=~tr/A-ZÆØÅÄËÏÖÜ.ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑ/a-zæøåäëïöü.âêîôûãõàèìòùáéíóúýñ/;$s}
 
 sub trim {
   return trim($_) if !@_;
@@ -3810,7 +3807,7 @@ Gives:
 
 =cut
 
-#Hashtrans brukes automatisk n�r f�rste argument er -1 i sub hashtabell()
+#Hashtrans brukes automatisk når første argument er -1 i sub hashtabell()
 
 sub hashtrans {
   my $h=shift;
@@ -4078,9 +4075,9 @@ C<HostnameLookups Off> in Apache C<httpd.conf> and then use I<ipaddr> afterwards
 our %IPADDR_memo;
 sub ipaddr {
   my $ipnr=shift;
-  #NB, 2-tallet p� neste kodelinje er ikke det samme p� alle os,
-  #men ser ut til � funke i linux og hpux. Den Riktige M�ten(tm)
-  #er konstanten AF_INET i Socket eller IO::Socket-pakken.
+  #hm, NOTE: The 2 parameter on the next code line is not 2 for all OSes,
+  #but seems to work in Linux and HPUX. Den correct way is to use the
+  #AF_INET constant in the Socket or the IO::Socket package.
   return $IPADDR_memo{$ipnr} ||= gethostbyaddr(pack("C4",split("\\.",$ipnr)),2);
 }
 
@@ -4188,7 +4185,7 @@ chars can be URL encodes this way, but it's necessary just on some.
 
 Example:
 
- $search="�stdal, �ge";
+ $search="Østdal, Åge";
  my $url="http://machine.somewhere.com/search?q=" . urlenc($search);
  print $url;
 
@@ -4206,7 +4203,7 @@ sub urlenc {
 
 Opposite of L</urlenc>.
 
-Example, this returns 'C< �>'. That is space and C<< � >>.
+Example, this returns 'C< ø>'. That is space and C<< ø >>.
 
  urldec('+%C3')
 
@@ -4889,25 +4886,25 @@ interpreted as a date of the form YYYYMMDD, not as a number of seconds since epo
 
 =cut
 
-#Se ogs� L</tidstrk> og L</tidstr>
+#Se også L</tidstrk> og L</tidstr>
 
 our $Tms_pattern;
 our %Tms_str=
-	  ('M�NED' => [4, 'JANUAR','FEBRUAR','MARS','APRIL','MAI','JUNI','JULI',
+	  ('MÅNED' => [4, 'JANUAR','FEBRUAR','MARS','APRIL','MAI','JUNI','JULI',
 		          'AUGUST','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER' ],
-	   'M�ned' => [4, 'Januar','Februar','Mars','April','Mai','Juni','Juli',
+	   'Måned' => [4, 'Januar','Februar','Mars','April','Mai','Juni','Juli',
 		          'August','September','Oktober','November','Desember'],
-	   'm�ned' => [4, 'januar','februar','mars','april','mai','juni','juli',
+	   'måned' => [4, 'januar','februar','mars','april','mai','juni','juli',
 		          'august','september','oktober','november','desember'],
-	   'M�NE.' => [4, 'JAN.','FEB.','MARS','APR.','MAI','JUNI','JULI','AUG.','SEP.','OKT.','NOV.','DES.'],
-	   'M�ne.' => [4, 'Jan.','Feb.','Mars','Apr.','Mai','Juni','Juli','Aug.','Sep.','Okt.','Nov.','Des.'],
-	   'm�ne.' => [4, 'jan.','feb.','mars','apr.','mai','juni','juli','aug.','sep.','okt.','nov.','des.'],
-	   'M�NE'  => [4, 'JAN','FEB','MARS','APR','MAI','JUNI','JULI','AUG','SEP','OKT','NOV','DES'],
-	   'M�ne'  => [4, 'Jan','Feb','Mars','Apr','Mai','Juni','Juli','Aug','Sep','Okt','Nov','Des'],
-	   'm�ne'  => [4, 'jan','feb','mars','apr','mai','juni','juli','aug','sep','okt','nov','des'],
-	   'M�N'   => [4, 'JAN','FEB','MAR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DES'],
-	   'M�n'   => [4, 'Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'],
-	   'm�n'   => [4, 'jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'],
+	   'MÅNE.' => [4, 'JAN.','FEB.','MARS','APR.','MAI','JUNI','JULI','AUG.','SEP.','OKT.','NOV.','DES.'],
+	   'Måne.' => [4, 'Jan.','Feb.','Mars','Apr.','Mai','Juni','Juli','Aug.','Sep.','Okt.','Nov.','Des.'],
+	   'måne.' => [4, 'jan.','feb.','mars','apr.','mai','juni','juli','aug.','sep.','okt.','nov.','des.'],
+	   'MÅNE'  => [4, 'JAN','FEB','MARS','APR','MAI','JUNI','JULI','AUG','SEP','OKT','NOV','DES'],
+	   'Måne'  => [4, 'Jan','Feb','Mars','Apr','Mai','Juni','Juli','Aug','Sep','Okt','Nov','Des'],
+	   'måne'  => [4, 'jan','feb','mars','apr','mai','juni','juli','aug','sep','okt','nov','des'],
+	   'MÅN'   => [4, 'JAN','FEB','MAR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DES'],
+	   'Mån'   => [4, 'Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'],
+	   'mån'   => [4, 'jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'],
 	   'MONTH' => [4, 'JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY',
 		          'AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'],
 	   'Month' => [4, 'January','February','March','April','May','June','July',
@@ -4929,23 +4926,23 @@ our %Tms_str=
 	   'DY'    => [6, 'SUN','MON','TUE','WED','THU','FRI','SAT'],
 	   'Dy'    => [6, 'Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
 	   'dy'    => [6, 'sun','mon','tue','wed','thu','fri','sat'],
-	   'DAG'   => [6, 'S�NDAG','MANDAG','TIRSDAG','ONSDAG','TORSDAG','FREDAG','L�RDAG'],
-	   'Dag'   => [6, 'S�ndag','Mandag','Tirsdag','Onsdag','Torsdag','Fredag','L�rdag'],
-	   'dag'   => [6, 's�ndag','mandag','tirsdag','onsdag','torsdag','fredag','l�rdag'],
-	   'DG'    => [6, 'S�N','MAN','TIR','ONS','TOR','FRE','L�R'],
-	   'Dg'    => [6, 'S�n','Man','Tir','Ons','Tor','Fre','L�r'],
-	   'dg'    => [6, 's�n','man','tir','ons','tor','fre','l�r'],
+	   'DAG'   => [6, 'SØNDAG','MANDAG','TIRSDAG','ONSDAG','TORSDAG','FREDAG','LØRDAG'],
+	   'Dag'   => [6, 'Søndag','Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag'],
+	   'dag'   => [6, 'søndag','mandag','tirsdag','onsdag','torsdag','fredag','lørdag'],
+	   'DG'    => [6, 'Søn','MAN','TIR','ONS','TOR','FRE','LØR'],
+	   'Dg'    => [6, 'SØn','Man','Tir','Ons','Tor','Fre','Lør'],
+	   'dg'    => [6, 'søn','man','tir','ons','tor','fre','lør'],
 	   );
 my $_tms_inited=0;
 sub tms_init {
   return if $_tms_inited++;
   for(qw(MAANED Maaned maaned MAAN Maan maan),'MAANE.','Maane.','maane.'){
-    $Tms_str{$_}=$Tms_str{replace($_,"aa","�","AA","�")};
+    $Tms_str{$_}=$Tms_str{replace($_,"aa","å","AA","Å")};
   }
   $Tms_pattern=join("|",map{quotemeta($_)}
-			       sort{length($b)<=>length($a)}
-			       keys %Tms_str);
-  #uten sort kan "m�ned" bli "mared", fordi "m�n"=>"mar"
+		        sort{length($b)<=>length($a)}
+			keys %Tms_str);
+  #without sort "måned" could be "mared" because "mån"=>"mar"
 }
 
 sub totime {
@@ -5213,7 +5210,7 @@ Estimated time of arrival (ETA).
 
 =cut
 
-#http://en.wikipedia.org/wiki/Kalman_filter god id�?
+#http://en.wikipedia.org/wiki/Kalman_filter good idea?
 our %Eta;
 our $Eta_forgetfulness=2;
 sub eta {
@@ -5445,34 +5442,34 @@ sub qrlist (@) {
 
 Perhaps easier to use than L<Term::ANSIColor> ?
 
-B<Input:> One argument. A string where the char C<�> have special
+B<Input:> One argument. A string where the char C<¤> have special
 meaning and is replaced by color codings depending on the letter
-following the C<�>.
+following the C<¤>.
 
-B<Output:> The same string, but with C<�letter> replaced by ANSI color
+B<Output:> The same string, but with C<¤letter> replaced by ANSI color
 codes respected by many types terminal windows. (xterm, telnet, ssh,
 telnet, rlog, vt100, cygwin, rxvt and such...).
 
 B<Codes for ansicolor():>
 
- �r red
- �g green
- �b blue
- �y yellow
- �m magenta
- �B bold
- �u underline
- �c clear
- �� reset, quits and returns to default text color.
+ ¤r red
+ ¤g green
+ ¤b blue
+ ¤y yellow
+ ¤m magenta
+ ¤B bold
+ ¤u underline
+ ¤c clear
+ ¤¤ reset, quits and returns to default text color.
 
 B<Example:>
 
- print ansicolor("This is maybe �ggreen��?");
+ print ansicolor("This is maybe ¤ggreen¤¤?");
 
 Prints I<This is maybe green?> where the word I<green> is shown in green.
 
 If L<Term::ANSIColor> is not installed or not found, returns the input
-string with every C<�> including the following code letters
+string with every C<¤> including the following code letters
 removed. (That is: ansicolor is safe to use even if Term::ANSIColor is
 not installed, you just don't get the colors).
 
@@ -5482,10 +5479,10 @@ See also L<Term::ANSIColor>.
 
 sub ansicolor {
   my $txt=shift;
-  eval{require Term::ANSIColor} or return replace($txt,qr/�./);
-  my %h=qw/r red  g green  b blue  y yellow  m magenta  B bold  u underline  c clear  � reset/;
+  eval{require Term::ANSIColor} or return replace($txt,qr/¤./);
+  my %h=qw/r red  g green  b blue  y yellow  m magenta  B bold  u underline  c clear  ¤ reset/;
   my $re=join"|",keys%h;
-  $txt=~s/�($re)/Term::ANSIColor::color($h{$1})/ge;
+  $txt=~s/¤($re)/Term::ANSIColor::color($h{$1})/ge;
   return $txt;
 }
 
@@ -6225,7 +6222,7 @@ sub _sortsub {
   my @b=split $;,$b;
   for(0..$#a){
     my $c=$a[$_]<=>$b[$_];
-    return $c if $c and "$a[$_]$b[$_]"!~/[iI][nN][fF]|�/i; # inf(inity)
+    return $c if $c and "$a[$_]$b[$_]"!~/[iI][nN][fF]|þ|∞/i; # hm inf(inity)
     $c=$a[$_]cmp$b[$_];
     return $c if $c;
   }
@@ -6825,7 +6822,7 @@ sub changed {
 }
 
 #todo: sub unbless eller sub damn
-#todo: ..se ogs�: use Data::Structure::Util qw/unbless/;
+#todo: ..se også: use Data::Structure::Util qw/unbless/;
 #todo: ...og: Acme::Damn sin damn()
 #todo? sub swap($$) http://www.idg.no/computerworld/article242008.ece
 #todo? catal
@@ -7784,7 +7781,7 @@ sub cmd_freq {
   my(@f,$i);
   map $f[$_]++, unpack("C*",$_) while <>;
   my $s=" " x 12;map{print"$_$s$_$s$_\n"}("BYTE  CHAR   COUNT","---- ----- -------");
-  my %m=(145,"DOS-�",155,"DOS-�",134,"DOS-�",146,"DOS-�",157,"DOS-�",143,"DOS-�",map{($_," ")}0..31);
+  my %m=(145,"DOS-æ",155,"DOS-ø",134,"DOS-å",146,"DOS-Æ",157,"DOS-Ø",143,"DOS-Å",map{($_," ")}0..31);
   printf("%4d %5s%8d".(++$i%3?$s:"\n"),$_,$m{$_}||chr,$f[$_]) for grep$f[$_],0..255;print "\n";
   my @no=grep!$f[$_],0..255; print "No bytes for these ".@no.": ".join(" ",@no)."\n";
 }
@@ -8129,7 +8126,7 @@ sub sum      { &Acme::Tools::bfsum      }
 # + c-s todo
 # + endre $VERSION
 # + endre Release history under HISTORY
-# + endre �rstall under COPYRIGHT AND LICENSE
+# + endre årstall under COPYRIGHT AND LICENSE
 # + oppd default valutakurser inkl datoen
 # + emacs Changes
 # + emacs README + aarstall
