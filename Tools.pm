@@ -613,7 +613,7 @@ B<Units, types of measurement and currencies supported by C<conv> are:>
 
 Note: units starting with the symbol _ means that all metric
 prefixes from yocto 10^-24 to yotta 10^+24 is supported, so _m means
-km, mm, cm, �m and so on. And _N means kN, MN GN and so on.
+km, mm, cm, µm and so on. And _N means kN, MN GN and so on.
 
 Note2: Many units have synonyms: m, meter, meters ...
 
