@@ -2553,7 +2553,7 @@ sub egrep {
     my($code,$i,$package)=(shift,-1,(caller)[0]);
     my %h=map{($_=>"$package::$_")}qw(i n prev next prevr nextr);
     grep {
-	no strict 'refs';
+	#no strict 'refs'; #todo: denne no strict feiler i 5.16
 	local ${$h{i}}     = ++$i;
 	local ${$h{n}}     = $i+1;
 	local ${$h{prev}}  = $i>0?$_[$i-1]:undef;
@@ -7809,7 +7809,7 @@ sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
 #todo?: sub cmd_7z
 sub cmd_z2z {
   my %o;
-  my @argv=args("pt:kvhon123456789e",\%o,@_);
+  my @argv=args("pt:kvhon123456789es:",\%o,@_);
   my $t=repl(lc$o{t},qw/gzip gz bzip2 bz2/);
   die "due: unknown compression type $o{t}, known are gz, bz2 and xz" if $t!~/^(gz|bz2|xz)$/;
   delete $o{e} if $o{e} and $o{t} ne 'xz' and warn "-e available only for type xz\n";
@@ -7823,6 +7823,7 @@ sub cmd_z2z {
   my $start=time_fp();
   my($i,$bsf)=(0,0);#bytes so far
   $Eta{'z2z'}=[];eta('z2z',0,$sum);
+  #@argv=map$$_[1],sort{$$a[0]cmp$$b[0]}map{[$opt{
   for(@argv){
     my $new=$_; $new=~s/(\.(gz|bz2|xz))?$/.$t/i or die;
     my $ext=defined($2)?lc($2):'';
@@ -8163,8 +8164,17 @@ sub sum      { &Acme::Tools::bfsum      }
 #  return $crc;
 # }
 #
-
-
+# $maybe_valid_utf8 =~                   # https://stackoverflow.com/questions/11709410/regex-to-detect-invalid-utf-8-string
+# m/\A(
+#     [\x09\x0A\x0D\x20-\x7E]            # ASCII, or rather: [\x00-\x7F]
+#   | [\xC2-\xDF][\x80-\xBF]             # non-overlong 2-byte
+#   |  \xE0[\xA0-\xBF][\x80-\xBF]        # excluding overlongs
+#   | [\xE1-\xEC\xEE\xEF][\x80-\xBF]{2}  # straight 3-byte
+#   |  \xED[\x80-\x9F][\x80-\xBF]        # excluding surrogates
+#   |  \xF0[\x90-\xBF][\x80-\xBF]{2}     # planes 1-3
+#   | [\xF1-\xF3][\x80-\xBF]{3}          # planes 4-15
+#   |  \xF4[\x80-\x8F][\x80-\xBF]{2}     # plane 16
+#  )*\z/x;
 
 =head1 HISTORY
 
