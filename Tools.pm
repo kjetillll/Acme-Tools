@@ -1910,7 +1910,7 @@ Returns input string as uppercase or lowercase.
 
 Can be used if Perls build in C<uc()> and C<lc()> for some reason does not convert æøå or other latin1 letters outsize a-z.
 
-Converts C<<  >>
+Converts C<< æøåäëïöüÿâêîôûãõàèìòùáéíóúýñð >> to and from C<< ÆØÅÄËÏÖÜ?ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ >>
 
 See also C<< perldoc -f uc >> and C<< perldoc -f lc >>
 
@@ -1962,8 +1962,8 @@ Center pads. Pads the string both on left and right equal to the given length. C
 
 =cut
 
-sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-zæøåäëïöü.âêîôûãõàèìòùáéíóúýñ/A-ZÆØÅÄËÏÖÜ.ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑ/;$s}
-sub lower {no warnings;my $s=@_?shift:$_;$s=~tr/A-ZÆØÅÄËÏÖÜ.ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑ/a-zæøåäëïöü.âêîôûãõàèìòùáéíóúýñ/;$s}
+sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-zæøåäëïöü.âêîôûãõàèìòùáéíóúýñð/A-ZÆØÅÄËÏÖÜ.ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ/;$s}
+sub lower {no warnings;my $s=@_?shift:$_;$s=~tr/A-ZÆØÅÄËÏÖÜ.ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ/a-zæøåäëïöü.âêîôûãõàèìòùáéíóúýñð/;$s}
 
 sub trim {
   return trim($_) if !@_;
