@@ -58,6 +58,7 @@ our @EXPORT = qw(
   bound
   log10
   log2
+  logn
   distinct
   in
   in_num
@@ -477,11 +478,11 @@ If either second, third or fourth argument is an instance of L<Math::BigFloat>, 
 
  use Acme::Tools;
  my $equation = sub{ $_ - 1 - 1/$_ };
- my $gr1 = resolve( $equation, 0,      1  ); # 
+ my $gr1 = resolve( $equation, 0,      1  ); #
  my $gr2 = resolve( $equation, 0, bigf(1) ); # 1/2 + sqrt(5)/2
  bigscale(50);
  my $gr3 = resolve( $equation, 0, bigf(1) ); # 1/2 + sqrt(5)/2
- 
+
  print 1/2 + sqrt(5)/2, "\n";
  print "Golden ratio 1: $gr1\n";
  print "Golden ratio 2: $gr2\n";
@@ -612,55 +613,55 @@ B<Units, types of measurement and currencies supported by C<conv> are:>
 
 Note: units starting with the symbol _ means that all metric
 prefixes from yocto 10^-24 to yotta 10^+24 is supported, so _m means
-km, mm, cm, µm and so on. And _N means kN, MN GN and so on.
+km, cm, mm, ¬µm and so on. And _N means kN, MN GN and so on.
 
 Note2: Many units have synonyms: m, meter, meters ...
 
  acceleration: g, g0, m/s2, mps2
- 
+
  angle:        binary_degree, binary_radian, brad, deg, degree, degrees,
                gon, grad, grade, gradian, gradians, hexacontade, hour,
                new_degree, nygrad, point, quadrant, rad, radian, radians,
                sextant, turn
- 
+
  area:         a, ar, are, ares, bunder, ca, centiare, cho, cm2,
                daa, decare, decares, deciare, dekar,
-               djerib, m2, dunam, dˆn¸m, earths, feddan, ft2, gongqing, ha
+               djerib, m2, dunam, d√∂n√∂m, earths, feddan, ft2, gongqing, ha
                ha, hectare, hectares, hektar, jerib, km2, m2, manzana,
                mi2, mm2, mu, qing, rai, sotka,
                sqcm, sqft, sqkm, sqm, sqmi, sqmm
-               stremmata, um2, µm2
- 
+               stremmata, um2, ¬µm2
+
  bytes:        Eb, Gb, Kb, KiB, Mb, Pb, Tb, Yb, Zb, b, byte,
                kb, kilobyte,  mb, megabyte,
                gb, gigabyte,  tb, terabyte,
                pb, petabyte,  eb, exabyte,
                zb, zettabyte, yb, yottabyte
- 
+
  charge:       As, C, _e, coulomb, e
- 
+
  current:      A, _A, N/m2
- 
+
  energy:       BTU, Btu, J, Nm, W/s, Wh, Wps, Ws, _J, _eV,
                cal, calorie, calories, eV, electronvolt, BeV,
                erg, ergs, foot-pound, foot-pounds, ftlb, joule, kWh,
                kcal, kilocalorie, kilocalories,
                newtonmeter, newtonmeters, th, thermie
- 
+
  force:        N, _N, dyn, dyne, dynes, lb, newton
- 
+
  length:       NM, _m, _pc, astronomical unit, au, chain, ft, furlong,
                in, inch, inches, km, league, lightyear, ls, ly,
                m, meter, meters, mi, mil, mile, miles,
                nautical mile, nautical miles, nmi,
-               parsec, pc, planck, yard, yard_imperical, yd, ≈, Ângstr¯m
- 
+               parsec, pc, planck, yard, yard_imperical, yd, √Ö, √•ngstr√∏m, angstrom
+
  mass:         Da, _eV, _g, bag, carat, ct, dwt, eV, electronvolt, g,
                grain, grains, gram, grams, kilo, kilos, kt, lb, lb_av,
                lb_t, lb_troy, lbs, ounce, ounce_av, ounce_troy, oz, oz_av, oz_t,
                pennyweight, pound, pound_av, pound_metric, pound_troy, pounds,
                pwt, seer, sl, slug, solar_mass, st, stone, t, tonn, tonne, tonnes, u, wey
- 
+
  mileage:      mpg, l/100km, l/km, l/10km, lp10km, l/mil, liter_pr_100km, liter_pr_km, lp100km
 
  money:        AED, ARS, AUD, BGN, BHD, BND, BRL, BWP, CAD, CHF, CLP, CNY,
@@ -676,23 +677,23 @@ Note2: Many units have synonyms: m, meter, meters ...
 
  power:        BTU, BTU/h, BTU/s, BTUph, GWhpy, J/s, Jps, MWhpy, TWhpy,
                W, Whpy, _W, ftlb/min, ftlb/s, hk, hp, kWh/yr, kWhpy
- 
+
  pressure:     N/m2, Pa, _Pa, at, atm, bar, mbar, pascal, psi, torr
- 
+
  radioactivity: Bq, becquerel, curie
- 
+
  speed:        _m/s, km/h, km/t, kmh, kmph, kmt, m/s, mi/h, mph, mps,
                kn, knot, knots, kt, kts, mach, machs, c, fps, ft/s, ftps
- 
+
  temperature:  C, F, K, celsius, fahrenheit, kelvin
- 
+
  time:         _s, biennium, century, d, day, days, decade, dy, fortnight,
                h, hour, hours, hr, indiction, jubilee, ke, lustrum, m,
                millennium, min, minute, minutes, mo, moment, mon, month,
                olympiad, quarter, s, season, sec, second, seconds, shake,
                tp, triennium, w, week, weeks, y, y365, ySI, ycommon,
                year, years, ygregorian, yjulian, ysideral, ytropical
- 
+
  volume:        l, L, _L, _l, cm3, m3, ft3, in3, liter, liters, litre, litres,
                 gal, gallon, gallon_imp, gallon_uk, gallon_us, gallons,
                 pint, pint_imp, pint_uk, pint_us, tsp, tablespoon, teaspoon,
@@ -704,7 +705,7 @@ See: L<http://en.wikipedia.org/wiki/Units_of_measurement>
 =cut
 
 #TODO:  @arr2=conv(\@arr1,"from","to")         # should be way faster than:
-#TODO:  @arr2=map conv($_,"from","to"),@arr1 
+#TODO:  @arr2=map conv($_,"from","to"),@arr1
 #TODO:  conv(123456789,'b','h'); # h converts to something human-readable
 
 our %conv=(
@@ -740,8 +741,9 @@ our %conv=(
                   nmi                => 1852,           #nautical mile
                   'nautical mile'    => 1852,
                   'nautical miles'   => 1852,
-                  '≈'                => 1e-10,
-                  'Ângstr¯m'         => 1e-10,
+                  '√Ö'                => 1e-10,
+                  '√•ngstr√∏m'         => 1e-10,
+                  'angstrom'         => 1e-10,
 		  ly                 => 299792458*3600*24*365.25,
 		  lightyear          => 299792458*3600*24*365.25, # = 9460730472580800 by def
 		  ls                 => 299792458,      #light-second
@@ -852,7 +854,7 @@ our %conv=(
                   dm2     => 0.1**2,
                   cm2     => 0.01**2,
                   mm2     => 0.001**2,
-		 'µm2'    => 1e-6**2,
+		 '¬µm2'    => 1e-6**2,
 		  um2     => 1e-6**2,
                   sqm     => 1,
                   sqcm    => 0.01**2,
@@ -867,7 +869,7 @@ our %conv=(
                   decare  => 1000,
                   decares => 1000,
                   daa     => 1000,
-                 'mÂl'    => 1000,
+                 'm√•l'    => 1000,
                   ha      => 10000,
                   hektar  => 10000,
                   hectare => 10000,
@@ -900,7 +902,7 @@ our %conv=(
                   mu        => 10000/15,    #China
                   qing      => 10000/0.15,  #China
                   dunam     => 10000/10,    #Middle East
-                 'dˆn¸m'    => 10000/10,    #Middle East
+                 'd√∂n√ºm'    => 10000/10,    #Middle East
                   stremmata => 10000/10,    #Greece
                   rai       => 10000/6.25,  #Thailand
                   cho       => 10000/1.008, #Japan
@@ -1070,7 +1072,7 @@ our %conv=(
                   Jps      => 1,
                   hp       => 746,
                   hk       => 746,        #hestekrefter (norwegian, scandinavian)
-		  PS       => 746/1.014,  #pferdest‰rken
+		  PS       => 746/1.014,  #pferdest√§rken
 		 'kWh/yr'  => 1000    * 3600/(24*365), #kWh annually
                   Whpy     =>           3600/(24*365), #kWh annually
                   kWhpy    => 1000    * 3600/(24*365), #kWh annually
@@ -1097,7 +1099,7 @@ our %conv=(
                    Wh           => 3600,
                    kWh          => 3600000, #3.6 million J
                    cal          => 4.1868,          # ~ 3600/860
-		   calorie      => 4.1868, 
+		   calorie      => 4.1868,
 		   calories     => 4.1868,
                    kcal         => 4.1868*1000,
 		   kilocalorie  => 4.1868*1000,
@@ -1157,24 +1159,24 @@ our %conv=(
 		  gb    => 1024**3,      #2**30 = 1073741824
 		  tb    => 1024**4,      #2**40 = 1099511627776
 		  pb    => 1024**5,      #2**50 = 1.12589990684262e+15
-		  eb    => 1024**6,      #2**60 = 
-		  zb    => 1024**7,      #2**70 = 
+		  eb    => 1024**6,      #2**60 =
+		  zb    => 1024**7,      #2**70 =
 		  yb    => 1024**8,      #2**80 =
                   KiB   => 1024,         #2**10
                   KiB   => 1024**2,      #2**20 = 1048576
 		  KiB   => 1024**3,      #2**30 = 1073741824
 		  KiB   => 1024**4,      #2**40 = 1099511627776
 		  KiB   => 1024**5,      #2**50 = 1.12589990684262e+15
-		  KiB   => 1024**6,      #2**60 = 
-		  KiB   => 1024**7,      #2**70 = 
+		  KiB   => 1024**6,      #2**60 =
+		  KiB   => 1024**7,      #2**70 =
 		  KiB   => 1024**8,      #2**80 =
                   Kb    => 1000,         #2**10
                   Mb    => 1000**2,      #2**20 = 1048576
 		  Gb    => 1000**3,      #2**30 = 1073741824
 		  Tb    => 1000**4,      #2**40 = 1099511627776
 		  Pb    => 1000**5,      #2**50 = 1.12589990684262e+15
-		  Eb    => 1000**6,      #2**60 = 
-		  Zb    => 1000**7,      #2**70 = 
+		  Eb    => 1000**6,      #2**60 =
+		  Zb    => 1000**7,      #2**70 =
 		  Yb    => 1000**8,      #2**80 =
                   byte      => 1,
                   kilobyte  => 1024,         #2**10
@@ -1182,8 +1184,8 @@ our %conv=(
 		  gigabyte  => 1024**3,      #2**30 = 1073741824
 		  terabyte  => 1024**4,      #2**40 = 1099511627776
 		  petabyte  => 1024**5,      #2**50 = 1.12589990684262e+15
-		  exabyte   => 1024**6,      #2**60 = 
-		  zettabyte => 1024**7,      #2**70 = 
+		  exabyte   => 1024**6,      #2**60 =
+		  zettabyte => 1024**7,      #2**70 =
 		  yottabyte => 1024**8,      #2**80 =
                  },
          milage=>{                                #fuel consumption
@@ -1229,7 +1231,7 @@ our %conv=(
                  },
 	 money =>{                      # rates at 18th feb 2018
            NOK => 1.000000000,          #norwegian kroner
-           AED => 2.118503,             #united arab emirates dirham 
+           AED => 2.118503,             #united arab emirates dirham
            ARS => 0.393725,             #argentina peso
            AUD => 6.162408,             #australian dollar
            BCH => 12118.36327559,       #bitcoin cash
@@ -1250,7 +1252,7 @@ our %conv=(
            ETH => 7410.657012902,       #ethereum
            EUR => 9.657677,             #euro
            GBP => 10.913727,            #great britain pound, british pound
-           '£' => 10.913727,            #great britain pound, british pound, symbol
+           '¬£' => 10.913727,            #great britain pound, british pound symbol
            HKD => 0.994705,             #hong kong dollar
            HRK => 1.301015,             #croatian kuna
            HUF => 0.030922,             #hungarian forint
@@ -1302,7 +1304,7 @@ our $conv_prepare_money_time=0;
 sub conv_prepare {
   my %b    =(da  =>1e+1, h    =>1e+2, k    =>1e+3, M     =>1e+6,          G   =>1e+9, T   =>1e+12, P    =>1e+15, E   =>1e+18, Z    =>1e+21, Y    =>1e+24, H    =>1e+27);
   my %big  =(deca=>1e+1, hecto=>1e+2, kilo =>1e+3, mega  =>1e+6,          giga=>1e+9, tera=>1e+12, peta =>1e+15, exa =>1e+18, zetta=>1e+21, yotta=>1e+24, hella=>1e+27);
-  my %s    =(d   =>1e-1, c    =>1e-2, m    =>1e-3,'µ'    =>1e-6, u=>1e-6, n   =>1e-9, p   =>1e-12, f    =>1e-15, a   =>1e-18, z    =>1e-21, y    =>1e-24);
+  my %s    =(d   =>1e-1, c    =>1e-2, m    =>1e-3,'¬µ'    =>1e-6, u=>1e-6, n   =>1e-9, p   =>1e-12, f    =>1e-15, a   =>1e-18, z    =>1e-21, y    =>1e-24);
   my %small=(deci=>1e-1, centi=>1e-2, milli=>1e-3, micro =>1e-6,          nano=>1e-9, pico=>1e-12, femto=>1e-15, atto=>1e-18, zepto=>1e-21, yocto=>1e-24);
   # myria=> 10000              #obsolete
   # demi => 1/2, double => 2   #obsolete
@@ -1581,7 +1583,7 @@ sub int2roman {
 
 sub roman2int {
   my($r,$n,%c)=(shift,0,'',0,qw/I 1 V 5 X 10 L 50 C 100 D 500 M 1000/);
-  $r=~s/^-//?-roman2int($r): 
+  $r=~s/^-//?-roman2int($r):
   $r=~s/(C?)([DM])|(X?)([LCDM])|(I?)([VXLCDM])|(I)|(.)/
         croak "roman2int: Invalid number $r" if $8;
         $n += $c{$2||$4||$6||$7} - $c{$1||$3||$5||''}; ''/eg && $n
@@ -1602,7 +1604,7 @@ sub roman2int {
 #   : $r=~s,^IX,,i ?    9+roman2int($r)
 #   : $r=~s,^V,,i  ?    5+roman2int($r)
 #   : $r=~s,^IV,,i ?    4+roman2int($r)
-#   : $r=~s,^I,,i  ?    1+roman2int($r) 
+#   : $r=~s,^I,,i  ?    1+roman2int($r)
 #   : !length($r)  ?    0
 #   : croak "Invalid roman number $r";
 #}
@@ -1697,7 +1699,7 @@ C<< Math::BigInt->new() >>, C<< Math::BigFloat->new() >> and C<< Math::BigRat->n
   print 2**200;       # 1.60693804425899e+60
   print big(2)**200;  # 1606938044258990275541962092341162602522202993782792835301376
   print 2**big(200);  # 1606938044258990275541962092341162602522202993782792835301376
-  print big(2**200);  # 1606938044258990000000000000000000000000000000000000000000000 
+  print big(2**200);  # 1606938044258990000000000000000000000000000000000000000000000
 
   print 1/7;          # 0.142857142857143
   print 1/big(7);     # 0      because of integer arithmetics
@@ -1746,7 +1748,7 @@ sub bigr {
   else           { return      Math::BigRat->new($_[0])   }
 }
 sub big {
-  wantarray 
+  wantarray
   ? (map     /\./ ? bigf($_)    :        /\// ? bigr($_)    : bigi($_), @_)
   :   $_[0]=~/\./ ? bigf($_[0]) : $_[0]=~/\// ? bigr($_[0]) : bigi($_[0]);
 }
@@ -1818,14 +1820,18 @@ sub fractional { #http://mathcentral.uregina.ca/QQ/database/QQ.09.06/h/lil1.html
 
 =head2 isnum
 
-B<Input:> String to be tested on regexp C<< /^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) (?:[eE][\-\+]?\d+)?\s*$/x >>. If no argument is given isnum checks C<< $_ >>.
+B<Input:> String to be tested on this regexp:
+
+C<< /^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) (?:[eE][\-\+]?\d+)?\s*$/x >>
+
+If no argument is given isnum checks C<< $_ >>.
 
 B<Output:> True or false (1 or 0)
 
  use Acme::Tools;
- my @e=('     +32.12354E-21  ', 2.2, '9' x 99999, ' -123.12', '29,323.31', '29 323.31');
+ my @e=('   +32.12354E-21  ', 2.2, '9' x 99999, ' -123.12', '29,323.31', '29 323.31');
  print isnum()       ? 'num' : 'str' for @e;  #prints num for every element except the last two
- print $_=~$Re_isnum ? 'num' : 'str' for @e;  #same
+ print $_=~$Re_isnum ? 'num' : 'str' for @e;  #same but slighhly faster
 
 =cut
 
@@ -1841,10 +1847,10 @@ Returns: Something I<true> if the first argument is numerically between the two 
 =cut
 
 sub between {
-  my($test,$fom,$tom)=@_;
+  my($test ,$fom, $tom)=@_;
   no warnings;
-  return $fom<$tom ? $test>=$fom&&$test<=$tom
-                   : $test>=$tom&&$test<=$fom;
+  $fom<$tom ? $test>=$fom && $test<=$tom
+            : $test>=$tom && $test<=$fom;
 }
 
 =head2 curb
@@ -1861,7 +1867,8 @@ Returns minimum if the value is less or maximum if the value is more.
  print curb(\$v, 250, 300 );    #prints 250 and changes $v
  print $v;                      #prints 250
 
-In the last example $v is changed because the argument is a reference. (To keep backward compatability, C<< bound() >> is a synonym for C<< curb() >>)
+In the last example $v is changed because the argument is a reference.
+(To keep backward compatibility, C<< bound() >> is a synonym for C<< curb() >>)
 
 =cut
 
@@ -1876,8 +1883,22 @@ sub curb {
                 $val;
 }
 sub bound { curb(@_) }
+
+=head2 log10
+=head2 log2
+=head2 logn
+
+print log10(1000);           # prints 3
+print log10(10000*sqtr(10)); # prints 4.5
+print log2(16);              # prints 4
+print logn(4096, 8);         # prints 4 (12/3=4)
+print logn($PI, 2.71828182845905);  # same as  print log($PI)  using perls builtin log()
+
+=cut
+
 sub log10 { log($_[0])/log(10) }
 sub log2  { log($_[0])/log(2)  }
+sub logn  { log($_[0])/log($_[1]) }
 
 =head1 STRINGS
 
@@ -1887,9 +1908,9 @@ sub log2  { log($_[0])/log(2)  }
 
 Returns input string as uppercase or lowercase.
 
-Can be used if Perls build in C<uc()> and C<lc()> for some reason does not convert Ê¯Â or other latin1 letters outsize a-z.
+Can be used if Perls build in C<uc()> and C<lc()> for some reason does not convert √¶√∏√• or other latin1 letters outsize a-z.
 
-Converts C<< Ê¯Â‰ÎÔˆ¸ˇ‚ÍÓÙ˚„ı‡ËÏÚ˘·ÈÌÛ˙˝Ò >> to and from C<< ∆ÿ≈ƒÀœ÷‹?¬ Œ‘€√’¿»Ã“Ÿ¡…Õ”⁄›—– >>
+Converts C<< √¶√∏√•√§√´√Ø√∂√º√ø√¢√™√Æ√¥√ª√£√µ√†√®√¨√≤√π√°√©√≠√≥√∫√Ω√±√∞ >> to and from C<< √Ü√ò√Ö√Ñ√ã√è√ñ√ú?√Ç√ä√é√î√õ√É√ï√Ä√à√å√í√ô√Å√â√ç√ì√ö√ù√ë√ê >>
 
 See also C<< perldoc -f uc >> and C<< perldoc -f lc >>
 
@@ -1941,8 +1962,8 @@ Center pads. Pads the string both on left and right equal to the given length. C
 
 =cut
 
-sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-zÊ¯Â‰ÎÔˆ¸ˇ‚ÍÓÙ˚„ı‡ËÏÚ˘·ÈÌÛ˙˝Ò/A-Z∆ÿ≈ƒÀœ÷‹ˇ¬ Œ‘€√’¿»Ã“Ÿ¡…Õ”⁄›—–/;$s}
-sub lower {no warnings;my $s=@_?shift:$_;$s=~tr/A-Z∆ÿ≈ƒÀœ÷‹ˇ¬ Œ‘€√’¿»Ã“Ÿ¡…Õ”⁄›—–/a-zÊ¯Â‰ÎÔˆ¸ˇ‚ÍÓÙ˚„ı‡ËÏÚ˘·ÈÌÛ˙˝Ò/;$s}
+sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-z√¶√∏√•√§√´√Ø√∂√º.√¢√™√Æ√¥√ª√£√µ√†√®√¨√≤√π√°√©√≠√≥√∫√Ω√±√∞/A-Z√Ü√ò√Ö√Ñ√ã√è√ñ√ú.√Ç√ä√é√î√õ√É√ï√Ä√à√å√í√ô√Å√â√ç√ì√ö√ù√ë√ê/;$s}
+sub lower {no warnings;my $s=@_?shift:$_;$s=~tr/A-Z√Ü√ò√Ö√Ñ√ã√è√ñ√ú.√Ç√ä√é√î√õ√É√ï√Ä√à√å√í√ô√Å√â√ç√ì√ö√ù√ë√ê/a-z√¶√∏√•√§√´√Ø√∂√º.√¢√™√Æ√¥√ª√£√µ√†√®√¨√≤√π√°√©√≠√≥√∫√Ω√±√∞/;$s}
 
 sub trim {
   return trim($_) if !@_;
@@ -2262,7 +2283,7 @@ Requires L<String::Similarity> where the real magic happens.
 Todo: more doc
 
 =cut
-    
+
 sub sim {
   require String::Similarity;
   my($str,@r)=@_;
@@ -2352,7 +2373,7 @@ sub sim_perm {
   }
   return $max;
 }
-    
+
 
 =head2 pushsort
 
@@ -2553,7 +2574,7 @@ sub egrep {
     my($code,$i,$package)=(shift,-1,(caller)[0]);
     my %h=map{($_=>"$package::$_")}qw(i n prev next prevr nextr);
     grep {
-	#no strict 'refs'; #todo: denne no strict feiler i 5.16
+	#no strict 'refs'; #"no" not allowed in expression in perl5.16
 	local ${$h{i}}     = ++$i;
 	local ${$h{n}}     = $i+1;
 	local ${$h{prev}}  = $i>0?$_[$i-1]:undef;
@@ -2588,7 +2609,7 @@ sub eqarr {
   ref($_) ne 'ARRAY' and croak for @arefs;
   @{$arefs[0]} != @{$arefs[$_]} and return undef for 1..$#arefs;
   my $ant;
-  
+
   for my $ar (@arefs[1..$#arefs]){
     for(0..@$ar-1){
       ++$ant and $ant>100 and croak ">100";  #TODO: feiler ved sammenligning av to tabeller > 10000(?) tall
@@ -2778,31 +2799,31 @@ sub eachr    { ref($_[0]) eq 'HASH'  ? each(%{shift()})
 =head2 aoh2sql
 
   my @oceania=(
-  {Area=>undef,   Capital=>'Pago Pago',        Code=>'AS', Name=>'American Samoa',                       Population=>54343},
-  {Area=>7686850, Capital=>'Canberra',         Code=>'AU', Name=>'Australia',                            Population=>22751014},
-  {Area=>undef,   Capital=>'West Island',      Code=>'CC', Name=>'Cocos (Keeling) Islands',              Population=>596},
-  {Area=>240,     Capital=>'Avarua',           Code=>'CK', Name=>'Cook Islands',                         Population=>9838},
-  {Area=>undef,   Capital=>'Flying Fish Cove', Code=>'CX', Name=>'Christmas Island',                     Population=>1530},
-  {Area=>18270,   Capital=>'Suva',             Code=>'FJ', Name=>'Fiji',                                 Population=>909389},
-  {Area=>702,     Capital=>'Palikir',          Code=>'FM', Name=>'Micronesia, Federated States of',      Population=>105216},
-  {Area=>549,     Capital=>'Hagatna (Agana)',  Code=>'GU', Name=>'Guam',                                 Population=>161785},
-  {Area=>811,     Capital=>'Tarawa',           Code=>'KI', Name=>'Kiribati',                             Population=>105711},
-  {Area=>181.3,   Capital=>'Majuro',           Code=>'MH', Name=>'Marshall Islands',                     Population=>72191},
-  {Area=>19060,   Capital=>'Noumea',           Code=>'NC', Name=>'New Caledonia',                        Population=>271615},
-  {Area=>undef,   Capital=>'Kingston',         Code=>'NF', Name=>'Norfolk Island',                       Population=>2210},
-  {Area=>21,      Capital=>'Yaren District',   Code=>'NR', Name=>'Nauru',                                Population=>9540},
-  {Area=>260,     Capital=>'Alofi',            Code=>'NU', Name=>'Niue',                                 Population=>1190},
-  {Area=>268680,  Capital=>'Wellington',       Code=>'NZ', Name=>'New Zealand',                          Population=>4438393},
-  {Area=>undef,   Capital=>'Papeete',          Code=>'PF', Name=>'French Polynesia',                     Population=>282703},
-  {Area=>462840,  Capital=>'Port Moresby',     Code=>'PG', Name=>'Papua New Guinea',                     Population=>6672429},
-  {Area=>undef,   Capital=>'Adamstown',        Code=>'PN', Name=>'Pitcairn',                             Population=>48},
-  {Area=>458,     Capital=>'Melekeok',         Code=>'PW', Name=>'Palau',                                Population=>21265},
-  {Area=>28450,   Capital=>'Honiara',          Code=>'SB', Name=>'Solomon Islands',                      Population=>622469},
-  {Area=>undef,   Capital=>undef,              Code=>'TK', Name=>'Tokelau',                              Population=>1337},
-  {Area=>26,      Capital=>'Funafuti',         Code=>'TV', Name=>'Tuvalu',                               Population=>10869},
-  {Area=>12200,   Capital=>'Port-Vila',        Code=>'VU', Name=>'Vanuatu',                              Population=>272264},
-  {Area=>undef,   Capital=>'Mata-Utu',         Code=>'WF', Name=>'Wallis and Futuna',                    Population=>15500},
-  {Area=>2944,    Capital=>'Apia',             Code=>'WS', Name=>'Samoa (Western)',                      Population=>197773}
+    {Area=>undef,   Capital=>'Pago Pago',        Code=>'AS', Name=>'American Samoa',                  Population=>54343},
+    {Area=>7686850, Capital=>'Canberra',         Code=>'AU', Name=>'Australia',                       Population=>22751014},
+    {Area=>undef,   Capital=>'West Island',      Code=>'CC', Name=>'Cocos (Keeling) Islands',         Population=>596},
+    {Area=>240,     Capital=>'Avarua',           Code=>'CK', Name=>'Cook Islands',                    Population=>9838},
+    {Area=>undef,   Capital=>'Flying Fish Cove', Code=>'CX', Name=>'Christmas Island',                Population=>1530},
+    {Area=>18270,   Capital=>'Suva',             Code=>'FJ', Name=>'Fiji',                            Population=>909389},
+    {Area=>702,     Capital=>'Palikir',          Code=>'FM', Name=>'Micronesia, Federated States of', Population=>105216},
+    {Area=>549,     Capital=>'Hagatna (Agana)',  Code=>'GU', Name=>'Guam',                            Population=>161785},
+    {Area=>811,     Capital=>'Tarawa',           Code=>'KI', Name=>'Kiribati',                        Population=>105711},
+    {Area=>181.3,   Capital=>'Majuro',           Code=>'MH', Name=>'Marshall Islands',                Population=>72191},
+    {Area=>19060,   Capital=>'Noumea',           Code=>'NC', Name=>'New Caledonia',                   Population=>271615},
+    {Area=>undef,   Capital=>'Kingston',         Code=>'NF', Name=>'Norfolk Island',                  Population=>2210},
+    {Area=>21,      Capital=>'Yaren District',   Code=>'NR', Name=>'Nauru',                           Population=>9540},
+    {Area=>260,     Capital=>'Alofi',            Code=>'NU', Name=>'Niue',                            Population=>1190},
+    {Area=>268680,  Capital=>'Wellington',       Code=>'NZ', Name=>'New Zealand',                     Population=>4438393},
+    {Area=>undef,   Capital=>'Papeete',          Code=>'PF', Name=>'French Polynesia',                Population=>282703},
+    {Area=>462840,  Capital=>'Port Moresby',     Code=>'PG', Name=>'Papua New Guinea',                Population=>6672429},
+    {Area=>undef,   Capital=>'Adamstown',        Code=>'PN', Name=>'Pitcairn',                        Population=>48},
+    {Area=>458,     Capital=>'Melekeok',         Code=>'PW', Name=>'Palau',                           Population=>21265},
+    {Area=>28450,   Capital=>'Honiara',          Code=>'SB', Name=>'Solomon Islands',                 Population=>622469},
+    {Area=>undef,   Capital=>undef,              Code=>'TK', Name=>'Tokelau',                         Population=>1337},
+    {Area=>26,      Capital=>'Funafuti',         Code=>'TV', Name=>'Tuvalu',                          Population=>10869},
+    {Area=>12200,   Capital=>'Port-Vila',        Code=>'VU', Name=>'Vanuatu',                         Population=>272264},
+    {Area=>undef,   Capital=>'Mata-Utu',         Code=>'WF', Name=>'Wallis and Futuna',               Population=>15500},
+    {Area=>2944,    Capital=>'Apia',             Code=>'WS', Name=>'Samoa (Western)',                 Population=>197773}
   );
 
  print aoh2sql(\@oceania,{
@@ -2812,7 +2833,7 @@ sub eachr    { ref($_[0]) eq 'HASH'  ? each(%{shift()})
    #varchar=>'varchar',   #default, change to varchar2 if Oracle
    #date=>'date',         #default, perhaps change to 'timestamp with time zone' if postgres
    #varchar_maxlen=>4000, #default, 4000 (used to be?) is max in Oracle
-   #create=>1,            #default, use 0 to dont include create table 
+   #create=>1,            #default, use 0 to dont include create table
    #drop=>0,              #default 0: dont include drop table x; 1: drop table x; 2: drop table if exists x;
    #end=>"commit;\n",
    #begin=>"begin;\n",
@@ -2822,9 +2843,9 @@ sub eachr    { ref($_[0]) eq 'HASH'  ? each(%{shift()})
 Returns:
 
  begin;
- 
+
  drop table if exists country;
- 
+
  create table country (
    Area                           numeric(9,1),
    Capital                        varchar(16),
@@ -2832,7 +2853,7 @@ Returns:
    Name                           varchar(36) not null,
    Population                     numeric(9)
  );
- 
+
  insert into country values (null,'Pago Pago','AS','American Samoa',54343);
  insert into country values (7686850,'Canberra','AU','Australia',22751014);
  insert into country values (null,'West Island','CC','Cocos (Keeling) Islands',596);
@@ -3330,13 +3351,13 @@ Example 2:
 
 ...prints an example of the famous Bell curve:
 
-  44 -  45     70 
-  46 -  47    114 
-  48 -  49    168 
-  50 -  51    250 
-  52 -  53    395 
-  54 -  55    588 
-  56 -  57    871 
+  44 -  45     70
+  46 -  47    114
+  48 -  49    168
+  50 -  51    250
+  52 -  53    395
+  54 -  55    588
+  56 -  57    871
   58 -  59   1238 =
   60 -  61   1807 =
   62 -  63   2553 ==
@@ -3379,13 +3400,13 @@ Example 2:
  136 - 137   2516 ==
  138 - 139   1833 =
  140 - 141   1327 =
- 142 - 143    860 
- 144 - 145    604 
- 146 - 147    428 
- 148 - 149    275 
- 150 - 151    184 
- 152 - 153    111 
- 154 - 155     67 
+ 142 - 143    860
+ 144 - 145    604
+ 146 - 147    428
+ 148 - 149    275
+ 150 - 151    184
+ 152 - 153    111
+ 154 - 155     67
 
 =cut
 
@@ -3562,15 +3583,15 @@ sub pwgen {
 }
 
 # =head1 veci
-# 
+#
 # Perls C<vec> takes 1, 2, 4, 8, 16, 32 and possibly 64 as its third argument.
-# 
+#
 # This limitation is removed with C<veci> (vec improved, but much slower)
-# 
+#
 # The third argument still needs to be 32 or lower (or possibly 64 or lower).
-# 
+#
 # =cut
-# 
+#
 # sub vecibs ($) {
 #   my($s,$o,$b,$new)=@_;
 #   if($b=~/^(1|2|4|8|16|32|64)$/){
@@ -3787,7 +3808,7 @@ Gives:
 
 =cut
 
-#Hashtrans brukes automatisk nÂr f¯rste argument er -1 i sub hashtabell()
+#Hashtrans brukes automatisk n√•r f√∏rste argument er -1 i sub hashtabell()
 
 sub hashtrans {
   my $h=shift;
@@ -3944,7 +3965,7 @@ sub zipbin {
 
 Opposite of L</zipb64>.
 
-Input: 
+Input:
 
 First argument: A string made by L</zipb64>
 
@@ -3995,10 +4016,10 @@ distros. Except C<gzip()> does this in-memory. (Both using the C-library C<zlib>
 
 =head2 gunzip
 
-B<Input:> A binary compressed string or a reference to such a string. I.e. something returned from 
+B<Input:> A binary compressed string or a reference to such a string. I.e. something returned from
 C<gzip()> earlier or read from a C<< .gz >> file.
 
-B<Output:> The original larger non-compressed string. Text or binary. 
+B<Output:> The original larger non-compressed string. Text or binary.
 
 C<gunzip()> is a wrapper for Compress::Zlib::memGunzip()
 
@@ -4055,9 +4076,9 @@ C<HostnameLookups Off> in Apache C<httpd.conf> and then use I<ipaddr> afterwards
 our %IPADDR_memo;
 sub ipaddr {
   my $ipnr=shift;
-  #NB, 2-tallet pÂ neste kodelinje er ikke det samme pÂ alle os,
-  #men ser ut til Â funke i linux og hpux. Den Riktige MÂten(tm)
-  #er konstanten AF_INET i Socket eller IO::Socket-pakken.
+  #hm, NOTE: The 2 parameter on the next code line is not 2 for all OSes,
+  #but seems to work in Linux and HPUX. Den correct way is to use the
+  #AF_INET constant in the Socket or the IO::Socket package.
   return $IPADDR_memo{$ipnr} ||= gethostbyaddr(pack("C4",split("\\.",$ipnr)),2);
 }
 
@@ -4165,7 +4186,7 @@ chars can be URL encodes this way, but it's necessary just on some.
 
 Example:
 
- $search="ÿstdal, ≈ge";
+ $search="√òstdal, √Öge";
  my $url="http://machine.somewhere.com/search?q=" . urlenc($search);
  print $url;
 
@@ -4183,7 +4204,7 @@ sub urlenc {
 
 Opposite of L</urlenc>.
 
-Example, this returns 'C< ¯>'. That is space and C<< ¯ >>.
+Example, this returns 'C< √∏>'. That is space and C<< √∏ >>.
 
  urldec('+%C3')
 
@@ -4833,20 +4854,20 @@ The following list of codes in the first argument will be replaced:
   pm      Same
   AM      Becomes AM or PM (upper case)
   PM      Same
- 
+
   Month   The full name of the month in English from January to December
   MONTH   Same in upper case (JANUARY)
   month   Same in lower case (january)
   Mont    Jan Feb Mars Apr May June July Aug Sep Oct Nov Dec
   Mont.   Jan. Feb. Mars Apr. May June July Aug. Sep. Oct. Nov. Dec. (always four chars)
   Mon     Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec            (always three chars)
- 
+
   Day     The full name of the weekday. Sunday to Saturday
   Dy      Three letters: Sun Mon Tue Wed Thu Fri Sat
   DAY     Upper case
   DY      Upper case
   Dth     1st 2nd 3rd 4th 5th ... 11th 12th ... 20th 21st 22nd 23rd 24th ... 30th 31st
- 
+
   WW      Week number of the year 01-53 according to the ISO8601-definition (which most countries uses)
   WWUS    Week number of the year 01-53 according to the most used definition in the USA.
           Other definitions also exists.
@@ -4854,10 +4875,10 @@ The following list of codes in the first argument will be replaced:
   epoch   Converts a time string from YYYYMMDD-HH24:MI:SS, YYYYMMDD-HH24:MI:SS, YYYYMMDDTHH:MI:SS,
           YYYY-MM-DDTHH:MI:SS or YYYYMMDD to the number of seconds since January 1st 1970.
           Commonly known as the Unix epoch.
- 
+
   JDN     Julian day number. Integer. The number of days since the day starting at noon on January 1 4713 BC
   JD      Same as JDN but a float accounting for the time of day
- 
+
 TODO:  sub smt() (tms backward... or something better named, converts the other way)
        As to_date and to_char in Oracle. Se maybe L<Date::Parse> instead
 
@@ -4866,25 +4887,25 @@ interpreted as a date of the form YYYYMMDD, not as a number of seconds since epo
 
 =cut
 
-#Se ogsÂ L</tidstrk> og L</tidstr>
+#Se ogs√• L</tidstrk> og L</tidstr>
 
 our $Tms_pattern;
 our %Tms_str=
-	  ('M≈NED' => [4, 'JANUAR','FEBRUAR','MARS','APRIL','MAI','JUNI','JULI',
+	  ('M√ÖNED' => [4, 'JANUAR','FEBRUAR','MARS','APRIL','MAI','JUNI','JULI',
 		          'AUGUST','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER' ],
-	   'MÂned' => [4, 'Januar','Februar','Mars','April','Mai','Juni','Juli',
+	   'M√•ned' => [4, 'Januar','Februar','Mars','April','Mai','Juni','Juli',
 		          'August','September','Oktober','November','Desember'],
-	   'mÂned' => [4, 'januar','februar','mars','april','mai','juni','juli',
+	   'm√•ned' => [4, 'januar','februar','mars','april','mai','juni','juli',
 		          'august','september','oktober','november','desember'],
-	   'M≈NE.' => [4, 'JAN.','FEB.','MARS','APR.','MAI','JUNI','JULI','AUG.','SEP.','OKT.','NOV.','DES.'],
-	   'MÂne.' => [4, 'Jan.','Feb.','Mars','Apr.','Mai','Juni','Juli','Aug.','Sep.','Okt.','Nov.','Des.'],
-	   'mÂne.' => [4, 'jan.','feb.','mars','apr.','mai','juni','juli','aug.','sep.','okt.','nov.','des.'],
-	   'M≈NE'  => [4, 'JAN','FEB','MARS','APR','MAI','JUNI','JULI','AUG','SEP','OKT','NOV','DES'],
-	   'MÂne'  => [4, 'Jan','Feb','Mars','Apr','Mai','Juni','Juli','Aug','Sep','Okt','Nov','Des'],
-	   'mÂne'  => [4, 'jan','feb','mars','apr','mai','juni','juli','aug','sep','okt','nov','des'],
-	   'M≈N'   => [4, 'JAN','FEB','MAR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DES'],
-	   'MÂn'   => [4, 'Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'],
-	   'mÂn'   => [4, 'jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'],
+	   'M√ÖNE.' => [4, 'JAN.','FEB.','MARS','APR.','MAI','JUNI','JULI','AUG.','SEP.','OKT.','NOV.','DES.'],
+	   'M√•ne.' => [4, 'Jan.','Feb.','Mars','Apr.','Mai','Juni','Juli','Aug.','Sep.','Okt.','Nov.','Des.'],
+	   'm√•ne.' => [4, 'jan.','feb.','mars','apr.','mai','juni','juli','aug.','sep.','okt.','nov.','des.'],
+	   'M√ÖNE'  => [4, 'JAN','FEB','MARS','APR','MAI','JUNI','JULI','AUG','SEP','OKT','NOV','DES'],
+	   'M√•ne'  => [4, 'Jan','Feb','Mars','Apr','Mai','Juni','Juli','Aug','Sep','Okt','Nov','Des'],
+	   'm√•ne'  => [4, 'jan','feb','mars','apr','mai','juni','juli','aug','sep','okt','nov','des'],
+	   'M√ÖN'   => [4, 'JAN','FEB','MAR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DES'],
+	   'M√•n'   => [4, 'Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'],
+	   'm√•n'   => [4, 'jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'],
 	   'MONTH' => [4, 'JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY',
 		          'AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'],
 	   'Month' => [4, 'January','February','March','April','May','June','July',
@@ -4906,23 +4927,23 @@ our %Tms_str=
 	   'DY'    => [6, 'SUN','MON','TUE','WED','THU','FRI','SAT'],
 	   'Dy'    => [6, 'Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
 	   'dy'    => [6, 'sun','mon','tue','wed','thu','fri','sat'],
-	   'DAG'   => [6, 'SÿNDAG','MANDAG','TIRSDAG','ONSDAG','TORSDAG','FREDAG','LÿRDAG'],
-	   'Dag'   => [6, 'S¯ndag','Mandag','Tirsdag','Onsdag','Torsdag','Fredag','L¯rdag'],
-	   'dag'   => [6, 's¯ndag','mandag','tirsdag','onsdag','torsdag','fredag','l¯rdag'],
-	   'DG'    => [6, 'SÿN','MAN','TIR','ONS','TOR','FRE','LÿR'],
-	   'Dg'    => [6, 'S¯n','Man','Tir','Ons','Tor','Fre','L¯r'],
-	   'dg'    => [6, 's¯n','man','tir','ons','tor','fre','l¯r'],
+	   'DAG'   => [6, 'S√òNDAG','MANDAG','TIRSDAG','ONSDAG','TORSDAG','FREDAG','L√òRDAG'],
+	   'Dag'   => [6, 'S√∏ndag','Mandag','Tirsdag','Onsdag','Torsdag','Fredag','L√∏rdag'],
+	   'dag'   => [6, 's√∏ndag','mandag','tirsdag','onsdag','torsdag','fredag','l√∏rdag'],
+	   'DG'    => [6, 'S√∏n','MAN','TIR','ONS','TOR','FRE','L√òR'],
+	   'Dg'    => [6, 'S√òn','Man','Tir','Ons','Tor','Fre','L√∏r'],
+	   'dg'    => [6, 's√∏n','man','tir','ons','tor','fre','l√∏r'],
 	   );
 my $_tms_inited=0;
 sub tms_init {
   return if $_tms_inited++;
   for(qw(MAANED Maaned maaned MAAN Maan maan),'MAANE.','Maane.','maane.'){
-    $Tms_str{$_}=$Tms_str{replace($_,"aa","Â","AA","≈")};
+    $Tms_str{$_}=$Tms_str{replace($_,"aa","√•","AA","√Ö")};
   }
   $Tms_pattern=join("|",map{quotemeta($_)}
-			       sort{length($b)<=>length($a)}
-			       keys %Tms_str);
-  #uten sort kan "mÂned" bli "mared", fordi "mÂn"=>"mar"
+		        sort{length($b)<=>length($a)}
+			keys %Tms_str);
+  #without sort "m√•ned" could be "mared" because "m√•n"=>"mar"
 }
 
 sub totime {
@@ -4965,8 +4986,8 @@ sub tms {
   if(@_==1){
     my @lt=localtime();
     $_[0] eq 'YYYY'     and return 1900+$lt[5];
-    $_[0] eq 'YYYYMMDD' and return sprintf("%04d%02d%02d",1900+$lt[5],1+$lt[4],$lt[3]); 
-    $_[0] =~ $Re_isnum  and @lt=localtime($_[0]) and return sprintf("%04d%02d%02d-%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]); 
+    $_[0] eq 'YYYYMMDD' and return sprintf("%04d%02d%02d",1900+$lt[5],1+$lt[4],$lt[3]);
+    $_[0] =~ $Re_isnum  and @lt=localtime($_[0]) and return sprintf("%04d%02d%02d-%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]);
   }
   my($format,$time,$is_date)=@_;
   $time=time_fp() if !defined$time;
@@ -5008,7 +5029,7 @@ sub tms {
 	 D=>'MM/DD/YY',
 	 e=>'D',
 	 F=>'YYYY-MM-DD',
-        #G=>'', 
+        #G=>'',
 	 h=>'Month', H=>'HH24', I=>'HH12',
 	 j=>'DoY', #day of year
 	 k=>'H24', _H=>'H24',
@@ -5190,7 +5211,7 @@ Estimated time of arrival (ETA).
 
 =cut
 
-#http://en.wikipedia.org/wiki/Kalman_filter god idÈ?
+#http://en.wikipedia.org/wiki/Kalman_filter good idea?
 our %Eta;
 our $Eta_forgetfulness=2;
 sub eta {
@@ -5422,34 +5443,34 @@ sub qrlist (@) {
 
 Perhaps easier to use than L<Term::ANSIColor> ?
 
-B<Input:> One argument. A string where the char C<§> have special
+B<Input:> One argument. A string where the char C<¬§> have special
 meaning and is replaced by color codings depending on the letter
-following the C<§>.
+following the C<¬§>.
 
-B<Output:> The same string, but with C<§letter> replaced by ANSI color
+B<Output:> The same string, but with C<¬§letter> replaced by ANSI color
 codes respected by many types terminal windows. (xterm, telnet, ssh,
 telnet, rlog, vt100, cygwin, rxvt and such...).
 
 B<Codes for ansicolor():>
 
- §r red
- §g green
- §b blue
- §y yellow
- §m magenta
- §B bold
- §u underline
- §c clear
- §§ reset, quits and returns to default text color.
+ ¬§r red
+ ¬§g green
+ ¬§b blue
+ ¬§y yellow
+ ¬§m magenta
+ ¬§B bold
+ ¬§u underline
+ ¬§c clear
+ ¬§¬§ reset, quits and returns to default text color.
 
 B<Example:>
 
- print ansicolor("This is maybe §ggreen§§?");
+ print ansicolor("This is maybe ¬§ggreen¬§¬§?");
 
 Prints I<This is maybe green?> where the word I<green> is shown in green.
 
 If L<Term::ANSIColor> is not installed or not found, returns the input
-string with every C<§> including the following code letters
+string with every C<¬§> including the following code letters
 removed. (That is: ansicolor is safe to use even if Term::ANSIColor is
 not installed, you just don't get the colors).
 
@@ -5459,10 +5480,10 @@ See also L<Term::ANSIColor>.
 
 sub ansicolor {
   my $txt=shift;
-  eval{require Term::ANSIColor} or return replace($txt,qr/§./);
-  my %h=qw/r red  g green  b blue  y yellow  m magenta  B bold  u underline  c clear  § reset/;
+  eval{require Term::ANSIColor} or return replace($txt,qr/¬§./);
+  my %h=qw/r red  g green  b blue  y yellow  m magenta  B bold  u underline  c clear  ¬§ reset/;
   my $re=join"|",keys%h;
-  $txt=~s/§($re)/Term::ANSIColor::color($h{$1})/ge;
+  $txt=~s/¬§($re)/Term::ANSIColor::color($h{$1})/ge;
   return $txt;
 }
 
@@ -6018,7 +6039,7 @@ Example:
                ["1997","Hilde","Weight", "Summer",62],
                ["1997","Hilde","Height", "Summer",168],
                ["1997","Tone", "Weight", "Summer",70],
- 
+
                ["1997","Gerd", "Weight", "Winter",64],
                ["1997","Gerd", "Height", "Winter",158],
                ["1997","Per",  "Weight", "Winter",73],
@@ -6026,7 +6047,7 @@ Example:
                ["1997","Hilde","Weight", "Winter",61],
                ["1997","Hilde","Height", "Winter",164],
                ["1997","Tone", "Weight", "Winter",69],
- 
+
                ["1998","Gerd", "Weight", "Summer",64],
                ["1998","Gerd", "Height", "Summer",171],
                ["1998","Per",  "Weight", "Summer",76],
@@ -6034,7 +6055,7 @@ Example:
                ["1998","Hilde","Weight", "Summer",62],
                ["1998","Hilde","Height", "Summer",168],
                ["1998","Tone", "Weight", "Summer",70],
- 
+
                ["1998","Gerd", "Weight", "Winter",64],
                ["1998","Gerd", "Height", "Winter",171],
                ["1998","Per",  "Weight", "Winter",74],
@@ -6052,7 +6073,7 @@ Example:
 Will print:
 
  Report A
- 
+
  Year Name  Height Height Weight Weight
             Summer Winter Summer Winter
  ---- ----- ------ ------ ------ ------
@@ -6073,7 +6094,7 @@ Will print:
 Will print:
 
  Report B
- 
+
  Year Season Height Height Height Weight Weight Weight Weight
              Gerd   Hilde  Per    Gerd   Hilde  Per    Tone
  ---- ------ ------ ------ -----  -----  ------ ------ ------
@@ -6090,7 +6111,7 @@ Will print:
 Will print:
 
  Report C
- 
+
  Name  Attributt 1997   1997   1998   1998
                  Summer Winter Summer Winter
  ----- --------- ------ ------ ------ ------
@@ -6110,7 +6131,7 @@ Will print:
 Will print:
 
  Report D
- 
+
  Name  Height Height Height Height Weight Weight Weight Weight
        1997   1997   1998   1998   1997   1997   1998   1998
        Summer Winter Summer Winter Summer Winter Summer Winter
@@ -6202,7 +6223,7 @@ sub _sortsub {
   my @b=split $;,$b;
   for(0..$#a){
     my $c=$a[$_]<=>$b[$_];
-    return $c if $c and "$a[$_]$b[$_]"!~/[iI][nN][fF]|˛/i; # inf(inity)
+    return $c if $c and "$a[$_]$b[$_]"!~/[iI][nN][fF]|√æ|‚àû/i; # hm inf(inity)
     $c=$a[$_]cmp$b[$_];
     return $c if $c;
   }
@@ -6245,11 +6266,11 @@ Prints this string of 11 lines:
  123 23 d
  12  23 34
  77   8 99
- 
+
  lin 12 asdff
  es     fdsa
         aa
- 
+
  10  22 adf
 
 As you can see, rows containing multi-lined cells gets an empty line before and after the row to separate it more clearly.
@@ -6578,7 +6599,7 @@ srlz:
      updcol=>{Laerestednr=>18,Studietypenr=>18,Undervisningssted=>7,Url=>11},
      where=>'where 1=1');
 
-Todo: update L</serialize> to do the same, but in the right way. (For now 
+Todo: update L</serialize> to do the same, but in the right way. (For now
 srlz runs the string from serialize() through two C<< s/// >>, this will break
 in certain cases). L</srlz> will be kept as a synonym (or the other way around).
 
@@ -6627,7 +6648,7 @@ sub cnttbl {
        map [$_,cnttbl($$hr{$_})],
        sort keys%$hr }
   :do{ my $sum=sum(values%$hr);
-       my $fmt=repl("%-xs %yd %6.2f%%\n",x=>$maxlen,y=>length($sum)); 
+       my $fmt=repl("%-xs %yd %6.2f%%\n",x=>$maxlen,y=>length($sum));
        map sprintf($fmt,@$_,100*$$_[1]/$sum),
        (map[$_,$$hr{$_}],sort{$$hr{$a}<=>$$hr{$b} or $a cmp $b}keys%$hr),
        (['SUM',$sum]) }
@@ -6802,11 +6823,11 @@ sub changed {
 }
 
 #todo: sub unbless eller sub damn
-#todo: ..se ogsÂ: use Data::Structure::Util qw/unbless/;
+#todo: ..se ogs√•: use Data::Structure::Util qw/unbless/;
 #todo: ...og: Acme::Damn sin damn()
 #todo? sub swap($$) http://www.idg.no/computerworld/article242008.ece
 #todo? catal
-#todo? 
+#todo?
 #void quicksort(int t, int u) int i, m; if (t >= u) return; swap(t, randint(t, u)); m = t; for (i = t + 1; i <= u; i++) if (x[i] < x[t]) swap(++m, i); swap(t, m) quicksort(t, m-1); quicksort(m+1, u);
 
 
@@ -7761,7 +7782,7 @@ sub cmd_freq {
   my(@f,$i);
   map $f[$_]++, unpack("C*",$_) while <>;
   my $s=" " x 12;map{print"$_$s$_$s$_\n"}("BYTE  CHAR   COUNT","---- ----- -------");
-  my %m=(145,"DOS-Ê",155,"DOS-¯",134,"DOS-Â",146,"DOS-∆",157,"DOS-ÿ",143,"DOS-≈",map{($_," ")}0..31);
+  my %m=(145,"DOS-√¶",155,"DOS-√∏",134,"DOS-√•",146,"DOS-√Ü",157,"DOS-√ò",143,"DOS-√Ö",map{($_," ")}0..31);
   printf("%4d %5s%8d".(++$i%3?$s:"\n"),$_,$m{$_}||chr,$f[$_]) for grep$f[$_],0..255;print "\n";
   my @no=grep!$f[$_],0..255; print "No bytes for these ".@no.": ".join(" ",@no)."\n";
 }
@@ -8107,7 +8128,7 @@ sub sum      { &Acme::Tools::bfsum      }
 # + c-s todo
 # + endre $VERSION
 # + endre Release history under HISTORY
-# + endre Ârstall under COPYRIGHT AND LICENSE
+# + endre √•rstall under COPYRIGHT AND LICENSE
 # + oppd default valutakurser inkl datoen
 # + emacs Changes
 # + emacs README + aarstall
@@ -8181,21 +8202,21 @@ sub sum      { &Acme::Tools::bfsum      }
 Release history
 
  0.22  Feb 2018   subs: subarr, sim, sim_perm, aoh2sql. command: resubst
- 
+
  0.21  Mar 2017   Improved nicenum() and its tests
- 
+
  0.20  Mar 2017   Subs: a2h cnttbl h2a log10 log2 nicenum rstddev sec_readable
                   throttle timems refa refaa refah refh refha refhh refs
                   eachr globr keysr popr pushr shiftr splicer unshiftr valuesr
                   Commands: 2bz2 2gz 2xz z2z
- 
+
  0.172 Dec 2015   Subs: curb openstr pwgen sleepms sleepnm srlz tms username
                   self_update install_acme_command_tools
                   Commands: conv due freq wipe xcat (see "Commands")
- 
+
  0.16  Feb 2015   bigr curb cpad isnum parta parth read_conf resolve_equation
                   roman2int trim. Improved: conv (numbers currency) range ("derivatives")
- 
+
  0.15  Nov 2014   Improved doc
  0.14  Nov 2014   New subs, improved tests and doc
  0.13  Oct 2010   Non-linux test issue, resolve. improved: bloom filter, tests, doc
