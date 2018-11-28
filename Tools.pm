@@ -2042,19 +2042,19 @@ sub soundex {
   s/(?<=.)\D//g;        # del rest (vowels) except first
   /.(...)/;"$t$1"       # return $f-irst + 2-4th char
 }
-sub soundex0 {
-  local$_=uc"$_[0]000";        # take first argument and append "000"
-  /./;my$t=$&;            # save first char to variable $t
-  s/(?<=.)[HW]//g;      # remove and H or W but not the first one
-  s/[BFPV]+/1/g;        # replace one or more BFPV by 1
-  s/[CGJKQSXZ]+/2/g;    # replace one or more CGJKQSXZ by 2
-  s/[DT]+/3/g;          # replace one or more DT by 3
-  s/L+/4/g;             # replace one or more L by 4
-  s/[MN]+/5/g;          # replace one or more MN by 5
-  s/R+/6/g;             # replace one or more R by 6
-  s/(?<=.)\D//g;        # remove and non-digit from the result but not the first char
-  /.(...)/;"$t$1"       # take $t plus the characters 2 to 4 from result
-}
+#sub soundex0 {                #almost https://codegolf.stackexchange.com/questions/3119/soundex-function/3125#3125
+#  local$_=uc"$_[0]000";        # take first argument and append "000"
+#  /./;my$t=$&;            # save first char to variable $t
+#  s/(?<=.)[HW]//g;      # remove and H or W but not the first one
+#  s/[BFPV]+/1/g;        # replace one or more BFPV by 1
+#  s/[CGJKQSXZ]+/2/g;    # replace one or more CGJKQSXZ by 2
+#  s/[DT]+/3/g;          # replace one or more DT by 3
+#  s/L+/4/g;             # replace one or more L by 4
+#  s/[MN]+/5/g;          # replace one or more MN by 5
+#  s/R+/6/g;             # replace one or more R by 6
+#  s/(?<=.)\D//g;        # remove and non-digit from the result but not the first char
+#  /.(...)/;"$t$1"       # take $t plus the characters 2 to 4 from result
+#}
 
 #todo: sub soundex_oracle
 #todo: sub soundex_pg
