@@ -2034,15 +2034,15 @@ sub cpad_old {
   $s;
 }
 
-sub soundex0 {
+sub soundex {
   local$_=uc"$_[0]000";
-  my$f=/(.)/?$1:"";
+  /(.)/;my $t=$1;
   s/(?<=.)[HW]//g;      # del H + W except if first
   my$i;for my$l(qw(BFPV CGJKQSXZ DT L MN R)){$i++;s/[$l]+/$i/g}
   s/(?<=.)\D//g;        # del rest (vowels) except first
-  /.(...)/;"$f$1"       # return $f-irst + 2-4th char
+  /.(...)/;"$t$1"       # return $f-irst + 2-4th char
 }
-sub soundex{
+sub soundex0 {
   local$_=uc"$_[0]000";        # take first argument and append "000"
   /./;my$t=$&;            # save first char to variable $t
   s/(?<=.)[HW]//g;      # remove and H or W but not the first one
