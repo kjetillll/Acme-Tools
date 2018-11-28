@@ -127,6 +127,7 @@ our @EXPORT = qw(
   rpad
   lpad
   cpad
+  soundex
   dserialize
   serialize
   srlz
@@ -1960,6 +1961,26 @@ Center pads. Pads the string both on left and right equal to the given length. C
  cpad('mat',5,'+')        eq '+mat+'
  cpad('MMMM',20,'xyzXYZ') eq 'xyzXYZxyMMMMxyzXYZxy'
 
+=head2 soundex
+
+ soundex('Tymczak')     eq 'T522'
+ soundex('Robert')      eq 'R163'
+ soundex('Rupert')      eq 'R163'
+ soundex('Rubin')       eq 'R150'
+ soundex('Ashcraft')    eq 'A261'
+ soundex('Ashcroft')    eq 'A261  #Not A226, s and c becomes 2 and not 22 since h lies in between them'
+ soundex('Tymczak')     eq 'T522'
+ soundex('Pfister')     eq 'P236  #Not P123, first two letters have the same number and are coded once as 'P''
+ soundex('Honeyman')    eq 'H555'
+ soundex('Washington')  eq 'W252'
+ soundex('Lee')         eq 'L000'
+ soundex('Gutierrez')   eq 'G362'
+ soundex('Jackson')     eq 'J250 '
+ soundex('Tymczak')     eq 'T522'
+ soundex('Vandeusen')   eq 'V532'
+
+As described in L<https://en.wikipedia.org/wiki/Soundex>, which for some names differs from how some SQL databases implements soundex.
+
 =cut
 
 sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-zæøåäëïöü.âêîôûãõàèìòùáéíóúýñð/A-ZÆØÅÄËÏÖÜ.ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ/;$s}
@@ -2012,6 +2033,34 @@ sub cpad_old {
   }
   $s;
 }
+
+sub soundex0 {
+  local$_=uc"$_[0]000";
+  my$f=/(.)/?$1:"";
+  s/(?<=.)[HW]//g;      # del H + W except if first
+  my$i;for my$l(qw(BFPV CGJKQSXZ DT L MN R)){$i++;s/[$l]+/$i/g}
+  s/(?<=.)\D//g;        # del rest (vowels) except first
+  /.(...)/;"$f$1"       # return $f-irst + 2-4th char
+}
+sub soundex{
+  local$_=uc"$_[0]000";        # take first argument and append "000"
+  /./;my$t=$&;            # save first char to variable $t
+  s/(?<=.)[HW]//g;      # remove and H or W but not the first one
+  s/[BFPV]+/1/g;        # replace one or more BFPV by 1
+  s/[CGJKQSXZ]+/2/g;    # replace one or more CGJKQSXZ by 2
+  s/[DT]+/3/g;          # replace one or more DT by 3
+  s/L+/4/g;             # replace one or more L by 4
+  s/[MN]+/5/g;          # replace one or more MN by 5
+  s/R+/6/g;             # replace one or more R by 6
+  s/(?<=.)\D//g;        # remove and non-digit from the result but not the first char
+  /.(...)/;"$t$1"       # take $t plus the characters 2 to 4 from result
+}
+
+#todo: sub soundex_oracle
+#todo: sub soundex_pg
+#todo: sub soundex_sqlite
+#todo: sub soundex_mysql more than 4 chars
+#todo: sub soundex_sqlserver 
 
 =head2 trigram
 
