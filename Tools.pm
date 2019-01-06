@@ -4635,7 +4635,7 @@ sub makedir {
 
 =head2 md5sum
 
-B<Input:> a filename.
+B<Input:> a filename (or a scalar ref to a string, see below)
 
 B<Output:> a string of 32 hexadecimal chars from 0-9 or a-f.
 
@@ -4646,6 +4646,8 @@ Example, the md5sum gnu/linux command without options could be implementet like 
 
 This sub requires L<Digest::MD5>, which is a core perl-module since
 version 5.?.?  It does not slurp the files or spawn new processes.
+
+If the input argument is a scalar ref then the MD5 of the string referenced is returned in hex.
 
 =cut
 
@@ -7600,10 +7602,6 @@ Examples of commands then made available:
  2bz2                          #same as z2z with -t bz2
  2gz                           #same as z2z with -t gz
 
- TODO :
- finddup [-v -d -s -h] path1/ path2/
-                               #reports (+deletes with -d) duplicate files
-                               #finddup is NOT IMPLEMENTED YET! Use -s for symlink dups, -h for hardlink
  rttop
  trunc file(s)
  wipe file(s)
@@ -7644,6 +7642,28 @@ Like C<du> command but views space used by file extentions instead of dirs. Opti
  ls -l | due     Parses output of ls -l, find -ls, tar tvf for size+filename and reports
  find | due      List of filenames from stdin produces same as just command 'due'
  ls | due        Reports on just files in current dir without recursing into subdirs
+
+=head3 finddup
+
+Finds duplicate files. Three steps to speed this up in case of many
+large files: 1) Find files of same size, 2) of those: find files with
+the same first 8 kilobytes, 3) of those: find duplicate files by
+finding the MD5sums of the whole files.
+
+ finddup [-d -s -h] path/ files/* ...  #reports (+deletes with -d) duplicate files
+                                       #-s for symlinkings dups, -h for hardlink
+ finddup <files>    # print duplicate files
+ finddup -a <files> # print duplicate files, also print the first file
+ finddup -d <files> # delete duplicate files and print them
+ finddup -s <files> # make symbolic links of duplicate files
+ finddup -h <files> # make hard links of duplicate files
+ finddup -s -n <files>  # dry run: show ln command to make symlinks of duplicate files
+ finddup -h -n <files>  # dry run: show ln command to make hard links of duplicate files
+ finddup -f n           # considers newer files duplicates
+ finddup -f o           # considers older files duplicates
+
+Default ordering of files without C<-f n> or C<-f o> is the order they
+are mentioned on the command line.
 
 =cut
 
@@ -7787,12 +7807,66 @@ sub cmd_freq {
   my @no=grep!$f[$_],0..255; print "No bytes for these ".@no.": ".join(" ",@no)."\n";
 }
 sub cmd_deldup {
-  cmd_finddup(@_);
+  cmd_finddup('-d',@_);
 }
 sub cmd_finddup {
-  # ~/test/deldup.pl #find and optionally delete duplicate files effiencently
-  #http://www.commandlinefu.com/commands/view/3555/find-duplicate-files-based-on-size-first-then-md5-hash
-  die "todo: finddup not ready yet"
+  # http://www.commandlinefu.com/commands/view/3555/find-duplicate-files-based-on-size-first-then-md5-hash
+  # die "todo: finddup not ready yet"
+  my %o;
+  my @argv=args("af:dhsnqP:FMR",\%o,@_); $o{P}//=1024*8; $o{f}//='';
+  croak"ERR: cannot combine -a with -d, -s or -l" if $o{a} and $o{d}||$o{s}||$o{h};
+  require File::Find;
+  @argv=map{
+      my @f;
+      if(-d$_){ File::Find::find({follow=>0,wanted=>sub{return if !-f$_;push@f,$File::Find::name;1}},$_) }
+      else    { @f=($_) }
+      @f;
+  }@argv;
+  my %md5sum;
+  my $md5sum=sub{$md5sum{$_[0]}//=md5sum($_[0])}; #memoize
+  my $md5sum_1st_part=sub{
+      open my $fh, "<", $_[0] or die "ERR: Could not read $_[0]";
+      binmode($fh);
+      my $buf; read($fh,$buf,$o{P});
+      close($fh);
+      md5sum(\$buf);
+  };
+  my @checks=(
+      sub{-s$_[0]},
+      sub{-s$_[0]<=$o{P}?md5sum($_[0]):&$md5sum_1st_part($_[0])},
+      sub{md5sum($_[0])}
+  );
+  pop @checks if $o{M}; #4tst
+  my $i=0;
+  my %s=map{($_=>++$i)}@argv; #sort
+  my %f=map{($_=>[$_])}@argv; #also weeds out dupl params
+  for my $c (@checks){
+      my %n; push @{$n{&$c($_)}}, $_ for map @{$f{$_}}, sort keys %f;
+      delete @n{grep@{$n{$_}}<2,keys%n};
+      %f=%n;
+  }
+  return %f if $o{F};
+  my@r=sort{$s{$$a[0]}<=>$s{$$b[0]}}values%f;
+  my $si={qw(o 9 n 9 O 8 N 8)}->{$o{f}}; #stat index: 9=mtime, 8=atime
+  my $sort=lc$o{f} eq 'o' ? sub{sprintf"%011d%9d",     (stat($_[0]))[$si],$s{$_[0]}}
+          :lc$o{f} eq 'n' ? sub{sprintf"%011d%9d",1e11-(stat($_[0]))[$si],$s{$_[0]}}
+          :                 sub{sprintf     "%9d",                        $s{$_[0]}};
+  @$_=map$$_[1],sort{$$a[0]cmp$$b[0]}map[&$sort($_),$_],@$_ for @r;
+  my %of; #dup of
+  for my $r (@r){
+      $of{$_}=$$r[0] for @$r[1..$#$r];
+  }
+  my $print=sub{$o{q} or print $_[0]};
+  my $go=sub{$o{n}?&$print("$_[0]\n"):qx($_[0])};
+  &$print(join"\n",map join("",map"$_\n",@$_),@r) and return if $o{a};
+  @r=map@$_[1..$#$_],@r;
+  return @r if $o{R}; #hm
+  unlink@r                                 if ($o{d}||$o{s}||$o{h})&&!$o{n}; #delete duplicates
+  map &$go(qq(rm "$_")                ),@r if $o{d}&& $o{n}; #delete duplicates, dryrun
+  map &$go(qq(ln -s "$of{$_}" "$_")),@r if $o{s}; #replace duplicates with symlink
+  map &$go(qq(ln    "$of{$_}" "$_")),@r if $o{h}; #replace duplicates with hardlink
+  return if $o{q} or $o{n};    #quiet or dryrun
+  &$print("$_\n") for @r;
 }
 #http://stackoverflow.com/questions/11900239/can-i-cache-the-output-of-a-command-on-linux-from-cli
 our $Ccmd_cache_dir='/tmp/acme-tools-ccmd-cache';
