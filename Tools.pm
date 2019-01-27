@@ -149,6 +149,7 @@ our @EXPORT = qw(
   recursed
   md5sum
   pwgen
+  which
   read_conf
   openstr
   printed
@@ -2571,13 +2572,42 @@ sub rankstr {wantarray?(rank(@_,sub{$_[0]cmp$_[1]})):rank(@_,sub{$_[0]cmp$_[1]})
 
 =head2 egrep
 
+Extended grep.
+
+Works like L<grep> but with more insight: local vars $i, $n, $prev, $next, $prevr and $nextr are available:
+
+$i is the current index, starts with 0, ends with the length of the input array minus one
+
+$n is the current element number, starts with 1, $n = $i + 1
+
+$prev is the previous value (undef if current is first)
+
+$next is the next value (undef if current is last)
+
+$prevr is the previous value, rotated so that the previous of the first element is the last element
+
+$nextr is the next value, rotated so that the next of the last element is the first element
+
+$_ is the current value, just as with Perls built-in grep
+
+ my @a = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20);  # 1..20
+ my @r = egrep { $_ % 3 == 0 } @a;  # @r is 3, 6, 9, 12, 15, 18. grep does the same as egrep here
+ my @r = egrep { $i==1 or $next==12 or $prev==14 or $i==0 } @a;  # @r is now 2, 11, 15
+
+ my @a=2..44;
+ egrep { $prev =~/4$/ or $next =~/2$/ } @a;  # 5, 11, 15, 21, 25, 31, 35, 41
+ egrep { $prevr=~/4$/ or $nextr=~/2$/ } @a;  # 2, 5, 11, 15, 21, 25, 31, 35, 41, 44
+ egrep { $i%7==0 } @a;                       # 2, 9, 16, 23, 30, 37, 44
+ egrep { $n%7==0 } @a;                       # 8, 15, 22, 29, 36, 43
+
 =cut
 
-sub egrep {
+sub egrep (&@) {
     my($code,$i,$package)=(shift,-1,(caller)[0]);
     my %h=map{($_=>"$package::$_")}qw(i n prev next prevr nextr);
+    no strict 'refs';
     grep {
-	#no strict 'refs'; #"no" not allowed in expression in perl5.16
+	#no strict 'refs'; #not here! "no" not allowed in expression in perl5.16
 	local ${$h{i}}     = ++$i;
 	local ${$h{n}}     = $i+1;
 	local ${$h{prev}}  = $i>0?$_[$i-1]:undef;
@@ -4665,6 +4695,13 @@ sub md5sum {
   croak "md5sum on $fn failed ($@)\n" if $@;
   $r;
 }
+
+=head2 which
+
+Returns the first executable program in $ENV{PATH} paths (split by : colon) with the given name.
+
+ echo $PATH
+ perl -MAcme::Tools -le 'print which("gzip")'      # maybe prints /bin/gzip
 
 =head2 read_conf
 
@@ -8225,6 +8262,7 @@ sub sum      { &Acme::Tools::bfsum      }
 # + oppd default valutakurser inkl datoen
 # + emacs Changes
 # + emacs README + aarstall
+# + diff -byW200 <(grep -a ^sub Acme-Tools-0.22/Tools.pm|sort) <(grep -a ^sub Tools.pm|sort)|less
 # + emacs MANIFEST legg til ev nye t/*.t
 # + perl            Makefile.PL;make test
 # + /usr/bin/perl   Makefile.PL;make test
@@ -8293,6 +8331,10 @@ sub sum      { &Acme::Tools::bfsum      }
 =head1 HISTORY
 
 Release history
+
+ 0.23  Jan 2019   subs: logn, egrep, which. More UTF-8 "oriented" (lower, upper, ...)
+                  Commands: zsize, finddup, due (improved), conv (improved, [MGT]?Wh
+                  and many more units), due -M for stdin of filenames, 
 
  0.22  Feb 2018   subs: subarr, sim, sim_perm, aoh2sql. command: resubst
 
