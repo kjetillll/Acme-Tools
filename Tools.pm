@@ -644,7 +644,7 @@ Note2: Many units have synonyms: m, meter, meters ...
 
  energy:       BTU, Btu, J, Nm, W/s, Wh, Wps, Ws, _J, _eV,
                cal, calorie, calories, eV, electronvolt, BeV,
-               erg, ergs, foot-pound, foot-pounds, ftlb, joule, kWh,
+               erg, ergs, foot-pound, foot-pounds, ftlb, joule, kWh, MWh, GWh, TWh
                kcal, kilocalorie, kilocalories,
                newtonmeter, newtonmeters, th, thermie
 
@@ -1096,9 +1096,12 @@ our %conv=(
                    Nm           => 1,
                    newtonmeter  => 1,
                    newtonmeters => 1,
-                   Wh           => 3600,
-                   kWh          => 3600000, #3.6 million J
-                   cal          => 4.1868,          # ~ 3600/860
+                   Wh           => 3600,             #3600 J (joules)
+                   kWh          => 3600000,          #3.6 million J
+                   MWh          => 3600000000,       #3.6 billion J
+                   GWh          => 3600000000000,    #3.6 trillion J
+                   TWh          => 3600000000000000, #3600 trillion J
+                   cal          => 4.1868,           # ~ 3600/860
 		   calorie      => 4.1868,
 		   calories     => 4.1868,
                    kcal         => 4.1868*1000,
