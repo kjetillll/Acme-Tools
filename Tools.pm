@@ -7645,24 +7645,30 @@ Like C<du> command but views space used by file extentions instead of dirs. Opti
 
 =head3 finddup
 
-Finds duplicate files. Three steps to speed this up in case of many
+Find duplicate files. Three steps to speed this up in case of many
 large files: 1) Find files of same size, 2) of those: find files with
 the same first 8 kilobytes, 3) of those: find duplicate files by
 finding the MD5sums of the whole files.
 
- finddup [-d -s -h] path/ files/* ...  #reports (+deletes with -d) duplicate files
-                                       #-s for symlinkings dups, -h for hardlink
- finddup <files>    # print duplicate files
+ finddup [-d -s -h] paths/ files/* ...  #reports (+deletes with -d) duplicate files
+                                        #-s for symlinkings dups, -h for hardlink
+ finddup <files>    # print duplicate files, <files> might be filenames and directories
  finddup -a <files> # print duplicate files, also print the first file
- finddup -d <files> # delete duplicate files and print them
+ finddup -d <files> # delete duplicate files, use -v to also print them before deletion
  finddup -s <files> # make symbolic links of duplicate files
  finddup -h <files> # make hard links of duplicate files
- finddup -s -n <files>  # dry run: show ln command to make symlinks of duplicate files
- finddup -h -n <files>  # dry run: show ln command to make hard links of duplicate files
- finddup -f n           # considers newer files duplicates
- finddup -f o           # considers older files duplicates
+ finddup -v ...     # verbose, print before -d, -s or -h
+ finddup -n -d <files>  # dry run: show rm commands without actually running them
+ finddup -n -s <files>  # dry run: show ln commands to make symlinks of duplicate files
+ finddup -n -h <files>  # dry run: show ln commands to make hard links of duplicate files
+ finddup -q ...         # quiet
+ finddup -k o           # keep oldest with -d, -s, -h, consider newer files duplicates
+ finddup -k n           # keep newest with -d, -s, -h, consider older files duplicates
+ finddup -k O           # same as -k o, just use access time instead of modify time
+ finddup -k N           # same as -k n, just use access time instead of modify time
+ finddup -0 ...         # use ascii 0 instead of the normal \n, for xargs -0
 
-Default ordering of files without C<-f n> or C<-f o> is the order they
+Default ordering of files without C<-k n> or C<-k o> is the order they
 are mentioned on the command line.
 
 =cut
@@ -7813,8 +7819,8 @@ sub cmd_finddup {
   # http://www.commandlinefu.com/commands/view/3555/find-duplicate-files-based-on-size-first-then-md5-hash
   # die "todo: finddup not ready yet"
   my %o;
-  my @argv=args("af:dhsnqP:FMR",\%o,@_); $o{P}//=1024*8; $o{f}//='';
-  croak"ERR: cannot combine -a with -d, -s or -l" if $o{a} and $o{d}||$o{s}||$o{h};
+  my @argv=args("ak:dhsnqv0P:FMR",\%o,@_); $o{P}//=1024*8; $o{k}//=''; #die srlz(\%o,'o','',1);
+  croak"ERR: cannot combine -a with -d, -s or -h" if $o{a} and $o{d}||$o{s}||$o{h};
   require File::Find;
   @argv=map{
       my @f;
@@ -7847,26 +7853,28 @@ sub cmd_finddup {
   }
   return %f if $o{F};
   my@r=sort{$s{$$a[0]}<=>$s{$$b[0]}}values%f;
-  my $si={qw(o 9 n 9 O 8 N 8)}->{$o{f}}; #stat index: 9=mtime, 8=atime
-  my $sort=lc$o{f} eq 'o' ? sub{sprintf"%011d%9d",     (stat($_[0]))[$si],$s{$_[0]}}
-          :lc$o{f} eq 'n' ? sub{sprintf"%011d%9d",1e11-(stat($_[0]))[$si],$s{$_[0]}}
+  my $si={qw(o 9 n 9 O 8 N 8)}->{$o{k}}; #stat index: 9=mtime, 8=atime
+  my $sort=lc$o{k} eq 'o' ? sub{sprintf"%011d%9d",     (stat($_[0]))[$si],$s{$_[0]}}
+          :lc$o{k} eq 'n' ? sub{sprintf"%011d%9d",1e11-(stat($_[0]))[$si],$s{$_[0]}}
           :                 sub{sprintf     "%9d",                        $s{$_[0]}};
   @$_=map$$_[1],sort{$$a[0]cmp$$b[0]}map[&$sort($_),$_],@$_ for @r;
   my %of; #dup of
   for my $r (@r){
       $of{$_}=$$r[0] for @$r[1..$#$r];
   }
+  my $nl=$o{0}?"\x00":"\n";
   my $print=sub{$o{q} or print $_[0]};
-  my $go=sub{$o{n}?&$print("$_[0]\n"):qx($_[0])};
-  &$print(join"\n",map join("",map"$_\n",@$_),@r) and return if $o{a};
+  my $do=sub{ $o{v} && &$print("$_[0]$nl"); qx($_[0]) };
+  my $go=sub{ $o{n} ? &$print("$_[0]$nl") : &$do($_[0]) };
+  &$print(join$nl,map join("",map"$_$nl",@$_),@r) and return if $o{a};
   @r=map@$_[1..$#$_],@r;
   return @r if $o{R}; #hm
-  unlink@r                                 if ($o{d}||$o{s}||$o{h})&&!$o{n}; #delete duplicates
-  map &$go(qq(rm "$_")                ),@r if $o{d}&& $o{n}; #delete duplicates, dryrun
+  unlink@r                              if $o{d}||$o{s}||$o{h} and !$o{n}; #delete duplicates
+  map &$go(qq(rm "$_")             ),@r if $o{d}&& $o{n}; #delete duplicates, dryrun
   map &$go(qq(ln -s "$of{$_}" "$_")),@r if $o{s}; #replace duplicates with symlink
   map &$go(qq(ln    "$of{$_}" "$_")),@r if $o{h}; #replace duplicates with hardlink
   return if $o{q} or $o{n};    #quiet or dryrun
-  &$print("$_\n") for @r;
+  &$print("$_$nl") for @r;
 }
 #http://stackoverflow.com/questions/11900239/can-i-cache-the-output-of-a-command-on-linux-from-cli
 our $Ccmd_cache_dir='/tmp/acme-tools-ccmd-cache';

@@ -24,15 +24,15 @@ ok($s eq $s2);
 my @r;
 sub test{my$sr=sr(\@r,'r')=~s,\n$,,r;print "Got:      $sr\nExpected: $_[0]\n\n" if $sr ne $_[0];ok($sr eq shift)}
 @r=f(qw(-P 4 -M  ),    @f[2,1,3,0]);test(q(@r=('file1','file3','file0');));
-@r=f(qw(-P 4 -M -f n ),@f[2,1,3,0]);test(q(@r=('file2','file1','file0');));
-@r=f(qw(-P 4 -M -f o ),@f[2,1,3,0]);test(q(@r=('file1','file2','file3');));
+@r=f(qw(-P 4 -M -k n ),@f[2,1,3,0]);test(q(@r=('file2','file1','file0');));
+@r=f(qw(-P 4 -M -k o ),@f[2,1,3,0]);test(q(@r=('file1','file2','file3');));
 @r=f(                  @f         );test(q(@r=();));
 @r=f(                  $tmp       );test(q(@r=();));
 
 my $pr=sub{my@a=@_;join("",map"$_\n",map{s,$tmp/,,g;$_}split"\n",printed{Acme::Tools::cmd_finddup(@a)})};
 my $p; sub okp{print "Got:    $p\nExpected: $_[0]\n" if $p ne $_[0];ok($p eq $_[0])}
-$p=&$pr(qw(-f o -MP4),$tmp);      okp("file1\nfile2\nfile3\n");
-$p=&$pr(qw(-f o -MP4),$tmp,$tmp); okp("file1\nfile2\nfile3\n");
+$p=&$pr(qw(-k o -MP4),$tmp);      okp("file1\nfile2\nfile3\n");
+$p=&$pr(qw(-k o -MP4),$tmp,$tmp); okp("file1\nfile2\nfile3\n");
 $p=&$pr('-MP4',  @f); okp("file1\nfile2\nfile3\n");                                      mkf(8);
 $p=&$pr('-aMP4', @f); okp("file0\nfile1\nfile2\nfile3\n\nfile4\nfile5\nfile6\nfile7\n"); mkf();
 $p=&$pr('-dnMP4',@f); okp(qq(rm "file1"\nrm "file2"\nrm "file3"\n));
