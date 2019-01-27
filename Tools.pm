@@ -7933,7 +7933,7 @@ sub args {
 #cat Tools.pm|perl -I. /usr/local/bin/zsize -tp Tools.pm
 sub cmd_zsize {
   my %o;
-  my @argv=args("heEpt",\%o,@_);
+  my @argv=args("heEpts",\%o,@_);
   my $stdin=!@argv || join(",",@argv) eq '-';
   @argv=("/tmp/acme-tools.$$.stdin") if $stdin;
   writefile($argv[0],join("",<STDIN>)) if $stdin;
@@ -7945,29 +7945,34 @@ sub cmd_zsize {
       print "--- $f ($sf b) is not readable\n" and next if !-r$f;
       print "--- $sf b  ".bytes_readable($sf)."  ".($stdin?"-":$f)."\n";
       next if !$sf;
-      my @t;
+      my(@t,@s);
       for my $prog (@prog){
-	  next if !qx(which $prog);
-	  my @l=1..9;
-	  push @l,map"e$_",1..9 if $prog eq 'xz' and $o{e};
-	  @l=map"e$_",1..9      if $prog eq 'xz' and $o{E};
-	  @l=map 10+$_,@l       if $prog eq 'zstd';
-	  printf "%-6s",$prog;
-	  push @t, $prog, [] if $o{t};
-	  for my $l (@l){
-	      my $t=time_fp();
-	      my $b=qx(cat $f|$prog -$l|wc -c);
-	      push@{$t[-1]},time_fp()-$t if $o{t};
-	      $o{p} ? printf("%9.1f%% ",100*$b/$sf)
-	     :$o{h} ? printf("%10s ",bytes_readable($b))
+          next if !qx(which $prog);
+          my @l=1..9;
+          push @l,map"e$_",1..9 if $prog eq 'xz' and $o{e};
+          @l=map"e$_",1..9      if $prog eq 'xz' and $o{E};
+          @l=map 10+$_,@l       if $prog eq 'zstd';
+          printf "%-6s",$prog;
+          push @t, $prog, [] if $o{t};
+          push @s, $prog, [] if $o{p} and $o{s};
+          for my $l (@l){
+              my $t=time_fp();
+              my $b=qx(cat $f|$prog -$l|wc -c);
+              push@{$t[-1]},time_fp()-$t if $o{t};
+              push@{$s[-1]},$b           if $o{p} and $o{s};
+              $o{p} ? printf("%9.1f%% ",100*$b/$sf)
+             :$o{h} ? printf("%10s ",bytes_readable($b))
              :        printf("%10d ",$b);
-	  }
-	  print "\n";
+          }
+          print "\n";
+      }
+      while(@s){
+          printf "%-6s",shift@s;
+          $o{h}?printf("%10s ",bytes_readable($_)):printf("%10d ",$_) for @{shift@s}; print "\n";
       }
       while(@t){
-	  printf "%-6s",shift@t;
-	  printf "%9.3fs ",$_ for @{shift(@t)};
-	  print "\n";
+          printf "%-6s",shift@t;
+          printf "%9.3fs ",$_ for @{shift@t}; print "\n";
       }
   }
   unlink $argv[0] if $stdin;
