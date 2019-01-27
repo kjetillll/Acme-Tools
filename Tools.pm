@@ -7665,7 +7665,6 @@ our @Due_fake_stdin;
 sub cmd_due {
   my %o;
   my @argv=args("zkKmhciMPate:lE:t",\%o,@_);
-  @argv=('.') if !@argv;
   require File::Find;
   no warnings 'uninitialized';
   die"$0: -l not implemented yet\n"                if $o{l}; #man du: default is not to count hardlinks more than once, with -l it does
@@ -7679,22 +7678,25 @@ sub cmd_due {
   my $qrexcl=exists$o{e}?qr/$o{e}/:0;
  #TODO: ought to work: tar cf - .|tar tvf -|due
   if(-p STDIN or @Due_fake_stdin){
-    my $stdin=join"",map"$_\n",@Due_fake_stdin;
+    die "due: can not combine STDIN and args\n" if @argv;
+    my $stdin=join"",map"$_\n",@Due_fake_stdin; #test
     open(local *STDIN, '<', \$stdin) or die "ERR: $! $?\n" if $stdin;
+    my $rl=qr/(^| )\-[rwx\-sS]{9}\s+(?:\d )?(?:[\w\-]+(?:\/|\s+)[\w\-]+)\s+(\d+)\s+.*?([^\/]*\.[\w,\-]+)?$/;
+    my $MorP=$o{M}||$o{P}?"due: -M and -P not yet implemented for STDIN unless list of filenames only\n":0;
     while(<STDIN>){
       chomp;
       next if /\/$/;
-      my($sz,$f)=(/(^| )\-[rwx\-sS]{9}\s+(?:\d )?(?:[\w\-]+(?:\/|\s+)[\w\-]+)\s+(\d+)\s+.*?([^\/]*\.[\w,\-]+)?$/?($2,$3):-f$_?(-s$_,$_):next);
+      my($f,$sz,$mtime)=(/$rl/?($3,$2):-f$_?($_,(stat)[7,9]):next);
       #   1576142    240 -rw-r--r--   1 root     root       242153 april  4  2016 /opt/wine-staging/share/wine/wine.inf
       my $ext=$f=~$r?$1:'';
       $ext=lc($ext) if $o{i};
       $cnt++;    $c{$ext}++;
       $bts+=$sz; $b{$ext}+=$sz;
-      #$mtime{$ext}.=",$mtime" if
-                                  $o{M} || $o{P} and die"due: -M and -P not yet implemented for STDIN\n";
+      defined $mtime and $mtime{$ext}.=",$mtime" or die $MorP if $MorP;
     }
   }
   else { #hm DRY
+    @argv=('.') if !@argv;
     File::Find::find({follow=>0, wanted =>
       sub {
         return if !-f$_;
