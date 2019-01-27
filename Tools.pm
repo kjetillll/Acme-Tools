@@ -7669,7 +7669,8 @@ finding the MD5sums of the whole files.
  finddup -0 ...         # use ascii 0 instead of the normal \n, for xargs -0
 
 Default ordering of files without C<-k n> or C<-k o> is the order they
-are mentioned on the command line.
+are mentioned on the command line. For directory args the order might be
+random: use C<< dir/* >> to avoid that (but then dot files are not included).
 
 =cut
 
