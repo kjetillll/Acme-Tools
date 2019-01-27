@@ -8258,7 +8258,7 @@ sub sum      { &Acme::Tools::bfsum      }
 # + c-s todo
 # + endre $VERSION
 # + endre Release history under HISTORY
-# + endre årstall under COPYRIGHT AND LICENSE
+# + endre årstall under =head1 COPYRIGHT
 # + oppd default valutakurser inkl datoen
 # + emacs Changes
 # + emacs README + aarstall
@@ -8275,7 +8275,7 @@ sub sum      { &Acme::Tools::bfsum      }
 # + http://cpants.cpanauthors.org/dist/Acme-Tools   #kvalitee
 # + perl Makefile.PL ; make test && make dist
 # + cp -p *tar.gz /htdocs/
-# + ci -l -mversjon -d `cat MANIFEST`
+# + #ci -l -mversjon -d `cat MANIFEST` #no
 # + git add `cat MANIFEST`
 # + git status
 # + git commit -am versjon
@@ -8334,7 +8334,7 @@ Release history
 
  0.23  Jan 2019   subs: logn, egrep, which. More UTF-8 "oriented" (lower, upper, ...)
                   Commands: zsize, finddup, due (improved), conv (improved, [MGT]?Wh
-                  and many more units), due -M for stdin of filenames, 
+                  and many more units), due -M for stdin of filenames.
 
  0.22  Feb 2018   subs: subarr, sim, sim_perm, aoh2sql. command: resubst
 
@@ -8369,7 +8369,7 @@ Kjetil Skotheim, E<lt>kjetil.skotheim@gmail.comE<gt>
 
 =head1 COPYRIGHT
 
-2008-2018, Kjetil Skotheim
+2008-2019, Kjetil Skotheim
 
 =head1 LICENSE
 
