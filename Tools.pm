@@ -5739,7 +5739,14 @@ Examples:
 
 sub globr($) {
   my $p=shift;
-  $p=~s/\{(\w+)\.\.(\w+)(\.\.(\d+))?\}/my$i=0;"{".join(",",grep{$4?!($i++%$4):1}$1..$2)."}";/eg;
+  $p=~s{
+    \{(-?\w+)\.\.(-?\w+)(\.\.(-?\d+))?\}
+  }{
+    my $i=0;
+    my @r=$1 le $2 ? ($1..$2) : reverse($2..$1);
+    @r=grep !($i++%$4),@r if $4;
+    "{" . join(",",@r) . "}"
+  }xeg;
   glob $p;
 }
 
@@ -7951,7 +7958,8 @@ sub cmd_2gzip  {cmd_z2z("-t","gz", @_)}
 sub cmd_2bz2   {cmd_z2z("-t","bz2",@_)}
 sub cmd_2bzip2 {cmd_z2z("-t","bz2",@_)}
 sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
-#todo?: sub cmd_7z
+#todo: sub cmd_7z
+#todo: .tgz same as .tar.gz (but not .tbz2/.txz)
 sub cmd_z2z {
   my %o;
   my @argv=args("pt:kvhon123456789es:",\%o,@_);
