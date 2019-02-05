@@ -2603,7 +2603,7 @@ $_ is the current value, just as with Perls built-in grep
 
 sub egrep (&@) {
     my($code,$i,$package)=(shift,-1,(caller)[0]);
-    my %h=map{($_=>"$package::$_")}qw(i n prev next prevr nextr);
+    my %h=map{($_=>"${package}::$_")}qw(i n prev next prevr nextr);
     no strict 'refs';
     grep {
 	#no strict 'refs'; #not here! "no" not allowed in expression in perl5.16
