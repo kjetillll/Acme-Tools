@@ -1449,8 +1449,8 @@ Examples:
  print bytes_readable(1181116006.4);                     # 1.10 GB
  print bytes_readable(1209462790553.6);                  # 1.10 TB
  print bytes_readable(1088516511498.24*1000);            # 990.00 TB
- print bytes_readable(1088516511498.24*1000,3);          # 990.000 TB
- print bytes_readable(1088516511498.24*1000,1);          # 990.0 TB
+ print bytes_readable(1088516511498.24*1000, 3);         # 990.000 TB
+ print bytes_readable(1088516511498.24*1000, 1);         # 990.0 TB
 
 =cut
 
@@ -1891,17 +1891,17 @@ sub bound { curb(@_) }
 
 =head2 logn
 
-print log10(1000);           # prints 3
-print log10(10000*sqtr(10)); # prints 4.5
-print log2(16);              # prints 4
-print logn(4096, 8);         # prints 4 (12/3=4)
-print logn($PI, 2.71828182845905);  # same as  print log($PI)  using perls builtin log()
+ print log10(1000);                  # prints 3
+ print log10(10000*sqtr(10));        # prints 4.5
+ print log2(16);                     # prints 4
+ print logn(4096, 8);                # prints 4 (12/3=4)
+ print logn($PI, 2.71828182845905);  # same as  print log($PI)  using perls builtin log()
 
 =cut
 
-sub log10 { log($_[0])/log(10) }
-sub log2  { log($_[0])/log(2)  }
-sub logn  { log($_[0])/log($_[1]) }
+sub log10 { log($_[0]) / log(10)    }
+sub log2  { log($_[0]) / log(2)     }
+sub logn  { log($_[0]) / log($_[1]) }
 
 =head1 STRINGS
 
