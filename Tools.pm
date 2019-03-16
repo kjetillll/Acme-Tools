@@ -7002,11 +7002,11 @@ Returns 1 on success. Dies (croaks) if more strings than capacity is added.
 
 =head2 bfcheck
 
-  my $phone_number="97713246";
+  my $phone_number="99999999";
   if ( bfcheck($bf, $phone_number) ) {
     print "Yes, $phone_number was PROBABLY added\n";
   }
-  else{
+  else {
     print "No, $phone_number was DEFINITELY NOT added\n";
   }
 
@@ -8066,7 +8066,7 @@ sub cmd_zsize {
   my $stdin=!@argv || join(",",@argv) eq '-';
   @argv=("/tmp/acme-tools.$$.stdin") if $stdin;
   writefile($argv[0],join("",<STDIN>)) if $stdin;
-  my @prog=grep qx(which $_), qw(gzip bzip2 xz zstd);
+  my @prog=grep qx(which $_), qw(gzip bzip2 xz zstd brotli);
   for my $f (@argv){
       my $sf=-s$f;
       print "--- $f does not exists\n" and next if !-e$f;
@@ -8081,10 +8081,11 @@ sub cmd_zsize {
           push @l,map"e$_",1..9 if $prog eq 'xz' and $o{e};
           @l=map"e$_",1..9      if $prog eq 'xz' and $o{E};
           @l=map 10+$_,@l       if $prog eq 'zstd';
+          @l=map"q $_",3..11    if $prog eq 'brotli';
           printf "%-6s",$prog;
           push @t, $prog, [] if $o{t};
           push @s, $prog, [] if $o{p} and $o{s};
-          for my $l (@l){
+          for my $l (@l){ #level
               my $t=time_fp();
               my $b=qx(cat $f|$prog -$l|wc -c);
               push@{$t[-1]},time_fp()-$t if $o{t};
