@@ -512,7 +512,9 @@ our $Resolve_time;
 
 #sub resolve(\[&$]@) {
 #sub resolve(&@) { <=0.17
-#todo: perl -MAcme::Tools -le 'print resolve(sub{$_[0]**2-9431**2});print$Acme::Tools::Resolve_iterations'
+#todo: perl -MAcme::Tools -le'print resolve(sub{$_[0]**2-9431**2});print$Acme::Tools::Resolve_iterations'
+#todo: perl -MAcme::Tools -le'sub d{5.3*1.0094**$_[0]-10.2*1.0072**$_[0]} print resolve(\&d)' #err, pop norway vs sweden
+#todo: perl -MAcme::Tools -le' print resolve(sub{5.3*1.0094**$_[0]-10.2*1.0072**$_[0]})' #err, pop norway vs sweden
 #    =>Div by zero: df(x) = 0 at n'th iteration, n=0, delta=0.0001, fx=CODE(0xc81d470) at -e line 1
 #todo: ren solve?
 sub resolve {
@@ -7962,7 +7964,7 @@ sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
 #todo: .tgz same as .tar.gz (but not .tbz2/.txz)
 sub cmd_z2z {
   my %o;
-  my @argv=args("pt:kvhon123456789es:",\%o,@_);
+  my @argv=args("pt:kvhon123456789es:L:",\%o,@_); #hm -s ?
   my $t=repl(lc$o{t},qw/gzip gz bzip2 bz2/);
   die "due: unknown compression type $o{t}, known are gz, bz2 and xz" if $t!~/^(gz|bz2|xz)$/;
   delete $o{e} if $o{e} and $o{t} ne 'xz' and warn "-e available only for type xz\n";
@@ -7989,12 +7991,13 @@ sub cmd_z2z {
     #todo: my $cnt="tee >(wc -c>$cntfile)" if $ENV{SHELL}=~/bash/ and $o{v}; #hm dash vs bash
     my $z=  {qw/gz gzip   bz2 bzip2   xz xz/}->{$t};
     $z.=" -$_" for grep$o{$_},1..9,'e';
+    $z.=" -$_ $o{$_}" for grep exists$o{$_},'L';
     my $cmd=qq($cat "$_"|$unz|$z>"$new");
      #todo: "$cat $_|$unz|$cnt|$z>$new";
     #cat /tmp/kontroll-linux.xz|unxz|tee >(wc -c>/tmp/p)|gzip|wc -c;cat /tmp/p
     $cmd=~s,\|+,|,g; #print "cmd: $cmd\n";
     sys($cmd);
-    chall($_,$new)||die if !$o{n};
+    chall($_,$new) or croak("$0 cannot chmod|chown|touch $new") if !$o{n};
     my($szold,$sznew)=map{-s$_}($_,$new);
     $bsf+=-s$_;
     unlink $_ if !$o{k};
