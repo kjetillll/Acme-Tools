@@ -7665,7 +7665,25 @@ The commands C<2xz>, C<2bz2> and C<2gz> are just synonyms for C<z2z> with an imp
  z2z [-p -k -v -o -1 -2 -3 -4 -5 -6 -7 -8 -9 ] files
 
 Converts (recompresses) files from one compression type to another. For instance from .gz to .bz2
+Keeps uid, gid, mode (chmod) and mtime.
 
+ -p              Show a progress meter using the pv program if installed
+ -k              Keeps original file
+ -v              Verbose, shows info on degree of compression and file
+                 number if more than one file is being converted
+ -o              Overwrites existing result file, otherwise stop with error msg
+ -1 .. -9        Degree of compression, -1 fastest .. -9 best
+ -e              With -t xz (or 2xz) passes -e to xz (-9e = extreme compression)
+
+ -L rate         With -p. Slow down, ex:  -L 200K  means 200 kilobytes per second
+ -D sec          With -p. Only turn on progress meter (pv) after x seconds
+ -i sec          With -p. Info update rate
+ -l              With -p. Line mode
+ -I              With -p. Show ETA as time of arrival as well as time left
+ -q              With -p. Quiet. Useful with -L to limit rate, but no output
+
+The options -L -D -i -l -I -q implicitly turns on -p. Those options are passed
+through to pv. See: man pv.
 
 =head3 due
 
@@ -7962,15 +7980,21 @@ sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
 #todo: .tgz same as .tar.gz (but not .tbz2/.txz)
 sub cmd_z2z {
   my %o;
-  my @argv=args("pt:kvhon123456789es:",\%o,@_);
+  my $pvopts="L:D:i:lIq";
+  my @argv=args("pt:kvhon123456789es:$pvopts",\%o,@_);
   my $t=repl(lc$o{t},qw/gzip gz bzip2 bz2/);
   die "due: unknown compression type $o{t}, known are gz, bz2 and xz" if $t!~/^(gz|bz2|xz)$/;
+  $o{p}//=1 if grep$pvopts=~/$_/,keys%o;
   delete $o{e} if $o{e} and $o{t} ne 'xz' and warn "-e available only for type xz\n";
   my $sum=sum(map -s$_,@argv);
   print "Converting ".@argv." files, total ".bytes_readable($sum)."\n" if $o{v} and @argv>1;
   my $cat='cat';
   if($o{p}){ if(which('pv')){ $cat='pv' } else { warn repl(<<"",qr/^\s+/) } }
     due: pv for -p not found, install with sudo yum install pv, sudo apt-get install pv or similar
+
+  $o{$_} and $o{$_}=" " for qw(l q); #still true, but no cmd arg for:
+  $o{I} and $o{I}="-pterb";
+  exists$o{$_} and $cat=~s,pv,pv -$_ $o{$_}, for $pvopts=~/(\w)/g; #warn "cat: $cat\n";
 
   my $sumnew=0;
   my $start=time_fp();
