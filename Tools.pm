@@ -5000,7 +5000,9 @@ sub s2t {
     $s=~s/\bjuli\b/July/i;
     $s=~s/\bjuni\b/June/i;
   }
-  Date::Parse::str2time($s);
+  return Date::Parse::str2time($s)                  if !@_;
+  return tms(Date::Parse::str2time($s),shift())     if @_==1;
+  return map tms(Date::Parse::str2time($s),$_), @_;
 }
 
 sub date_ok {
