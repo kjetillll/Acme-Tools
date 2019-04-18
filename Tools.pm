@@ -136,6 +136,7 @@ our @EXPORT = qw(
   sec_readable
   distance
   tms
+  s2t
   easter
   time_fp
   timems
@@ -4920,9 +4921,6 @@ The following list of codes in the first argument will be replaced:
   JDN     Julian day number. Integer. The number of days since the day starting at noon on January 1 4713 BC
   JD      Same as JDN but a float accounting for the time of day
 
-TODO:  sub smt() (tms backward... or something better named, converts the other way)
-       As to_date and to_char in Oracle. Se maybe L<Date::Parse> instead
-
 B<Third argument:> (optional) Is_date. False|true, default false. If true, the second argument is
 interpreted as a date of the form YYYYMMDD, not as a number of seconds since epoch (January 1st 1970).
 
@@ -4989,6 +4987,22 @@ sub tms_init {
 
 sub totime {
 
+}
+
+sub s2t {
+  require Date::Parse;
+  my $s=shift;
+  if($s=~/\b(?:mai|okt|des|juni|juli|februar)/i){
+    $s=~s/\bMai\b/May/i;       $s=~s/\bmai\b/may/i;       $s=~s/\bMAI\b/MAY/i;
+    $s=~s/\bOkt\b/Oct/i;       $s=~s/\bokt\b/oct/i;       $s=~s/\bOKT\b/OCT/i;
+    $s=~s/\bDes/Dec/;          $s=~s/\bdes/dec/;          $s=~s/\bDES/DEC/;
+    $s=~s/\bFebruar/February/; $s=~s/\bfebruar/february/; $s=~s/\bFEBRUAR/FEBRUARY/;
+    $s=~s/\bjuli\b/July/i;
+    $s=~s/\bjuni\b/June/i;
+  }
+  return Date::Parse::str2time($s)                  if !@_;
+  return tms(Date::Parse::str2time($s),shift())     if @_==1;
+  return map tms(Date::Parse::str2time($s),$_), @_;
 }
 
 sub date_ok {
