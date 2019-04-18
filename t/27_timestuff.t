@@ -1,11 +1,11 @@
 # tms() and other time stuff
 # make test
-# perl Makefile.PL; make; perl -Iblib/lib t/27_tms.t
+# perl Makefile.PL; make; perl -Iblib/lib t/27_timestuff.t
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More;
 use Digest::MD5 'md5_hex';
 if( $^O=~/(?<!cyg)win/i ) { plan skip_all => 'POSIX::tzset not ok on windows'  }
-else                      { plan tests    => 43                                }
+else                      { plan tests    => 54                                }
 
 $ENV{TZ}='CET';
 #$ENV{TZ}='Europe/Oslo';
@@ -114,8 +114,20 @@ sleepms(10);
 sleepus(10000);
 sleepns(10000000);
 
-
-
+if(eval{require Date::Parse}){
+  is( s2t($$_[1]), $$_[0], "ok s2t('$$_[1]')" ) for map[split/\s/,$_,2],grep$_,map trim,split"\n","
+  1555588437 20190418-13:53:57
+  1555588437 2019-04-18T13:53:57
+  1555588437 18. april 2019 13:53:57
+  1555588437 18/Apr/2019:13:53:57
+  1555588380 20190418-13:53
+  1555588380 2019-04-18T13:53
+  1555588380 18. april 2019 13:53
+  1555588380 18/Apr/2019:13:53
+  1558180380 18/Mai/2019:13:53
+  1558180380 18/May/2019:13:53
+  1550494380 18/februar/2019:13:53"
+} else { ok(1) for 1..11 }
 
 __END__
 http://stackoverflow.com/questions/753346/how-do-i-set-the-timezone-for-perls-localtime
