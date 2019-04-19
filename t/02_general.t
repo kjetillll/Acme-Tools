@@ -2,7 +2,7 @@
 # perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
 
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests => 171;
+use Test::More tests => 185;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -100,11 +100,26 @@ ok( decode($test, 123.0=>3, 214=>7)      == 3             ,'decode float');
 ok( decode_num($test, 121=>3, 221=>7, '123.0','b') eq 'b' ,'decode_num');
 
 #--between
-my $n=7;
-ok( between($n, 1,10)          ,'between 1');
-ok( between(undef, 1,10) eq '' ,'between 2');
-ok( between($n, 10,1)          ,'between 3');
-ok( between(5,5,5)             ,'between 4');
+ok( between(7, 1,10)           ,'between a');
+ok( between(undef, 1,10) eq '' ,'between b');
+ok( between(7, 10,1)           ,'between c');
+ok( between(5,5,5)             ,'between d');
+
+#--btw, a better(?) between
+ok( btw(7, 1,10)           ,'btw a');
+ok( btw(undef, 1,10) eq '' ,'btw b');
+ok( btw(7, 10,1)           ,'btw c');
+ok( btw(5,5,5)             ,'btw d');
+ok( btw(1,1,10)                ,'btw e'); # numeric order since all three looks like number according to =~$Re_isnum
+ok( btw(1,'02',13)             ,'btw f'); # leading zero in '02' leads to alphabetical order
+ok( btw(10, 012,10)            ,'btw h'); # leading zero here means oct number, 012 = 10 (8*1+2), so 10 is btw 10 and 10
+ok(!btw('003', '02', '09')     ,'btw i'); #
+ok(!btw('a', 'b', 'c')         ,'btw j'); #
+ok( btw('a', 'B', 'c')         ,'btw k'); #
+ok( btw('a', 'c', 'B')         ,'btw l'); #
+ok( btw( -1, -2, 1)            ,'btw m');
+ok( btw( -1, -2, 0)            ,'btw n');
+ok( btw( -1, -2, '0e0')        ,'btw o');
 
 #--curb
 my $vb = 234;
@@ -160,13 +175,13 @@ ok_ref( {hashtrans(\%h)},
          b=>{1=>55,2=>22,3=>99}}, 'hashtrans' );
 
 #--ipaddr, ipnum
-my $ipnum=ipnum('www.uio.no'); # !defined implies no network
+my $ipnum=ipnum('www.vg.no'); # !defined implies no network
 my $ipaddr=defined$ipnum?ipaddr($ipnum):undef;
 if( defined $ipaddr ){
   ok( $ipnum=~/^(\d+\.\d+\.\d+\.\d+)$/, 'ipnum'); #hm ip6
-  ok( ipaddr($ipnum) eq 'www.uio.no' );
-  ok( $Acme::Tools::IPADDR_memo{$ipnum} eq 'www.uio.no' );
-  ok( $Acme::Tools::IPNUM_memo{'www.uio.no'} eq $ipnum );
+  is( ipaddr($ipnum), 'www.vg.no' );
+  is( $Acme::Tools::IPADDR_memo{$ipnum}, 'www.vg.no' );
+  is( $Acme::Tools::IPNUM_memo{'www.vg.no'}, $ipnum );
 }
 else{
   ok( 1, 'skip: no network') for 1..4
