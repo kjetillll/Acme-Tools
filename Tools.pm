@@ -54,6 +54,7 @@ our @EXPORT = qw(
   decode
   decode_num
   between
+  btw
   curb
   bound
   log10
@@ -513,7 +514,9 @@ our $Resolve_time;
 
 #sub resolve(\[&$]@) {
 #sub resolve(&@) { <=0.17
-#todo: perl -MAcme::Tools -le 'print resolve(sub{$_[0]**2-9431**2});print$Acme::Tools::Resolve_iterations'
+#todo: perl -MAcme::Tools -le'print resolve(sub{$_[0]**2-9431**2});print$Acme::Tools::Resolve_iterations'
+#todo: perl -MAcme::Tools -le'sub d{5.3*1.0094**$_[0]-10.2*1.0072**$_[0]} print resolve(\&d)' #err, pop norway vs sweden
+#todo: perl -MAcme::Tools -le' print resolve(sub{5.3*1.0094**$_[0]-10.2*1.0072**$_[0]})' #err, pop norway vs sweden
 #    =>Div by zero: df(x) = 0 at n'th iteration, n=0, delta=0.0001, fx=CODE(0xc81d470) at -e line 1
 #todo: ren solve?
 sub resolve {
@@ -1847,15 +1850,47 @@ sub isnum {(@_?$_[0]:$_)=~$Re_isnum}
 
 Input: Three arguments.
 
-Returns: Something I<true> if the first argument is numerically between the two next.
+Returns: Something I<true> if the first argument is numerically between the two next. Uses Perls C<< < >>, C<< >= >> and C<< <= >> operators.
+
+=head2 btw
+
+Like L<between> but instead of assuming numbers it checks all three input args
+and does alphanumerical comparisons (with Perl operators C<lt>, C<ge> and C<le>) if any of the
+three input args don't look like a number or look like a number but with
+one or more leading zeros.
+
+ btw(1,1,10)             #true numeric order since all three looks like number according to =~$Re_isnum
+ btw(1,'02',13)          #true leading zero in '02' leads to alphabetical order
+ btw(10, 012,10)         #true leading zero here means oct number, 012 = 10 (8*1+2), so 10 is btw 10 and 10
+ btw('003', '02', '09')  #false because '003' lt '02'
+ btw('a', 'b', 'c')      #false because 'a' lt 'b'
+ btw('a', 'B', 'c')      #true because upper case letters comes before lower case ones in the "ascii alphabet"
+ btw('a', 'c', 'B')      #true, btw() and between switches from and to if the first is > the second
+ btw( -1, -2, 1)         #true
+ btw( -1, -2, 0)         #true
+
+Both between and btw returns C<undef> if any of the three input args are C<undef> (not defined).
+If you're doing only numerical comparisons, using C<between> is faster than C<btw>.
 
 =cut
 
 sub between {
   my($test ,$fom, $tom)=@_;
-  no warnings;
-  $fom<$tom ? $test>=$fom && $test<=$tom
-            : $test>=$tom && $test<=$fom;
+  return if !defined$test or !defined$fom or !defined$tom;
+  $fom < $tom ? $test >= $fom && $test <= $tom
+              : $test >= $tom && $test <= $fom;
+}
+
+sub btw {
+  my($test,$fom,$tom)=@_;
+  return if !defined$test or !defined$fom or !defined$tom;
+  my $is_num =  $fom =~ $Re_isnum && $fom  !~ /^\s*[\-\+]?0+[1-9]/
+             && $tom =~ $Re_isnum && $tom  !~ /^\s*[\-\+]?0+[1-9]/
+             && $test=~ $Re_isnum && $test !~ /^\s*[\-\+]?0+[1-9]/;
+  $is_num ? ( $fom <  $tom ? $test >= $fom && $test <= $tom
+                           : $test >= $tom && $test <= $fom
+          ):( $fom lt $tom ? $test ge $fom && $test le $tom
+                           : $test ge $tom && $test le $fom )
 }
 
 =head2 curb
@@ -8027,12 +8062,13 @@ sub cmd_z2z {
     #todo: my $cnt="tee >(wc -c>$cntfile)" if $ENV{SHELL}=~/bash/ and $o{v}; #hm dash vs bash
     my $z=  {qw/gz gzip   bz2 bzip2   xz xz/}->{$t};
     $z.=" -$_" for grep$o{$_},1..9,'e';
+    $z.=" -$_ $o{$_}" for grep exists$o{$_},'L';
     my $cmd=qq($cat "$_"|$unz|$z>"$new");
      #todo: "$cat $_|$unz|$cnt|$z>$new";
     #cat /tmp/kontroll-linux.xz|unxz|tee >(wc -c>/tmp/p)|gzip|wc -c;cat /tmp/p
     $cmd=~s,\|+,|,g; #print "cmd: $cmd\n";
     sys($cmd);
-    chall($_,$new)||die if !$o{n};
+    chall($_,$new) or croak("$0 cannot chmod|chown|touch $new") if !$o{n};
     my($szold,$sznew)=map{-s$_}($_,$new);
     $bsf+=-s$_;
     unlink $_ if !$o{k};
