@@ -137,6 +137,7 @@ our @EXPORT = qw(
   sec_readable
   distance
   tms
+  s2t
   easter
   time_fp
   timems
@@ -4955,9 +4956,6 @@ The following list of codes in the first argument will be replaced:
   JDN     Julian day number. Integer. The number of days since the day starting at noon on January 1 4713 BC
   JD      Same as JDN but a float accounting for the time of day
 
-TODO:  sub smt() (tms backward... or something better named, converts the other way)
-       As to_date and to_char in Oracle. Se maybe L<Date::Parse> instead
-
 B<Third argument:> (optional) Is_date. False|true, default false. If true, the second argument is
 interpreted as a date of the form YYYYMMDD, not as a number of seconds since epoch (January 1st 1970).
 
@@ -5024,6 +5022,22 @@ sub tms_init {
 
 sub totime {
 
+}
+
+sub s2t {
+  require Date::Parse;
+  my $s=shift;
+  if($s=~/\b(?:mai|okt|des|juni|juli|februar)/i){
+    $s=~s/\bMai\b/May/i;       $s=~s/\bmai\b/may/i;       $s=~s/\bMAI\b/MAY/i;
+    $s=~s/\bOkt\b/Oct/i;       $s=~s/\bokt\b/oct/i;       $s=~s/\bOKT\b/OCT/i;
+    $s=~s/\bDes/Dec/;          $s=~s/\bdes/dec/;          $s=~s/\bDES/DEC/;
+    $s=~s/\bFebruar/February/; $s=~s/\bfebruar/february/; $s=~s/\bFEBRUAR/FEBRUARY/;
+    $s=~s/\bjuli\b/July/i;
+    $s=~s/\bjuni\b/June/i;
+  }
+  return Date::Parse::str2time($s)                  if !@_;
+  return tms(Date::Parse::str2time($s),shift())     if @_==1;
+  return map tms(Date::Parse::str2time($s),$_), @_;
 }
 
 sub date_ok {
@@ -7037,11 +7051,11 @@ Returns 1 on success. Dies (croaks) if more strings than capacity is added.
 
 =head2 bfcheck
 
-  my $phone_number="97713246";
+  my $phone_number="99999999";
   if ( bfcheck($bf, $phone_number) ) {
     print "Yes, $phone_number was PROBABLY added\n";
   }
-  else{
+  else {
     print "No, $phone_number was DEFINITELY NOT added\n";
   }
 
@@ -7700,7 +7714,25 @@ The commands C<2xz>, C<2bz2> and C<2gz> are just synonyms for C<z2z> with an imp
  z2z [-p -k -v -o -1 -2 -3 -4 -5 -6 -7 -8 -9 ] files
 
 Converts (recompresses) files from one compression type to another. For instance from .gz to .bz2
+Keeps uid, gid, mode (chmod) and mtime.
 
+ -p              Show a progress meter using the pv program if installed
+ -k              Keeps original file
+ -v              Verbose, shows info on degree of compression and file
+                 number if more than one file is being converted
+ -o              Overwrites existing result file, otherwise stop with error msg
+ -1 .. -9        Degree of compression, -1 fastest .. -9 best
+ -e              With -t xz (or 2xz) passes -e to xz (-9e = extreme compression)
+
+ -L rate         With -p. Slow down, ex:  -L 200K  means 200 kilobytes per second
+ -D sec          With -p. Only turn on progress meter (pv) after x seconds
+ -i sec          With -p. Info update rate
+ -l              With -p. Line mode
+ -I              With -p. Show ETA as time of arrival as well as time left
+ -q              With -p. Quiet. Useful with -L to limit rate, but no output
+
+The options -L -D -i -l -I -q implicitly turns on -p. Those options are passed
+through to pv. See: man pv.
 
 =head3 due
 
@@ -7997,15 +8029,21 @@ sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
 #todo: .tgz same as .tar.gz (but not .tbz2/.txz)
 sub cmd_z2z {
   my %o;
-  my @argv=args("pt:kvhon123456789es:L:",\%o,@_); #hm -s ?
+  my $pvopts="L:D:i:lIq";
+  my @argv=args("pt:kvhon123456789es:$pvopts",\%o,@_);
   my $t=repl(lc$o{t},qw/gzip gz bzip2 bz2/);
   die "due: unknown compression type $o{t}, known are gz, bz2 and xz" if $t!~/^(gz|bz2|xz)$/;
+  $o{p}//=1 if grep$pvopts=~/$_/,keys%o;
   delete $o{e} if $o{e} and $o{t} ne 'xz' and warn "-e available only for type xz\n";
   my $sum=sum(map -s$_,@argv);
   print "Converting ".@argv." files, total ".bytes_readable($sum)."\n" if $o{v} and @argv>1;
   my $cat='cat';
   if($o{p}){ if(which('pv')){ $cat='pv' } else { warn repl(<<"",qr/^\s+/) } }
     due: pv for -p not found, install with sudo yum install pv, sudo apt-get install pv or similar
+
+  $o{$_} and $o{$_}=" " for qw(l q); #still true, but no cmd arg for:
+  $o{I} and $o{I}="-pterb";
+  exists$o{$_} and $cat=~s,pv,pv -$_ $o{$_}, for $pvopts=~/(\w)/g; #warn "cat: $cat\n";
 
   my $sumnew=0;
   my $start=time_fp();
@@ -8102,7 +8140,7 @@ sub cmd_zsize {
   my $stdin=!@argv || join(",",@argv) eq '-';
   @argv=("/tmp/acme-tools.$$.stdin") if $stdin;
   writefile($argv[0],join("",<STDIN>)) if $stdin;
-  my @prog=grep qx(which $_), qw(gzip bzip2 xz zstd);
+  my @prog=grep qx(which $_), qw(gzip bzip2 xz zstd brotli);
   for my $f (@argv){
       my $sf=-s$f;
       print "--- $f does not exists\n" and next if !-e$f;
@@ -8117,10 +8155,11 @@ sub cmd_zsize {
           push @l,map"e$_",1..9 if $prog eq 'xz' and $o{e};
           @l=map"e$_",1..9      if $prog eq 'xz' and $o{E};
           @l=map 10+$_,@l       if $prog eq 'zstd';
+          @l=map"q $_",3..11    if $prog eq 'brotli';
           printf "%-6s",$prog;
           push @t, $prog, [] if $o{t};
           push @s, $prog, [] if $o{p} and $o{s};
-          for my $l (@l){
+          for my $l (@l){ #level
               my $t=time_fp();
               my $b=qx(cat $f|$prog -$l|wc -c);
               push@{$t[-1]},time_fp()-$t if $o{t};
