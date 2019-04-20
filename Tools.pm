@@ -1842,7 +1842,8 @@ B<Output:> True or false (1 or 0)
 
 =cut
 
-our $Re_isnum=qr/^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) (?:[eE][\-\+]?\d+)?\s*$/x;
+our $Re_isnum     =qr/^ \s* [\-\+]? (?: \d*\.\d+ | \d+ ) (?:[eE][\-\+]?\d+)?\s*$/x;
+our $Re_isnum_wolz=qr/^ \s* [\-\+]? (?: ([1-9]\d*|0)?\.\d+ | [1-9]\d* | 0 ) (?:[eE][\-\+]?\d+)?\s*$/x; #without leading zero
 sub isnum {(@_?$_[0]:$_)=~$Re_isnum}
 
 =head2 between
@@ -1876,20 +1877,17 @@ If you're doing only numerical comparisons, using C<between> is faster than C<bt
 sub between {
   my($test ,$fom, $tom)=@_;
   return if !defined$test or !defined$fom or !defined$tom;
-  $fom < $tom ? $test >= $fom && $test <= $tom
-              : $test >= $tom && $test <= $fom;
+  $fom < $tom ? $test >= $fom && $test <= $tom : $test >= $tom && $test <= $fom;
 }
 
 sub btw {
   my($test,$fom,$tom)=@_;
   return if !defined$test or !defined$fom or !defined$tom;
-  my $is_num =  $fom =~ $Re_isnum && $fom  !~ /^\s*[\-\+]?0+[1-9]/
-             && $tom =~ $Re_isnum && $tom  !~ /^\s*[\-\+]?0+[1-9]/
-             && $test=~ $Re_isnum && $test !~ /^\s*[\-\+]?0+[1-9]/;
-  $is_num ? ( $fom <  $tom ? $test >= $fom && $test <= $tom
-                           : $test >= $tom && $test <= $fom
-          ):( $fom lt $tom ? $test ge $fom && $test le $tom
-                           : $test ge $tom && $test le $fom )
+  $fom =~ $Re_isnum_wolz &&
+  $tom =~ $Re_isnum_wolz &&
+  $test=~ $Re_isnum_wolz
+  ? $fom <  $tom ? $test >= $fom && $test <= $tom : $test >= $tom && $test <= $fom
+  : $fom lt $tom ? $test ge $fom && $test le $tom : $test ge $tom && $test le $fom 
 }
 
 =head2 curb
