@@ -110,16 +110,22 @@ ok( btw(7, 1,10)           ,'btw a');
 ok( btw(undef, 1,10) eq '' ,'btw b');
 ok( btw(7, 10,1)           ,'btw c');
 ok( btw(5,5,5)             ,'btw d');
-ok( btw(1,1,10)                ,'btw e'); # numeric order since all three looks like number according to =~$Re_isnum
-ok( btw(1,'02',13)             ,'btw f'); # leading zero in '02' leads to alphabetical order
-ok( btw(10, 012,10)            ,'btw h'); # leading zero here means oct number, 012 = 10 (8*1+2), so 10 is btw 10 and 10
-ok(!btw('003', '02', '09')     ,'btw i'); #
-ok(!btw('a', 'b', 'c')         ,'btw j'); #
-ok( btw('a', 'B', 'c')         ,'btw k'); #
-ok( btw('a', 'c', 'B')         ,'btw l'); #
-ok( btw( -1, -2, 1)            ,'btw m');
-ok( btw( -1, -2, 0)            ,'btw n');
-ok( btw( -1, -2, '0e0')        ,'btw o');
+ok( btw(1,1,10)            ,'btw e'); # numeric order since all three looks like number according to =~$Re_isnum
+ok( btw(1,'02',13)         ,'btw f'); # leading zero in '02' leads to alphabetical order
+ok( btw(10, 012,10)        ,'btw h'); # leading zero here means oct number, 012 = 10 (8*1+2), so 10 is btw 10 and 10
+ok(!btw('003', '02', '09') ,'btw i'); #
+ok(!btw('a', 'b', 'c')     ,'btw j'); #
+ok( btw('a', 'B', 'c')     ,'btw k'); #
+ok( btw('a', 'c', 'B')     ,'btw l'); #
+ok( btw( -1, -2, 1)        ,'btw m');
+ok( btw( -1, -2, 0)        ,'btw n');
+ok( btw( -1, -2, '0e0')    ,'btw o');
+#my($btw,$btw2)=(0,0);
+#my @errs=grep{my@a=map rand(),1..3;$btw++ if btw(@a);$btw2++ if btw2(@a);btw(@a)!=btw2(@a)}1..1000;
+#ok( !@errs, "btw2==btw, btw=$btw btw2=$btw2" );
+#use Benchmark qw(:all) ;
+#cmpthese(1e5, { btw => sub { btw(rand(),rand(),rand()) },
+#                btw2=> sub { btw2(rand(),rand(),rand()) } }); exit;
 
 #--curb
 my $vb = 234;
