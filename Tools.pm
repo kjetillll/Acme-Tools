@@ -2734,7 +2734,7 @@ whether the predicate (a code-ref) is true or false for that element.
 
 =head2 parth
 
-Like C<part> but returns any number of lists.
+Like C<part> but returns any number of lists. Like I<group by> in SQL.
 
 B<Input:> A code-ref and a list
 
@@ -2752,7 +2752,7 @@ Result:
 
 =head2 parta
 
-Like L<parth> but returns an array of lists.
+Like L<parth> but returns an array of lists where the predicate returns an index number.
 
  my @a = parta { length } qw/These are the words of this array/;
 
@@ -5025,13 +5025,18 @@ sub totime {
 sub s2t {
   require Date::Parse;
   my $s=shift;
-  if($s=~/\b(?:mai|okt|des|juni|juli|februar)/i){
+  if($s=~/\b(?:mai|okt|des|juni|juli|februar)/i){ #fix norwegian/danish (for now)
     $s=~s/\bMai\b/May/i;       $s=~s/\bmai\b/may/i;       $s=~s/\bMAI\b/MAY/i;
     $s=~s/\bOkt\b/Oct/i;       $s=~s/\bokt\b/oct/i;       $s=~s/\bOKT\b/OCT/i;
     $s=~s/\bDes/Dec/;          $s=~s/\bdes/dec/;          $s=~s/\bDES/DEC/;
     $s=~s/\bFebruar/February/; $s=~s/\bfebruar/february/; $s=~s/\bFEBRUAR/FEBRUARY/;
     $s=~s/\bjuli\b/July/i;
     $s=~s/\bjuni\b/June/i;
+  }
+  elsif(btw($s,     1e9,9e9)){ $s=localtime($s)      } #hm, make faster
+  elsif(btw($s/1000,1e9,9e9)){ $s=localtime($s/1000) } #hm
+  elsif($s=~/^((?:17|18|19|20|21)\d\d)(0[1-9]|1[012])(0[1-9]|[12]\d|3[01])$/){#hm
+      $s="$1-$2-$3T00:00:00";
   }
   return Date::Parse::str2time($s)                  if !@_;
   return tms(Date::Parse::str2time($s),shift())     if @_==1;
@@ -5291,7 +5296,7 @@ Estimated time of arrival (ETA).
     print "" . localtime($eta);
  }
 
- ..DOC MISSING..
+TODO: eta is borken and out of wack, good idea?: http://en.wikipedia.org/wiki/Kalman_filter
 
 =head2 etahhmm
 
@@ -5299,7 +5304,6 @@ Estimated time of arrival (ETA).
 
 =cut
 
-#http://en.wikipedia.org/wiki/Kalman_filter good idea?
 our %Eta;
 our $Eta_forgetfulness=2;
 sub eta {
@@ -7778,6 +7782,8 @@ finding the MD5sums of the whole files.
  finddup -k O           # same as -k o, just use access time instead of modify time
  finddup -k N           # same as -k n, just use access time instead of modify time
  finddup -0 ...         # use ascii 0 instead of the normal \n, for xargs -0
+ finddup -P n           # use n bytes from start of file in 1st md5 check (default 8192)
+ finddup -p             # view progress in last and slowest of the three steps
 
 Default ordering of files without C<-k n> or C<-k o> is the order they
 are mentioned on the command line. For directory args the order might be
@@ -7933,7 +7939,7 @@ sub cmd_finddup {
   # http://www.commandlinefu.com/commands/view/3555/find-duplicate-files-based-on-size-first-then-md5-hash
   # die "todo: finddup not ready yet"
   my %o;
-  my @argv=args("ak:dhsnqv0P:FMR",\%o,@_); $o{P}//=1024*8; $o{k}//=''; #die srlz(\%o,'o','',1);
+  my @argv=args("ak:dhsnqv0P:FMRp",\%o,@_); $o{P}//=1024*8; $o{k}//=''; #die srlz(\%o,'o','',1);
   croak"ERR: cannot combine -a with -d, -s or -h" if $o{a} and $o{d}||$o{s}||$o{h};
   require File::Find;
   @argv=map{
@@ -7961,9 +7967,19 @@ sub cmd_finddup {
   my %s=map{($_=>++$i)}@argv; #sort
   my %f=map{($_=>[$_])}@argv; #also weeds out dupl params
   for my $c (@checks){
-      my %n; push @{$n{&$c($_)}}, $_ for map @{$f{$_}}, sort keys %f;
-      delete @n{grep@{$n{$_}}<2,keys%n};
-      %f=%n;
+    my @f=map @{$f{$_}}, sort keys %f;
+    if($o{p} and $c eq $checks[-1]){ #view progress for last check
+      my $mb=sum(map -s$_,@f)/1e6;
+      my($corg,$cnt,$cntmb,$prfmt)=($c,0,0,"%d/%d files checked (%d%%), %d/%d MB (%d%%), ETA in %d sec       \r");
+      $c=sub{
+	  $cntmb+=(-s$_[0])/1e6;
+	  print STDERR sprintf($prfmt,++$cnt,0+@f,100*$cnt/@f,$cntmb,$mb,100*$cntmb/$mb,curb(nvl(eta($cnt,0+@f),time)-time(),0,1e7));
+	  &$corg(@_)
+      };
+    }
+    my %n; push @{$n{&$c($_)}}, $_ for @f;
+    delete @n{grep@{$n{$_}}<2,keys%n};
+    %f=%n;
   }
   return %f if $o{F};
   my@r=sort{$s{$$a[0]}<=>$s{$$b[0]}}values%f;
@@ -8334,35 +8350,36 @@ sub sum      { &Acme::Tools::bfsum      }
 1;
 
 # Ny versjon:
-# + git clone https://github.com/kjetillll/Acme-Tools.git
-# + c-s todo
-# + endre $VERSION
-# + endre Release history under HISTORY
-# + endre årstall under =head1 COPYRIGHT
-# + oppd default valutakurser inkl datoen
-# + emacs Changes
-# + emacs README + aarstall
-# + diff -byW200 <(grep -a ^sub Acme-Tools-0.22/Tools.pm|sort) <(grep -a ^sub Tools.pm|sort)|less
-# + emacs MANIFEST legg til ev nye t/*.t
-# + perl            Makefile.PL;make test
-# + /usr/bin/perl   Makefile.PL;make test
-# + perlbrew exec "perl Makefile.PL ; time make test"
-# + perlbrew exec "perl Makefile.PL ; make test" | grep -P '^(perl-|All tests successful)'
-# + perlbrew use perl-5.10.1; perl Makefile.PL; make test; perlbrew off
-# + test evt i cygwin og mingw-perl
-# + pod2html Tools.pm > Tools.html ; firefox Tools.html
-# + https://metacpan.org/pod/Acme::Tools
-# + http://cpants.cpanauthors.org/dist/Acme-Tools   #kvalitee
-# + perl Makefile.PL ; make test && make dist
-# + cp -p *tar.gz /htdocs/
-# + #ci -l -mversjon -d `cat MANIFEST` #no
-# + git add `cat MANIFEST`
-# + git status
-# + git commit -am versjon
-# + git push                    #eller:
-# + git push origin master
-# + http://pause.perl.org/
-# + tegnsett/utf8-kroell
+# - git clone https://github.com/kjetillll/Acme-Tools.git
+# - c-s todo
+# - endre $VERSION
+# - endre Release history under HISTORY
+# - endre årstall under =head1 COPYRIGHT
+# - oppd default valutakurser inkl datoen
+# - emacs Changes
+# - emacs README + aarstall
+# - diff -byW200 <(grep -a ^sub Acme-Tools-0.22/Tools.pm|sort) <(grep -a ^sub Tools.pm|sort)|less
+# - emacs MANIFEST legg til ev nye t/*.t
+# - perl            Makefile.PL;make test
+# - /usr/bin/perl   Makefile.PL;make test
+# - perlbrew exec "perl Makefile.PL ; time make test"
+# - perlbrew exec "perl Makefile.PL ; make test" | grep -P '^(perl-|All tests successful)'
+# - perlbrew use perl-5.10.1; perl Makefile.PL; make test; perlbrew off
+# - test evt i cygwin og mingw-perl
+# - pod2html Tools.pm > Tools.html ; firefox Tools.html
+# - https://metacpan.org/pod/Acme::Tools
+# - http://cpants.cpanauthors.org/dist/Acme-Tools   #kvalitee
+# - perl Makefile.PL ; make test && make dist
+# - cp -p *tar.gz /htdocs/
+# - #ci -l -mversjon -d `cat MANIFEST` #no
+# - git add `cat MANIFEST`
+# - git status
+# - git commit -am versjon
+# - git push                    #eller:
+# - git push origin master
+# - http://pause.perl.org/
+# - tegnsett/utf8-kroell
+# - https://rt.cpan.org/Dist/Display.html?Queue=Acme-Tools
 # http://en.wikipedia.org/wiki/Birthday_problem#Approximations
 
 # memoize_expire()           http://perldoc.perl.org/Memoize/Expire.html
