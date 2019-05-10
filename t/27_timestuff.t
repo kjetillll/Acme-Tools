@@ -5,7 +5,7 @@ use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More;
 use Digest::MD5 'md5_hex';
 if( $^O=~/(?<!cyg)win/i ) { plan skip_all => 'POSIX::tzset not ok on windows'  }
-else                      { plan tests    => 56                                }
+else                      { plan tests    => 61                                }
 
 $ENV{TZ}='CET';
 #$ENV{TZ}='Europe/Oslo';
@@ -122,14 +122,19 @@ if(eval{require Date::Parse}){
   1555588437 2019-04-18T13:53:57
   1555588437 18. april 2019 13:53:57
   1555588437 18/Apr/2019:13:53:57
+  1555588437 1555588437
+  1555588437 1555588437001
   1555588380 20190418-13:53
   1555588380 2019-04-18T13:53
   1555588380 18. april 2019 13:53
   1555588380 18/Apr/2019:13:53
   1558180380 18/Mai/2019:13:53
   1558180380 18/May/2019:13:53
-  1550494380 18/februar/2019:13:53"
-} else { ok(1) for 1..13 }
+  1550494380 18/februar/2019:13:53
+  1550494380 18/February/2019:13:53
+  1000000000 9/Sep/2001:03:46:40
+  1000000000 9/9/2001:03:46:40"
+} else { ok(1) for 1..18 }
 
 
 __END__
