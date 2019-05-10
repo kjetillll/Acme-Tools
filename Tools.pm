@@ -5026,20 +5026,21 @@ sub s2t {
   require Date::Parse;
   my $s=shift;
   if($s=~/\b(?:mai|okt|des|juni|juli|februar)/i){ #fix norwegian/danish (for now)
-    $s=~s/\bMai\b/May/i;       $s=~s/\bmai\b/may/i;       $s=~s/\bMAI\b/MAY/i;
-    $s=~s/\bOkt\b/Oct/i;       $s=~s/\bokt\b/oct/i;       $s=~s/\bOKT\b/OCT/i;
-    $s=~s/\bDes/Dec/;          $s=~s/\bdes/dec/;          $s=~s/\bDES/DEC/;
-    $s=~s/\bFebruar/February/; $s=~s/\bfebruar/february/; $s=~s/\bFEBRUAR/FEBRUARY/;
-    $s=~s/\bjuli\b/July/i;
-    $s=~s/\bjuni\b/June/i;
+     $s=~s/\bMai\b/May/i;         $s=~s/\bmai\b/may/i;         $s=~s/\bMAI\b/MAY/i;
+     $s=~s/\bOkt\b/Oct/i;         $s=~s/\bokt\b/oct/i;         $s=~s/\bOKT\b/OCT/i;
+     $s=~s/\bDes/Dec/;            $s=~s/\bdes/dec/;            $s=~s/\bDES/DEC/;
+     $s=~s/\bFebruar\b/February/; $s=~s/\bfebruar\b/february/; $s=~s/\bFEBRUAR\b/FEBRUARY/;
+     $s=~s/\bjuli\b/July/i;
+     $s=~s/\bjuni\b/June/i;
   }
-  elsif(btw($s,     1e9,9e9)){ $s=localtime($s)      } #hm, make faster
-  elsif(btw($s/1000,1e9,9e9)){ $s=localtime($s/1000) } #hm
+  elsif($s           =~ /^[19]\d{9}$/){ $s=localtime($s)      } #hm, make faster
+  elsif($s           =~ /^[19]\d{12}$/
+    and int($s/1000) =~ /^[19]\d{9}$/){ $s=localtime($s/1000) } #hm
   elsif($s=~/^((?:17|18|19|20|21)\d\d)(0[1-9]|1[012])(0[1-9]|[12]\d|3[01])$/){#hm
       $s="$1-$2-$3T00:00:00";
   }
   return Date::Parse::str2time($s)                  if !@_;
-  return tms(Date::Parse::str2time($s),shift())     if @_==1;
+  return tms(Date::Parse::str2time($s),shift(@_))   if 0+@_ == 1;
   return map tms(Date::Parse::str2time($s),$_), @_;
 }
 
