@@ -7970,10 +7970,12 @@ sub cmd_finddup {
     my @f=map @{$f{$_}}, sort keys %f;
     if($o{p} and $c eq $checks[-1]){ #view progress for last check
       my $mb=sum(map -s$_,@f)/1e6;
-      my($corg,$cnt,$cntmb,$prfmt)=($c,0,0,"%d/%d files checked (%d%%), %d/%d MB (%d%%), ETA in %d sec       \r");
+      my($corg,$cnt,$cntmb,$prfmt)=($c,0,0);
       $c=sub{
 	  $cntmb+=(-s$_[0])/1e6;
-	  print STDERR sprintf($prfmt,++$cnt,0+@f,100*$cnt/@f,$cntmb,$mb,100*$cntmb/$mb,curb(nvl(eta($cnt,0+@f),time)-time(),0,1e7));
+	  print STDERR sprintf("%d/%d files checked (%d%%), %d/%d MB (%d%%), ETA in %d sec       \r",
+			       ++$cnt,0+@f,100*$cnt/@f,$cntmb,$mb,100*$cntmb/$mb,
+			       curb(nvl(eta($cnt,0+@f),time)-time(),0,1e7));
 	  &$corg(@_)
       };
     }
