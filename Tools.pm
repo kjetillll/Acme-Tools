@@ -2719,20 +2719,24 @@ sub sortedstr { sorted(@_,sub{$_[0]cmp$_[1]}) }
 
 =head2 subarrays
 
-Returns all combinatory subarrays of an array where each element of input array participates or not.
+Returns all 2^n-1 combinatory subarrays of an array where each element
+of input array participates or not. Note: The empty array is not among
+the returned arrayrefs unless an empty input is given.
 
- my @a = subarrays( 'a', 'b', 'c' );
- # @a = ( [
+ my @a = subarrays( 'a', 'b', 'c' );         # same as:
+ my @a = ( ['a'    ],
+           [    'b'],
+           ['a','b'],
+           [        'c'],
+           ['a',    'c'],
+           [    'b','c'],
+           ['a','b','c'] );
+
+ sub subarrays { map { my $n = 2*$_; [ grep {($n/=2)%2} @_ ] } 1 .. 2**@_-1 }
 
 =cut
     
-sub subarrays {
-  map {
-    my $n = 2*$_;
-    [ grep{($n/=2)%2}@_ ]
-  }
-  1 .. 2**@_-1
-}
+sub subarrays { map { my $n = 2*$_; [ grep {($n/=2)%2} @_ ] } 1 .. 2**@_-1 }
 
 =head2 part
 
