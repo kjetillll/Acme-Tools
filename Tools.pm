@@ -74,6 +74,7 @@ our @EXPORT = qw(
   not_intersect
   mix
   zip
+  zipwi
   sim
   sim_perm
   subarr
@@ -2302,6 +2303,23 @@ sub zip {
     push @res, $$_[$i] for @t;
   }
   return @res;
+}
+
+=head2 zipwi
+
+=cut
+    
+sub zipwi {
+  my $i=0;
+  if(!ref($_[0])){
+    return map { ($_=>$i++) } @_
+  }
+  elsif(ref($_[0]) eq 'ARRAY') {
+    my$a=$_[0];
+    splice(@$a, 1+2*$i, 0, $i++) for 1..@$a;
+    return $_[0];
+  }
+  croak "zipwi got ".ref($_[0])." should be array or arrayref";
 }
 
 =head2 sim

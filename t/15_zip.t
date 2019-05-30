@@ -1,9 +1,10 @@
 # make test
 # perl Makefile.PL; make; perl -Iblib/lib t/15_zip.t
+# todo: move compressions sub zips to their own test file
 
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests => 19;
-eval{ require Compress::Zlib }; if($@){ ok(1) for 1..19; exit }
+use Test::More tests => 24;
+eval{ require Compress::Zlib }; if($@){ ok(1) for 1..24; exit }
 
 #--zip
 ok_ref( [zip([1,3,5])],                 [1,3,5], 'zip 1' );
@@ -46,3 +47,12 @@ print length(gzip($s)),"\n";
 print length(zipbin($s)),"\n";
 print length(zipbin($s,$d)),"\n";
 
+#--zipwi, zipWithIndex
+my $a=[qw(a b c)];
+is( join(",",zipwi(@$a)), 'a,0,b,1,c,2', 'zipwi for array'               );
+is(          zipwi($a),   $a,            'zipwi for arrayref returns ref');
+is( join(",",      @$a),  'a,0,b,1,c,2', 'zipwi for arrayref'            );
+eval{zipwi({})};
+ok( $@ =~ /^zipwi got HASH should be array or arrayref/, 'zipwi croak check' );
+$a=[];
+is( 0+zipwi(@$a), 0, 'zipwi empty array');
