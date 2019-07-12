@@ -178,6 +178,7 @@ our @EXPORT = qw(
   keysr
   valuesr
   eachr
+  pile
   aoh2sql
   aoh2xls
   base64
@@ -2884,6 +2885,12 @@ sub eachr    { ref($_[0]) eq 'HASH'  ? each(%{shift()})
 #sub mapr    # som scala: hvis map faar subref se kalles den sub paa hvert elem og resultatet returneres
 
 #sub eachr    { each(%{shift()}) }
+
+=head2 pile
+
+=cut
+
+sub pile { my $size=shift; my @r; for (@_){ push@r,[] if !@r or 0+@{$r[-1]}>=$size; push $r[-1], $_ } @r }
 
 =head2 aoh2sql
 
