@@ -3866,6 +3866,14 @@ Example:
  my @t=(7,2,3,3,4,2,1,4,5,3,"x","xx","x",02,"07");
  print join " ", uniq @t;                          # prints  7 2 3 4 1 5 x xx 07
 
+Beware of using C<sort> like the following because sort will see C<uniq>
+as the subroutine for comparing elements! Which you most likely didnt mean.
+This has nothing to do with the way uniq is implemented. It's Perl's C<sort>.
+
+ print sort uniq('a','dup','z','dup');  # will return this four element array: a dup z dup
+ print sort(uniq('a','dup','z','dup')); # better, probably what you meant
+ print distinct('a','dup','z','dup'));  # same, distinct includes alphanumeric sort
+
 =cut
 
 sub uniq(@) { my %seen; grep !$seen{$_}++, @_ }
@@ -3898,14 +3906,6 @@ Note: The values are NOT deep copied when they are references. (Use C<< Storable
 Note2: For perl versions >= 5.20 subhashes (hash slices returning keys as well as values) is built in like this:
 
  %scandinavia = %population{'Norway','Sweden','Denmark'};
-
-Beware of using sort like the following because sort will see C<uniq>
-as the subroutine for comparing elements! Which you most likely didnt mean.
-This has nothing to do with the way uniq is implemented. It's Perl's C<sort>.
-
- print sort uniq('a','dup','z','dup');  # will return this four element array: a dup z dup
- print sort(uniq('a','dup','z','dup')); # better, probably what you meant
- print distinct('a','dup','z','dup'));  # same, distinct includes alphanumeric sort
 
 =cut
 
