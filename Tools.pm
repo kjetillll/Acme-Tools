@@ -2890,7 +2890,7 @@ sub eachr    { ref($_[0]) eq 'HASH'  ? each(%{shift()})
 
 =cut
 
-sub pile { my $size=shift; my @r; for (@_){ push@r,[] if !@r or 0+@{$r[-1]}>=$size; push $r[-1], $_ } @r }
+sub pile { my $size=shift; my @r; for (@_){ push@r,[] if !@r or 0+@{$r[-1]}>=$size; push @{$r[-1]}, $_ } @r }
 
 =head2 aoh2sql
 
