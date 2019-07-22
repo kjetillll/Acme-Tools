@@ -3877,6 +3877,14 @@ Note2: For perl versions >= 5.20 subhashes (hash slices returning keys as well a
 
  %scandinavia = %population{'Norway','Sweden','Denmark'};
 
+Beware of using sort this like the following because sort will see C<uniq>
+as the subroutine for comparing elements! Which you most likely didnt mean.
+This has nothing to do with the way uniq is implemented. It's Perl's C<sort>.
+
+ print sort uniq('a','dup','z','dup');  # will return this four element array: a dup z dup
+ print sort(uniq('a','dup','z','dup')); # better, probably what you meant
+ print distinct('a','dup','z','dup'));  # same, distinct includes alphanumeric sort
+
 =cut
 
 sub subhash {
