@@ -179,6 +179,7 @@ our @EXPORT = qw(
   keysr
   valuesr
   eachr
+  pile
   aoh2sql
   aoh2xls
   base64
@@ -720,6 +721,8 @@ our %conv=(
 		  _m      => 1,
 		  meter   => 1,
 		  meters  => 1,
+		  metre   => 1,
+		  metres  => 1,
 		  km      => 1000,
 		  mil     => 10000,                   #scandinavian #also: inch/1000!
 		  in      => 0.0254,
@@ -747,62 +750,81 @@ our %conv=(
                   nmi                => 1852,           #nautical mile
                   'nautical mile'    => 1852,
                   'nautical miles'   => 1852,
+		  micron             => 1e-6,
+		  microns            => 1e-6,
+		  micrometre         => 1e-6,
+		  micrometres        => 1e-6,
                   'Å'                => 1e-10,
                   'ångstrøm'         => 1e-10,
                   'angstrom'         => 1e-10,
+		  fm                 => 1e-15,
+		  fermi              => 1e-15, #in honour of Enrico Fermi
+		  fermis             => 1e-15, #in honour of Enrico Fermi
+		  femtometer         => 1e-15, #derived from "femten" (=fifteen in Norwegian and Danish)
+		  femtometre         => 1e-15,
+		  femtometers        => 1e-15, #derived from "femten" (=fifteen in Norwegian and Danish)
+		  femtometres        => 1e-15,
+		  attometer          => 1e-18, #derived from "atten/atton" (=eighteen)
+		  attometre          => 1e-18,
+		  attometers         => 1e-18, #derived from "atten/atton" (=eighteen)
+		  attometres         => 1e-18,
 		  ly                 => 299792458*3600*24*365.25,
 		  lightyear          => 299792458*3600*24*365.25, # = 9460730472580800 by def
 		  ls                 => 299792458,      #light-second
-                  pc                 => 3.0857e16,      #3.26156 ly
-                 _pc                 => 3.0857e16,      #3.26156 ly
-                  parsec             => 3.0857e16,
-                  au                 => 149597870700, # by def, earth-sun
+                  au                 => 149597870700,   # by def: meters earth to sun
+                  astronomical_unit  => 149597870700,
                  'astronomical unit' => 149597870700,
+                  pc                 => 149597870700*648000/$PI, #3.0857e16 = 3.26156 ly
+                 _pc                 => 149597870700*648000/$PI,
+                  parsec             => 149597870700*648000/$PI,
+		  attoparsec         => 149597870700*648000/$PI/1e18,
+		  apc                => 149597870700*648000/$PI/1e18,
 		  planck             => 1.61619997e-35, #planck length
 		  #Norwegian (old) lengths:
-		  tomme   => 0.0254,
-		  tommer  => 0.0254,
-		  fot     => 0.0254*12,               #0.3048m
-		  alen    => 0.0254*12*2,             #0.6096m
-		  favn    => 0.0254*12*2*3,           #1.8288m
-		  kvart   => 0.0254*12*2/4,           #0.1524m a quarter alen
+		  tomme         => 0.0254,
+		  tommer        => 0.0254,
+		  fot           => 0.0254*12,               #0.3048m
+		  alen          => 0.0254*12*2,             #0.6096m
+		  favn          => 0.0254*12*2*3,           #1.8288m
+		  kvart         => 0.0254*12*2/4,           #0.1524m a quarter alen
                   #--https://upload.wikimedia.org/wikipedia/commons/e/eb/English_length_units_graph.svg
-                  twip          => 0.254 / 6 / 12 / 20,
-                  point         => 0.254 / 6 / 12,
-                  pica          => 0.254 / 6,
-                  line          => 0.254 / 12,
-                  barleycorn    => 0.254 / 3,
-                  poppyseed     => 0.254 / 3 / 4,
-                  finger        => 0.254 / 6 / 12 * 63,
-                  palm          => 0.254 * 3,
-                  digit         => 0.254 * 3 / 4,
-                  nail          => 0.254 * 3 / 4 * 3,
-                  stick         => 0.254 * 2,
-                  hand          => 0.254 * 2 * 2,
-                  foot          => 0.254 * 2 * 2 * 3,
-                  shaftment     => 0.254 * 3 * 2,
-                  span          => 0.254 * 3 * 3,
-                  ell           => 0.254 * 3 * 3 * 5,
-                  pace          => 0.254 * 3 * 2 * 5,
-                  step          => 0.254 * 3 * 2 * 5,
-                  cubit         => 0.254 * 3 * 2 * 3,
-                  rod           => 0.254 * 3 * 2 * 3 * 11,
-                  link          => 0.254 * 3 * 2 * 3 * 11 / 25,
-                  yard          => 0.254 * 2 * 2 * 3 * 3,
-                  grade         => 0.254 * 3 * 2 * 5 * 2,
-                  rope          => 0.254 * 3 * 2 * 5 * 2 * 4,
-                  skein         => 0.254 * 3 * 3 * 5 * 96,                   # 96 ell
-                  fathom        => 0.254 * 2 * 2 * 3 * 3 * 2,                # 2 yard
-                  spindle       => 0.254 * 3 * 3 * 5 * 96 * 120,             # 120 skein
-                  gunter_chain  => 0.254 * 2 * 2 * 3 * 3 * 2 * 11,           # 11 fathom
-                  ramsden_chain => 0.254 * 3 * 2 * 5 * 2 * 4 * 5,            # 5 rope
-                  shackle       => 0.254 * 2 * 2 * 3 * 3 * 2 * 15,           # 15 fathom
-                  cable         => 0.254 * 2 * 2 * 3 * 3 * 2 * 100,          # 100 fathom
-                  furlong       => 0.254 * 2 * 2 * 3 * 3 * 2 * 11 * 10,      # 10 gunter_chain, 220 yard
-                  roman_mile    => 0.254 * 3 * 2 * 5 * 2 * 4 * 5 * 50,       # 50 ramsden_chain
-                  statute_mile  => 0.254 * 2 * 2 * 3 * 3 * 2 * 11 * 10 * 8,  # 8 furlong
-                  nautic_mile   => 0.254 * 2 * 2 * 3 * 3 * 2 * 100 * 10,     # 10 cable
-                  league        => 0.254 * 2 * 2 * 3 * 3 * 2 * 100 * 10 * 5, # 5 nautic_mile
+                  twip          => 0.0254 / 6 / 12 / 20,
+                  point         => 0.0254 / 6 / 12,
+                  pica          => 0.0254 / 6,
+                  line          => 0.0254 / 12,
+		  thou          => 0.0254 / 1000,
+                  barleycorn    => 0.0254 / 3,
+                  poppyseed     => 0.0254 / 3 / 4,
+                  finger        => 0.0254 / 6 / 12 * 63,
+                  palm          => 0.0254 * 3,
+                  digit         => 0.0254 * 3 / 4,
+                  nail          => 0.0254 * 3 / 4 * 3,
+                  stick         => 0.0254 * 2,
+                  hand          => 0.0254 * 2 * 2,
+                  foot          => 0.0254 * 2 * 2 * 3,
+                  shaftment     => 0.0254 * 3 * 2,
+                  span          => 0.0254 * 3 * 3,
+                  ell           => 0.0254 * 3 * 3 * 5,
+                  pace          => 0.0254 * 3 * 2 * 5,
+                  step          => 0.0254 * 3 * 2 * 5,
+                  cubit         => 0.0254 * 3 * 2 * 3,
+                  rod           => 0.0254 * 3 * 2 * 3 * 11,
+                  link          => 0.0254 * 3 * 2 * 3 * 11 / 25,
+		  yard          => 0.0254 * 2 * 2 * 3 * 3,
+                  grade         => 0.0254 * 3 * 2 * 5 * 2,
+                  rope          => 0.0254 * 3 * 2 * 5 * 2 * 4,
+                  skein         => 0.0254 * 3 * 3 * 5 * 96,                   # 96 ell
+                  fathom        => 0.0254 * 2 * 2 * 3 * 3 * 2,                # 2 yard
+                  spindle       => 0.0254 * 3 * 3 * 5 * 96 * 120,             # 120 skein
+                  gunter_chain  => 0.0254 * 2 * 2 * 3 * 3 * 2 * 11,           # 11 fathom
+                  ramsden_chain => 0.0254 * 3 * 2 * 5 * 2 * 4 * 5,            # 5 rope
+                  shackle       => 0.0254 * 2 * 2 * 3 * 3 * 2 * 15,           # 15 fathom
+                  cable         => 0.0254 * 2 * 2 * 3 * 3 * 2 * 100,          # 100 fathom
+                  furlong       => 0.0254 * 2 * 2 * 3 * 3 * 2 * 11 * 10,      # 10 gunter_chain, 220 yard
+                  roman_mile    => 0.0254 * 3 * 2 * 5 * 2 * 4 * 5 * 50,       # 50 ramsden_chain
+                  statute_mile  => 0.0254 * 2 * 2 * 3 * 3 * 2 * 11 * 10 * 8,  # 8 furlong
+                  nautic_mile   => 0.0254 * 2 * 2 * 3 * 3 * 2 * 100 * 10,     # 10 cable
+                  league        => 0.0254 * 2 * 2 * 3 * 3 * 2 * 100 * 10 * 5, # 5 nautic_mile
 		 },
 	 mass  =>{ #https://en.wikipedia.org/wiki/Unit_conversion#Mass
 		  g            => 1,
@@ -919,45 +941,45 @@ our %conv=(
                   shed      => 1e-52,       #physics
         	 },
 	 volume=>{
-		  l         => 1,
-		  L         => 1,
-		  _L        => 1,
-		  _l        => 1,
-		  liter     => 1,
-		  liters    => 1,
-		  litre     => 1,
-		  litres    => 1,
-		  gal       => 231*2.54**3/1000, #3.785411784, #231 cubic inches
-		  gallon    => 231*2.54**3/1000,
-		  gallons   => 231*2.54**3/1000,
-		  gallon_us => 231*2.54**3/1000, #231 cubic inches
-		  gallon_wine=>231*2.54**3/1000,
-		  gallon_uk => 4.54609,
-		  gallon_imp=> 4.54609,
-		  gallon_us_dry => 4.40488377086, # ~ 9.25**2*pi*2.54**3/1000 L
+		  m3            => 1,                #1000 L
+		  l             => 0.001,
+		  L             => 0.001,
+		  _L            => 0.001,
+		  _l            => 0.001,
+		  liter         => 0.001,
+		  liters        => 0.001,
+		  litre         => 0.001,
+		  litres        => 0.001,
+		  gal           => 231*0.0254**3, #3.785411784 L = 0.003785411784 m3, #231 cubic inches
+		  gallon        => 231*0.0254**3,
+		  gallons       => 231*0.0254**3,
+		  gallon_us     => 231*0.0254**3, #231 cubic inches
+		  gallon_wine   => 231*0.0254**3,
+		  gallon_uk     => 4.54609/1000,  #constant 4.54609 from definition
+		  gallon_imp    => 4.54609/1000,
+		  gallon_us_dry => 4.40488377086/1000, # ~ 9.25**2*pi*2.54**3/1000 L
 		  #hogshead, gill, pail, jigger, jackpot, The Science of Measurement - A Historical Survey (Klein)
-		  m3        => 10**3,      #1000 L
-		  cm3       => 0.1**3,     #0.001 L
-                  in3       => 0.254**3,   #0.016387064 L
-                  ft3       => (0.254*12)**3,
+		  cm3       => 0.01**3,               #0.001 L
+                  in3       => 0.0254**3,             #0.016387064 L
+                  ft3       => (0.0254*12)**3,
 		  tablespoon=> 3.785411784/256,       #14.78676478125 mL
 		  tsp       => 3.785411784/256/3,     #4.92892159375 mL
 		  teaspoon  => 3.785411784/256/3,     #4.92892159375 mL
                   floz      => 3.785411784/128,       #fluid ounce US
                   floz_uk   => 4.54609/160,           #fluid ounce UK
-                  pint      => 4.54609/8,             #0.56826125 L
-                  pint_uk   => 4.54609/8,
-                  pint_imp  => 4.54609/8,
-                  pint_us   => 3.785411784/8,         #0.473176473
-		  quart     => 4.54609/4,             #2*pint
-		  pottle    => 4.54609/2,             #2*quart = gallon_uk/2
-		  therm     => 2.74e3,                #? 100000BTUs?   (!= thermie)
-		  thm       => 2.74e3,                #?               (!= th)
-                  fat       => 42*231*2.54**3/1000,
-                  bbl       => 42*231*2.54**3/1000,   #oil barrel ~159 liters https://en.wikipedia.org/wiki/Barrel_(unit)
-		  Mbbl      => 42*231*2.54**3,        #mille (thousand) oil barrels
-		  MMbbl     => 42*231*2.54**3*1000,   #mille mille (million) oil barrels
-		  drum      => 200,
+                  pint      => 4.54609/8000,          #0.56826125 L
+                  pint_uk   => 4.54609/8000,
+                  pint_imp  => 4.54609/8000,
+                  pint_us   => 3.785411784/8000,      #0.473176473
+		  quart     => 4.54609/4000,             #2*pint
+		  pottle    => 4.54609/2000,             #2*quart = gallon_uk/2
+		 #therm     => 2.74,                #? 100000BTUs?   (!= thermie)
+		 #thm       => 2.74,                #?               (!= th)
+                  fat       => 42*231*2.54**3/1e6,
+                  bbl       => 42*231*2.54**3/1e6,  #oil barrel ~159 liters https://en.wikipedia.org/wiki/Barrel_(unit)
+		  Mbbl      => 42*231*2.54**3/1e3,  #mille (thousand) oil barrels, M er mille her, ikke mega!
+		  MMbbl     => 42*231*2.54**3,      #mille mille (million) oil barrels
+		  drum      => 0.208,               #208 L
 		  container     => 33.1e3,  #container20
 		  container20   => 33.1e3,
 		  container40   => 67.5e3,
@@ -1018,6 +1040,8 @@ our %conv=(
 		  ke          => 864,      #1/100th of a day, trad Chinese, 14m24s
 		  fortnight   => 14*24*3600,
                   tp          => 5.3910632e-44,  #planck time, time for ligth to travel 1 planck length
+		  nanocentury =>  100 * 60*60*24*365.2425 / 1e9,   #3.156 ~ pi seconds, response time limit (usability)
+		  warhol      => 15*60,                            #"fifteen minutes of fame"
 		 },
           speed=>{
                  'm/s'      => 1,
@@ -1028,7 +1052,7 @@ our %conv=(
                   kmh       => 1/3.6,
                   kmph      => 1/3.6,
                  'km/h'     => 1/3.6,
-                  kmt       => 1/3.6, # t=time or temps (scandinavian and french and dutch)
+                  kmt       => 1/3.6, # t=time(=hour) or temps (scandinavian and french and dutch)
                  'km/t'     => 1/3.6,
  		  kt        => 1852/3600,
  		  kts       => 1852/3600,
@@ -1036,7 +1060,7 @@ our %conv=(
  		  knot      => 1852/3600,
  		  knots     => 1852/3600,
  		  knop      => 1852/3600,    #scandinavian
-		  c         => 299792458,    #speed of light
+		  c         => 299792458,    #speed of light, exact due to definition of meter
 		  mach      => 340.3,        #speed of sound
 		  machs     => 340.3,
                   fps       => 0.3048, #0.0254*12
@@ -1124,8 +1148,6 @@ our %conv=(
                    _eV          => 1.60217656535e-19,
                    BeV          => 1.60217656535e-10,
   		   electronvolt => 1.60217656535e-19,
-                   thermie      => 4.1868e6,
-                   th           => 4.1868e6,
 		   hph          => 3600*746,
 		   PSh          => 3600*746/1.014,
 		   galatm_imp   => 460.63256925,
@@ -1134,6 +1156,8 @@ our %conv=(
 		   Ry           => 2.179872e-18,
 		   rydberg      => 2.179872e-18,
 		   th           => 4.1868e6,
+		   thm          => 4.1868e6,
+		   therm        => 4.1868e6,
 		   thermie      => 4.1868e6,
                    boe          => 6.12e9,            #barrel of oil equivalent
 		   TCE          => 29.288e9,          #ton of coal equivalent
@@ -2884,6 +2908,12 @@ sub eachr    { ref($_[0]) eq 'HASH'  ? each(%{shift()})
 
 #sub eachr    { each(%{shift()}) }
 
+=head2 pile
+
+=cut
+
+sub pile { my $size=shift; my @r; for (@_){ push@r,[] if !@r or 0+@{$r[-1]}>=$size; push @{$r[-1]}, $_ } @r }
+
 =head2 aoh2sql
 
   my @oceania=(
@@ -3868,6 +3898,14 @@ Note: The values are NOT deep copied when they are references. (Use C<< Storable
 Note2: For perl versions >= 5.20 subhashes (hash slices returning keys as well as values) is built in like this:
 
  %scandinavia = %population{'Norway','Sweden','Denmark'};
+
+Beware of using sort like the following because sort will see C<uniq>
+as the subroutine for comparing elements! Which you most likely didnt mean.
+This has nothing to do with the way uniq is implemented. It's Perl's C<sort>.
+
+ print sort uniq('a','dup','z','dup');  # will return this four element array: a dup z dup
+ print sort(uniq('a','dup','z','dup')); # better, probably what you meant
+ print distinct('a','dup','z','dup'));  # same, distinct includes alphanumeric sort
 
 =cut
 
