@@ -76,7 +76,7 @@ SKIP: {
   utime 0, .5<rand()?timelocal(0,0,0,9,5-1,1995)
                     :timelocal(0,0,0,9,7-1,1998), $_ for @f;
   skip "cnt $cnt != ".@f, 3 if $cnt != 0+@f;		   
-  $ok=$answer=~s,ymd,1998/07/09,gr;
+  $ok=repl($answer,'ymd','1998/07/09');
   $p=printed { Acme::Tools::cmd_due('-Mihz') };
   print "--\n$p" if $ENV{ATDEBUG};
   $p=~s{\b(\d{4}/\d\d/\d\d)\b}{push@d,$1;'1998/07/09'}ge;
