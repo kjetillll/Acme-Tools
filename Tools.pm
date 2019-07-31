@@ -7785,6 +7785,8 @@ Like C<du> command but views space used by file extentions instead of dirs. Opti
  due -K          Like -k but uses 1000 instead of 1024
  due -z          View two extentions if .z .Z .gz .bz2 .rz or .xz (.tar.gz, not just .gz)
  due -M          Also show min, medium and max date (mtime) of files, give an idea of their age
+ due -C          Like -M, but create time instead (ctime)
+ due -A          Like -M, but access time instead (atime)
  due -P          Also show 10, 50 (medium) and 90 percentile of file date
  due -MP         Both -M and -P, shows min, 10p, 50p, 90p and max
  due -a          Sort output alphabetically by extention (default order is by size)
@@ -7844,35 +7846,37 @@ our @Due_fake_stdin;
 #TODO: output from tar tvf and ls and find -ls
 sub cmd_due {
   my %o;
-  my @argv=args("zkKmhciMPate:lE:t",\%o,@_);
+  my @argv=args("zkKmhciMCAPate:lE:t",\%o,@_);
   require File::Find;
   no warnings 'uninitialized';
   die"$0: -l not implemented yet\n"                if $o{l}; #man du: default is not to count hardlinks more than once, with -l it does
   die"$0: -h, -k or -m can not be used together\n" if $o{h}+$o{k}+$o{m}>1;
   die"$0: -c and -a can not be used together\n"    if $o{a}+$o{c}>1;
   die"$0: -k and -m can not be used together\n"    if $o{k}+$o{m}>1;
-  my(%c,%b,$cnt,$bts,%mtime);
+  die"$0: -M, -C, -A can not be used together\n"   if $o{M}+$o{C}+$o{A}>1;
+  my(%c,%b,$cnt,$bts,%xtime);
   my $zext=$o{z}?'(\.(z|Z|gz|bz2|xz|rz|kr|lrz|rz))?':'';
   $o{E}||=11;
   my $r=qr/(\.[^\.\/]{1,$o{E}}$zext)$/i;
   my $qrexcl=exists$o{e}?qr/$o{e}/:0;
- #TODO: ought to work: tar cf - .|tar tvf -|due
+  #TODO: ought to work: tar cf - .|tar tvf -|due
+  my $x=$o{M}?9:$o{C}?10:$o{A}?8:9;
   if(-p STDIN or @Due_fake_stdin){
     die "due: can not combine STDIN and args\n" if @argv;
     my $stdin=join"",map"$_\n",@Due_fake_stdin; #test
     open(local *STDIN, '<', \$stdin) or die "ERR: $! $?\n" if $stdin;
     my $rl=qr/(^| )\-[rwx\-sS]{9}\s+(?:\d )?(?:[\w\-]+(?:\/|\s+)[\w\-]+)\s+(\d+)\s+.*?([^\/]*\.[\w,\-]+)?$/;
-    my $MorP=$o{M}||$o{P}?"due: -M and -P not yet implemented for STDIN unless list of filenames only\n":0;
+    my $MorP=$o{M}||$o{C}||$o{A}||$o{P}?"due: -M, -C, -A and -P not yet implemented for STDIN unless list of filenames only\n":0;
     while(<STDIN>){
       chomp;
       next if /\/$/;
-      my($f,$sz,$mtime)=(/$rl/?($3,$2):-f$_?($_,(stat)[7,9]):next);
+      my($f,$sz,$xtime)=(/$rl/?($3,$2):-f$_?($_,(stat)[7,$x]):next);
       #   1576142    240 -rw-r--r--   1 root     root       242153 april  4  2016 /opt/wine-staging/share/wine/wine.inf
       my $ext=$f=~$r?$1:'';
       $ext=lc($ext) if $o{i};
       $cnt++;    $c{$ext}++;
       $bts+=$sz; $b{$ext}+=$sz;
-      defined $mtime and $mtime{$ext}.=",$mtime" or die $MorP if $MorP;
+      defined $xtime and $xtime{$ext}.=",$xtime" or die $MorP if $MorP;
     }
   }
   else { #hm DRY
@@ -7881,12 +7885,12 @@ sub cmd_due {
       sub {
         return if !-f$_;
         return if $qrexcl and defined $File::Find::name and $File::Find::name=~$qrexcl;
-        my($sz,$mtime)=(stat($_))[7,9];
+        my($sz,$xtime)=(stat($_))[7,$x];
         my $ext=m/$r/?$1:'';
         $ext=lc($ext) if $o{i};
         $cnt++;    $c{$ext}++;
         $bts+=$sz; $b{$ext}+=$sz;
-        $mtime{$ext}.=",$mtime" if $o{M} || $o{P};
+        $xtime{$ext}.=",$xtime" if $o{M} || $o{C} || $o{A} || $o{P};
 	1;
       } },@argv);
   }
@@ -7898,13 +7902,13 @@ sub cmd_due {
   my @e=$o{a}?(sort(keys%c))
        :$o{c}?(sort{$c{$a}<=>$c{$b} or $a cmp $b}keys%c)
        :      (sort{$b{$a}<=>$b{$b} or $a cmp $b}keys%c);
-  my $perc=!$o{M}&&!$o{P}?sub{""}:
+  my $perc=!$o{M}&&!$o{C}&&!$o{A}&&!$o{P}?sub{""}:
     sub{
       my @p=$o{P}?(10,50,90):(50);
-      my @m=@_>0 ? do {grep$_, split",", $mtime{$_[0]}}
-                 : do {grep$_, map {split","} values %mtime};
+      my @m=@_>0 ? do {grep$_, split",", $xtime{$_[0]}}
+                 : do {grep$_, map {split","} values %xtime};
       my @r=percentile(\@p,@m);
-      @r=(min(@m),@r,max(@m)) if $o{M};
+      @r=(min(@m),@r,max(@m)) if $o{M}||$o{C}||$o{A};
       @r=map int($_), @r;
       my $fmt=$o{t}?'YYYY/MM/DD-MM:MI:SS':'YYYY/MM/DD';
       @r=map tms($_,$fmt), @r;
