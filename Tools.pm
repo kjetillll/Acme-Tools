@@ -2888,6 +2888,16 @@ sub eachr    { ref($_[0]) eq 'HASH'  ? each(%{shift()})
 
 =head2 pile
 
+B<Input:> a pile size s and a list
+
+B<Output:> A list of lists of length s or the length of the remainer in
+the last list. Piles together the input list in lists of the given size.
+
+ my @list=(1,2,3,4,5,6,7,8,9,10);
+ my @piles = pile(3, @list );        # ([1,2,3], [4,5,6], [7,8,9], [10])
+ my $i=0;
+ my @piles = parta {$i++/3} @list;   # same as above pile(3, @list)
+
 =cut
 
 sub pile { my $size=shift; my @r; for (@_){ push@r,[] if !@r or 0+@{$r[-1]}>=$size; push @{$r[-1]}, $_ } @r }
