@@ -118,6 +118,7 @@ our @EXPORT = qw(
   roman2int
   num2code
   code2num
+  base
   gcd
   lcm
   pivot
@@ -331,15 +332,18 @@ C<num2code()> can be used to compress numeric IDs to something shorter:
 #Math::BaseCnv
 
 sub num2code {
+  return num2code($_[0],0,$_[1]) if @_==2;
   my($num,$digits,$validchars,$start)=@_;
   my $l=length($validchars);
   my $key;
+  $digits||=9e9;
   no warnings;
   croak if $num<$start;
   $num-=$start;
   for(1..$digits){
     $key=substr($validchars,$num%$l,1).$key;
     $num=int($num/$l);
+    last if $digits==9e9 and !$num;
   }
   croak if $num>0;
   return $key;
@@ -353,6 +357,34 @@ sub code2num {
   return $num+$start;
 }
 
+=head2 base
+
+Numbers in any number system of base between 2 and 36. Using capital letters A-Z for base higher than 10.
+
+ base(2,15)                 # 1111  2-->binary
+ base(8,4096)               # 10000 8-->octal
+ base(10,4096)              # 4096 of course
+ base(16,254)               # FE   16-->hex
+ base(16,254.3)             # FE   16-->hex, can not handle decimal numbers (yet...todo)
+ base(36,123456)            # FE   16-->hex, can not handle decimal numbers (yet...todo)
+ base(36,1234567891011)     # FR5HUHC3  base36 using all 0-9 and A-Z as digits, 10+26=36
+ base(37,1)                 # die with message 'base not 2-36'
+ base($x,0)                 # 0
+ base(16, 14,15,16,17)      # list of four elements: E F 10 11
+
+=cut
+
+sub _base{my($b,$n)=@_;$n?_base($b,int$n/$b).chr(48+$n%$b+7*($n%$b>9)):''} #codegolf
+sub base {
+  my($b,$n)=@_;
+  @_>2        ? (map base($b,$_),@_[1..$#_])
+ :$b<2||$b>36 ? croak"base not 2-36"
+ :$n>0        ?     _base($b,$n)
+ :$n<0        ? "-"._base($b,-$n)
+ :!defined $n ? undef
+ :$n==0       ? 0
+ :              croak
+}
 
 =head2 gcd
 
