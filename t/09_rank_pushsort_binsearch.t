@@ -121,3 +121,22 @@ my @str=sort           map rand()*100,1..100;
 ok( sorted(    @num ), 'sorted' );
 ok( sortedstr( @str ), 'sortedstr' );
 ok( !eqarr(\@num,\@str), 'sorted ne sortedstr' );
+
+deb "--------------------------------------------------------------------------------sortby\n";
+my @arr=(
+   {Name=>'Alice', Year=>1970, Gender=>'F'},
+   {Name=>'Bob',   Year=>1980, Gender=>'M'},
+   {Name=>'Eve',   Year=>1990, Gender=>'F'},
+   {Name=>'Adam',  Year=>1971, Gender=>'M'},
+   {Name=>'Eva',   Year=>1972, Gender=>'F'},
+   {Name=>'Nobby', Year=>1990, Gender=>'F'},
+   {Name=>'Eve',   Year=>1990, Gender=>'F'},
+);
+ok(srlz([sortby(\@arr,'Year','Gender','Name')]),
+   srlz([{Name=>'Alice', Year=>1970, Gender=>'F'},
+	 {Name=>'Adam',  Year=>1971, Gender=>'M'},
+	 {Name=>'Eva',   Year=>1972, Gender=>'F'},
+	 {Name=>'Eve',   Year=>1990, Gender=>'F'},
+	 {Name=>'Eve',   Year=>1990, Gender=>'F'},
+	 {Name=>'Nobby', Year=>1990, Gender=>'F'},
+         {Name=>'Bob',   Year=>1980, Gender=>'M'}]));
