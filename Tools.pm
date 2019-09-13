@@ -179,6 +179,7 @@ our @EXPORT = qw(
   keysr
   valuesr
   eachr
+  joinr
   pile
   aoh2sql
   aoh2xls
@@ -830,6 +831,7 @@ our %conv=(
                   palm          => 0.0254 * 3,
                   digit         => 0.0254 * 3 / 4,
                   nail          => 0.0254 * 3 / 4 * 3,
+                  rack          => 0.0254 * 1.75,
                   stick         => 0.0254 * 2,
                   hand          => 0.0254 * 2 * 2,
                   foot          => 0.0254 * 2 * 2 * 3,
@@ -856,6 +858,7 @@ our %conv=(
                   statute_mile  => 0.0254 * 2 * 2 * 3 * 3 * 2 * 11 * 10 * 8,  # 8 furlong
                   nautic_mile   => 0.0254 * 2 * 2 * 3 * 3 * 2 * 100 * 10,     # 10 cable
                   league        => 0.0254 * 2 * 2 * 3 * 3 * 2 * 100 * 10 * 5, # 5 nautic_mile
+		  siriometer    => 149597870700*1e6,                          # 1 million astronomical units
 		 },
 	 mass  =>{ #https://en.wikipedia.org/wiki/Unit_conversion#Mass
 		  g            => 1,
@@ -868,32 +871,33 @@ our %conv=(
 		  tonn         => 1000000,
 		  tonne        => 1000000,
 		  tonnes       => 1000000,
-		  seer         => 933.1,         #~14400 grains (if 933.104304), India, Aden, Saudi-Arabia
-		  maund        => 37320,         #avg of Indias different mauds, ~ 40 x seer
-		  lb           => 453.59237,
+		  seer         => 933.1,          # ~14400 grains (if 933.104304), India, Aden, Saudi-Arabia
+		  maund        => 37320,          # avg of Indias different mauds, ~ 40 x seer
+		  lb           => 453.59237,      # ~453g
 		  lbs          => 453.59237,
+		  lbm          => 453.59237,
 		  lb_av        => 453.59237,
-		  lb_t         => 373.2417216,   #5760 grains
-		  lb_troy      => 373.2417216,
-		  pound        => 453.59237,     #7000 grains
+		  lb_t         => 373.2417216,
+		  lb_troy      => 373.2417216,    # 5760 grains = 453.59237*144/175
+		  pound        => 453.59237,      # 7000 grains
 		  pounds       => 453.59237,
                   pound_av     => 453.59237,
-                  pound_troy   => 373.2417216,
-                  pound_metric => 500,
-		  ounce        => 28,            # US food, 28g
-		  ounce_av     => 453.59237/16,  # avoirdupois  lb/16 = 28.349523125g
-		  ounce_troy   => 31.1034768,    # lb_troy / 12
-		  oz           => 28,            # US food, 28g
-		  oz_av        => 453.59237/16,  # avoirdupois  lb/16 = 28.349523125g
-		  oz_t         => 31.1034768,    # lb_troy / 12,
-		  grain        => 64.79891/1000, # 453.59237/7000
+                  pound_troy   => 373.2417216,    # ~373g
+                  pound_metric => 500,            # 0.5kg
+		  ounce        => 28,             # US food, 28g
+		  ounce_av     => 453.59237/16,   # avoirdupois  lb/16 = 28.349523125g
+		  ounce_troy   => 31.1034768,     # lb_troy / 12
+		  oz           => 28,             # US food, 28g
+		  oz_av        => 453.59237/16,   # avoirdupois  lb/16 = 28.349523125g
+		  oz_t         => 31.1034768,     # lb_troy / 12,
+		  grain        => 453.59237/7000, # 64.79891/1000, # 
 		  grains       => 64.79891/1000,
                   pennyweight  => 31.1034768 / 20,
                   pwt          => 31.1034768 / 20,
                   dwt          => 31.1034768 / 20,
-                  st           => 6350.29318,               # 14 lb_av
-                  stone        => 6350.29318,
-		  wey          => 114305.27724,             # 252 lb  =  18 stone
+                  stone        => 453.59237*14,             # 6.35029318 kg
+                  st           => 453.59237*14,             # 14 lb_av
+		  wey          => 453.59237*14*18,          # 252 lb = 18 stone = 114.30527724 kg
                   carat        => 0.2,
                   ct           => 0.2,                      #carat (metric)
                   kt           => 64.79891/1000 * (3+1/6),  #carat/karat
@@ -906,7 +910,8 @@ our %conv=(
 		  electronvolt => 1.78266172802679e-33,
                  'solar mass'  => 1.99e33,
                   solar_mass   => 1.99e33,
-                  bag          => 60*1000, #60kg coffee
+                  bag          => 60*1000,           #60kg coffee
+		  firkin       => 90 * 453.59237,    #90lb
 		 },
 	 area  =>{               # https://en.wikipedia.org/wiki/Unit_conversion#Area
                   m2      => 1,
@@ -933,9 +938,13 @@ our %conv=(
                   hektar  => 10000,
                   hectare => 10000,
                   hectares=> 10000,
+                  in2     => 0.0254**2,
+                  inch2   => 0.0254**2,
                   ft2     => (0.0254*12)**2,
                   sqft    => (0.0254*12)**2,
 		  mi2     => 1609.344**2,
+		  mile2   => 1609.344**2,
+		  miles2  => 1609.344**2,
 		  sqmi    => 1609.344**2,
                   yd2     => (0.0254*12*3)**2, #square yard
                   sqyd    => (0.0254*12*3)**2,
@@ -970,6 +979,11 @@ our %conv=(
                   barn      => 1e-28,       #physics
                   outhouse  => 1e-34,       #physics
                   shed      => 1e-52,       #physics
+		  brass     => 100*(0.0254*12)**2, #100 square feet ~ 9.29 m2
+		  square    => 100*(0.0254*12)**2, #100 square feet ~ 9.29 m2
+		  morgen    => 0.856532 * 10000,   #0.856532 hectares
+		  bornholm  => 588.36e6,           #area of danish island bornholm, 588km2
+		  texas     => 695670e6,           #area of texas, 695 670 square km
         	 },
 	 volume=>{
 		  m3            => 1,                #1000 L
@@ -981,13 +995,15 @@ our %conv=(
 		  liters        => 0.001,
 		  litre         => 0.001,
 		  litres        => 0.001,
-		  gal           => 231*0.0254**3, #3.785411784 L = 0.003785411784 m3, #231 cubic inches
-		  gallon        => 231*0.0254**3,
-		  gallons       => 231*0.0254**3,
-		  gallon_us     => 231*0.0254**3, #231 cubic inches
-		  gallon_wine   => 231*0.0254**3,
-		  gallon_uk     => 4.54609/1000,  #constant 4.54609 from definition
-		  gallon_imp    => 4.54609/1000,
+		  gal           => 231 * 0.0254**3, #3.785411784 L = 0.003785411784 m3, #231 cubic inches
+		  gallon        => 231 * 0.0254**3,
+		  gallons       => 231 * 0.0254**3,
+		  gallon_us     => 231 * 0.0254**3, #231 cubic inches
+		  gallon_wine   => 231 * 0.0254**3, #queen anne's gallon
+		  gallon_ale    => 282 * 0.0254**3, #beer
+		  gallon_corn   => 268.8*0.0254**3, #corn, or winchester gallon
+		  gallon_uk     => 4.54609/1000,    #constant 4.54609 from definition
+		  gallon_imp    => 4.54609/1000,    #imperial
 		  gallon_us_dry => 4.40488377086/1000, # ~ 9.25**2*pi*2.54**3/1000 L
 		  #hogshead, gill, pail, jigger, jackpot, The Science of Measurement - A Historical Survey (Klein)
 		  cm3       => 0.01**3,               #0.001 L
@@ -1016,9 +1032,10 @@ our %conv=(
 		  container40   => 67.5e3,
 		  container40HC => 75.3e3,
 		  container45HC => 86.1e3,
+		  firkin        => 282*0.0254**3 * 8, #8 gallon_ale
 		  #Norwegian:
-                  meterfavn => 2 * 2 * 0.6,           #ved 2.4 m3
-                  storfavn  => 2 * 2 * 3,             #ved 12 m3
+                  meterfavn => 2 * 2 * 0.6,           #fire wood/ved 2.4 m3
+                  storfavn  => 2 * 2 * 3,             #fire wood/ved 12 m3
 		 },
 	 time  =>{
 		  s           => 1,
@@ -1421,7 +1438,7 @@ sub conv {
   my @type=intersect(@types);
   push @err, "from=$from and to=$to has more than one possible conversions: ".join(", ", @type) if @type>1;
   push @err, "from $from (".(join(",",@{$types[0]})||'?').") and "
-              ."to $to ("  .(join(",",@{$types[1]})||'?').") has no known common unit type.\n" if @type<1;
+              ."to $to ("  .(join(",",@{$types[1]})||'?').") has no known common dimension (unit type).\n" if @type<1;
   croak join"\n",map"conv: $_",@err if @err;
   my $type=$type[0];
   conv_prepare_money()        if $type eq 'money' and time() >= $conv_prepare_money_time + $Currency_rates_expire;
@@ -2764,13 +2781,16 @@ Return true if the input array is I<alpha>numerically sorted.
 
 sub sorted (\@@) {
   my($a,$cmpsub)=@_;
-  for(0..$#$a-1){
-    return 0 if !$cmpsub and $$a[$_]>$$a[$_+1]
-             or  $cmpsub and &$cmpsub($$a[$_],$$a[$_+1])>0;
-  }
+  if($cmpsub){ &$cmpsub($$a[$_],$$a[$_+1])>0 and return 0 for 0..$#$a-1 }
+  else       { $$a[$_] > $$a[$_+1]           and return 0 for 0..$#$a-1 }
   return 1;
 }
-sub sortedstr { sorted(@_,sub{$_[0]cmp$_[1]}) }
+#sub sortedstr { sorted(@_,sub{$_[0]cmp$_[1]}) }
+sub sortedstr { $_[$_] gt $_[$_+1] and return 0 for 0..$#$_-1; return 1 }
+
+sub sortby {
+    my($a,@by)=@_;
+}
 
 =head2 part
 
@@ -2890,6 +2910,8 @@ sub refhh { ref($_[0]) eq 'HASH'   ? refh((values%{$_[0]})[0]) : ref($_[0]) ? 0 
 
 =head2 eachr
 
+=head2 joinr
+
 In Perl versions 5.12 - 5.22 push, pop, shift, unshift, splice, keys, values and each
 handled references to arrays and references to hashes just as if they where arrays and hashes. Examples:
 
@@ -2914,6 +2936,7 @@ sub valuesr  { values( %{shift()} )    }
 sub eachr    { ref($_[0]) eq 'HASH'  ? each(%{shift()})
              #:ref($_[0]) eq 'ARRAY' ? each(@{shift()})  # perl 5.8.8 cannot compile each on array! eval?
 		   :                        croak("eachr needs hashref or arrayref got '".ref($_[0])."'") }
+sub joinr    {join(shift(),@{shift()})}
 #sub mapr    # som scala: hvis map faar subref se kalles den sub paa hvert elem og resultatet returneres
 
 #sub eachr    { each(%{shift()}) }
@@ -7857,7 +7880,7 @@ finding the MD5sums of the whole files.
  finddup -h <files> # make hard links of duplicate files
  finddup -v ...     # verbose, print before -d, -s or -h
  finddup -n -d <files>  # dry run: show rm commands without actually running them
- finddup -n -s <files>  # dry run: show ln commands to make symlinks of duplicate files
+ finddup -n -s <files>  # dry run: show ln commands to make symlinks of duplicate files todo:NEEDS FIX!
  finddup -n -h <files>  # dry run: show ln commands to make hard links of duplicate files
  finddup -q ...         # quiet
  finddup -k o           # keep oldest with -d, -s, -h, consider newer files duplicates
@@ -8042,7 +8065,7 @@ sub cmd_finddup {
       close($fh);
       md5sum(\$buf);
   };
-  my @checks=(
+  my @checks=( #todo: stat()[0,1] (or[0,1,7]?) and diff filename => no need for md5, is hardlink! just linux?
       sub{-s$_[0]},
       sub{-s$_[0]<=$o{P}?md5sum($_[0]):&$md5sum_1st_part($_[0])},
       sub{md5sum($_[0])}
@@ -8053,9 +8076,9 @@ sub cmd_finddup {
   my %f=map{($_=>[$_])}@argv; #also weeds out dupl params
   for my $c (@checks){
     my @f=map @{$f{$_}}, sort keys %f;
-    if($o{p} and $c eq $checks[-1]){ #view progress for last check
-      my $mb=sum(map -s$_,@f)/1e6;
-      my($corg,$cnt,$cntmb,$prfmt)=($c,0,0);
+    if($o{p} and $c eq $checks[-1]){ #view progress for last check, todo: eta() is wacky here! everywhere?
+      my $sum=@f?sum(map -s$_,@f):0;
+      my($corg,$cnt,$cntmb,$mb)=($c,0,0,$sum/1e6);
       $c=sub{
 	  $cntmb+=(-s$_[0])/1e6;
 	  print STDERR sprintf("%d/%d files checked (%d%%), %d/%d MB (%d%%), ETA in %d sec       \r",
@@ -8088,8 +8111,9 @@ sub cmd_finddup {
   return @r if $o{R}; #hm
   unlink@r                              if $o{d}||$o{s}||$o{h} and !$o{n}; #delete duplicates
   map &$go(qq(rm "$_")             ),@r if $o{d}&& $o{n}; #delete duplicates, dryrun
-  map &$go(qq(ln -s "$of{$_}" "$_")),@r if $o{s}; #replace duplicates with symlink
   map &$go(qq(ln    "$of{$_}" "$_")),@r if $o{h}; #replace duplicates with hardlink
+  map &$go(qq(ln -s "$of{$_}" "$_")),@r if $o{s}; #replace duplicates with symlink,
+                                                  #todo: BUG! abc/def/file -> ghi/file should be abc/def/file -> ../../ghi/file
   return if $o{q} or $o{n};    #quiet or dryrun
   &$print("$_$nl") for @r;
 }
@@ -8115,7 +8139,9 @@ sub cmd_trunc { die "todo: trunc not ready yet"} #truncate a file, size 0, keep 
 #todo:   wipe -n 4 filer*   #virker ikke! tror det er args() som ikke virker
 sub cmd_wipe  {
   my %o;
-  my @argv=args("n:k",\%o,@_);
+  my @argv=args("n:k0123456789",\%o,@_);
+  die if 1<grep exists$o{$_},'n',0..9;
+  $o{$_} and $o{n}=$_ for 0..9;
   wipe($_,$o{n},$o{k}) for @argv;
 }
 
