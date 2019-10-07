@@ -1,8 +1,8 @@
 # make test
-# perl Makefile.PL; make; perl -Iblib/lib t/02_general.t
+# perl Makefile.PL && make && perl -Iblib/lib t/02_general.t
 
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests => 185;
+use Test::More tests => 201;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -192,6 +192,25 @@ if( defined $ipaddr ){
 else{
   ok( 1, 'skip: no network') for 1..4
 }
+
+#--in_iprange
+
+eval{in_iprange('x','255.255.255.255')};                  ok( $@=~/malformed ipnum x/,            'in_iprange, malformed ipnum' );
+eval{in_iprange('255.255.255.255','x')};                  ok( $@=~/malformed iprange x/,          'in_iprange, malformed iprange' );
+eval{in_iprange('0.0.0.0','255.255.255.256')};            ok( $@=~/iprange part should be 0-255/, 'in_iprange, iprange part should be 0-255' );
+eval{in_iprange('255.255.256.255','255.255.255.255')};    ok( $@=~/invalid ipnum/,                'in_iprange, invalid ipnum' );
+eval{in_iprange('255.255.255.255','255.255.255.255/33')}; ok( $@=~/iprange mask should be 0-32/,  'in_iprange, invalid iprange' );
+eval{in_iprange('100.255.255.255','100.255.255.0/22')};   ok( $@=~m|need zero in last 10 bits, should be 100.255.252.0/22|, 'in_iprange, need zero in last 10...' );
+ok( in_iprange('255.255.255.255','255.255.255.0/24'), 'in_iprange' );
+ok( in_iprange('255.255.255.254','255.255.254.0/23'), 'in_iprange' );
+ok( in_iprange('100.255.255.255','100.255.254.0/23'), 'in_iprange, yes' );
+ok( in_iprange('100.255.254.0','100.255.254.0/23'),   'in_iprange, y' );
+ok( in_iprange('100.255.255.0','100.255.254.0/23'),   'in_iprange, y' );
+ok(!in_iprange('100.255.0.1','100.254.254.0/23'),     'in_iprange, n' );
+ok( in_iprange('100.255.0.1','100.255.0.1'),          'in_iprange, same' );
+ok( in_iprange('100.255.0.1','100.255.0.1/32'),       'in_iprange, same/32' );
+ok( in_iprange('0.0.0.1','0.0.0.0/1'),                'in_iprange, /1' );
+ok( in_iprange(join('.',map int(rand(256)),1..4),'0.0.0.0/0'), 'in_iprange, /0' );
 
 #--webparams, urlenc, urldec
 my $s=join"",map random([qw/hip hop and you dont stop/]), 1..1000;

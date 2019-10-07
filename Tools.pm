@@ -88,6 +88,9 @@ our @EXPORT = qw(
   bunzip2
   ipaddr
   ipnum
+  ipnum_ok
+  iprange_ok
+  in_iprange
   webparams
   urlenc
   urldec
@@ -1207,10 +1210,12 @@ our %conv=(
 		   thm          => 4.1868e6,
 		   therm        => 4.1868e6,
 		   thermie      => 4.1868e6,
-                   boe          => 6.12e9,            #barrel of oil equivalent
-		   TCE          => 29.288e9,          #ton of coal equivalent
-		   toe          => 41.868e9,          #tonne of oil equivalent
-		   tTNT         => 4.184e9,           #ton of TNT equivalent
+                   boe          => 6.12e9,         #barrel of oil equivalent
+		   TCE          => 29.288e9,       #ton of coal equivalent
+		   toe          => 41.868e9,       #tonne of oil equivalent
+		   tTNT         => 4.184e9,        #ton of TNT equivalent
+		   CMO          => 4.454e13*3.6e6, #cubic mile of oil = 4.454*10^13 kWh
+		   CKO          => 4.454e13*3.6e6*1.609344**3, #cubic km   of oil
                  },
          force=> {
 	          newton=> 1,
@@ -3647,7 +3652,7 @@ Note: C<List::Util::shuffle()> is approximately four times faster. Both respects
 =cut
 
 sub mix {
-  if(@_==1 and ref($_[0]) eq 'ARRAY'){ #kun ett arg, og det er ref array
+  if(@_==1 and ref($_[0]) eq 'ARRAY'){ #just one arg, and its ref array
     my $r=$_[0];
     push@$r,splice(@$r,rand(@$r-$_),1) for 0..(@$r-1);
     return $r;
@@ -4276,6 +4281,47 @@ sub ipnum {
   my $ipnum = join(".",unpack("C4",$h));
   $IPNUM_memo{$ipaddr} = $ipnum=~/^(\d+\.){3}\d+$/ ? $ipnum : undef;
   return $IPNUM_memo{$ipaddr};
+}
+
+our $Ipnum_errmsg;
+our $Ipnum;
+sub ipnum_ok {
+    my $ipnum=shift;
+    $Ipnum=undef;
+    eval{
+      die "malformed ipnum $ipnum\n" if not $ipnum=~/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/;
+      die "invalid ipnum $ipnum\n"   if grep$_>255,$1,$2,$3,$4;
+      $Ipnum=$1*256**3 + $2*256**2 + $3*256 + $4;
+    };
+    my$r=($Ipnum_errmsg=$@) ? 0 : 1;
+    $r
+}
+our $Iprange_errmsg;
+our $Iprange_start;
+sub iprange_ok {
+    my $iprange=shift;
+    $Iprange_start=undef;
+    my($r,$m);
+    eval{
+      die "malformed iprange $iprange\n"   if not $iprange=~m|^(\d+)\.(\d+)\.(\d+)\.(\d+)(?:/(\d+))$|;
+      die "iprange part should be 0-255\n" if grep$_<0||$_>255,$1,$2,$3,$4;
+      die "iprange mask should be 0-32\n"  if defined$5 and $5>32;
+      ($r,$m)=($1*256**3+$2*256**2+$3*256+$4,32-$5);
+    };
+    return if $Iprange_errmsg=$@;
+    my $x=$r>>$m<<$m;
+    return if $r!=$x and $Iprange_errmsg=sprintf("need zero in last %d bits, should be %d.%d.%d.%d/%d",
+						 $m, $x>>24, ($x>>16)&255, ($x>>8)&255, $x&255, 32-$m);
+    $Iprange_start=$r;
+    return 1;
+}
+sub in_iprange {
+  my($ipnum,$iprange)=@_;
+  croak $Ipnum_errmsg   if !ipnum_ok($ipnum);
+  croak $Iprange_errmsg if !iprange_ok($iprange=~m|/\d+$| ? $iprange : "$iprange/32");
+  "$iprange/32"=~m|/(\d+)| or die;
+  $Ipnum>=$Iprange_start &&
+  $Ipnum<=$Iprange_start + 2**(32-$1)-1;
 }
 
 =head2 webparams
@@ -5876,18 +5922,18 @@ sub _range_accellerated {
 
 =head2 globr
 
-Works like and uses Perls builtin C<< glob() >> function but adds support for ranges
+Works like and uses Perls builtin C<< glob() >> but adds support for ranges
 with C<< {from..to} >> and C<< {from..to..step} >>. Like brace expansion in bash.
 
 Examples:
 
- my @arr = glob  "X{a,b,c,d}Z";         # return four element array: XaZ XbZ XcZ XdZ
+ my @arr = glob  "X{a,b,c,d}Z";         # @arr now have four elements: XaZ XbZ XcZ XdZ
  my @arr = globr "X{a,b,c,d}Z";         # same as above
  my @arr = globr "X{a..d}Z";            # same as above
- my @arr = globr "X{a..d..2}Z";         # step 2, returns array: XaZ XcZ
- my @arr = globr "X{aa..bz..13}Z";      # XaaZ XanZ XbaZ XbnZ
+ my @arr = globr "X{a..f..2}";          # step 2, returns array: Xa Xc Xe
+ my @arr = globr "{aa..bz..13}Z";       # aaZ anZ baZ bnZ
  my @arr = globr "{1..12}b";            # 1b 2b 3b 4b 5b 6b 7b 8b 9b 10b 11b 12b
- my @arr = globr "{01..12}b";           # 01b 02b 03b 04b 05b 06b 07b 08b 09b 10b 11b 12b
+ my @arr = globr "{01..11}b";           # 01b 02b 03b 04b 05b 06b 07b 08b 09b 10b 11b (keep leading zero)
  my @arr = globr "{01..12..3}b";        # 01b 04b 07b 10b
 
 =cut
