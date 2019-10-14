@@ -37,6 +37,7 @@ our @EXPORT = qw(
   eqarr
   sorted
   sortedstr
+  sortby
   pushsort
   pushsortstr
   binsearch
@@ -2795,7 +2796,13 @@ sub sorted (\@@) {
 sub sortedstr { $_[$_] gt $_[$_+1] and return 0 for 0..$#$_-1; return 1 }
 
 sub sortby {
-    my($a,@by)=@_;
+    my($arr,@by)=@_;
+    die if grep/^-/,@by; #hm 4now todo! - dash meaning descending order
+    my $pattern=join(" ",map"%-40s",@by);#hm 4now bad, cant handle numeric sort
+    map$$_[0],
+    sort{$$a[1]cmp$$b[1]}
+    map[$_,sprintf($pattern,@$_{@by})],
+    @$arr;
 }
 
 =head2 part
