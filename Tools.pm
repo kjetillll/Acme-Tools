@@ -188,6 +188,7 @@ our @EXPORT = qw(
   aoh2xls
   base64
   unbase64
+  opts
   ed
   changed
   $Edcursor
@@ -7957,7 +7958,7 @@ our @Due_fake_stdin;
 #TODO: output from tar tvf and ls and find -ls
 sub cmd_due {
   my %o;
-  my @argv=args("zkKmhciMCAPate:lE:t",\%o,@_);
+  my @argv=opts("zkKmhciMCAPate:lE:t",\%o,@_);
   require File::Find;
   no warnings 'uninitialized';
   die"$0: -l not implemented yet\n"                if $o{l}; #man du: default is not to count hardlinks more than once, with -l it does
@@ -8033,7 +8034,7 @@ sub cmd_due {
 sub cmd_resubst {
   my %o;
   my $zo="123456789e";
-  my @argv=args("f:t:vno:gi$zo",\%o,@_);
+  my @argv=opts("f:t:vno:gi$zo",\%o,@_);
   if(exists$o{t}){ $o{t}=~s,\\,\$, } else { $o{t}='' }
   my($i,$tc,$tbfr,$tbto)=(0,0,0,0);
   for my $file (@argv){
@@ -8093,7 +8094,7 @@ sub cmd_finddup {
   # http://www.commandlinefu.com/commands/view/3555/find-duplicate-files-based-on-size-first-then-md5-hash
   # die "todo: finddup not ready yet"
   my %o;
-  my @argv=args("ak:dhsnqv0P:FMRp",\%o,@_); $o{P}//=1024*8; $o{k}//=''; #die srlz(\%o,'o','',1);
+  my @argv=opts("ak:dhsnqv0P:FMRp",\%o,@_); $o{P}//=1024*8; $o{k}//=''; #die srlz(\%o,'o','',1);
   croak"ERR: cannot combine -a with -d, -s or -h" if $o{a} and $o{d}||$o{s}||$o{h};
   require File::Find;
   @argv=map{
@@ -8182,10 +8183,10 @@ sub cmd_ccmd {
 
 sub cmd_trunc { die "todo: trunc not ready yet"} #truncate a file, size 0, keep all other attr
 
-#todo:   wipe -n 4 filer*   #virker ikke! tror det er args() som ikke virker
+#todo:   wipe -n 4 filer*   #virker ikke! tror det er args() eller opts() som ikke virker
 sub cmd_wipe  {
   my %o;
-  my @argv=args("n:k0123456789",\%o,@_);
+  my @argv=opts("n:k0123456789",\%o,@_);
   die if 1<grep exists$o{$_},'n',0..9;
   $o{$_} and $o{n}=$_ for 0..9;
   wipe($_,$o{n},$o{k}) for @argv;
@@ -8203,7 +8204,7 @@ sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
 sub cmd_z2z {
   my %o;
   my $pvopts="L:D:i:lIq";
-  my @argv=args("pt:kvhon123456789es:$pvopts",\%o,@_);
+  my @argv=opts("pt:kvhon123456789es:$pvopts",\%o,@_);
   my $t=repl(lc$o{t},qw/gzip gz bzip2 bz2/);
   die "due: unknown compression type $o{t}, known are gz, bz2 and xz" if $t!~/^(gz|bz2|xz)$/;
   $o{p}//=1 if grep$pvopts=~/$_/,keys%o;
@@ -8284,7 +8285,7 @@ sub cmd_z2z {
 Parses command line options and arguments:
 
  my %opt;
- my @argv=args('i:nJ123',\%opt,@ARGV);   #returns remaining command line elements after C<-o ptions> are parsed into C<%opt>.
+ my @argv=Acme::Tools::args('i:nJ123',\%opt,@ARGV);   #returns remaining command line elements after C<-o ptions> are parsed into C<%opt>.
 
 Uses C<Getopt::Std::getopts()>. First arg names the different one char
 options and an optional C<:> behind the letter or digit marks that the
@@ -8304,12 +8305,43 @@ sub args {
     (@ARGV);
 }
 
+sub opts {
+    my($def, $hashref, @a)=@_;
+    @a=@ARGV if @_<=2;
+    my %def=map{/(\w)(:?)/;($1=>$2?2:1)}$def=~/(\w:?)/g;
+    my $o1=join"",grep$def{$_}==1,sort keys%def;
+    my $o= join"",                sort keys%def;
+    my @r;
+    while(@a){
+	my $a=shift(@a);
+	if($a=~/^-([$o1])([$o].*)$/){
+	    unshift@a,"-$1","-$2";
+	}
+	elsif($a=~/^-(\w)(.*)$/){
+	    my $d=$def{$1}//0;
+	    push@{$$hashref{$1}},$d==1 && length($2) ? croak"opt -$1 has no arg (is $2 here)"
+		                :$d==1               ? 1
+				:$d==2 && length($2) ? $2
+				:$d==2               ? shift(@a)
+				:croak"unknown opt -$1";
+	}
+	elsif($a eq '--'){
+	    last;
+	}
+	else {
+	    push @r, $a;
+	}
+    }
+    $_=join",",@$_ for values %$hashref;
+    (@r,@a)
+}
+
 #cat Tools.pm|perl -I. /usr/local/bin/zsize -tp
 #cat Tools.pm|perl -I. /usr/local/bin/zsize -tp -
 #cat Tools.pm|perl -I. /usr/local/bin/zsize -tp Tools.pm
 sub cmd_zsize {
   my %o;
-  my @argv=args("heEpts",\%o,@_);
+  my @argv=opts("heEpts",\%o,@_);
   my $stdin=!@argv || join(",",@argv) eq '-';
   @argv=("/tmp/acme-tools.$$.stdin") if $stdin;
   writefile($argv[0],join("",<STDIN>)) if $stdin;
