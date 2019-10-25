@@ -2401,6 +2401,13 @@ Todo: more doc
 
 =cut
 
+#Todo:
+#peat -le'print join", ",sim("GskOk",[zip([qw(Gsk_ok Vgdoknr Personnavn Adferdkode Ordenkode G_kok)],[0..5])],0.7,0.127)'
+#Use of uninitialized value in subroutine entry at /usr/local/share/perl/5.22.1/Acme/Tools.pm line 2365.
+#Use of uninitialized value $simlikest in numeric ge (>=) at /usr/local/share/perl/5.22.1/Acme/Tools.pm line 2366.
+#Use of uninitialized value in subroutine entry at /usr/local/share/perl/5.22.1/Acme/Tools.pm line 2365.
+#Use of uninitialized value $simnestlikest in numeric ge (>=) at /usr/local/share/perl/5.22.1/Acme/Tools.pm line 2372.
+
 sub sim {
   require String::Similarity;
   my($str,@r)=@_;
