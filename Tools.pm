@@ -122,6 +122,18 @@ our @EXPORT = qw(
   roman2int
   num2code
   code2num
+  dec2bin
+  dec2hex
+  dec2oct
+  bin2dec
+  bin2hex
+  bin2oct
+  hex2dec
+  hex2bin
+  hex2oct
+  oct2dec
+  oct2bin
+  oct2hex
   base
   gcd
   lcm
@@ -391,6 +403,20 @@ sub base {
  :$n==0       ? 0
  :              croak
 }
+
+sub dec2bin { sprintf"%b",shift           }
+sub dec2hex { sprintf"%x",shift           }
+sub dec2oct { sprintf"%o",shift           }
+sub bin2dec {             oct("0b".shift) }
+sub bin2hex { sprintf"%x",oct("0b".shift) }
+sub bin2oct { sprintf"%o",oct("0b".shift) }
+sub hex2dec {             hex(shift)      }
+sub hex2bin { sprintf"%b",hex(shift)      }
+sub hex2oct { sprintf"%o",hex(shift)      }
+sub oct2dec {             oct(shift)      }
+sub oct2bin { sprintf"%b",oct(shift)      }
+sub oct2hex { sprintf"%x",oct(shift)      }
+
 
 =head2 gcd
 
@@ -1668,6 +1694,7 @@ sub int2roman {
       $n
      }
 }
+sub int2roman_golfed{my$r='I'x pop;for(qw(IVX XLC CDM)){my($I,$V,$X)=split//;$r=~s,$I$I$I$I($I?),$1?$V:"$I$V",ge;$r=~s,$V($I?)$V,$1$X,g}$r}
 
 sub roman2int {
   my($r,$n,%c)=(shift,0,'',0,qw/I 1 V 5 X 10 L 50 C 100 D 500 M 1000/);
@@ -2411,25 +2438,20 @@ Todo: more doc
 sub sim {
   require String::Similarity;
   my($str,@r)=@_;
-  @r==1 and return String::Similarity::similarity(@_); #to param
+  return String::Similarity::similarity(@_) if @r==1; #to param
   my($min,$mindiff);
   if(ref($r[0]) eq 'ARRAY'){
     ($min,$mindiff)=@r[1,2];
     @r=@{$r[0]};
   }
-  $min||=0;
-  my $likest;
-  my $simlikest;
-  my $simnestlikest;
-  my $idlikest;
+  $min//=0;
+  my($simlikest,$simnestlikest,$likest,$idlikest)=(-1,-1);
   for(@r){
     my($s,$id)=ref($_) eq 'ARRAY' ? @$_ : ($_);
-    my $sim=String::Similarity::similarity($str,$s,$simnestlikest);
+    my $sim=String::Similarity::similarity($str,$s,$simnestlikest//0);
     if($sim>=$simlikest){
-      $simnestlikest=$simlikest;
-      $likest=$s;
-      $simlikest=$sim;
-      $idlikest=$id if defined $id;
+      ($simnestlikest,$likest,$simlikest)=($simlikest,$s,$sim);
+      $idlikest=$id if defined$id;
     }
     elsif($sim>=$simnestlikest){
       $simnestlikest=$sim;
@@ -2463,20 +2485,19 @@ While sim() is case sensitive, sim_perm() is not.
  Humfrey DeForest Boghart           BOGART HUMPHREY                        0.05       0.87
  Humphrey                           Bogart Humphrey                        0.70       1.00
  Humfrey Deforest Boghart           BOGART D. HUMFREY                      0.15       0.78 *)
+ Presley, Elvis Aaron               Elvis Presley                          0.424242   1.00
 
 sim_perm() was written to identify double-profiles in databases: two people with
 either the same (or similar) email or phone number or zip code and similar enough
 names are going on the list of probable doubles.
 
-*) Todo: should be higher than 0.78, deal with initials better
+*) Todo: deal with initials better, should be higher than 0.78
 
 =cut
 
 sub sim_perm {
   require String::Similarity;
-  my($s1,$s2)=map upper($_), @_;
-  $s1=~s/^\s*(.+?)\s*$/$1/;
-  $s2=~s/^\s*(.+?)\s*$/$1/;
+  my($s1,$s2)=map s/^\s*(.+?)\s*$/$1/r, map upper($_), @_;
   croak if not length($s1) or not length($s2);
   my $max;
   for(cart([permutations(split(/[\s,]+/,$s1))],
@@ -2515,6 +2536,7 @@ Same as pushsort except that the array is kept sorted alphanumerically (cmp) ins
 
 =cut
 
+#todo: use List::BinarySearch::XS 'binsearch_pos';
 our $Pushsort_cmpsub=undef;
 sub pushsort (\@@) {
   my $ar=shift;
@@ -2830,7 +2852,7 @@ whether the predicate (a code-ref) is true or false for that element.
 
 =head2 parth
 
-Like C<part> but returns any number of lists. Like I<group by> in SQL.
+Like C<part> but returns any number of lists. Not just two. Sort of like I<group by> in SQL.
 
 B<Input:> A code-ref and a list
 
@@ -2844,7 +2866,7 @@ Result:
  %hash = (  T=>['These','the','this'],
             A=>['are','array'],
             O=>['of'],
-            W=>['words']                )
+            W=>['words']  )
 
 =head2 parta
 
@@ -3801,7 +3823,7 @@ Example:
 
 =cut
 
-sub distinct { return sort keys %{{map {($_,1)} @_}} }
+sub distinct { sort keys %{{map {($_,1)} @_}} }
 
 =head2 in
 
@@ -3827,19 +3849,8 @@ Just as sub L</in>, but for numbers. Internally uses the perl operator C<< == >>
 
 =cut
 
-sub in {
-  no warnings 'uninitialized';
-  my $val=shift;
-  for(@_){ return 1 if $_ eq $val }
-  return 0;
-}
-
-sub in_num {
-  no warnings 'uninitialized';
-  my $val=shift;
-  for(@_){ return 1 if $_ == $val }
-  return 0;
-}
+sub in     { no warnings 'uninitialized'; my $val=shift; $_ eq $val and return 1 for @_; return 0 }
+sub in_num { no warnings 'uninitialized'; my $val=shift; $_ == $val and return 1 for @_; return 0 }
 
 =head2 union
 
@@ -4231,10 +4242,10 @@ Decompressed something compressed by bzip2() or data from a C<.bz2> file. See L<
 
 =cut
 
-sub gzip    { my $s=shift(); eval"require Compress::Zlib"  if !$INC{'Compress/Zlib.pm'};  croak "Compress::Zlib not found"  if $@; Compress::Zlib::memGzip(    ref($s)?$s:\$s ) }
-sub gunzip  { my $s=shift(); eval"require Compress::Zlib"  if !$INC{'Compress/Zlib.pm'};  croak "Compress::Zlib not found"  if $@; Compress::Zlib::memGunzip(  ref($s)?$s:\$s ) }
-sub bzip2   { my $s=shift(); eval"require Compress::Bzip2" if !$INC{'Compress/Bzip2.pm'}; croak "Compress::Bzip2 not found" if $@; Compress::Bzip2::memBzip(   ref($s)?$s:\$s ) }
-sub bunzip2 { my $s=shift(); eval"require Compress::Bzip2" if !$INC{'Compress/Bzip2.pm'}; croak "Compress::Bzip2 not found" if $@; Compress::Bzip2::memBunzip( ref($s)?$s:\$s ) }
+sub gzip    { my $s=shift; eval"require Compress::Zlib"  if !$INC{'Compress/Zlib.pm'};  croak "Compress::Zlib not found"  if $@; Compress::Zlib::memGzip(    ref($s)?$s:\$s ) }
+sub gunzip  { my $s=shift; eval"require Compress::Zlib"  if !$INC{'Compress/Zlib.pm'};  croak "Compress::Zlib not found"  if $@; Compress::Zlib::memGunzip(  ref($s)?$s:\$s ) }
+sub bzip2   { my $s=shift; eval"require Compress::Bzip2" if !$INC{'Compress/Bzip2.pm'}; croak "Compress::Bzip2 not found" if $@; Compress::Bzip2::memBzip(   ref($s)?$s:\$s ) }
+sub bunzip2 { my $s=shift; eval"require Compress::Bzip2" if !$INC{'Compress/Bzip2.pm'}; croak "Compress::Bzip2 not found" if $@; Compress::Bzip2::memBunzip( ref($s)?$s:\$s ) }
 
 =head1 NET, WEB, CGI-STUFF
 
@@ -6239,7 +6250,7 @@ sub cart_easy { #not tested, not exported http://stackoverflow.com/questions/245
 
 =head2 reduce
 
-From: Why Functional Programming Matters: L<http://www.md.chalmers.se/~rjmh/Papers/whyfp.pdf>
+From: Why Functional Programming Matters: L<http://www.md.chalmers.se/~rjmh/Papers/whyfp.pdf> L<http://www.cse.chalmers.se/~rjmh/Papers/whyfp.html>
 
 L<http://www.md.chalmers.se/~rjmh/Papers/whyfp.html>
 
