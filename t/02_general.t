@@ -2,7 +2,7 @@
 # perl Makefile.PL && make && perl -Iblib/lib t/02_general.t
 
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests => 201;
+use Test::More tests => 204;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -268,9 +268,19 @@ if($^O eq 'linux' and -w$tmp){
 }
 else{ok(1) for 1..5}     # not linux
 
-#--permutations
-ok(join("-", map join("",@$_), permutations('a','b')) eq 'ab-ba', 'permutations 1');
-ok(join("-", map join("",@$_), permutations('a','b','c')) eq 'abc-acb-bac-bca-cab-cba','permutations 2');
+#--permutations, perm, permutate
+ok(join("-", map join("",@$_), permutations('a','b'))  eq 'ab-ba',                  'permutations 1');
+ok(join("-", map join("",@$_), permutations('a'..'c')) eq 'abc-acb-bac-bca-cab-cba','permutations 2');
+ok(join("-", map join("",@$_), perm(        'a'..'c')) eq 'abc-acb-bac-bca-cab-cba','perm');
+
+my @p=('a'..'e');
+my $permute=printed { print permute{print @_,"\n"}@p };
+is($permute, join('',map join('',@$_)."\n", perm(@p)).120,'permute');
+
+my $permute2=printed { print permute{print @_,"\n"}\@p,['b','a','c'] };
+my @perm=perm('a'..'c'); splice@perm,0,2;
+is($permute2, join('',map join('',@$_)."\n", @perm).4,'permute start at');
+
 
 #--trigram
 ok( join(", ",trigram("Kjetil Skotheim"))   eq 'Kje, jet, eti, til, il , l S,  Sk, Sko, kot, oth, the, hei, eim',        'trigram');

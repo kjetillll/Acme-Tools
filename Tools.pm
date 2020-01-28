@@ -112,6 +112,9 @@ our @EXPORT = qw(
   range
   globr
   permutations
+  perm
+  permute
+  permute_continue
   trigram
   sliding
   chunks
@@ -6130,6 +6133,81 @@ sub permutations {
     return@r
   }
 }
+
+=head2 perm
+
+ print @$_,"\n" for perm("a".."c");           # prints six lines: abc acb bac bca cab cba
+
+=head2 permute
+
+ my $c = permute { print @_,"\n" } "a".."c";  # prints six lines: abc acb bac bca cab cba
+ print "count: $c\n";                         # prints 6 = 3*2*1 = 3!
+
+The permute BLOCK needs to return true (which print does) for permute to continue:
+
+ my $c = permute { print @_,"\n"; rand()<.5 } "a".."d";  # probably prints less than 24 strings
+ print "count: $c\n";                                    # prints random number up to 24 = 4*3*2*1 = 4!
+
+=head2 permute_continue
+
+ my @abc   = ("a", "b", "c");
+ my @start = ("b", "a", "c");                               # starting sequence to continue from
+ my $c = permute_continue { print @_,"\n" } \@abc, \@start; # prints four lines: bac bca cab cba
+ my $c = permute          { print @_,"\n" } \@abc, \@start; # same, =permute_continue when coreref+arrayref+arrayref
+ print "count: $c\n";                                       # prints 6-2 = 3*2*1-2 = 3!-2
+
+The permute BLOCK needs to return true (which print does) for permute to continue:
+
+ my $c = permute { print @_,"\n"; rand()<.5 } "a".."d";  # probably prints less than 24 strings
+ print "count: $c\n";                                    # prints random number up to 24 = 4*3*2*1 = 4!
+
+=cut
+
+sub perm {
+    my(@i,@r) = 0..$#_;
+    @_ || return;
+    while ( push @r, [@_[@i]] ) {
+	my $p = $#i || last;
+	--$p || last while $i[$p-1] > $i[$p];
+	push @i, reverse splice @i, my$q=$p;
+	++$q while $i[$p-1] > $i[$q];
+	@i[$p-1,$q] = @i[$q,$p-1];
+    }
+    @r
+}
+
+sub permute (&@) {
+    return permute_continue(@_) if 'CODE,ARRAY,ARRAY' eq join',',map ref,@_;
+    my $f = shift;
+    my @i = 0..$#_;
+    my $n = 0;
+    @_ || do{ &$f(@_); return 0 };
+    while ( ++$n and &$f(@_[@i]) ) {
+	my $p = $#i || last;
+	--$p || last while $i[$p-1] > $i[$p];
+	push @i, reverse splice @i, my$q=$p;
+	++$q while $i[$p-1] > $i[$q];
+	@i[$p-1,$q] = @i[$q,$p-1];
+    }
+    $n;
+}
+
+#Fischer-Krause permutation starting from a specific sequence, for example to farm out permute to more than one process
+sub permute_continue (&\@\@) {
+    my ($f,$begin,$from) = @_;
+    my %h; @h{@$begin} = 0 .. $#$begin;
+    my @idx = @h{@$from};
+    my $n = 0;
+    while ( ++$n and &$f(@$begin[@idx]) ) {
+	my $p = $#idx || last;
+	--$p || last while $idx[$p-1] > $idx[$p];
+	push @idx, reverse splice @idx, my$q=$p;
+	++$q while $idx[$p-1] > $idx[$q];
+	@idx[$p-1,$q]=@idx[$q,$p-1];
+    }
+    $n
+}
+
 
 =head2 cart
 
