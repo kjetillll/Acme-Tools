@@ -38,6 +38,7 @@ our @EXPORT = qw(
   sorted
   sortedstr
   sortby
+  subarrays
   pushsort
   pushsortstr
   binsearch
@@ -2837,6 +2838,27 @@ sub sortby {
     @$arr;
 }
 
+=head2 subarrays
+
+Returns all 2^n-1 combinatory subarrays of an array where each element
+of input array participates or not. Note: The empty array is not among
+the returned arrayrefs unless an empty input is given.
+
+ my @a = subarrays( 'a', 'b', 'c' );         # same as:
+ my @a = ( ['a'    ],
+           [    'b'],
+           ['a','b'],
+           [        'c'],
+           ['a',    'c'],
+           [    'b','c'],
+           ['a','b','c'] );
+
+ sub subarrays { map { my $n = 2*$_; [ grep {($n/=2)%2} @_ ] } 1 .. 2**@_-1 }
+
+=cut
+    
+sub subarrays { map { my $n = 2*$_; [ grep {($n/=2)%2} @_ ] } 1 .. 2**@_-1 }
+
 =head2 part
 
 B<Input:> A code-ref and a list
@@ -5197,7 +5219,6 @@ sub tms_init {
 }
 
 sub totime {
-
 }
 
 sub s2t {
@@ -8231,8 +8252,9 @@ sub cmd_finddup {
       my($corg,$cnt,$cntmb,$mb)=($c,0,0,$sum/1e6);
       $c=sub{
 	  $cntmb+=(-s$_[0])/1e6;
-	  print STDERR sprintf("%d/%d files checked (%d%%), %d/%d MB (%d%%), ETA in %d sec       \r",
-			       ++$cnt,0+@f,100*$cnt/@f,$cntmb,$mb,100*$cntmb/$mb,
+	  my $eol=++$cnt==@f?"\n":"\r";
+	  print STDERR sprintf("%d/%d files checked (%d%%), %d/%d MB (%d%%), ETA in %d sec       $eol",
+			       $cnt, 0+@f, 100*$cnt/@f, $cntmb, $mb, 100*$cntmb/$mb,
 			       curb(nvl(eta($cnt,0+@f),time)-time(),0,1e7));
 	  &$corg(@_)
       };
