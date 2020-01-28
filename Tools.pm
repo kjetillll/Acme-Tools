@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 package Acme::Tools;
 
-our $VERSION = '0.25';
+our $VERSION = '0.26';
 
 use 5.008;     #Perl 5.8 was released July 18th 2002
 use strict;
