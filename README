@@ -5,9 +5,9 @@ INSTALLATION
 
 To install this module type the following:
 
-   wget http://search.cpan.org/CPAN/authors/id/K/KJ/KJETIL/Acme-Tools-0.25.tar.gz
-   tar zxf Acme-Tools-0.25.tar.gz
-   cd Acme-Tools-0.25
+   wget http://search.cpan.org/CPAN/authors/id/K/KJ/KJETIL/Acme-Tools-0.26.tar.gz
+   tar zxf Acme-Tools-0.26.tar.gz
+   cd Acme-Tools-0.26
 
    perl Makefile.PL
    make test
