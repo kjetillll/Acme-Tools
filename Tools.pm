@@ -383,16 +383,31 @@ sub code2num {
 
 Numbers in any number system of base between 2 and 36. Using capital letters A-Z for base higher than 10.
 
- base(2,15)                 # 1111  2-->binary
- base(8,4096)               # 10000 8-->octal
+ base(2,15)                 # 1111  2 --> binary
+ base(8,4096)               # 10000 8 --> octal
  base(10,4096)              # 4096 of course
- base(16,254)               # FE   16-->hex
- base(16,254.3)             # FE   16-->hex, can not handle decimal numbers (yet...todo)
- base(36,123456)            # FE   16-->hex, can not handle decimal numbers (yet...todo)
+ base(16,254)               # FE   16 --> hex
+ base(16,254.3)             # FE   16 --> hex, can not handle decimal numbers (yet...todo)
+ base(36,123456)            # FE   16 --> hex, can not handle decimal numbers (yet...todo)
  base(36,1234567891011)     # FR5HUHC3  base36 using all 0-9 and A-Z as digits, 10+26=36
  base(37,1)                 # die with message 'base not 2-36'
  base($x,0)                 # 0
  base(16, 14,15,16,17)      # list of four elements: E F 10 11
+
+=head2 dec2bin dec2hex dec2oct bin2dec bin2hex bin2oct hex2dec hex2bin hex2oct oct2dec oct2bin oct2hex
+
+ print dec2bin(101);          # 1100101
+ print dec2hex(101);          # 65
+ print dec2oct(101);          # 145
+ print bin2dec(1010011110);   # 670
+ print bin2hex(1010011110);   # 29e
+ print bin2oct(1010011110);   # 1236
+ print hex2dec(101);          # 257
+ print hex2bin(101);          # 100000001
+ print hex2oct(101);          # 401
+ print oct2dec(101);          # 65
+ print oct2bin(101);          # 1000001
+ print oct2hex(101);          # 41
 
 =cut
 
@@ -2838,6 +2853,7 @@ sub sortby {
     @$arr;
 }
 
+
 =head2 subarrays
 
 Returns all 2^n-1 combinatory subarrays of an array where each element
@@ -2853,10 +2869,10 @@ the returned arrayrefs unless an empty input is given.
            [    'b','c'],
            ['a','b','c'] );
 
- sub subarrays { map { my $n = 2*$_; [ grep {($n/=2)%2} @_ ] } 1 .. 2**@_-1 }
+ sub subarrays { map { my $n = 2*$_; [ grep {($n/=2)%2} @_ ] } 1 .. 2**@_-1 } #implemented as
 
 =cut
-    
+
 sub subarrays { map { my $n = 2*$_; [ grep {($n/=2)%2} @_ ] } 1 .. 2**@_-1 }
 
 =head2 part
@@ -5219,7 +5235,17 @@ sub tms_init {
 }
 
 sub totime {
+
 }
+
+=head2 s2t
+
+Convert strings to "time pieces". Example:
+
+ my($dd,$mm,$yyyy,$str) = s2t("18/february/2019:13:53","DD","MM","YYYY","YYYYMMDD-HH24:MI:SS")
+ print "dd: $dd   mm: $mm   yyyy: $yyyy   str: $str\n";  # dd: 18   mm: 02   yyyy: 2019   str: 20190218-13:53:00
+
+=cut
 
 sub s2t {
   require Date::Parse;
@@ -8673,19 +8699,19 @@ sub sum      { &Acme::Tools::bfsum      }
 # - endre årstall under =head1 COPYRIGHT
 # - oppd default valutakurser inkl datoen
 # - emacs Changes
-# - emacs README + aarstall
+# - emacs README versjon + aarstall
 # - diff -byW200 <(grep -a ^sub Acme-Tools-0.22/Tools.pm|sort) <(grep -a ^sub Tools.pm|sort)|less
 # - emacs MANIFEST legg til ev nye t/*.t
-# - perl            Makefile.PL;make test
-# - /usr/bin/perl   Makefile.PL;make test
-# - perlbrew exec "perl Makefile.PL ; time make test"
-# - perlbrew exec "perl Makefile.PL ; make test" | grep -P '^(perl-|All tests successful)'
-# - perlbrew use perl-5.10.1; perl Makefile.PL; make test; perlbrew off
+# - perl            Makefile.PL && make test
+# - /usr/bin/perl   Makefile.PL && make test
+# - perlbrew exec "perl Makefile.PL && time make test"
+# - perlbrew exec "perl Makefile.PL && make test" | grep -P '^(perl-|All tests successful)'
+# - perlbrew use perl-5.10.1; perl Makefile.PL && make test; perlbrew off
 # - test evt i cygwin og mingw-perl
 # - pod2html Tools.pm > Tools.html ; firefox Tools.html
 # - https://metacpan.org/pod/Acme::Tools
 # - http://cpants.cpanauthors.org/dist/Acme-Tools   #kvalitee
-# - perl Makefile.PL ; make test && make dist
+# - perl Makefile.PL && make test && make dist
 # - cp -p *tar.gz /htdocs/
 # - #ci -l -mversjon -d `cat MANIFEST` #no
 # - git add `cat MANIFEST`
@@ -8745,7 +8771,12 @@ sub sum      { &Acme::Tools::bfsum      }
 
 Release history
 
- 0.24  Feb 2019   fixed failes on perl5.16 and older
+ 0.26  Jan 2020   Convert subs: base bin2dec bin2hex bin2oct dec2bin dec2hex dec2oct
+                  hex2bin hex2dec hex2oct oct2bin oct2dec oct2hex
+                  Array subs: joinr perm permute permute_continue pile sortby subarrays
+                  Other subs: btw in_iprange ipnum_ok iprange_ok opts s2t
+
+ 0.24  Feb 2019   fixed failes on perl 5.16 and older
 
  0.23  Jan 2019   Subs: logn, egrep, which. More UTF-8 "oriented" (lower, upper, ...)
                   Commands: zsize, finddup, due (improved), conv (improved, [MGT]?Wh
@@ -8784,7 +8815,7 @@ Kjetil Skotheim, E<lt>kjetil.skotheim@gmail.comE<gt>
 
 =head1 COPYRIGHT
 
-2008-2019, Kjetil Skotheim
+2008-2020, Kjetil Skotheim
 
 =head1 LICENSE
 
