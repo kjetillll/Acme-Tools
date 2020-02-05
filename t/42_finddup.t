@@ -4,7 +4,7 @@ use Test::More tests => 13;
 my $tmp;
 my @f;
 sub mkf {
-  my $n=shift()//4;
+  my $n=shift(); $n=4 if!defined$n;
   $tmp=tmp();
   my $str=sub{$_<4?"abcd$_":"ABCD$_"};
   @f=map{my$f="$tmp/file$_";writefile($f,&$str($_));$f}0..$n-1;
