@@ -1,4 +1,4 @@
-# make;perl -Iblib/lib t/42_finddup.t
+# make && perl -Iblib/lib t/42_finddup.t
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests => 13;
 my $tmp;
@@ -14,7 +14,7 @@ sub mkf {
 mkf();
 sub fd{Acme::Tools::cmd_finddup(@_)}
 sub f{fd('-R',@_)}
-sub sr{repl(srlz(@_),"$tmp/",'',qr/\n$/,'')}
+sub sr{repl( srlz(@_), quotemeta("$tmp/"), '', qr/\n$/, '' )}
 
 my %f=f(qw(-P 4 -M -F),@f);
 my $s=sr(\%f,'f');
