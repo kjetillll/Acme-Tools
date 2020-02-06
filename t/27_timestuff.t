@@ -21,7 +21,7 @@ my $t3=1560000000; #20190608-15:20:00 Sat
 ok( tms()   eq tms(   'YYYYMMDD-HH:MI:SS') ,'no args');
 ok( tms($t) eq tms($t,'YYYYMMDD-HH:MI:SS') ,'one arg');
 
-sub tst {my($fasit,@arg)=@_;my $tms=tms(@arg); ok($tms eq $fasit, "$fasit = $tms")}
+sub tst {my($fasit,@arg)=@_;my $tms=tms(@arg); is($tms, $fasit, "$fasit = $tms")}
 tst('16:21:59',          'HH:MI:SS',$t);
 tst('16:21',             'HH:MI',$t);
 tst('2015',              'YYYY',$t);

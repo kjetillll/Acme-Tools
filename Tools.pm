@@ -5302,10 +5302,12 @@ sub weeknum {
 sub tms {
   return undef if @_>1 and not defined $_[1]; #time=undef => undef
   if(@_==1){
-    my @lt=localtime();
+    my $isnum=$_[0]=~$Re_isnum;
+    my @lt=$isnum?localtime($_[0]):localtime();
+    $isnum              and return sprintf('%04d%02d%02d-%02d:%02d:%02d',1900+$lt[5],1+$lt[4],@lt[3,2,1,0]);
+    $_[0] eq 'YYYYMMDD' and return sprintf('%04d%02d%02d',               1900+$lt[5],1+$lt[4],$lt[3]);
     $_[0] eq 'YYYY'     and return 1900+$lt[5];
-    $_[0] eq 'YYYYMMDD' and return sprintf("%04d%02d%02d",1900+$lt[5],1+$lt[4],$lt[3]);
-    $_[0] =~ $Re_isnum  and @lt=localtime($_[0]) and return sprintf("%04d%02d%02d-%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]);
+
   }
   my($format,$time,$is_date)=@_;
   $time=time_fp() if !defined$time;

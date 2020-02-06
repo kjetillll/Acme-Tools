@@ -1,4 +1,4 @@
-# make;perl -Iblib/lib t/45_opts
+# make;perl -Iblib/lib t/45_opts.t
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests => 18;
 sub check_opts {
@@ -6,10 +6,10 @@ sub check_opts {
   my %o;
   my @a = eval{ opts($def,\%o,@$arin) };
   if($die){
-    ok( ref($die) eq 'Regexp' ? ($@=~/$die/) : $@, $@=~s, at /.*,,rs );
+    ok( ref($die) eq 'Regexp' ? ($@=~/$die/) : $@, repl($@,qr( at /.*)) );  #s///r 5.14
   } else {
-    is_deeply(\@a,$ar_exp,srlz(\@a,'a')=~s,\n,,r);
-    is_deeply(\%o,$hr_exp,srlz(\%o,'o')=~s,\n,,r);
+    is_deeply(\@a, $ar_exp, repl(srlz(\@a,'a'),"\n"));
+    is_deeply(\%o, $hr_exp, repl(srlz(\%o,'o'),"\n"));
   }
 }
 check_opts('ks:',[qw(-k -s str 1 2 3 4)],[1..4],{k=>1,s=>'str'});
