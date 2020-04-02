@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 package Acme::Tools;
 
-our $VERSION = '0.27';
+our $VERSION = '0.28';
 
 use 5.008;     #Perl 5.8 was released July 18th 2002
 use strict;
@@ -77,6 +77,7 @@ our @EXPORT = qw(
   zip
   sim
   sim_perm
+  levdist
   subarr
   subhash
   hashtrans
@@ -120,6 +121,7 @@ our @EXPORT = qw(
   sliding
   chunks
   chars
+  
   cart
   reduce
   int2roman
@@ -2535,6 +2537,39 @@ sub sim_perm {
     last if $max==1;
   }
   return $max;
+}
+
+=head2 levdist
+
+Returns the Levenshtein distance between two strings. That is, the minimum number
+of edit needed on one of them to become equal to the other. Allowed edits are
+insertions, deletions and substitutions.
+
+Examples:
+
+ levdist('vlepphan','elephant'); #3
+ levdist('elephant','elephant'); #0, same string, 0 edits needed
+ levdist('elephant','');         #8, empty string returns the length of the other (deletions)
+ levdist('abc','cba');           #2
+
+The first example returns 3 because 3 edits are needed. When v is substituted
+to e, one of the p's is deleted and the t is inserted we get elephant.
+
+L<https://en.wikipedia.org/wiki/Levenshtein_distance>
+
+=cut
+    
+sub levdist {
+  my($s1,$s2) = map[/./g],@_;
+  my @matrix = ( [0..@$s2], map[$_],1..@$s1 );
+  for my $i (1..@$s1){
+    for my $j (1..@$s2){
+      $matrix[$i][$j] = 1+min($matrix[$i-1][$j  ],
+			      $matrix[$i  ][$j-1],
+			      $matrix[$i-1][$j-1]-($$s1[$i-1] eq $$s2[$j-1]));
+    }
+  }
+  $matrix[-1][-1];
 }
 
 
