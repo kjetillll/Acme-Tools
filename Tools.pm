@@ -2550,7 +2550,7 @@ Examples:
 
  levdist('vlepphan','elephant'); #3
  levdist('elephant','elephant'); #0, same string, 0 edits needed
- levdist('elephant','');         #8, empty string returns the length of the other (deletions)
+ levdist('elephant','');         #8, empty string => length of the other (deletions)
  levdist('abc','cba');           #2
 
 The first example returns 3 because 3 edits are needed. When v is substituted
