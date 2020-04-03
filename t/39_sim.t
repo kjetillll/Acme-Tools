@@ -1,6 +1,6 @@
 # make && perl -Iblib/lib t/39_sim.t
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests    => 53;
+use Test::More tests    => 70;
 eval 'require String::Similarity';
 map ok(1,'skip -- String::Similarity is missing'),1..21 and exit if $@;
 for(map[map trim,split/\|/],split/\n/,<<""){
@@ -54,8 +54,37 @@ is( levdist( 'abc', 'abc'),  0 );
 #is( levdist( undef, 'cba'), 3 );
 #is( levdist( 'cba', undef), 3 );
 
-is( jarosim('CRATE','TRACE'), 11/15 ); #0.73333333
+#is( jarosim('CRATE','TRACE'), 11/15, 11/15 ); #0.73333333
+is( jarosim('DWAYNE','DUANE'), 37/45, "DWAYNE DUANE 0.82222222 37/45" );
+is( jarosim('MARTHA',    'MARHTA')*18, 17, "MARTHA MARHTA 0.9444444444 17/18");
+is( jarosim('DIXON',     'DICKSONX'), 0.7666666666666666, "DIXON DICKSONX 0.7666666666666666");
+is( jarosim('JELLYFISH', 'SMELLYFISH'), 0.896296296296296, "JELLYFISH SMELLYFISH 0.896296");
+#is( jarosim('JELLYFISH', 'SMELLYFISH'), 0.812962962962963, "JELLYFISH SMELLYFISH 0.812963 = 439/540");
+is( jarosim('ARNAB','ARANB'), 0.933333333333333, "arnab aranb 0.933333333333333");
+#exit;
 
+print "--------------------jaro-winkler-similarity\n";
+
+#sub jwtst {}
+sub jwtst {is( jarowinklersim($_[0],$_[1]),$_[2],"wink: $_[0] | $_[1]   $_[2] $_[3]")}
+
+jwtst('CRATE','TRACE', 0.733333333333333, "11/15" );
+jwtst('DWAYNE','DUANE', 0.84);
+jwtst('MARTHA',    'MARHTA', 0.961111111111111);
+jwtst('DIXON',     'DICKSONX', 0.813333333333333);
+jwtst('JELLYFISH', 'SMELLYFISH', 0.896296296296296);
+#jwtst('ARNAB','ARANB', 0.933333333333333);
+jwtst('TRATE','TRACE', 0.906666666666667);
+#jwtst('i walked to the store', 'the store walked to i', 0.7553688141923436);
+#jwtst('banana','bandana', 0.9523809523809524);
+
+#--oracle, https://docs.oracle.com/cd/E18283_01/appdev.112/e16760/u_match.htm#CHDEFJFC
+jwtst('dunningham', 'cunnigham', 0.896296296296296);# 80
+jwtst('abroms', 'abrams', 0.922222222222222);# 83
+jwtst('lampley', 'campley', 0.904761904761905);# 86
+jwtst('marhta', 'martha', 0.961111111111111);# 67
+jwtst('jonathon', 'jonathan', 0.95);# 88
+jwtst('jeraldine', 'geraldine', 0.925925925925926);# 89
 
 __END__
 use Text::Levenshtein 'distance';
