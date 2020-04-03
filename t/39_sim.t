@@ -19,6 +19,13 @@ for(map[map trim,split/\|/],split/\n/,<<""){
 }
 sub is_approx { my($got,$exp,$msg)=@_; my $margin=30/31; between($got/$exp, $margin,1/$margin) ? ok(1,$msg) : is($got,$exp,$msg) }
 
+my($F,$T)=(0.999999,1.000001);
+sub ltst    {my$d=levdist($_[0],$_[1]);  ok(btw($d?$d/$_[2]:$_[2]==0,$F,$T),"levdist: $_[0] | $_[1]   $_[2] $_[3]")}
+sub jtst    {my$d=jsim($_[0],$_[1]);     ok(btw($d?$d/$_[2]:$_[2]==0,$F,$T),"jsim: $_[0] | $_[1]   $_[2] $_[3]")}
+sub jwtst   {my$d=jwsim($_[0],$_[1]);    ok(btw($d?$d/$_[2]:$_[2]==0,$F,$T),"jwsim: $_[0] | $_[1]   $_[2] $_[3]")}
+sub jwtst02 {my$d=jwsim($_[0],$_[1],0.2);ok(btw($d?$d/$_[2]:$_[2]==0,$F,$T),"jwsim: $_[0] | $_[1] | 0.2    $_[2] $_[3]")}
+sub jwtst00 {my$d=jwsim($_[0],$_[1],0.0);ok(btw($d?$d/$_[2]:$_[2]==0,$F,$T),"jwsim: $_[0] | $_[1] | 0.0    $_[2] $_[3]")}
+
 ltst( 'elephant', 'elepanto',   2 );
 ltst( 'elephant', 'elephapntv', 2 );
 ltst( 'elephant', 'elephapntt', 2 );
@@ -89,12 +96,6 @@ jwtst('jonathon', 'jonathan', 0.95);# 88
 jwtst('jeraldine',  'geraldine', 0.925925925925926);# 89
 jwtst02('marhta', 'martha', 0.977777777777778);# 67
 jwtst00('marhta', 'martha', 0.944444444444445);# 67
-
-sub ltst    {is( levdist($_[0],$_[1]),$_[2],"levdist: $_[0] | $_[1]   $_[2] $_[3]")}
-sub jtst    {is( jsim($_[0],$_[1]),$_[2],"jsim: $_[0] | $_[1]   $_[2] $_[3]")}
-sub jwtst   {is( jwsim($_[0],$_[1]    ),$_[2],"jwsim: $_[0] | $_[1]   $_[2] $_[3]")}
-sub jwtst02 {is( jwsim($_[0],$_[1],0.2),$_[2],"jwsim: $_[0] | $_[1] | 0.2    $_[2] $_[3]")}
-sub jwtst00 {is( jwsim($_[0],$_[1],0.0),$_[2],"jwsim: $_[0] | $_[1] | 0.0    $_[2] $_[3]")}
 
 __END__
 use Text::Levenshtein 'distance';
