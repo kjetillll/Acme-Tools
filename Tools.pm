@@ -2541,9 +2541,10 @@ sub sim_perm {
 
 =head2 levdist
 
-Returns the Levenshtein distance between two strings. That is, the minimum number
-of edit needed on one of them to become equal to the other. Allowed edits are
-insertions, deletions and substitutions.
+Returns the Levenshtein distance between two strings. This is the minimum number
+of edits needed on one of them to become equal to the other. Three types of edits
+are allowed: insertion of a char, deletion of a char and substitution of one char
+into another.
 
 Examples:
 
@@ -2561,18 +2562,12 @@ L<https://en.wikipedia.org/wiki/Levenshtein_distance>
     
 sub levdist {
   my($s1,$s2) = map[/./g],@_;
-  my @matrix = ( [0..@$s2], map[$_],1..@$s1 );
-  my @old=([0..@$s2]);
+  my @a=0..@$s2;
   for my $i (1..@$s1){
-    my @new=($i);
-    for my $j (1..@$s2){
-      $new[$j]= 1+min($old[$j  ],
-		      $new[$j-1],
-		      $old[$j-1]-($$s1[$i-1] eq $$s2[$j-1]));
-    }
-    @old=@new;
+    my $n=$i;
+    @a=($i,map $n=1+min( $a[$_], $n, $a[$_-1]-($$s1[$i-1] eq $$s2[$_-1])), 1..@$s2);
   }
-  pop@old
+  pop@a
 }
 
 

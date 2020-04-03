@@ -1,6 +1,6 @@
 # make && perl -Iblib/lib t/39_sim.t
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests    => 52;
+use Test::More tests    => 53;
 eval 'require String::Similarity';
 map ok(1,'skip -- String::Similarity is missing'),1..21 and exit if $@;
 for(map[map trim,split/\|/],split/\n/,<<""){
@@ -56,8 +56,8 @@ is( levdist( 'abc', 'abc'),  0 );
 
 __END__
 use Text::Levenshtein 'distance';
-for(1..30){
-  my($s1,$s2)=map join('',map random(['a'..'z']),1..random(0,30)),1..2;
+for(1..3000){
+  my($s1,$s2)=map join('',map random(['a'..'z']),1..random(0,10)),1..2;
   my($ld1,$ld2)=map&$_($s1,$s2),*levdist,*distance;
   is( $ld1, $ld2, "$s1 $s2 $ld1 $ld2" );
 }
