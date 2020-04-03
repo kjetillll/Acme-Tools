@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 package Acme::Tools;
 
-our $VERSION = '0.27';
+our $VERSION = '0.28';
 
 use 5.008;     #Perl 5.8 was released July 18th 2002
 use strict;
@@ -77,6 +77,9 @@ our @EXPORT = qw(
   zip
   sim
   sim_perm
+  levdist
+  jsim
+  jwsim
   subarr
   subhash
   hashtrans
@@ -120,6 +123,7 @@ our @EXPORT = qw(
   sliding
   chunks
   chars
+  
   cart
   reduce
   int2roman
@@ -2535,6 +2539,114 @@ sub sim_perm {
     last if $max==1;
   }
   return $max;
+}
+
+=head2 levdist
+
+Returns the Levenshtein distance between two strings. This is the minimum number
+of edits needed on one of them to become equal to the other. Three types of edits
+are allowed: insertion of a char, deletion of a char and substitution of one char
+into another.
+
+Examples:
+
+ levdist('vlepphan','elephant'); #3
+ levdist('elephant','elephant'); #0, same string, 0 edits needed
+ levdist('elephant','');         #8, empty string => length of the other (deletions)
+ levdist('abc','cba');           #2
+
+The first example returns 3 because 3 edits are needed. When v is substituted
+to e, one of the p's is deleted and the t is inserted we get elephant.
+
+L<https://en.wikipedia.org/wiki/Levenshtein_distance>
+
+=cut
+    
+sub levdist {
+  my($s1,$s2) = map[/./g],@_;
+  my @a=0..@$s2;
+  for my $i (1..@$s1){
+    my $n=$i;
+    @a=($i,map $n=1+min( $a[$_], $n, $a[$_-1]-($$s1[$i-1] eq $$s2[$_-1])), 1..@$s2);
+  }
+  pop@a
+}
+
+=head2 jsim
+
+Jaro-similarity.
+
+Input: two strings.
+
+Returns a number between 0 and 1 to grade the similarity between two strings.
+See L</jwsim>. Both jsim() and jwsim() are case-sensitive. So A and a is viewed
+as completely different characters.
+
+1 means the strings are equal, 0 means no similarity which means either zero
+common letters or all common letters positions in their strings are too far
+apart adjusted for the max lenght of the two strings.
+
+Jaro-similarity. L<https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance#Jaro_Similarity>
+
+ jsim('DIXON', 'DICKSONX');  # 0.7666666666666666
+ jsim('ABCDEF', 'GHIJKL');   # 0
+ jsim('ABCDEF', 'GHIAJKL');  # 0 also, even if A is common, the A's are too far apart
+ jsim('ABCDEF', 'GHAIJKL');  # 0.4444444444444440 because the A's are close enough to be significant
+
+=head2 jwsim
+
+Jaro-Winkler-similarity.
+
+Input: two string and an optional scaling factor (between 0 and 0.25) with a default of 0.1.
+
+Returns a number between 0 and 1 to grade the similarity between two strings. See L</jsim>.
+
+Returns jsim() + a reward if the first 1-4 chars are equal. The longer the equal prefix (up to 4) the higher the reward.
+
+L<https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance#Jaro%E2%80%93Winkler_Similarity>
+
+ jsim('MARTHA','MARHTA');      # 0.944444444444445
+ jwsim('MARTHA','MARHTA');     # 0.961111111111111 which is higher, Winkler added a reward for equality in the beginning of the strings
+ jwsim('MARTHA','MARHTA',0.1); # 0.961111111111111, same since 0.1 is the default scaling factor for the prefix reward
+ jwsim('MARTHA','MARHTA',0.2); # 0.977777777777778, larger scaling factor makes jwsim put more weigh into same prefix.
+                               # The 3rd argument should be between 0 - 0.25. Larger than 0.25 and jwsim() can in
+                               # some cases return numbers larger than 1.
+ jwsim('MARTHA','MARHTA',0.0); # 0.944444444444445, scaling factor = 0 makes jwsim() return the same a jsim().
+                               # No reward for same prefix.
+
+=cut
+
+sub jsim {
+    my @s = split//,shift;
+    my @t = split//,shift;
+    return 1 if !@s and !@t;
+    my($match_distance, $matches, @s_matches, @t_matches) = (int(max(0+@s,0+@t)/2)-1, 0);
+    for my $i (0 .. $#s) {
+	my $start = max(0,    $i-$match_distance);
+	my $end   = min(0+@t, $i+$match_distance+1);
+	for my $j (grep !$t_matches[$_] && $s[$i] eq $t[$_], $start .. $end - 1) {
+	    $s_matches[$i]=1;
+	    $t_matches[$j]=1;
+	    $matches++;
+	    last;
+	}
+    }
+    return 0 if !$matches;
+    my($k,$tr) = (0,0);
+    for(grep $s_matches[$_], 0..$#s) {
+	$k++ while !$t_matches[$k];
+	$tr++ if $s[$_] ne $t[$k++];
+    }
+    (  $matches/@s + $matches/@t + 1 - $tr/$matches/2  ) / 3;
+}
+
+sub jwsim {
+    my($s1,$s2,$p)=@_;
+    $p=0.1 if @_<3; #default
+    my $sim=jsim($s1,$s2);
+    my $prefix=(grep substr($s1,0,$_) eq substr($s2,0,$_), 0..min(4,length($s1),length($s2)))[-1];
+    #print "...prefix=$prefix\n";
+    $sim + $prefix*$p*(1-$sim);
 }
 
 
@@ -5302,10 +5414,12 @@ sub weeknum {
 sub tms {
   return undef if @_>1 and not defined $_[1]; #time=undef => undef
   if(@_==1){
-    my @lt=localtime();
+    my $isnum=$_[0]=~$Re_isnum;
+    my @lt=$isnum?localtime($_[0]):localtime();
+    $isnum              and return sprintf('%04d%02d%02d-%02d:%02d:%02d',1900+$lt[5],1+$lt[4],@lt[3,2,1,0]);
+    $_[0] eq 'YYYYMMDD' and return sprintf('%04d%02d%02d',               1900+$lt[5],1+$lt[4],$lt[3]);
     $_[0] eq 'YYYY'     and return 1900+$lt[5];
-    $_[0] eq 'YYYYMMDD' and return sprintf("%04d%02d%02d",1900+$lt[5],1+$lt[4],$lt[3]);
-    $_[0] =~ $Re_isnum  and @lt=localtime($_[0]) and return sprintf("%04d%02d%02d-%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]);
+
   }
   my($format,$time,$is_date)=@_;
   $time=time_fp() if !defined$time;
