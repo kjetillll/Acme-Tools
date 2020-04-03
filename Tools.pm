@@ -78,6 +78,7 @@ our @EXPORT = qw(
   sim
   sim_perm
   levdist
+  jarosim
   subarr
   subhash
   hashtrans
@@ -2568,6 +2569,68 @@ sub levdist {
     @a=($i,map $n=1+min( $a[$_], $n, $a[$_-1]-($$s1[$i-1] eq $$s2[$_-1])), 1..@$s2);
   }
   pop@a
+}
+
+sub jarosim {
+    #my($s1,$s2) = map[/./g],@_;
+    my($s1,$s2) = @_;
+    my@s1=split//,$s1;
+    my@s2=split//,$s2;
+    return 1 if $s1 eq $s2;
+    my $len1 = length($s1);
+    my $len2 = length($s2);
+    my $max_dist = int(max($len1, $len2) / 2) - 1;
+    my $match = 0;
+    my %hash_s1; #hash_s1 = [0] * len(s1)
+    my %hash_s2; #hash_s2 = [0] * len(s2)
+    for my $i (0..$len1-1){
+	# Check if there is any matches
+	for my $j ( max(0, $i - $max_dist)
+		    ..
+		    min($len2, $i + $max_dist + 1)-1 ){
+	    # If there is a match
+	    if ($s1[$i] == $s2[$j] and $hash_s2{$j} == 0){
+		$hash_s1[i] = 1;
+		$hash_s2[j] = 1;
+		$match += 1;
+		last;
+	    }
+	}
+    }
+	    
+    # If there is no match
+    return 0 if $match == 0;
+
+    # Number of transpositions
+    my $t = 0;
+    my $point = 0;
+
+    # Count number of occurances
+    # where two characters match but
+    # there is a third matched character
+    # in between the indices
+    for my $i (0..$len1-1){
+	if ($hash_s1{$i}) {
+
+	    # Find the next matched character in second
+	    while ($hash_s2{$point} == 0){
+		$point += 1;
+	    }
+	    if ($s1[$i] != $s2[$point]) {
+		$point += 1;
+		$t += 1;
+	    }
+	}
+    }
+    $t = $t/2;  #hm int?
+
+	# Return the Jaro Similarity
+    return 0+
+	(
+	   $match/$len1
+	 + $match/$len2
+	 + ($match - $t + 1) / $match
+	) / 3;
 }
 
 

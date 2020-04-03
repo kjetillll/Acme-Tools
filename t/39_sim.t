@@ -54,6 +54,9 @@ is( levdist( 'abc', 'abc'),  0 );
 #is( levdist( undef, 'cba'), 3 );
 #is( levdist( 'cba', undef), 3 );
 
+is( jarosim('CRATE','TRACE'), 11/15 ); #0.73333333
+
+
 __END__
 use Text::Levenshtein 'distance';
 for(1..3000){
