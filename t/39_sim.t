@@ -1,6 +1,6 @@
 # make && perl -Iblib/lib t/39_sim.t
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests    => 71;
+use Test::More tests    => 77;
 eval 'require String::Similarity';
 map ok(1,'skip -- String::Similarity is missing'),1..21 and exit if $@;
 for(map[map trim,split/\|/],split/\n/,<<""){
@@ -19,55 +19,56 @@ for(map[map trim,split/\|/],split/\n/,<<""){
 }
 sub is_approx { my($got,$exp,$msg)=@_; my $margin=30/31; between($got/$exp, $margin,1/$margin) ? ok(1,$msg) : is($got,$exp,$msg) }
 
-is( levdist( 'elephant', 'elepanto'),   2 );
-is( levdist( 'elephant', 'elephapntv'), 2 );
-is( levdist( 'elephant', 'elephapntt'), 2 );
-is( levdist( 'elephant', 'lephapnt'),   2 );
-is( levdist( 'elephant', 'blemphant'),  2 );
-is( levdist( 'elephant', 'lmphant'),    2 );
-is( levdist( 'elephant', 'velepphant'), 2 );
-is( levdist( 'elephant', 'vlepphan'),   3 );
-is( levdist( 'elephant', 'elephant'),   0 );
-is( levdist( 'elephant', 'lephant'),    1 );
-is( levdist( 'elephant', 'leowan'),     4 );
-is( levdist( 'elephant', 'leowanb'),    4 );
-is( levdist( 'elephant', 'mleowanb'),   4 );
-is( levdist( 'elephant', 'leowanb'),    4 );
-is( levdist( 'elephant', 'leolanb'),    4 );
-is( levdist( 'elephant', 'lgeolanb'),   5 );
-is( levdist( 'elephant', 'lgeodanb'),   5 );
-is( levdist( 'elephant', 'lgeodawb'),   6 );
-is( levdist( 'elephant', 'mgeodawb'),   6 );
-is( levdist( 'elephant', 'mgeodawb'),   6 );
-is( levdist( 'elephant', 'mgeodawm'),   6 );
-is( levdist( 'elephant', 'mygeodawm'),  7 );
-is( levdist( 'elephant', 'myeodawm'),   6 );
-is( levdist( 'elephant', 'myeodapwm'),  7 );
-is( levdist( 'elephant', 'myeoapwm'),   7 );
-is( levdist( 'elephant', 'myoapwm'),    8 );
-is( levdist( 'kitten', 'sitting'),  3 );
-is( levdist( 'abc', 'cba'),  2 );
-is( levdist( '', 'cba'),     3 );
-is( levdist( 'cba', ''),     3 );
-is( levdist( '', ''),        0 );
-is( levdist( 'abc', 'abc'),  0 );
-#is( levdist( undef, 'cba'), 3 );
-#is( levdist( 'cba', undef), 3 );
+ltst( 'elephant', 'elepanto',   2 );
+ltst( 'elephant', 'elephapntv', 2 );
+ltst( 'elephant', 'elephapntt', 2 );
+ltst( 'elephant', 'lephapnt',   2 );
+ltst( 'elephant', 'blemphant',  2 );
+ltst( 'elephant', 'lmphant',    2 );
+ltst( 'elephant', 'velepphant', 2 );
+ltst( 'elephant', 'vlepphan',   3 );
+ltst( 'elephant', 'elephant',   0 );
+ltst( 'elephant', 'lephant',    1 );
+ltst( 'elephant', 'leowan',     4 );
+ltst( 'elephant', 'leowanb',    4 );
+ltst( 'elephant', 'mleowanb',   4 );
+ltst( 'elephant', 'leowanb',    4 );
+ltst( 'elephant', 'leolanb',    4 );
+ltst( 'elephant', 'lgeolanb',   5 );
+ltst( 'elephant', 'lgeodanb',   5 );
+ltst( 'elephant', 'lgeodawb',   6 );
+ltst( 'elephant', 'mgeodawb',   6 );
+ltst( 'elephant', 'mgeodawb',   6 );
+ltst( 'elephant', 'mgeodawm',   6 );
+ltst( 'elephant', 'mygeodawm',  7 );
+ltst( 'elephant', 'myeodawm',   6 );
+ltst( 'elephant', 'myeodapwm',  7 );
+ltst( 'elephant', 'myeoapwm',   7 );
+ltst( 'elephant', 'myoapwm',    8 );
+ltst( 'kitten', 'sitting',  3 );
+ltst( 'abc', 'cba',  2 );
+ltst( '', 'cba',     3 );
+ltst( 'cba', '',     3 );
+ltst( '', '',        0 );
+ltst( 'abc', 'abc',  0 );
+#ltst( undef, 'cba', 3 );
+#ltst( 'cba', undef, 3 );
 
-#is( jarosim('CRATE','TRACE'), 11/15, 11/15 ); #0.73333333
-is( jarosim('DWAYNE','DUANE'), 37/45, "DWAYNE DUANE 0.82222222 37/45" );
-is( jarosim('MARTHA',    'MARHTA')*18, 17, "MARTHA MARHTA 0.9444444444 17/18");
-is( jarosim('DIXON',     'DICKSONX'), 0.7666666666666666, "DIXON DICKSONX 0.7666666666666666");
-is( jarosim('JELLYFISH', 'SMELLYFISH'), 0.896296296296296, "JELLYFISH SMELLYFISH 0.896296");
-#is( jarosim('JELLYFISH', 'SMELLYFISH'), 0.812962962962963, "JELLYFISH SMELLYFISH 0.812963 = 439/540");
-is( jarosim('ARNAB','ARANB'), 0.933333333333333, "arnab aranb 0.933333333333333");
-is( jarosim('x','yy'), 0, "x yy 0");
+#print "--------------------jaro-similarity\n";
+jtst('CRATE','TRACE', 11/15);#, 11/15 ); #0.73333333
+jtst('DWAYNE','DUANE', 37/45);#, "DWAYNE DUANE 0.82222222 37/45" );
+jtst('MARTHA',    'MARHTA',0.944444444444445);#, "MARTHA MARHTA 0.9444444444 17/18");
+jtst('DIXON',     'DICKSONX', 0.7666666666666666);#, "DIXON DICKSONX 0.7666666666666666");
+jtst('JELLYFISH', 'SMELLYFISH', 0.896296296296296);#, "JELLYFISH SMELLYFISH 0.896296");
+#jtst('JELLYFISH', 'SMELLYFISH', 0.812962962962963);#, "JELLYFISH SMELLYFISH 0.812963 = 439/540");
+jtst('ARNAB','ARANB', 0.933333333333333);#, "arnab aranb 0.933333333333333");
+jtst('x','yy', 0);#, "x yy 0");
+jtst('abcdef','ghiajk', 0);#, "abcdef ghiaka 0");
+jtst('abcdef','ghaijk', 0.444444444444444);#, "abcdef ghaika 0.444444444444444");
+jtst('abcdef','gahijk', 0.444444444444444);#, "abcdef ghaika 0.444444444444444");
 #exit;
 
-print "--------------------jaro-winkler-similarity\n";
-
-#sub jwtst {}
-sub jwtst {is( jarowinklersim($_[0],$_[1]),$_[2],"wink: $_[0] | $_[1]   $_[2] $_[3]")}
+#print "--------------------jaro-winkler-similarity\n";
 
 jwtst('CRATE','TRACE', 0.733333333333333, "11/15" );
 jwtst('DWAYNE','DUANE', 0.84);
@@ -85,7 +86,15 @@ jwtst('abroms', 'abrams', 0.922222222222222);# 83
 jwtst('lampley', 'campley', 0.904761904761905);# 86
 jwtst('marhta', 'martha', 0.961111111111111);# 67
 jwtst('jonathon', 'jonathan', 0.95);# 88
-jwtst('jeraldine', 'geraldine', 0.925925925925926);# 89
+jwtst('jeraldine',  'geraldine', 0.925925925925926);# 89
+jwtst02('marhta', 'martha', 0.977777777777778);# 67
+jwtst00('marhta', 'martha', 0.944444444444445);# 67
+
+sub ltst    {is( levdist($_[0],$_[1]),$_[2],"levdist: $_[0] | $_[1]   $_[2] $_[3]")}
+sub jtst    {is( jsim($_[0],$_[1]),$_[2],"jsim: $_[0] | $_[1]   $_[2] $_[3]")}
+sub jwtst   {is( jwsim($_[0],$_[1]    ),$_[2],"jwsim: $_[0] | $_[1]   $_[2] $_[3]")}
+sub jwtst02 {is( jwsim($_[0],$_[1],0.2),$_[2],"jwsim: $_[0] | $_[1] | 0.2    $_[2] $_[3]")}
+sub jwtst00 {is( jwsim($_[0],$_[1],0.0),$_[2],"jwsim: $_[0] | $_[1] | 0.0    $_[2] $_[3]")}
 
 __END__
 use Text::Levenshtein 'distance';

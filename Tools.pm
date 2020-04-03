@@ -78,8 +78,8 @@ our @EXPORT = qw(
   sim
   sim_perm
   levdist
-  jarosim
-  jarowinklersim
+  jsim
+  jwsim
   subarr
   subhash
   hashtrans
@@ -2572,13 +2572,51 @@ sub levdist {
   pop@a
 }
 
-=head2 jarosim
+=head2 jsim
 
- jarosim('DIXON', 'DICKSONX');  # 0.7666666666666666
+Jaro-similarity.
+
+Input: two strings.
+
+Returns a number between 0 and 1 to grade the similarity between two strings.
+See L</jwsim>. Both jsim() and jwsim() are case-sensitive. So A and a is viewed
+as completely different characters.
+
+1 means the strings are equal, 0 means no similarity which means either zero
+common letters or all common letters positions in their strings are too far
+apart adjusted for the max lenght of the two strings.
+
+Jaro-similarity. L<https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance#Jaro_Similarity>
+
+ jsim('DIXON', 'DICKSONX');  # 0.7666666666666666
+ jsim('ABCDEF', 'GHIJKL');   # 0
+ jsim('ABCDEF', 'GHIAJKL');  # 0 also, even if A is common, the A's are too far apart
+ jsim('ABCDEF', 'GHAIJKL');  # 0.4444444444444440 because the A's are close enough to be significant
+
+=head2 jwsim
+
+Jaro-Winkler-similarity.
+
+Input: two string and an optional scaling factor (between 0 and 0.25) with a default of 0.1.
+
+Returns a number between 0 and 1 to grade the similarity between two strings. See L</jsim>.
+
+Returns jsim() + a reward if the first 1-4 chars are equal. The longer the equal prefix (up to 4) the higher the reward.
+
+L<https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance#Jaro%E2%80%93Winkler_Similarity>
+
+ jsim('MARTHA','MARHTA');      # 0.944444444444445
+ jwsim('MARTHA','MARHTA');     # 0.961111111111111 which is higher, Winkler added a reward for equality in the beginning of the strings
+ jwsim('MARTHA','MARHTA',0.1); # 0.961111111111111, same since 0.1 is the default scaling factor for the prefix reward
+ jwsim('MARTHA','MARHTA',0.2); # 0.977777777777778, larger scaling factor makes jwsim put more weigh into same prefix.
+                               # The 3rd argument should be between 0 - 0.25. Larger than 0.25 and jwsim() can in
+                               # some cases return numbers larger than 1.
+ jwsim('MARTHA','MARHTA',0.0); # 0.944444444444445, scaling factor = 0 makes jwsim() return the same a jsim().
+                               # No reward for same prefix.
 
 =cut
 
-sub jarosim {
+sub jsim {
     my @s = split//,shift;
     my @t = split//,shift;
     return 1 if !@s and !@t;
@@ -2602,16 +2640,10 @@ sub jarosim {
     (  $matches/@s + $matches/@t + 1 - $tr/$matches/2  ) / 3;
 }
 
-=head2 jarowinklersim
-
- jarowinklersim('DIXON', 'DICKSONX');  # 0.813333333333333
-
-=cut
-
-sub jarowinklersim {
+sub jwsim {
     my($s1,$s2,$p)=@_;
     $p=0.1 if @_<3; #default
-    my $sim=jarosim($s1,$s2);
+    my $sim=jsim($s1,$s2);
     my $prefix=(grep substr($s1,0,$_) eq substr($s2,0,$_), 0..min(4,length($s1),length($s2)))[-1];
     #print "...prefix=$prefix\n";
     $sim + $prefix*$p*(1-$sim);
