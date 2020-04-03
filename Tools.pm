@@ -2572,89 +2572,41 @@ sub levdist {
   pop@a
 }
 
-sub jarosim0 { #oversatt fra python
-    #my($s1,$s2) = map[/./g],@_;
-    my($s1,$s2) = @_;
-    return 1 if $s1 eq $s2;
-    my@s1=split//,$s1;
-    my@s2=split//,$s2;
-    my $len1 = length($s1);
-    my $len2 = length($s2);
-    my $max_dist = int(max($len1, $len2) / 2) - 1;
-    my $match = 0;
-    my %hash_s1=map+($_=>0),0..$len1; #hash_s1 = [0] * len(s1)
-    my %hash_s2=map+($_=>0),0..$len2; #hash_s2 = [0] * len(s2)
-    for my $i (0..$len1-1){
-	# Check if there is any matches
-	for my $j ( max(0, $i - $max_dist) .. min($len2, $i + $max_dist + 1)-1 ){
-	    if ($s1[$i] eq $s2[$j] and $hash_s2{$j} == 0){  # If there is a match
-		$hash_s1{$i} = 1;
-		$hash_s2{$j} = 1;
-		$match += 1;
-		last;
-	    }
-	}
-    }
-	    
-    # If there is no match
-    return 0 if $match == 0;
+=head2 jarosim
 
-    # Number of transpositions
-    my $t = 0;
-    my $point = 0;
+ jarosim('DIXON', 'DICKSONX');  # 0.7666666666666666
 
-    # Count number of occurances where two characters match but
-    # there is a third matched character in between the indices
-    for my $i (0..$len1-1){
-	if ($hash_s1{$i}) {
-	    # Find the next matched character in second
-	    while ($hash_s2{$point} == 0){
-		$point += 1;
-	    }
-	    if ($s1[$i] ne $s2[$point]) {
-		$t += 1;
-	    }
-	    $point += 1;
-	}
-    }
-    $t = int($t/2);  #hm int?
+=cut
 
-    print "1/3        *       $match / $len1 +  $match / $len2  +  ($match - $t + 1) / $match\n";
-
-    return   # Return the Jaro Similarity
-	0 + (  $match/$len1
-	     + $match/$len2
-	     + ($match - $t + 1) / $match
-	) / 3;
-}
 sub jarosim {
-    my ($s, $t) = @_;
-    my @s = split//,$s;
-    my @t = split//,$t;
+    my @s = split//,shift;
+    my @t = split//,shift;
     return 1 if !@s and !@t;
-    my $match_distance = int(max(0+@s,0+@t) / 2) - 1;
-    my @s_matches;
-    my @t_matches;
-    my $matches = 0;
+    my($match_distance, $matches, @s_matches, @t_matches) = (int(max(0+@s,0+@t)/2)-1, 0);
     for my $i (0 .. $#s) {
 	my $start = max(0,    $i-$match_distance);
 	my $end   = min(0+@t, $i+$match_distance+1);
 	for my $j (grep !$t_matches[$_] && $s[$i] eq $t[$_], $start .. $end - 1) {
-	    $s_matches[$i] = 1;
-	    $t_matches[$j] = 1;
+	    $s_matches[$i]=1;
+	    $t_matches[$j]=1;
 	    $matches++;
 	    last;
 	}
     }
-    return 0 if $matches == 0;
-    my $k  = 0;
-    my $tr = 0;
+    return 0 if !$matches;
+    my($k,$tr) = (0,0);
     for(grep $s_matches[$_], 0..$#s) {
 	$k++ while !$t_matches[$k];
 	$tr++ if $s[$_] ne $t[$k++];
     }
-    (  ($matches/+@s) + ($matches/+@t) + (($matches - $tr / 2) / $matches)  ) / 3;
+    (  $matches/@s + $matches/@t + 1 - $tr/$matches/2  ) / 3;
 }
+
+=head2 jarowinklersim
+
+ jarowinklersim('DIXON', 'DICKSONX');  # 0.813333333333333
+
+=cut
 
 sub jarowinklersim {
     my($s1,$s2,$p)=@_;

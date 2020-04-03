@@ -1,6 +1,6 @@
 # make && perl -Iblib/lib t/39_sim.t
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests    => 70;
+use Test::More tests    => 71;
 eval 'require String::Similarity';
 map ok(1,'skip -- String::Similarity is missing'),1..21 and exit if $@;
 for(map[map trim,split/\|/],split/\n/,<<""){
@@ -61,6 +61,7 @@ is( jarosim('DIXON',     'DICKSONX'), 0.7666666666666666, "DIXON DICKSONX 0.7666
 is( jarosim('JELLYFISH', 'SMELLYFISH'), 0.896296296296296, "JELLYFISH SMELLYFISH 0.896296");
 #is( jarosim('JELLYFISH', 'SMELLYFISH'), 0.812962962962963, "JELLYFISH SMELLYFISH 0.812963 = 439/540");
 is( jarosim('ARNAB','ARANB'), 0.933333333333333, "arnab aranb 0.933333333333333");
+is( jarosim('x','yy'), 0, "x yy 0");
 #exit;
 
 print "--------------------jaro-winkler-similarity\n";
