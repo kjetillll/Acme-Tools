@@ -2562,14 +2562,17 @@ L<https://en.wikipedia.org/wiki/Levenshtein_distance>
 sub levdist {
   my($s1,$s2) = map[/./g],@_;
   my @matrix = ( [0..@$s2], map[$_],1..@$s1 );
+  my @old=([0..@$s2]);
   for my $i (1..@$s1){
+    my @new=($i);
     for my $j (1..@$s2){
-      $matrix[$i][$j] = 1+min($matrix[$i-1][$j  ],
-			      $matrix[$i  ][$j-1],
-			      $matrix[$i-1][$j-1]-($$s1[$i-1] eq $$s2[$j-1]));
+      $new[$j]= 1+min($old[$j  ],
+		      $new[$j-1],
+		      $old[$j-1]-($$s1[$i-1] eq $$s2[$j-1]));
     }
+    @old=@new;
   }
-  $matrix[-1][-1];
+  pop@old
 }
 
 
