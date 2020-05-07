@@ -2,7 +2,9 @@
 
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests => 12;
+
 my $str='A_DEAD_DAD_CEDED_A_BAD_BABE_A_BEADED_ABACA_BED';
+
 my @test=(
     [A=>50, B=>23, C=>12, D=>5, E=>5, q((A=>0,B=>11,C=>101,D=>1001,E=>1000))],
 

@@ -1,3 +1,4 @@
+Tools.pm
 Changes
 currency-rates.sh
 Makefile.PL
@@ -63,5 +64,4 @@ t/test_pi.pl
 t/test_pivot.pl
 t/test_resolve_bigfloat.pl
 t/test_speed_pushsort.pl
-Tools.pm
 

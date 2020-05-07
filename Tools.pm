@@ -2306,13 +2306,17 @@ Output: to elements: the encoded binary string and the hashref to the given or f
 
 =head2 huffman_unpack
 
-Input: First arg: a encoded binary string. Second arg: a hashref to
-the encoding hash as returned by L</huffman_pack>. An optional third
-arg is the length of the decoded output. Unless given one or more
-extra "padding" chars might be output since the binary string in the
-first arg is of length 8, 16, 24, ... a number divisible by 8 since
-perl packs bytes, not bits. So we need a way of telling huffman_unpack
-where to stop.
+Input:
+
+First arg: a encoded binary string.
+
+Second arg: a hashref to the encoding hash as returned by L</huffman_pack>.
+
+An optional third arg: the length of the decoded output. Unless given
+one or more extra "padding" chars might be output since the binary
+string in the first arg is of length 8, 16, 24, ... a number divisible
+by 8 since perl packs bytes, not bits. So we need a way of telling
+huffman_unpack where to stop.
 
 Output: A string or an array of codes depending on scalar or list context.
 
