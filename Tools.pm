@@ -123,6 +123,9 @@ our @EXPORT = qw(
   sliding
   chunks
   chars
+  huffman
+  huffman_pack
+  huffman_unpack
   
   cart
   reduce
@@ -2249,6 +2252,8 @@ Resulting arrays:
 
  chars("Tittentei");     # ('T','i','t','t','e','n','t','e','i')
 
+Perhaps a more readable way of writing C< split(//,"Tittentei") >
+
 =cut
 
 sub trigram { sliding($_[0],$_[1]||3) }
@@ -2266,6 +2271,106 @@ sub chunks {
 }
 
 sub chars { split//, shift }
+
+=head2 huffman
+
+Input: a hash of frequencies of the different letters or strings.
+
+Output: a hash with the same letters/strings as keys and their binary representation as strings of 0s and 1s.
+
+As in L< https://en.wikipedia.org/wiki/Huffman_coding#Basic_technique > the string
+I<A_DEAD_DAD_CEDED_A_BAD_BABE_A_BEADED_ABACA_BED> has these frequencies:
+
+ my %freq = (A=>11, B=>6, C=>2, D=>10, E=>7, _=>10);   #There are 11 A's, 6 B's and so on
+
+To get a huffman encoding:
+
+ my $str = 'A_DEAD_DAD_CEDED_A_BAD_BABE_A_BEADED_ABACA_BED';
+ my %freq; $freq{$_}++ for chars($str);
+ my %code = huffman(%freq);
+
+%code is now: C< ('A','10', 'B','1111', 'C','1110', 'D','01', 'E','110', '_','00') >.
+
+A tip for decoding:
+
+ my %letter = reverse huffman(%freq);
+
+=head2 huffman_pack
+
+Input: First arg: a string or arrayref. Optional second arg: a hashref to what encoding to use. Default is a ref to a hash found by L</huffman>.
+
+Output: to elements: the encoded binary string and the hashref to the given or found encoding hash which is to be used upon L</huffman_decode>
+
+ my($encoded_binary_string, $encoding_hashref) = huffman_pack("some string which will be split into chars")
+
+
+=head2 huffman_unpack
+
+Input:
+
+First arg: a encoded binary string.
+
+Second arg: a hashref to the encoding hash as returned by L</huffman_pack>.
+
+An optional third arg: the length of the decoded output. Unless given
+one or more extra "padding" chars might be output since the binary
+string in the first arg is of length 8, 16, 24, ... a number divisible
+by 8 since perl packs bytes, not bits. So we need a way of telling
+huffman_unpack where to stop.
+
+Output: A string or an array of codes depending on scalar or list context.
+
+ my $string = "some string which will be split into chars";
+ my($encoded_binary_string, $encoding_hashref) = huffman_pack($string)
+ my $string2 = huffman_unpack($encoded_binary_string, $encoding_hashref, length$string);
+ print "YES!" if $string2 eq $string; #should print YES!
+
+=cut
+
+sub huffman {
+  if(@_==1){
+      if   (ref($_[0]) eq 'SCALAR'){ return huffman([split//,${$_[0]}]) }
+      elsif(!ref($_[0])           ){ return huffman([split//,$_[0]   ]) }
+      elsif(ref($_[0]) eq 'ARRAY' ){ my %freq; $freq{$_}++ for @{pop()}; return huffman(map+($_=>$freq{$_}),sort keys%freq) }
+      elsif(ref($_[0]) eq 'HASH'  ){ my$f=shift;return huffman(map+($_=>$$f{$_}),sort{$$f{$b}<=>$$f{$a} or $a<=>$b}keys%$f) }
+  }
+  my($s,@c,%h,$h)=0 x 9;
+  push @c, [splice@_,0,2] while @_;
+  while(@c>2){
+    @c = sort {$$b[1]<=>$$a[1] or $$a[0]cmp$$b[0] or die} @c;
+    push @c, [ ++$s, $c[-2][1]+$c[-1][1], pop@c, pop@c ];
+  }
+  $h=sub{my$n=0;my$pre=pop;@$_==2?($h{$$_[0]}=$pre.$n++):&$h(@$_,$pre.$n++) for grep ref,@_};
+  &$h(@c,'');
+  %h
+}
+
+sub huffman_pack {
+    my($data,$enchash)=@_;
+    $enchash={huffman($data)} if @_<2;
+    if(ref($data) eq 'ARRAY'){
+	my($i,$r)=(0,'');
+	vec($r,$i++,1)=$_ for map split(//,$$enchash{$_}), @$data;
+	($r,$enchash);
+    }
+    elsif(ref($data) eq 'SCALAR'){ (huffman_pack($$data,         $enchash),$enchash) }
+    else                         { (huffman_pack([split//,$data],$enchash),$enchash) }
+}
+
+sub huffman_unpack {
+    my($str,$enchash,$len)=@_;
+    $len=9e9 if @_<3;
+    my($bits,$r,%dec,@r)=('','',reverse%$enchash);
+    for(0..8*length($str)-1){
+	$bits.=vec($str,$_,1);
+	if(exists$dec{$bits} and $len--){
+	    if(wantarray){ push @r, $dec{$bits} }
+	    else         { $r.=$dec{$bits}      }
+	    $bits='';
+	}
+    }
+    wantarray ? @r : $r;
+}
 
 =head2 repl
 
@@ -5387,6 +5492,20 @@ sub date_ok {
   return 0 if $m<1||$m>12||$d<1||$d>(31,$y%4||$y%100==0&&$y%400?28:29,31,30,31,30,31,31,30,31,30,31)[$m-1];
   return 1;
 }
+
+# YYYY-MM-DD date validation from https://www.perlmonks.org/?node_id=371015 (ikke testet)
+# /(?=\d{4}-\d\d-\d\d)             # Date format
+#  (?=.{8}(?:0[1-9]|[12]\d|3[01])) # Day 01-31
+#  (?=.{5}(?:0[1-9]|1[0-2]))       # Month 01-12
+#  (?!.{5}(?:0[2469]|11)-31)       # Not 31 days in those months
+#  (?!.{5}02-30)                   # Never 30 days in Feb
+#  (?!...[13579]-02-29)            # Not a leap year
+#  (?!..[13579][048]-02-29)        # -"-
+#  (?!..[02468][26]-02-29)         # -"-
+#  (?!.[13579]00-02-29)            # -"-
+#  (?![13579][048]00-02-29)        # -"-
+#  (?![02468][26]00-02-29)         # -"-
+# /x
 
 sub weeknum {
   return weeknum(tms('YYYYMMDD')) if @_<1;

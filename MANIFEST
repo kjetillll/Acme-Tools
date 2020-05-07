@@ -1,3 +1,4 @@
+Tools.pm
 Changes
 currency-rates.sh
 Makefile.PL
@@ -50,6 +51,7 @@ t/43_egrep.t
 t/44_toposort.t
 t/45_opts.t
 t/46_x2y_numeric_base_converts.t
+t/47_huffman.t
 t/common.pl
 t/test_binsearch_bench.pl
 t/test_fork_bloom.pl
@@ -62,5 +64,4 @@ t/test_pi.pl
 t/test_pivot.pl
 t/test_resolve_bigfloat.pl
 t/test_speed_pushsort.pl
-Tools.pm
 
