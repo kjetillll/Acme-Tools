@@ -252,6 +252,7 @@ our @EXPORT = qw(
   drollback
 );
 
+#our $PI = log(640320**3+744)/sqrt(163); #nerdycool, 30 digit accuracy ... https://mathworld.wolfram.com/PiApproximations.html
 our $PI = '3.141592653589793238462643383279502884197169399375105820974944592307816406286';
 
 =head1 NAME
@@ -2345,12 +2346,16 @@ sub huffman {
   %h
 }
 
+our $Huffman_pack_length;
+our $Huffman_pack_bits;
 sub huffman_pack {
     my($data,$enchash)=@_;
     $enchash={huffman($data)} if @_<2;
     if(ref($data) eq 'ARRAY'){
 	my($i,$r)=(0,'');
 	vec($r,$i++,1)=$_ for map split(//,$$enchash{$_}), @$data;
+	$Huffman_pack_length=@$data;
+	$Huffman_pack_bits=$i;
 	($r,$enchash);
     }
     elsif(ref($data) eq 'SCALAR'){ (huffman_pack($$data,         $enchash),$enchash) }
@@ -5530,6 +5535,22 @@ sub weeknum {
 
 #perl -MAcme::Tools -le 'print "$_ ".tms($_."0501","day",1) for 2015..2026'
 
+sub _yyyymmddhh24miss_time{
+    my $s=shift;
+    $s=~s/\D+//g;
+    $s=~s/^((?:19|20)\d{6})$/${1}000000/; #burde vært unødv, kun 19yy og 20yy
+    $s=~/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)?/ or croak("Ugyldig tidspunkt $s til yyyymmddhh24miss_time()");
+    my($year,$mon,$mday,$hours,$min,$sec)=($1,$2,$3,$4,$5,$6);
+    croak("Time::Local cannot handle years before 1000 AD") if $year<1000;
+    my $time;
+    eval{
+      require Time::Local;
+      $time=Time::Local::timelocal(0+$sec,0+$min,0+$hours,$mday,$mon-1,$year);
+    };
+    $@ and croak("<$s> | <$@> | year=$year | mon=$mon | mday=$mday");
+    $time;
+}
+
 sub tms {
   return undef if @_>1 and not defined $_[1]; #time=undef => undef
   if(@_==1){
@@ -5543,7 +5564,7 @@ sub tms {
   my($format,$time,$is_date)=@_;
   $time=time_fp() if !defined$time;
   ($time,$format)=($format,$time) if @_>=2 and $format=~/^[\d+\:\-\.]+$/; #swap /hm/
-  my @lt=localtime($time);
+  my @lt;
   #todo? $is_date=0 if $time=~s/^\@(\-?\d)/$1/; #@n where n is sec since epoch makes it clear that its not a formatted, as in `date`
   #todo? date --date='TZ="America/Los_Angeles" 09:00 next Fri' #`info date`
   #      Fri Nov 13 18:00:00 CET 2015
@@ -5554,18 +5575,21 @@ sub tms {
   #date --date="-1 day"  #date --date='10 week'
 
   if( $is_date ){
+    @lt=localtime($time);
     my $yy2c=sub{10+$_[0]>$lt[5]%100?"20":"19"}; #hm 10+
     $time=totime(&$yy2c($1)."$1$2$3")."000000" if $time=~/^(\d\d)(\d\d)(\d\d)$/;
     $time=totime("$1$2${3}000000")             if $time=~/^((?:18|19|20)\d\d)(\d\d)(\d\d)$/; #hm 18-20?
   }
   else {
-    $time = yyyymmddhh24miss_time("$1$2$3$4$5$6") #yyyymmddhh24miss_time ???
-      if $time=~/^((?:19|20|18)\d\d)          #yyyy
-                  (0[1-9]|1[012])             #mm
-                  (0[1-9]|[12]\d|3[01]) \-?   #dd
-                  ([01]\d|2[0-3])       \:?   #hh24
-                  ([0-5]\d)             \:?   #mi
-                  ([0-5]\d)             $/x;  #ss
+    $time = _yyyymmddhh24miss_time("$1$2$3$4$5$6") #yyyymmddhh24miss_time ???
+      if $time=~/^((?:1\d|2\d)\d\d)     -?        #yyyy
+                  (0[1-9]|1[012])       -?        #mm
+                  (0[1-9]|[12]\d|3[01]) (?:\-|T)? #dd
+                  ([01]\d|2[0-3])       \:?       #hh24
+                  ([0-5]\d)             \:?       #mi
+                  ([0-5]\d)             $/x;      #ss
+    return $time if $format eq 'epoch' or $format eq 'E';
+    @lt=localtime($time);
   }
   tms_init() if !$_tms_inited;
   return sprintf("%04d%02d%02d-%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]) if !$format;
@@ -5635,6 +5659,7 @@ sub tms {
   $format=~s/(?:AM|PM|APM|XM)  / $lt[2]<13 ? 'AM' : 'PM'        /gxe;
   $format=~s/WWI|WW            / sprintf("%02d",weeknum($time)) /gxei;
   $format=~s/W                 / weeknum($time)                 /gxei;
+  $format=~s/(?:\bE\b|epoch)   /$time                           /gxi;
   $format;
 }
 
@@ -8584,6 +8609,14 @@ sub cmd_2bzip2 {cmd_z2z("-t","bz2",@_)}
 sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
 #todo: sub cmd_7z
 #todo: .tgz same as .tar.gz (but not .tbz2/.txz)
+#todo:
+#  2xz -9pvLk 100K webdok.20200508.tar.gz
+#  pv: -L: integer argument expected
+#  gzip: stdin: unexpected end of file
+#    1/2   ETA:-0.0000260s 0.0%      900493585 b =>          32 b webdok.20200508.tar.xz
+#    2 files compressed in 0.076 seconds from 900493585 to 32 bytes  (-900493553 bytes) 0.0% of original
+#  filen borte!
+
 sub cmd_z2z {
   my %o;
   my $pvopts="L:D:i:lIq";

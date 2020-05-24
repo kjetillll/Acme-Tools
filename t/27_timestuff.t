@@ -1,11 +1,11 @@
 # tms() and other time stuff
 # make test
-# perl Makefile.PL; make; perl -Iblib/lib t/27_timestuff.t
+# perl Makefile.PL && make && perl -Iblib/lib t/27_timestuff.t
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More;
 use Digest::MD5 'md5_hex';
 if( $^O=~/(?<!cyg)win/i ) { plan skip_all => 'POSIX::tzset not ok on windows'  }
-else                      { plan tests    => 61                                }
+else                      { plan tests    => 68                                }
 
 $ENV{TZ}='CET';
 #$ENV{TZ}='Europe/Oslo';
@@ -15,11 +15,18 @@ require POSIX; POSIX::tzset();
 my $t =1450624919; #20151220-16:21:59 Sun
 my $t2=1000000000; #20150909-03:46:40 Sun
 my $t3=1560000000; #20190608-15:20:00 Sat
+my $t4=-1e9;       #19380424-23:13:20
+my $t5=-9e9;       #16841019-09:00:00
+my $t6=+9e9;       #22550314-17:00:00
 
 #my @lt=localtime($t);
 #print tms($t),"<<- ".tms()."\n";
 ok( tms()   eq tms(   'YYYYMMDD-HH:MI:SS') ,'no args');
 ok( tms($t) eq tms($t,'YYYYMMDD-HH:MI:SS') ,'one arg');
+is( tms("epoch",tms("YYYY-MM-DDTHH24:MI:SS",$_)), $_,
+    qq(is(tms("epoch",tms("YYYY-MM-DDTHH24:MI:SS",$_)),$_)).' '.tms('YYYYMMDD-HH24:MI:SS',$_))
+  for $t,$t2,$t3,$t4,$t5,$t6,time();
+
 
 sub tst {my($fasit,@arg)=@_;my $tms=tms(@arg); is($tms, $fasit, "$fasit = $tms")}
 tst('16:21:59',          'HH:MI:SS',$t);
