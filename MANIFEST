@@ -48,7 +48,7 @@ t/40_aoh2.t
 t/41_changed.t
 t/42_finddup.t
 t/43_egrep.t
-t/44_toposort.t
+t/44_graph.t
 t/45_opts.t
 t/46_x2y_numeric_base_converts.t
 t/47_huffman.t

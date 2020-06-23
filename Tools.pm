@@ -216,6 +216,7 @@ our @EXPORT = qw(
   ed
   changed
   $Edcursor
+  graph_scc
   brainfu
   brainfu2perl
   brainfu2perl_optimized
@@ -316,9 +317,15 @@ Or to get the very newest:
  make test
  sudo make install
 
+Reported to work on Mac:
+
+ sudo curl -L http://xrl.us/installperlosx | bash
+ sudo brew install cpanminus
+ sudo cpan Acme::Tools
+
 =head1 EXPORT
 
-Almost every sub, about 90 of them.
+Almost every sub, about 100 of them.
 
 Beware of namespace pollution. But what did you expect from an Acme module?
 
@@ -1814,6 +1821,7 @@ sub distance {
   my $R=$Re-($Re-$Rp)*sin(abs($lat1+$lat2)/2); #approx
   return $c*$R;
 }
+#https://rosettacode.org/wiki/Haversine_formula#Perl
 
 
 =head2 big
@@ -5552,8 +5560,14 @@ sub _yyyymmddhh24miss_time{
 }
 
 sub tms {
-  return undef if @_>1 and not defined $_[1]; #time=undef => undef
-  if(@_==1){
+  if(@_>1 and not defined $_[1]){
+    return undef; #time=undef => undef
+  }
+  elsif(@_==0){
+    my @lt=localtime();
+    return sprintf("%04d%02d%02d-%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]);
+  }
+  elsif(@_==1){
     my $isnum=$_[0]=~$Re_isnum;
     my @lt=$isnum?localtime($_[0]):localtime();
     $isnum              and return sprintf('%04d%02d%02d-%02d:%02d:%02d',1900+$lt[5],1+$lt[4],@lt[3,2,1,0]);
@@ -7477,6 +7491,49 @@ sub changed {
     }
     $Changed_lastval{$key}=$now;
     return $e?1:undef;
+}
+
+=head2 graph_scc
+
+Returns the strongly connected components of a graph.
+
+A strongly connected component (a SCC) is a group of vertices in the graph that can all be reached from every other vertice in the same
+group by following the directed edges.  A SCC is either one vertice, a subset of the vertices in the graph or all the vertices. A graph has
+one or more SCCs. In graph_scc() Kosaraju's algorithm is implemented L<https://en.wikipedia.org/wiki/Kosaraju%27s_algorithm> Example:
+
+       A ---> B       ,---  G <--- H
+       ^      |      /      ^      ^
+       |      |      |      |      |
+       |      v      v      |      |
+       D <--- C ---> E ---> F      I
+
+ my @scc = graph_scc(
+     ['A'=>'B'], ['B'=>'C'], ['C'=>'D'], ['D'=>'A'],   ['C'=>'E'],
+     ['E'=>'F'], ['F'=>'G'], ['G'=>'E'],              ['H'=>'G'],  ['I'=>'H']
+ );
+ print srlz( \@scc, 'scc' );
+
+This will print the four SCCs (four lists of vertices) of that graph:
+
+ @scc=(  ['A','B','C','D'],   ['E','F','G'],  ['H'],  ['I']  );
+
+=cut
+
+sub graph_scc {
+    my($vtag, @stack, %visited, %goto, %seen, $dfs, $trav) = (1);
+
+    $dfs= sub { my $v = shift; $visited{$v} = $vtag; &$trav(@{$goto{$v}}); unshift @stack, $v };
+    $trav=sub { $visited{$_} or &$dfs($_) for @_ };
+
+    push @{$goto{$$_[0]}}, $$_[1] for @_;
+    &$trav(sort grep !$seen{$_}++, map@$_, @_);
+     %visited = %goto = ();
+    push @{$goto{$$_[1]}}, $$_[0] for @_;
+
+    sort { $$a[0] cmp $$b[0] } #sort unnecessary?
+    grep ref,
+    map { $visited{$_} ? 0 : do { $vtag++; &$dfs($_); [ sort grep $visited{$_}==$vtag, keys %visited ] } }
+    @stack
 }
 
 #todo: sub unbless eller sub damn
