@@ -66,3 +66,4 @@ print "length encoded_binary_string == ".length($encoded_binary_string)." chars,
 print srlz($encoding_hashref,'enc');
 my $string2 = huffman_unpack($encoded_binary_string, $encoding_hashref, length$string);
 is($string2,$string,'YES!');
+

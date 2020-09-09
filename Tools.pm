@@ -2715,11 +2715,13 @@ Jaro-similarity. L<https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance#J
 
 Jaro-Winkler-similarity.
 
-Input: two string and an optional scaling factor (between 0 and 0.25) with a default of 0.1.
+Input: two strings and an optional scaling factor (between 0 and 0.25) with a default of 0.1.
 
 Returns a number between 0 and 1 to grade the similarity between two strings. See L</jsim>.
 
-Returns jsim() + a reward if the first 1-4 chars are equal. The longer the equal prefix (up to 4) the higher the reward.
+jwsim = jsim + reward
+
+If the first 1-4 chars are equal the reward is higher. The longer the equal prefix (up to 4) the higher the reward.
 
 L<https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance#Jaro%E2%80%93Winkler_Similarity>
 
