@@ -152,6 +152,7 @@ our @EXPORT = qw(
   lcm
   pivot
   tablestring
+  tablestring_box
   upper
   lower
   trim
@@ -6946,7 +6947,13 @@ sub _sortsub {
 
 =head2 tablestring
 
-B<Input:> a reference to an array of arrayrefs  -- a two dimensional table of strings and numbers
+B<Input:> one or two arguments:
+
+1) a reference to an array of arrayrefs  -- a two dimensional table of strings and numbers
+
+2) an optional hashref to options:
+
+
 
 B<Output:> a string containing the textual table -- a string of two or more lines
 
@@ -7056,8 +7063,8 @@ sub tablestring {
   my $header_last;
   for my $x (0..$i){
     if($$tab[$x] eq '-'){
-      my @tegn=map {$$tab[$x-1][$_]=~/\S/?"-":" "} (0..$j);
-      $tabout[$row_start_line]=join(" ",map {$tegn[$_] x ($width[$_]-1)} (0..$j));
+      my @char=map {$$tab[$x-1][$_]=~/\S/?"-":" "} (0..$j);
+      $tabout[$row_start_line]=join(" ",map {$char[$_] x ($width[$_]-1)} (0..$j));
     }
     else{
       for my $y (0..$j){
@@ -7113,7 +7120,80 @@ sub tablestring {
       }
     }
   }#for x
-  return join("\n",@tabout)."\n";
+  my $r=join("\n",@tabout)."\n";
+  tablestring_box0(\$r) if $o{box};
+  $r
+}
+
+=head2 tablestring_box
+
+Returns a multiline string of the rendered table with utf-8 lines (like C<.mode box> in
+newer sqlite3 versions).  Numeric columns are right aligned. Requires a UTF-8 enabled
+terminal. Run the 'locale' command if on Linux-ish systems to check for UTF-8. Otherwise,
+use the C<tablestring()> functions.
+
+ my @tab = (  [qw(aa bbbbb cccc ddddddddd)],
+              [1, undef,'hello'],
+              [2],
+              [qw(3 -23.4 xxx)],
+              [qw(126 20 asdfasdf1 xyz)] );
+ 
+ print tablestring_box(\@tab);
+ 
+ ┌─────┬───────┬───────────┬───────────┐
+ │  aa │ bbbbb │ cccc      │ ddddddddd │
+ ├─────┼───────┼───────────┼───────────┤
+ │   1 │       │           │           │
+ │   2 │       │           │           │
+ │   3 │ -23.4 │ xxx       │           │
+ │ 126 │    20 │ asdfasdf1 │ xyz       │
+ └─────┴───────┴───────────┴───────────┘
+
+=cut
+
+sub tablestring_box {
+    return tablestring_box([@_]) if !ref($_[0]);
+    my $t=shift;
+    use utf8;
+    my $ts=<<''=~s/^([│ y]+)$/join"\n",map$1,2..@$t/emr;
+┌───┬───┐
+│ x │ x │
+├───┼───┤
+│ y │ y │
+└───┴───┘
+
+    my @w;for(@$t){ my $c=0; $w[$c++]=!defined$w[$c]||!defined$_||length>$w[$c]?length:$w[$c] for @$_ } #print srlz(\@w,'w');
+    my %l;for my$r(@$t[1..$#$t]){for(0..$#$r){$l{$_}++ if defined$$r[$_]&&$$r[$_]=~/\S/&&!isnum($$r[$_])}} #left aligned
+    $ts=~s/^(.+?)([┼┴┬]───|│ [xy] )/"$1".($2 x (@w-1))/gem;
+    $ts=join'',map{for my$w(1..@w){my$pos=2+4*(@w-$w);s/(.{$pos})(.)/$1.($2x$w[@w-$w])/e};"$_\n"}split/\n/,$ts;
+    my @v=map@$_[0..$#w],@$t;
+    $ts=~s|[xy]+|sprintf$l{@w-@v%@w}?"%-*s":"%*s",length$&,shift@v//''|ge;
+    utf8::encode($ts); #hm ::decode input?
+    $ts
+}
+sub tablestring_box0 {
+    my $r=shift;
+    my@w;
+    $$r=~s|^[- ]+$|$&=~s/ -/┼-/gr=~s/-+/push@w,length$&;'─'x$w[-1]/ger|me;
+    $$r=~s,─ ,──,;
+    my $w=sum(@w)+@w;
+    my $i=0;
+    $$r=srlz(\@w,'w')
+	.'┌'.('─' x $w)."┐\n"
+	.(join'',map sprintf(++$i==2?"├%-*s┤\n":"│%-*s│\n",$w,$_),split/\n/,$$r)
+	.'└'.('─' x $w)."┘\n";
+    my @l=split/\n/,$$r;
+    my $m=2;
+    for(1..$#w){$w[$_]+=$w[$_-1]-$_}
+    my %co=map{$_=>1}@w;
+    print srlz(\@w,'w');
+    print srlz(\%co,'co');
+    my($ro,$co)=(0,-1);
+    $$r=~s{\X}{$co++;($ro,$co)=($ro+1,0) if $& eq "\n";$& eq ' '&&$co{$co}?'│':$&}gse;
+    for(split//,$$r){
+	
+    }
+#    $$r=~s,-+,'─' x length($&),ge if /^[\- ]+\n$/m;
 }
 
 =head2 serialize
@@ -8658,8 +8738,8 @@ sub cmd_finddup {
   }@argv;
   @argv=grep -s$_, @argv if $o{z};
   my %md5sum;
- #my $md5sum=sub{$md5sum{$_[0]}=md5sum($_[0]) if!defined$md5sum{$_[0]}}; #memoize
-  my $md5sum=sub{$md5sum{$_[0]}//=md5sum($_[0])}; #memoize
+ #my $md5sum=sub{$md5sum{$_[0]}//=md5sum($_[0])}; #memoize //= is v5.10 and later
+  my $md5sum=sub{$md5sum{$_[0]}=md5sum($_[0]) if!defined$md5sum{$_[0]};$md5sum{$_[0]}}; #memoize
   my $md5sum_1st_part=sub{
       open my $fh, "<", $_[0] or die "ERR: Could not read $_[0]";
       binmode($fh);
@@ -9141,6 +9221,7 @@ sub sum      { &Acme::Tools::bfsum      }
 # - http://pause.perl.org/
 # - tegnsett/utf8-kroell
 # - https://rt.cpan.org/Dist/Display.html?Queue=Acme-Tools
+# - grep '//=' Tools.pm t/*.t  #v5.10 and later
 # http://en.wikipedia.org/wiki/Birthday_problem#Approximations
 
 # memoize_expire()           http://perldoc.perl.org/Memoize/Expire.html
