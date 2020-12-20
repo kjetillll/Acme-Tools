@@ -131,9 +131,9 @@ sub graph_toposort2 { #Khan's topological sort algorithm
     while(@s){
 	my $n=pop@s;
 	push @l, $n if !$l_seen{$n}++;
-	push @s, grep{delete$incoming{$_}{$n};!keys%{$incoming{$_}}}@{$outgoing{$n}}
+	push @s, grep {delete$incoming{$_}{$n};!keys%{$incoming{$_}}} @{$outgoing{$n}}
     }
-    die "ERROR: circular?" if grep{keys%$_}values%incoming;
+    die "ERROR: circular graph! so no toposort exists" if grep {keys%$_} values%incoming;
     @l
 }
 

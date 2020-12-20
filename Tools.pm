@@ -45,6 +45,8 @@ our @EXPORT = qw(
   binsearchstr
   random
   random_gauss
+  random_exp
+  random_poisson
   big
   bigi
   bigf
@@ -233,7 +235,6 @@ our @EXPORT = qw(
   bfclone
   bfdimensions
   $PI
-  install_acme_command_tools
 
   $Dbh
   dlogin
@@ -251,6 +252,8 @@ our @EXPORT = qw(
   ddel
   dcommit
   drollback
+  install_tools
+  install_acme_command_tools
 );
 
 #our $PI = log(640320**3+744)/sqrt(163); #nerdycool, 30 digit accuracy ... https://mathworld.wolfram.com/PiApproximations.html
@@ -1101,6 +1104,7 @@ our %conv=(
 		  #Norwegian:
                   meterfavn => 2 * 2 * 0.6,           #fire wood/ved 2.4 m3
                   storfavn  => 2 * 2 * 3,             #fire wood/ved 12 m3
+		  #https://no.wikipedia.org/wiki/Pipe_(m%C3%A5l)
 		 },
 	 time  =>{
 		  s           => 1,
@@ -3130,10 +3134,11 @@ B<Input:> A code-ref and a list
 
 B<Output:> A hash where the returned values from the code-ref are keys and the values are arrayrefs to the list elements which gave those keys.
 
- my %hash = parth { uc(substr($_,0,1)) } ('These','are','the','words','of','this','array');
- print serialize(\%hash);
+ my @list = ('These','are','the','words','of','this','array');
+ my %hash = parth { uc(substr($_,0,1)) } @list;  #returns a hash where keys are first char in uppercase
+ print srlz(\%hash, 'hash');
 
-Result:
+Prints:
 
  %hash = (  T=>['These','the','this'],
             A=>['are','array'],
@@ -3814,7 +3819,7 @@ Example:
  print "Stddev  is:    ".stddev(@I)."\n";     # prints a number close to 15
 
  my @M=grep $_>100+15*2, @I;                  # those above 130
- print "Percent above two stddevs: ".(100*@M/@I)."%\n"; #prints a number close to 2.2%
+ print "Percent above two stddevs: ".(100*@M/@I)."%\n"; #prints a number close to 2.27%
 
 Example 2:
 
@@ -3890,7 +3895,7 @@ sub random_gauss {
   $avg=0    if !defined $avg;
   $stddev=1 if !defined $stddev;
   $num=1    if !defined $num;
-  croak "random_gauss should not have more than 3 arguments" if @_>3;
+  croak "random_gauss should have 0-3 arguments" if @_>3;
   my @r;
   while (@r<$num) {
     my($x1,$x2,$w);
@@ -3906,6 +3911,26 @@ sub random_gauss {
   pop @r if @r > $num;
   return $r[0] if @_<3;
   return @r;
+}
+
+sub random_exp {
+    my($lambda,$n)=@_;
+    my $L=-1/$lambda;
+    return     $L*log(1-rand()) if !@_;
+    return map $L*log(1-rand()), 1..(defined$n?$n:1);
+}
+
+sub random_poisson {
+    my($alpha,$n)=@_;
+    $n=1 if !defined$n;
+    my $A=exp(-$alpha);
+    my @r=map{
+	my($x,$p)=(1,rand());
+	$p*=rand() while $p>=$A and ++$x;
+	$x
+    }1..$n;
+    return $r[0] if @_<2;
+    return @r;
 }
 
 =head2 mix
@@ -4055,6 +4080,20 @@ sub pwgen {
   $Pwgen_sec=time_fp()-$t;
   return $pw[0] if $num==1;
   return @pw;
+}
+
+our @Srand;
+sub push_srand {
+    $]>=5.014 or croak "Returning current srand (when called without params) started with Perl v5.14, see perldoc -f srand";
+    my($new,$old)=(shift(),srand());
+    push @Srand, $old;
+    srand($new) if defined $new;
+    $old;
+}
+
+sub pop_srand {
+    croak "Can not pop_srand more times than push_srand" if not @Srand;
+    srand(pop@Srand);
 }
 
 # =head1 veci
@@ -5234,6 +5273,8 @@ its own hassles.
  print $conf{''}{switch};                        #prints OK with the file above
  print $conf{switch};                            #prints OK here as well
 
+=head2 read_conf_yaml (TODO)
+
 =cut
 
 our $Read_conf_empty_section=0;
@@ -6282,7 +6323,7 @@ Examples:
  my @arr = globr "X{a..f..2}";          # step 2, returns array: Xa Xc Xe
  my @arr = globr "{aa..bz..13}Z";       # aaZ anZ baZ bnZ
  my @arr = globr "{1..12}b";            # 1b 2b 3b 4b 5b 6b 7b 8b 9b 10b 11b 12b
- my @arr = globr "{01..11}b";           # 01b 02b 03b 04b 05b 06b 07b 08b 09b 10b 11b (keep leading zero)
+ my @arr = globr "{01..11}b";           # 01b 02b 03b 04b 05b 06b 07b 08b 09b 10b 11b (keeps leading zero)
  my @arr = globr "{01..12..3}b";        # 01b 04b 07b 10b
 
 =cut
@@ -7280,8 +7321,8 @@ in certain cases). L</srlz> will be kept as a synonym (or the other way around).
 
 sub srlz {
   my $s=serialize(@_);
-  $s=~s,'(\w+)'=>,$1=>,g;
-  $s=~s,=>'([+-]?(0|[1-9]\d*)(\.\d+)?([eE][-+]?\d+)?)',=>$1,g;  #ikke ledende null!    hm
+  $s=~s,'(\w+)'=>,$1=>,g;                                       #todo: ikke ledende null!
+  $s=~s,=>'([+-]?(0|[1-9]\d*)(\.\d+)?([eE][-+]?\d+)?)',=>$1,g;  #todo?: ikke ledende null!    hm
   $s;
 }
 
@@ -7627,19 +7668,21 @@ sub brainfu2perl_optimized {
 
 Bloom filters can be used to check whether an element (a string) is a
 member of a large set using much less memory or disk space than other
-data structures. Trading speed and accuracy for memory usage. While
-risking false positives, Bloom filters have a very strong space
-advantage over other data structures for representing sets.
+data structures. Trading speed and accuracy for smaller memory usage.
+Accepting a few false positives, Bloom filters have a very strong
+space advantage over other data structures for representing sets.
 
 In the example below, a set of 100000 phone numbers (or any string of
 any length) can be "stored" in just 91230 bytes if you accept that you
 can only check the data structure for existence of a string and accept
-false positives with an error rate of 0.03 (that is three percent, error
-rates are given in numbers larger than 0 and smaller than 1).
+false positives with an error rate of 0.03 (that is three percent as
+rates are given in numbers between 0 and 1). While false positives
+will occur, false negatives will not. If the bloom filter says a
+string is not in the set, then it's not.
 
 You can not retrieve the strings in the set without using "brute
-force" methods and even then you would get slightly more strings than
-you put in because of the error rate inaccuracy.
+force" methods and even then you would get slightly more strings
+out than you put in because of the error rate inaccuracy.
 
 Bloom Filters have many uses.
 
@@ -7657,8 +7700,7 @@ The same:
 
   my $bf = bfinit( 0.01, 100000 );
 
-since two arguments is interpreted as error_rate and capacity accordingly.
-
+Two arguments is interpreted as error_rate and capacity accordingly.
 
 =head2 bfadd
 
@@ -7666,7 +7708,7 @@ since two arguments is interpreted as error_rate and capacity accordingly.
 
   bfadd($bf, @phone_numbers);          # ...or all at once (faster)
 
-Returns 1 on success. Dies (croaks) if more strings than capacity is added.
+Returns 1 on success or C<die>s (croaks) if more strings than capacity is added.
 
 =head2 bfcheck
 
@@ -7682,12 +7724,12 @@ Returns true if C<$phone_number> exists in C<@phone_numbers>.
 
 Returns false most of the times, but sometimes true*), if C<$phone_number> doesn't exists in C<@phone_numbers>.
 
-*) This is called a false positive.
+*) This is what is called a false positive.
 
 Checking more than one key:
 
  @bools = bfcheck($bf, @keys);          # or ...
- @bools = bfcheck($bf, \@keys);         # better, uses less memory if @keys is large
+ @bools = bfcheck($bf, \@keys);         # better, uses less memory if @keys are many
 
 Returns an array the same size as @keys where each element is true or false accordingly.
 
@@ -7696,7 +7738,7 @@ Returns an array the same size as @keys where each element is true or false acco
 Same as C<bfcheck> except it returns the keys that exists in the bloom filter
 
  @found = bfgrep($bf, @keys);           # or ...
- @found = bfgrep($bf, \@keys);          # better, uses less memory if @keys is large, or ...
+ @found = bfgrep($bf, \@keys);          # uses less memory if @keys are many, or ...
  @found = grep bfcheck($bf,$_), @keys;  # same but slower
 
 =head2 bfgrepnot
@@ -7704,7 +7746,7 @@ Same as C<bfcheck> except it returns the keys that exists in the bloom filter
 Same as C<bfgrep> except it returns the keys that do NOT exists in the bloom filter:
 
  @not_found = bfgrepnot($bf, @keys);          # or ...
- @not_found = bfgrepnot($bf, \@keys);         # better, uses less memory if @keys is large, or ...
+ @not_found = bfgrepnot($bf, \@keys);         # uses less memory if @keys are many, or ...
  @not_found = grep !bfcheck($bf,$_), @keys);  # same but slower
 
 =head2 bfdelete
@@ -7720,7 +7762,7 @@ small error rates would not overflow.
 *) Acme::Tools do not currently support C<< counting_bits => 3 >> so 4
 and 8 are the only practical alternatives where 8 is almost always overkill.
 
- my $bf=bfinit(
+ my $bf = bfinit(
    error_rate    => 0.001,
    capacity      => 10000000,
    counting_bits => 4              # power of 2, that is 2, 4, 8, 16 or 32
@@ -7730,10 +7772,10 @@ and 8 are the only practical alternatives where 8 is almost always overkill.
 
 Example: examine the frequency of the counters with 4 bit counters and 4 million keys:
 
- my $bf=bfinit( error_rate=>0.001, capacity=>4e6, counting_bits=>4 );
- bfadd($bf,[1e3*$_+1 .. 1e3*($_+1)]) for 0..4000-1;  # adding 4 million keys one thousand at a time
+ my $bf = bfinit( error_rate=>0.001, capacity=>4e6, counting_bits=>4 );
+ bfadd($bf,[1e3*$_+1 .. 1e3*($_+1)]) for 0..4000-1;  # add 4 million keys one thousand at a time
  my %c; $c{vec($$bf{filter},$_,$$bf{counting_bits})}++ for 0..$$bf{filterlength}-1;
- printf "%8d counters = %d\n",$c{$_},$_ for sort{$a<=>$b}keys%c;
+ printf "%8d counters = %d\n",$c{$_},$_ for sort {$a<=>$b} keys %c;
 
 The output:
 
@@ -7748,7 +7790,8 @@ The output:
        46 counters = 8
         1 counters = 9
 
-Even after the error_rate is changed from 0.001 to a percent of that, 0.00001, the limit of 16 (4 bits) is still far away:
+Even after the error_rate is changed from 0.001 to a percent of that,
+0.00001, the upper limit of counting 0-15 (4 bits) is still far away:
 
  47162242 counters = 0
  33457237 counters = 1
@@ -7763,13 +7806,15 @@ Even after the error_rate is changed from 0.001 to a percent of that, 0.00001, t
 
 In algorithmic terms the number of bits needed is C<ln of ln of n>.  Thats why 4 bits (counters up
 to 15) is "always" good enough except for extremely large capasities or extremely small error rates.
-(Except when adding the same key many times, which should be avoided, and Acme::Tools::bfadd do not
-check for that, perhaps in future versions).
+(Except when adding the same key many times, which is the users responsibility to avoid as
+Acme::Tools::bfadd do not check for that, perhaps in a mode of a future version. In
+non-counting bloom filters, for when you don't need delete, you can add the same keys
+many times without ruining the filter).
 
 Bloom filters of the counting type are not very space efficient: The tables above shows that 84%-85%
-of the counters are 0 or 1. This means most bits are zero-bits. This doesn't have to be a problem if
-a counting bloom filter is used to be sent over slow networks because they are very compressable by
-common compression tools like I<gzip> or L<Compress::Zlib> and such.
+of the counters are 0 or 1. This means most counting bits are zero. This doesn't have to be a problem
+if a counting bloom filter is used to be sent over slow networks because they are very compressable by
+common tools like I<gzip> or L<Compress::Zlib>.
 
 Deletion of non-existing keys makes C<bfdelete> die (croak).
 
@@ -7782,7 +7827,7 @@ Deletes from a counting bloom filter:
 
 Returns C<$bf> after deletion.
 
-Croaks (dies) on deleting a non-existing key or deleting from an previouly overflown counter in a counting bloom filter.
+Croaks (dies) on deleting a non-existing key or deleting from a previouly overflown counter in a counting bloom filter.
 
 =head2 bfaddbf
 
@@ -7795,13 +7840,13 @@ hash functions, adds the filters:
   my $bf1=bfinit(error_rate=>0.01,capacity=>$cap,keys=>[1..500]);
   my $bf2=bfinit(error_rate=>0.01,capacity=>$cap,keys=>[501..1000]);
 
-  bfaddbf($bf1,$bf2);
+  bfaddbf($bf1,$bf2);     # bf1 = bf1 + bf2
 
-  print "Yes!" if bfgrep($bf1, 1..1000) == 1000;
+  print "Yes!" if bfgrep($bf1, 1..1000) == 1000;  #prints Yes!
 
 Prints yes since C<bfgrep> now returns an array of all the 1000 elements.
 
-Croaks if the filters are of different dimensions.
+Croaks if the filters are of different dimensions and properties.
 
 Works for counting bloom filters as well (C<< counting_bits=>4 >> e.g.)
 
@@ -7865,7 +7910,7 @@ Storing and retrieving bloom filters to and from disk uses L<Storable>s C<store>
 
  bfstore($bf,'filename.bf');
 
-It the same as:
+Is the same as:
 
  use Storable qw(store retrieve);
  ...
@@ -7886,6 +7931,11 @@ Is the same as:
  use Storable qw(store retrieve);
  my $bf=retrieve('filename.bf');
 
+...except that bfretrieve/bfinit/new will C<warn> (carp) if the stored filter was created
+with an earlier version of Acme::Tools. (Todo: only C<warn> or C<die> rather when the new
+version has actually broken backwards compatibility. Most new versions do not and might never do.
+Todo2: backwards compatibility in versions of Storable should also be checked)
+
 =head2 bfclone
 
 Deep copies the bloom filter data structure. (Which btw is not very deep, two levels at most)
@@ -7894,9 +7944,8 @@ This:
 
  my $bfc = bfclone($bf);
 
-Works just as:
+Is the same as:
 
- use Storable;
  my $bfc=Storable::dclone($bf);
 
 =head2 Object oriented interface to bloom filters
@@ -7937,13 +7986,13 @@ if it werent for the fact that it's much slower than Digest::MD5.
 
 String::CRC32::crc32 is faster than Digest::MD5, but not 4 times faster:
 
- time perl -e'use Digest::MD5 qw(md5);md5("asdf$_") for 1..10e6'       #5.56 sec
- time perl -e'use String::CRC32;crc32("asdf$_") for 1..10e6'           #2.79 sec, faster but not per bit
- time perl -e'use Digest::SHA qw(sha512);sha512("asdf$_") for 1..10e6' #36.10 sec, too slow (sha1, sha224, sha256 and sha384 too)
+ time perl -e'use Digest::MD5 qw(md5);md5("asdf$_")       for 1..1e7' #5.56 sec
+ time perl -e'use String::CRC32;crc32("asdf$_")           for 1..1e7' #2.79 sec, faster but not per bit
+ time perl -e'use Digest::SHA qw(sha512);sha512("asdf$_") for 1..1e7' #36.10 sec, too slow (sha1, sha224, sha256 and sha384 too)
 
-Md5 seems to be an ok choice both for speed and avoiding collitions due to skewed data keys.
+MD5 seems to be an ok choice both for speed and avoiding collitions due to skewed data keys.
 
-=head2 Theory and math behind bloom filters
+=head2 Theory and math on bloom filters
 
 L<http://www.internetmathematics.org/volumes/1/4/Broder.pdf>
 
@@ -7951,7 +8000,7 @@ L<http://blogs.sun.com/jrose/entry/bloom_filters_in_a_nutshell>
 
 L<http://pages.cs.wisc.edu/~cao/papers/summary-cache/node8.html>
 
-See also Scaleable Bloom Filters: L<http://gsd.di.uminho.pt/members/cbm/ps/dbloom.pdf> (not implemented in Acme::Tools)
+See also Scaleable Bloom Filters for when you don't know the capacity in advance: L<http://gsd.di.uminho.pt/members/cbm/ps/dbloom.pdf> (not implemented in Acme::Tools)
 
 ...and perhaps L<http://intertrack.naist.jp/Matsumoto_IEICE-ED200805.pdf>
 
@@ -7969,7 +8018,7 @@ sub bfinit {
   croak "Not ok param to bfinit: ".join(", ",@not_ok) if @not_ok;
   croak "Not an arrayref in keys-param" if exists $arg{keys} and ref($arg{keys}) ne 'ARRAY';
   croak "Not implemented counting_bits=$arg{counting_bits}, should be 2, 4, 8, 16 or 32" if !in(nvl($arg{counting_bits},1),1,2,4,8,16,32);
-  croak "An bloom filters here can not be in both adaptive and counting_bits modes" if $arg{adaptive} and $arg{counting_bits}>1;
+  croak "A bloom filters here can not be in both adaptive and counting_bits modes" if $arg{adaptive} and $arg{counting_bits}>1;
   my $bf={error_rate    => 0.001,  #default p
 	  capacity      => 100000, #default n
           min_hashfuncs => 1,
@@ -8168,7 +8217,8 @@ sub bfstore {
 sub bfretrieve {
   require Storable;
   my $bf=Storable::retrieve(@_);
-  carp  "Retrieved bloom filter was stored in version $$bf{version}, this is version $VERSION" if $$bf{version}>$VERSION;
+  carp "Retrieved bloom filter was stored in version $$bf{version}, this is version $VERSION"
+    if $$bf{version} > $VERSION;
   return $bf;
 }
 sub bfclone {
@@ -8280,9 +8330,11 @@ sub unbase64 ($) {
 
 =head1 COMMANDS
 
+=head2 install_tools
+
 =head2 install_acme_command_tools
 
- sudo perl -MAcme::Tools -e install_acme_command_tools
+ sudo perl -MAcme::Tools -e install_tools
 
  Wrote executable /usr/local/bin/conv
  Wrote executable /usr/local/bin/due
@@ -8358,6 +8410,7 @@ through to pv. See: man pv.
 Like C<du> command but views space used by file extentions instead of dirs. Options:
 
  due [-options] [dirs] [files]
+ due -?          todo: show this help
  due -h          View bytes "human readable", i.e. C<8.72 MB> instead of C<9145662 b> (bytes)
  due -k | -m     View bytes in kilobytes | megabytes (1024 | 1048576)
  due -K          Like -k but uses 1000 instead of 1024
@@ -8373,43 +8426,76 @@ Like C<du> command but views space used by file extentions instead of dirs. Opti
  due -t          Adds time of day to -M and -P output
  due -e 'regex'  Exclude files (full path) matching regex. Ex: due -e '\.git'
  TODO: due -l    TODO: Exclude hardlinks (dont count "same" file more than once, "man du")
+ TODO: -S        TODO: exclude for sparse files (like 'du')
  ls -l | due     Parses output of ls -l, find -ls, tar tvf for size+filename and reports
  find | due      List of filenames from stdin produces same as just command 'due'
  ls | due        Reports on just files in current dir without recursing into subdirs
 
 =head3 finddup
 
-Find duplicate files. Three steps to speed this up in case of many
-large files: 1) Find files of same size, 2) of those: find files with
-the same first 8 kilobytes, 3) of those: find duplicate files by
-finding the MD5sums of the whole files.
+Finds duplicate files. Does this in three steps to speed this up in case of
+many large files:
+
+=over 4
+
+=item step 1: collect files of the same size as files of different size can never be duplicates (share the same content)
+
+=item step 2: among those found in the previous step, find files with the same first 8 kilobytes (or the same n bytes if -P n is used as option)
+
+=item step 3: among those found in the previos step, find those files who share the same md5sum of the whole files. Those are deemed to be duplicates.
+
+=back
 
  finddup [-d -s -h] paths/ files/* ...  #reports (+deletes with -d) duplicate files
                                         #-s for symlinkings dups, -h for hardlink
- finddup <files>    # print duplicate files, <files> might be filenames and directories
- finddup -a <files> # print duplicate files, also print the first file
- finddup -d <files> # delete duplicate files, use -v to also print them before deletion
- finddup -s <files> # make symbolic links of duplicate files
- finddup -h <files> # make hard links of duplicate files
- finddup -v ...     # verbose, print before -d, -s or -h
+ finddup <files>        # print duplicate files, <files> might be filenames and directories
+ finddup -a <files>     # print duplicate files, also print the first file
+ finddup -d <files>     # delete duplicate files, use -v to also print them before deletion
+ finddup -s <files>     # make symbolic links of duplicate files
+ finddup -h <files>     # make hard links of duplicate files
+ finddup -v ...         # verbose, print before -d, -s or -h
  finddup -n -d <files>  # dry run: show rm commands without actually running them
- finddup -n -s <files>  # dry run: show ln commands to make symlinks of duplicate files todo:NEEDS FIX!
+ finddup -n -s <files>  # dry run: show ln commands to make symlinks of duplicate files TODO: need fix!
  finddup -n -h <files>  # dry run: show ln commands to make hard links of duplicate files
  finddup -q ...         # quiet
- finddup -k o           # keep oldest with -d, -s, -h, consider newer files duplicates
- finddup -k n           # keep newest with -d, -s, -h, consider older files duplicates
+ finddup -k o           # keep oldest with -d -s -h, consider the newer files to be the duplicates
+ finddup -k n           # keep newest with -d -s -h, consider the older files to be the duplicates
  finddup -k O           # same as -k o, just use access time instead of modify time
  finddup -k N           # same as -k n, just use access time instead of modify time
+ finddup -k s | l       # keep file with shortest | longest basename (filename), i.e. ...(1).txt
+ finddup -k a | z       # keep file (basename) alphanumerically sorted first | last
+ finddup -e <h|s>+      # TODO: exclude hardlinks|softlinks from being found
  finddup -0 ...         # use ascii 0 instead of the normal \n, for xargs -0
  finddup -P n           # use n bytes from start of file in 1st md5 check (default 8192)
+ finddup -m method      # TODO: method is all, md5 or sha256, default is md5
+                        # sha256 is slower but safer, different files can be
+                        # found to share the same MD5, but as of yet in 2020
+                        # no such collisions are known for SHA256
+ finddup -L rate        # TODO: uses `pv -L` to rate limit in (full?) file scans
+ finddup -S sec         # TODO: sleep seconds between each full file scan
+ finddup -3 | -2 | -1   # check up to step 1, 2 or 3 (default 3)
  finddup -p             # view progress in last and slowest of the three steps
+ finddup -z             # TODO: skip zero sized files
+ finddup                # TODO: without args, show this help
 
 Default ordering of files without C<-k n> or C<-k o> is the order they
 are mentioned on the command line. For directory args the order might be
 random: use C<< dir/* >> to avoid that (but then dot files are not included).
 
+Examples:
+
+ finddup . | due     # see disk space that can be freed by deleting duplicates or by turning them into soft or hard links
+ finddup -d .        # delete duplicates
+ finddup -v -d dir/  # delete and view duplicates in dir/
+ finddup -d *jpg     # delete duplicates among *jpg files in current dir
+ finddup -0ko . | xargs -0 rm -i
+                     #answer y/n to delete each file or not, 0 for problematic filenames, ko=keep oldest
+
 =cut
 
+#hm http://manpages.ubuntu.com/manpages/trusty/man1/rdfind.1.html  apt install rdfind      # rdfind - finds duplicate files
+
+sub install_tools {install_acme_command_tools()}
 sub install_acme_command_tools {
   my $dir=(grep -d$_, @_, '/usr/local/bin', '/usr/bin')[0];
   for( qw( conv due xcat freq finddup ccmd trunc wipe rttop  z2z 2gz 2gzip 2bz2 2bzip2 2xz resubst zsize) ){
@@ -8560,8 +8646,9 @@ sub cmd_finddup {
   # http://www.commandlinefu.com/commands/view/3555/find-duplicate-files-based-on-size-first-then-md5-hash
   # die "todo: finddup not ready yet"
   my %o;
-  my @argv=opts("ak:dhsnqv0P:FMRp",\%o,@_); $o{P}=1024*8 if!defined$o{P}; $o{k}='' if!defined$o{k};
+  my @argv=opts("ak:dhsnqv0P:FRp123z",\%o,@_); $o{P}=1024*8 if!defined$o{P}; $o{k}='' if!defined$o{k};
   croak"ERR: cannot combine -a with -d, -s or -h" if $o{a} and $o{d}||$o{s}||$o{h};
+  croak"ERR: cannot combine -1, -2 or -3" if 1<grep$o{$_},1..3;
   require File::Find;
   @argv=map{
       my @f;
@@ -8569,8 +8656,10 @@ sub cmd_finddup {
       else    { @f=($_) }
       @f;
   }@argv;
+  @argv=grep -s$_, @argv if $o{z};
   my %md5sum;
-  my $md5sum=sub{$md5sum{$_[0]}=md5sum($_[0]) if!defined$md5sum{$_[0]}}; #memoize
+ #my $md5sum=sub{$md5sum{$_[0]}=md5sum($_[0]) if!defined$md5sum{$_[0]}}; #memoize
+  my $md5sum=sub{$md5sum{$_[0]}//=md5sum($_[0])}; #memoize
   my $md5sum_1st_part=sub{
       open my $fh, "<", $_[0] or die "ERR: Could not read $_[0]";
       binmode($fh);
@@ -8583,7 +8672,7 @@ sub cmd_finddup {
       sub{-s$_[0]<=$o{P}?md5sum($_[0]):&$md5sum_1st_part($_[0])},
       sub{md5sum($_[0])}
   );
-  pop @checks if $o{M}; #4tst
+  splice@checks,$o{1}?1:$o{2}?2:3;
   my $i=0;
   my %s=map{($_=>++$i)}@argv; #sort
   my %f=map{($_=>[$_])}@argv; #also weeds out dupl params
@@ -8608,10 +8697,16 @@ sub cmd_finddup {
   return %f if $o{F};
   my@r=sort{$s{$$a[0]}<=>$s{$$b[0]}}values%f;
   my $si={qw(o 9 n 9 O 8 N 8)}->{$o{k}}; #stat index: 9=mtime, 8=atime
-  my $sort=lc$o{k} eq 'o' ? sub{sprintf"%011d%9d",     (stat($_[0]))[$si],$s{$_[0]}}
-          :lc$o{k} eq 'n' ? sub{sprintf"%011d%9d",1e11-(stat($_[0]))[$si],$s{$_[0]}}
-          :                 sub{sprintf     "%9d",                        $s{$_[0]}};
-  @$_=map$$_[1],sort{$$a[0]cmp$$b[0]}map[&$sort($_),$_],@$_ for @r;
+  my $sort=lc$o{k} eq 'o' ? sub{sprintf"%011d%9d",     (stat($_[0]))[$si]     ,$s{$_[0]}}
+          :lc$o{k} eq 'n' ? sub{sprintf"%011d%9d",1e11-(stat($_[0]))[$si]     ,$s{$_[0]}}
+          :  $o{k} eq 's' ? sub{sprintf"%011d%9d",     length(basename($_[0])),$s{$_[0]}}
+          :  $o{k} eq 'l' ? sub{sprintf"%011d%9d",1e11-length(basename($_[0])),$s{$_[0]}}
+          :  $o{k} eq 'a' ? sub{sprintf"%-1000s%9d", basename($_[0]),          $s{$_[0]}}
+          :  $o{k} eq 'z' ? sub{sprintf"%-1000s%9d", basename($_[0]),      9e8-$s{$_[0]}}
+          :                 sub{sprintf     "%9d",                             $s{$_[0]}};
+  if($o{k} eq 'z'){  @$_=map$$_[1],sort{$$b[0]cmp$$a[0]}map[&$sort($_),$_],@$_ for @r }
+  else            {  @$_=map$$_[1],sort{$$a[0]cmp$$b[0]}map[&$sort($_),$_],@$_ for @r }
+
   my %of; #dup of
   for my $r (@r){
       $of{$_}=$$r[0] for @$r[1..$#$r];
