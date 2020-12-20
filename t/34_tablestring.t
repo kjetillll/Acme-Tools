@@ -55,11 +55,11 @@ $ok=~s,.*x.*\n,,g;
 $ok=~s, 88 , 23 ,;    $opt{nodup}=1;                           &$okk;   #nodup not working yet
 
 
- my @tab = (  [qw(aa bbbbb cccc ddddddddd)],
+ my @tab = (  ['aa', 'bbbbb', 'cccc', 'ddddddddd'],
               [1, undef,'hello'],
               [2],
-              [qw(3 -23.4 xxx)],
-              [qw(126 20 asdfasdf1 xyz)] );
+              ['3', -23.4, 'xxx'],
+              [126, 20, 'asdfasdf1', 'xyz'] );
 #@tab=([qw(aa bbbbb cccc ddddddddd)], [qw(1)], [qw(2)], [qw(3 -23.4 xxx)], [qw(126 20 asdfasdf1 xyz)]);
 $ts=tablestring_box(\@tab);
 is($ts,<<'','tablestring_box() with utf-8 lines');

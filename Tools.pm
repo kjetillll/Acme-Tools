@@ -7127,23 +7127,24 @@ sub tablestring {
 
 =head2 tablestring_box
 
-Returns a multiline string of the rendered table with utf-8 lines (like C<.mode box> in
-newer sqlite3 versions).  Numeric columns are right aligned. Requires a UTF-8 enabled
-terminal. Run the 'locale' command if on Linux-ish systems to check for UTF-8. Otherwise,
-use the C<tablestring()> functions.
+Returns a multiline string of the rendered two dimentional input table with utf-8
+lines (like C<.mode box> in newer sqlite3 versions). Numeric columns are right
+aligned. Requires a UTF-8 enabled terminal to see the UTF-8 lines properly.
+Run the 'locale' command if on Linux-ish systems to check for UTF-8.
+Otherwise, use the C<tablestring()> functions.
 
- my @tab = (  [qw(aa bbbbb cccc ddddddddd)],
+ my @tab = (  ['aa', 'bbbbb', 'cccc', 'ddddddddd'],
               [1, undef,'hello'],
               [2],
-              [qw(3 -23.4 xxx)],
-              [qw(126 20 asdfasdf1 xyz)] );
+              ['3', -23.4, 'xxx'],
+              [126, 20, 'asdfasdf1', 'xyz'] );
  
  print tablestring_box(\@tab);
  
  ┌─────┬───────┬───────────┬───────────┐
  │  aa │ bbbbb │ cccc      │ ddddddddd │
  ├─────┼───────┼───────────┼───────────┤
- │   1 │       │           │           │
+ │   1 │       │ hello     │           │
  │   2 │       │           │           │
  │   3 │ -23.4 │ xxx       │           │
  │ 126 │    20 │ asdfasdf1 │ xyz       │
@@ -9192,6 +9193,8 @@ sub sum      { &Acme::Tools::bfsum      }
 
 # Ny versjon:
 # - git clone https://github.com/kjetillll/Acme-Tools.git
+# - git fetch
+# - git checkout v0.28  #or whatever the remote branch name is, check for "remote" in output
 # - c-s todo
 # - endre $VERSION
 # - endre Release history under HISTORY
@@ -9207,7 +9210,8 @@ sub sum      { &Acme::Tools::bfsum      }
 # - perlbrew exec "perl Makefile.PL && make test" | grep -P '^(perl-|All tests successful)'
 # - perlbrew use perl-5.10.1; perl Makefile.PL && make test; perlbrew off
 # - test evt i cygwin og mingw-perl
-# - pod2html Tools.pm > Tools.html ; firefox Tools.html
+# - pod2html Tools.pm > Tools.html && chromium-browser Tools.html
+# - pod2html Tools.pm > Tools.html && firefox          Tools.html
 # - https://metacpan.org/pod/Acme::Tools
 # - http://cpants.cpanauthors.org/dist/Acme-Tools   #kvalitee
 # - perl Makefile.PL && make test && make dist
