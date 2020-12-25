@@ -3,10 +3,10 @@ package Acme::Tools;
 
 our $VERSION = '0.28';
 
-use 5.008;     #Perl 5.8 was released July 18th 2002
+use 5.008;     #Perl 5.8 released July 2002 (perldoc perlhist)
 use strict;
 use warnings;
-use Carp;      #todo: rid of deps, make own carp+croak here
+use Carp;      #TODO? rid of deps, make own carp+croak here
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -855,6 +855,11 @@ our %conv=(
 		  microns            => 1e-6,
 		  micrometre         => 1e-6,
 		  micrometres        => 1e-6,
+		  micrometer         => 1e-6,
+		  micrometers        => 1e-6,
+		  'μm'               => 1e-6,
+		  'μmeter'           => 1e-6,
+		  'μmeters'          => 1e-6,
                   'Å'                => 1e-10,
                   'ångstrøm'         => 1e-10,
                   'angstrom'         => 1e-10,
@@ -3438,7 +3443,7 @@ sub aoh2sql {
     $sql;
 }
 
-sub aoh2xls { croak "Not implemented yet: aoh2xls" }
+sub aoh2xls { croak "Not implemented yet: aoh2xls" } #TODO
 
 
 =head1 STATISTICS
@@ -4083,17 +4088,24 @@ sub pwgen {
   return @pw;
 }
 
+#push_srand() and pop_srand dont work as intended
+#=head2 push_srand
+#
+# srand(7); print rand(), 
+#
+#=head2 pop_srand
+#
+#=cut
 our @Srand;
 sub push_srand {
-    $]>=5.014 or croak "Returning current srand (when called without params) started with Perl v5.14, see perldoc -f srand";
+    $] >= 5.024 or croak "Returning current srand (when called without params) started with Perl v5.14, see perldoc -f srand";
     my($new,$old)=(shift(),srand());
     push @Srand, $old;
     srand($new) if defined $new;
     $old;
 }
-
 sub pop_srand {
-    croak "Can not pop_srand more times than push_srand" if not @Srand;
+    croak "Can not pop_srand more times than push_srand" if !@Srand;
     srand(pop@Srand);
 }
 
@@ -4885,35 +4897,25 @@ Example, this:
 
 Automatic compression:
 
- writefile('file.txt.gz','my text is compressed by /bin/gzip before written to the file');
+ writefile('file.txt.gz','my text is compressed by /bin/gzip when written to the file');
 
-Extentions C<.gz>, C<.bz2> and C<.xz> are recognized for compression. See also C<readfile()> and C<openstr()>.
+Extentions C<.gz>, C<.bz2>, C<.xz> and C<.zst> are recognized for compression. See also C<readfile()> and C<openstr()>.
 
 B<Output:> Nothing (for the time being). C<die()>s (C<croak($!)> really) if something goes wrong.
 
 =cut
 
-#todo: use openstr() as in readfile(), transparently gzip .gz filenames and so on
 sub writefile {
-    my($filename,$text)=@_;
-    if(ref($filename) eq 'ARRAY'){
-	writefile(@$_) for @$filename;
-	return;
-    }
-    open(WRITEFILE,openstr(">$filename")) and binmode(WRITEFILE) or croak($!);
-    if(!defined $text or !ref($text)){
-	print WRITEFILE $text;
-    }
-    elsif(ref($text) eq 'SCALAR'){
-	print WRITEFILE $$text;
-    }
-    elsif(ref($text) eq 'ARRAY'){
-	print WRITEFILE "$_\n" for @$text;
-    }
-    else {
-	croak;
-    }
-    close(WRITEFILE);
+    my($file,$text)=@_;
+    return map writefile(@$_), @$file                     if ref($file) eq 'ARRAY';
+    return map writefile($_,$$file{$_}), sort keys %$file if ref($file) eq 'HASH';
+    open my $FH, openstr(">$file") or croak($!);
+    binmode($FH);
+    if(  !ref$text){ print $FH $text }
+    elsif(ref($text) eq 'SCALAR' ){ print $FH $$text }
+    elsif(ref($text) eq 'ARRAY'  ){ print $FH "$_\n" for @$text }
+    else                          { croak }
+    close($FH);
     return;
 }
 
@@ -4968,17 +4970,21 @@ Extentions C<.gz>, C<.bz2> and C<.xz> are recognized for decompression. See also
 #todo: readfile with grep-filter code ref in a third arg (avoid reading all into mem)
 
 sub readfile {
-  my($filename,$ref)=@_;
-  if(@_==1){
-    if(wantarray){ my @data; readfile($filename,\@data); return @data }
-    else         { my $data; readfile($filename,\$data); return $data }
+  my($file,$ref,$filter)=@_;
+  return readfile($file,undef,$ref) if ref($ref) eq 'CODE';
+  return map{[$_=>"".readfile($_)]}@$file           if ref($file) eq 'ARRAY';
+  return map{($_=>"".readfile($_))}sort keys %$file if ref($file) eq 'HASH';
+
+  if(@_==1 or @_==3 and !defined$ref){
+    if(wantarray){ my @data; readfile($file,\@data,$filter); return @data }
+    else         { my $data; readfile($file,\$data,$filter); return $data }
   }
   else {
-    open my $fh,openstr($filename) or croak("ERROR: readfile $! $?");
-    if   ( ref($ref) eq 'SCALAR') { $$ref=join"",<$fh> }
-    elsif( ref($ref) eq 'ARRAY' ) { while(my $l=<$fh>){ chomp($l); push @$ref, $l } }
+    open my $FH, openstr($file) or croak("ERROR: readfile $! $?");
+    if   ( ref($ref) eq 'SCALAR') { $$ref=join"",<$FH> }
+    elsif( ref($ref) eq 'ARRAY' ) { while(my $l=<$FH>){ chomp($l); push @$ref, $l if!defined$filter or &$filter($l)} }
     else { croak "ERROR: Second arg to readfile should be a ref to a scalar og array" }
-    close($fh);
+    close($FH);
     return;#?
   }
 }
@@ -5325,15 +5331,17 @@ See also C<writefile()> and C<readfile()> for automatic compression and decompre
 
 =cut
 
-our @Openstrpath=(grep$_,split(":",$ENV{PATH}),qw(/usr/bin /bin /usr/local/bin));
+our @Openstrpath=(grep$_,split(":",$ENV{PATH}),
+		  qw( /usr/bin  /bin  /usr/local/bin
+                      /usr/sbin /sbin /usr/local/sbin ));
 our $Magic_openstr=1;
 sub openstr_prog { @Openstrpath or return $_[0];(grep -x$_, map "$_/$_[0]", @Openstrpath)[0] or croak"$_[0] not found" }
 sub openstr {
-  my($fn,$ext)=(shift()=~/^(.*?(?:\.(t?gz|bz2|xz))?)$/i);
-  return $fn if !$ext or !$Magic_openstr;
-  $fn =~ /^\s*>/
-      ?  "| ".(openstr_prog({qw/gz gzip bz2 bzip2 xz xz tgz gzip/   }->{lc($ext)})).$fn
-      :        openstr_prog({qw/gz zcat bz2 bzcat xz xzcat tgz zcat/}->{lc($ext)})." $fn |";
+  my($fn,$ext)=(shift()=~/^(.*?(?:\.(t?gz|bz2|xz|zstd?))?)$/i);
+  !$ext           ? $fn :
+  !$Magic_openstr ? $fn :
+  $fn=~/^\s*>/    ? "| ".(openstr_prog({qw/gz gzip bz2 bzip2 xz xz    tgz gzip zst zstd    zstd zstd/   }->{lc($ext)})).$fn
+                  :       openstr_prog({qw/gz zcat bz2 bzcat xz xzcat tgz zcat zst zstdcat zstd zstdcat/}->{lc($ext)})." $fn |";
 }
 
 =head2 printed
@@ -5816,16 +5824,18 @@ longer) than physical ones. This was tested on VMware and RHEL
  sleep_fp(0.020);   #sleeps for 20 milliseconds
  sleeps(0.020);     #sleeps for 20 milliseconds, sleeps() is a synonym to sleep_fp()
  sleepms(20);       #sleeps for 20 milliseconds
- sleepus(20000);    #sleeps for 20000 microseconds = 20 milliseconds
+ sleepus(20000);    #sleeps for 20000 microseconds = 20000 μs = 20 milliseconds
  sleepns(20000000); #sleeps for 20 million nanoseconds = 20 milliseconds
 
 =cut
 
-sub sleep_fp { eval{require Time::HiRes} or (sleep(shift()),return);Time::HiRes::sleep(shift()) }
-sub sleeps   { eval{require Time::HiRes} or (sleep(shift()),return);Time::HiRes::sleep(shift()) }
-sub sleepms  { eval{require Time::HiRes} or (sleep(shift()/1e3),return);Time::HiRes::sleep(shift()/1e3) }
-sub sleepus  { eval{require Time::HiRes} or (sleep(shift()/1e6),return);Time::HiRes::sleep(shift()/1e6) }
-sub sleepns  { eval{require Time::HiRes} or (sleep(shift()/1e9),return);Time::HiRes::sleep(shift()/1e9) }
+#73e-6 (73μs) below is call overhead (on some systems, like on v5.22 on linux on a 2015 state of the art intel laptop)
+#TODO: self modifying overhead estimation
+sub sleep_fp { eval{require Time::HiRes} or (sleep(shift()),    return);my$s=shift()-73e-6;Time::HiRes::sleep($s>0?$s:0) }
+sub sleeps   { eval{require Time::HiRes} or (sleep(shift()),    return);my$s=shift()-73e-6;Time::HiRes::sleep($s>0?$s:0) }
+sub sleepms  { eval{require Time::HiRes} or (sleep(shift()/1e3),return);my$s=shift()-73e-6;Time::HiRes::sleep($s>0?$s/1e3:0) }
+sub sleepus  { eval{require Time::HiRes} or (sleep(shift()/1e6),return);my$s=shift()-73e-6;Time::HiRes::sleep($s>0?$s/1e6:0) }
+sub sleepns  { eval{require Time::HiRes} or (sleep(shift()/1e9),return);my$s=shift()-73e-6;Time::HiRes::sleep($s>0?$s/1e9:0) }
 
 =head2 eta
 
@@ -7121,7 +7131,7 @@ sub tablestring {
     }
   }#for x
   my $r=join("\n",@tabout)."\n";
-  tablestring_box0(\$r) if $o{box};
+  #tablestring_box(\$r) if $o{box}; #hm
   $r
 }
 
@@ -7138,11 +7148,13 @@ Otherwise, use the C<tablestring()> functions.
               [2],
               ['3', -23.4, 'xxx'],
               [126, 20, 'asdfasdf1', 'xyz'] );
- 
+  
  print tablestring_box(\@tab);
- 
+
+Output this multiline string with utf-8 lines: (ie for utf-8 terminals or <pre> blocks in html)
+
  ┌─────┬───────┬───────────┬───────────┐
- │  aa │ bbbbb │ cccc      │ ddddddddd │
+ │ aa  │ bbbbb │ cccc      │ ddddddddd │
  ├─────┼───────┼───────────┼───────────┤
  │   1 │       │ hello     │           │
  │   2 │       │           │           │
@@ -7150,51 +7162,56 @@ Otherwise, use the C<tablestring()> functions.
  │ 126 │    20 │ asdfasdf1 │ xyz       │
  └─────┴───────┴───────────┴───────────┘
 
+Supports multiline cells like this:
+
+ print tablestring_box([
+   ["aaaa\n(%)", 'bbbbb', 'cccc', "dddddd\nddd\nasdfdsa"],
+   [1, undef,'hello'],
+   ['3', -23.4, 'xxx'],
+   [12345, 20, "asdfasdf1\nasdffdsa\nxasdf", 'xyz']]);
+ ┌───────┬───────┬───────────┬─────────┐
+ │ aaaa  │ bbbbb │ cccc      │ dddddd  │
+ │ (%)   │       │           │ ddd     │
+ │       │       │           │ asdfdsa │
+ ├───────┼───────┼───────────┼─────────┤
+ │     1 │       │ hello     │         │
+ │     3 │ -23.4 │ xxx       │         │
+ │       │       │           │         │
+ │ 12345 │    20 │ asdfasdf1 │ xyz     │
+ │       │       │ asdffdsa  │         │
+ │       │       │ xasdf     │         │
+ │       │       │           │         │
+ └───────┴───────┴───────────┴─────────┘
+
+TODO: tablestring_box() dont yet support tags in values as in html/xml tags like tablestring() do.
+
 =cut
 
 sub tablestring_box {
-    return tablestring_box([@_]) if !ref($_[0]);
-    my $t=shift;
     use utf8;
-    my $ts=<<''=~s/^([│ y]+)$/join"\n",map$1,2..@$t/emr;
-┌───┬───┐
-│ x │ x │
-├───┼───┤
-│ y │ y │
-└───┴───┘
-
-    my @w;for(@$t){ my $c=0; $w[$c++]=!defined$w[$c]||!defined$_||length>$w[$c]?length:$w[$c] for @$_ } #print srlz(\@w,'w');
-    my %l;for my$r(@$t[1..$#$t]){for(0..$#$r){$l{$_}++ if defined$$r[$_]&&$$r[$_]=~/\S/&&!isnum($$r[$_])}} #left aligned
-    $ts=~s/^(.+?)([┼┴┬]───|│ [xy] )/"$1".($2 x (@w-1))/gem;
+    my $tmpo=ref($_[-1]) eq 'HASH'?pop:{};
+    return tablestring_box([@_],$tmpo) if !ref($_[0]) or !ref($_[0][0]);
+    my($hl,$i,$t,$opt)=(0,-1,@_);
+    my @t=map{
+	my @r=map[split/\n/,$_//''],@$_;
+	my $l=0;$l=$l<@$_?@$_:$l for@r;
+	my @l=map{my$i=$_;[map$$_[$i]//'',@r]}0..$l-1;
+	@l=([],@l,[]) if $l>1 and $hl;
+	$hl||=$l;
+	@l
+    }@$t;
+    my @w;for(@t){$w[$i]=!defined$w[++$i]||length>$w[$i]?length:$w[$i] for@$_;$i=-1} #width
+    my %l;for(@t[$hl..$#t]){++$i,/\S/&&!/$Re_isnum/&&$l{$i}++for@$_;$i=-1} #left align
+    my $ts="┌───┬───┐\n"
+	  ."│ x │ x │\n"x$hl
+	  ."├───┼───┤\n"
+	  ."│ y │ y │\n"x(@t-$hl)
+	  ."└───┴───┘";
+    $ts=~s/^(.+?)([┼┴┬]───|│ [xy] )/$1.$2x$#w/gem;
     $ts=join'',map{for my$w(1..@w){my$pos=2+4*(@w-$w);s/(.{$pos})(.)/$1.($2x$w[@w-$w])/e};"$_\n"}split/\n/,$ts;
-    my @v=map@$_[0..$#w],@$t;
-    $ts=~s|[xy]+|sprintf$l{@w-@v%@w}?"%-*s":"%*s",length$&,shift@v//''|ge;
-    utf8::encode($ts); #hm ::decode input?
+    $ts=~s§([xy])+§sprintf$l{++$i%@w}||$1eq'x'?"%-*s":"%*s",length$&,$t[$i/@w][$i%@w]//''§ge;
+   #utf8::encode($ts); #hm ::decode input?
     $ts
-}
-sub tablestring_box0 {
-    my $r=shift;
-    my@w;
-    $$r=~s|^[- ]+$|$&=~s/ -/┼-/gr=~s/-+/push@w,length$&;'─'x$w[-1]/ger|me;
-    $$r=~s,─ ,──,;
-    my $w=sum(@w)+@w;
-    my $i=0;
-    $$r=srlz(\@w,'w')
-	.'┌'.('─' x $w)."┐\n"
-	.(join'',map sprintf(++$i==2?"├%-*s┤\n":"│%-*s│\n",$w,$_),split/\n/,$$r)
-	.'└'.('─' x $w)."┘\n";
-    my @l=split/\n/,$$r;
-    my $m=2;
-    for(1..$#w){$w[$_]+=$w[$_-1]-$_}
-    my %co=map{$_=>1}@w;
-    print srlz(\@w,'w');
-    print srlz(\%co,'co');
-    my($ro,$co)=(0,-1);
-    $$r=~s{\X}{$co++;($ro,$co)=($ro+1,0) if $& eq "\n";$& eq ' '&&$co{$co}?'│':$&}gse;
-    for(split//,$$r){
-	
-    }
-#    $$r=~s,-+,'─' x length($&),ge if /^[\- ]+\n$/m;
 }
 
 =head2 serialize
@@ -8450,7 +8467,6 @@ Examples of commands then made available:
  2gz                           #same as z2z with -t gz
 
  rttop
- trunc file(s)
  wipe file(s)
 
 =head3 z2z
@@ -8474,7 +8490,8 @@ Keeps uid, gid, mode (chmod) and mtime.
                  number if more than one file is being converted
  -o              Overwrites existing result file, otherwise stop with error msg
  -1 .. -9        Degree of compression, -1 fastest .. -9 best
- -e              With -t xz (or 2xz) passes -e to xz (-9e = extreme compression)
+ -e              With 2xz (or z2z -t xz) passes -e to xz
+                 (-9e = extreme compression and extremly slow and memory hungry)
 
  -L rate         With -p. Slow down, ex:  -L 200K  means 200 kilobytes per second
  -D sec          With -p. Only turn on progress meter (pv) after x seconds
@@ -8483,8 +8500,17 @@ Keeps uid, gid, mode (chmod) and mtime.
  -I              With -p. Show ETA as time of arrival as well as time left
  -q              With -p. Quiet. Useful with -L to limit rate, but no output
 
-The options -L -D -i -l -I -q implicitly turns on -p. Those options are passed
-through to pv. See: man pv.
+The options -L -D -i -l -I -q implicitly turns on -p and -q for pv unless -p
+(with or without -q is used). Those options are passed on to pv. See: C<man pv>
+
+Examples:
+
+Slowly turn .gz files into probably smaller .xz files while keeping times and ownerskip of files.
+The -L 100K (or lower) slows down the compression and cpu usage (i.e. to not start a laptop fan)
+
+ 2xz -pvL 100K big_files*.gz 
+ 2xz -pvkL 100K big_files*.gz  #same but -k keep the original .gz files
+ 2xz -9pv big_files*.xz        #convert already .xz files with maybe tighter compression (level 9)
 
 =head3 due
 
@@ -8579,7 +8605,7 @@ Examples:
 sub install_tools {install_acme_command_tools()}
 sub install_acme_command_tools {
   my $dir=(grep -d$_, @_, '/usr/local/bin', '/usr/bin')[0];
-  for( qw( conv due xcat freq finddup ccmd trunc wipe rttop  z2z 2gz 2gzip 2bz2 2bzip2 2xz resubst zsize) ){
+  for( qw( conv due xcat freq finddup ccmd wipe rttop  z2z 2gz 2gzip 2bz2 2bzip2 2xz resubst zsize) ){
     unlink("$dir/$_");
     writefile("$dir/$_", "#!$^X\nuse Acme::Tools;\nAcme::Tools::cmd_$_(\@ARGV);\n");
     sys("/bin/chmod +x $dir/$_"); #hm umask
@@ -8824,8 +8850,6 @@ sub cmd_ccmd {
   print STDERR "".readfile($fne);
 }
 
-sub cmd_trunc { die "todo: trunc not ready yet"} #truncate a file, size 0, keep all other attr
-
 #todo:   wipe -n 4 filer*   #virker ikke! tror det er args() eller opts() som ikke virker
 sub cmd_wipe  {
   my %o;
@@ -8845,7 +8869,7 @@ sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
 #todo: sub cmd_7z
 #todo: .tgz same as .tar.gz (but not .tbz2/.txz)
 #todo:
-#  2xz -9pvLk 100K webdok.20200508.tar.gz
+#  2xz -9pvkL 100K big_fat_file.tar.gz  # -L100K for slow compress (ie dont start laptop fan)
 #  pv: -L: integer argument expected
 #  gzip: stdin: unexpected end of file
 #    1/2   ETA:-0.0000260s 0.0%      900493585 b =>          32 b webdok.20200508.tar.xz
@@ -8858,7 +8882,7 @@ sub cmd_z2z {
   my @argv=opts("pt:kvhon123456789es:$pvopts",\%o,@_);
   my $t=repl(lc$o{t},qw/gzip gz bzip2 bz2/);
   die "due: unknown compression type $o{t}, known are gz, bz2 and xz" if $t!~/^(gz|bz2|xz)$/;
-  $o{p}=1 if!defined$o{p} and grep$pvopts=~/$_/,keys%o;
+  $o{p}=$o{q}=1 if!defined$o{p} and grep$pvopts=~/$_/,keys%o; # pvopts implies -p -q (quiet pv if -L++ wo -p)
   delete $o{e} if $o{e} and $o{t} ne 'xz' and warn "-e available only for type xz\n";
   my $sum=sum(map -s$_,@argv);
   print "Converting ".@argv." files, total ".bytes_readable($sum)."\n" if $o{v} and @argv>1;
@@ -9275,6 +9299,10 @@ sub sum      { &Acme::Tools::bfsum      }
 
 Release history
 
+ 0.28  TODO       tablestring_box, graph_scc, opts, huffman,
+                  huffman_pack, huffman_unpack, push_srand, pop_srand
+                  random_exp, random_poisson,++ ...more..., examin make indep of make? Build.pm?
+
  0.27  Feb 2020   Small fixes for some platforms
 
  0.26  Jan 2020   Convert subs: base bin2dec bin2hex bin2oct dec2bin dec2hex dec2oct
@@ -9282,7 +9310,7 @@ Release history
                   Array subs: joinr perm permute permute_continue pile sortby subarrays
                   Other subs: btw in_iprange ipnum_ok iprange_ok opts s2t
 
- 0.24  Feb 2019   fixed failes on perl 5.16 and older
+ 0.24  Feb 2019   fixed fails on perl 5.16 and older
 
  0.23  Jan 2019   Subs: logn, egrep, which. More UTF-8 "oriented" (lower, upper, ...)
                   Commands: zsize, finddup, due (improved), conv (improved, [MGT]?Wh
@@ -9321,7 +9349,7 @@ Kjetil Skotheim, E<lt>kjetil.skotheim@gmail.comE<gt>
 
 =head1 COPYRIGHT
 
-2008-2020, Kjetil Skotheim
+2008-2021, Kjetil Skotheim
 
 =head1 LICENSE
 

@@ -4,8 +4,9 @@
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More;
 use Digest::MD5 'md5_hex';
-if( $^O=~/(?<!cyg)win/i ) { plan skip_all => 'POSIX::tzset not ok on windows'  }
-else                      { plan tests    => 68                                }
+my $skip_all=$^O=~/(?<!cyg)win/i && !$ENV{ATSLEEP};
+if( $skip_all ) { plan skip_all => 'POSIX::tzset not ok on windows'  }
+else            { plan tests    => 70                                }
 
 $ENV{TZ}='CET';
 #$ENV{TZ}='Europe/Oslo';
@@ -106,20 +107,25 @@ ok(@diff==0,'easter formula1 and 2 eq from year 1498 to 10000');
 ok( time_fp() =~ /^\d+\.\d+$/ , 'time_fp' );
 
 #--sleep_fp
-sleep_fp(0.01); #init, require Time::HiRes
-my $tfp=time_fp();
-sleep_fp(0.1);
-my $diff=abs(time_fp()-$tfp-0.1);
-
-#-fails on many systems...virtual boxes?
-#$^O eq 'linux'
-#? ok($diff < 0.03, "sleep_fp, diff=$diff < 0.03")    #off 30% ok
-#: ok (1);
-
-sleeps(0.010);
-sleepms(10);
-sleepus(10000);
-sleepns(10000000);
+SKIP: {
+  skip 'sleep_fp-tests',2 unless $ENV{ATSLEEP};  #some systems fails...virtual boxes? un-linux-es?
+  my $test_sleep=sub{
+    my($exp,$test)=@_;
+    my $tfp=time_fp();
+    &$test;
+    $got=time_fp()-$tfp;
+    my $p=100*abs(($got-$exp)/$exp); #percent
+    ok($p < 30, sprintf"sleep_fp, got %.7fs vs %.7fs, %.1f%% off, < 30%% off is ok",$got,$exp,$p);
+  };
+  require Time::HiRes; #init
+  &$test_sleep(0.001,sub{sleep_fp(0.001)});
+  &$test_sleep(4*0.01,sub{
+    sleeps(0.010);     #seconds
+    sleepms(10);       #milliseconds 1e-3
+    sleepus(10000);    #microseconds 1e-6 (10000 μs)
+    sleepns(10000000); #nanoseconds  1e-9
+  });
+}
 
 if(eval{require Date::Parse}){
   is(s2t("18/februar/2019:13:53","MM"),'02','s2t MM');

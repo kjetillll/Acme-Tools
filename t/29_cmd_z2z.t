@@ -1,5 +1,6 @@
 # make test
-# perl Makefile.PL; make; perl -Iblib/lib t/29_cmd_z2z.t
+# perl Makefile.PL && make && perl -Iblib/lib t/29_cmd_z2z.t
+# perl Makefile.PL && make && TMPDIR=/dev/shm perl -Iblib/lib t/29_cmd_z2z.t
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests    => 8;
 warn <<"" and map ok(1),1..8 and exit if $^O!~/^(linux|cygwin)$/;
@@ -15,7 +16,8 @@ for(qw(gz bz2 xz gz xz bz2 gz)){
   next if !Acme::Tools::which($prog) and warn "Program $prog missing, test z2z -t $_" and ok(1);
   my $opt='-vt';
   $opt=~s,-,-h, if $n++>3;
-  Acme::Tools::cmd_z2z($opt,$_,"$tf$last");
+  print qq( Acme::Tools::cmd_z2z($opt,$_,"$tf$last") )."\n";
+            Acme::Tools::cmd_z2z($opt,$_,"$tf$last");
   ok( -s "$tf.$_" );
   $last=".$_";
 }

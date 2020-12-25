@@ -2,7 +2,7 @@
 # perl Makefile.PL && make && perl -Iblib/lib t/02_general.t
 
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests => 200;
+use Test::More tests => 195;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -221,7 +221,8 @@ ok_ref( $a={webparams("b=123&a=1&b=122&a=3&a=2%20")},{a=>'1,3,2 ',b=>'123,122'},
 
 #--chall
 my $tmp=tmp();
-if($^O eq 'linux' and -w$tmp){
+SKIP: {
+  skip 'test chall(), only for linux', 11 unless $^O eq 'linux' and -w$tmp;
   my $f1="$tmp/tmpf1";
   my $f2="$tmp/tmpf2";
   chmod(0777,$f1,$f2) and unlink($f1, $f2);
@@ -245,28 +246,6 @@ if($^O eq 'linux' and -w$tmp){
   }
   chmod(0777,$f1,$f2) and unlink($f1, $f2);
 }
-else {ok(1) for 1..11}   # not linux
-
-#--writefile, readfile
-if($^O eq 'linux' and -w$tmp){
-  my $fn="$tmp/tmptestfile$$";
-  unlink($fn);
-  my $data="xxx\nyyy\nzzzz" x 10001;
-  writefile($fn,$data);
-  if(open my $file, "<", $fn){ ok(join("",<$file>) eq $data, 'writefile') }
-  else                       { ok(0,"open $fn") }
-  ok("".readfile($fn) eq $data, 'readfile');
-  ok(join(",",readfile($fn)) eq replace($data,"\n",","), 'readfile lines');
-  my $sz=-s$fn;
-  unlink($fn);
-  writefile("$fn.gz",$data);
-  my $szgz=-s"$fn.gz";
-  ok($szgz/$sz < 0.1,             'writefile gz');
-  deb "gz ".($szgz/$sz);
-  ok(readfile("$fn.gz") eq $data, 'readfile gz');
-  unlink("$fn.gz");
-}
-else{ok(1) for 1..5}     # not linux
 
 #--permutations, perm, permutate
 ok(join("-", map join("",@$_), permutations('a','b'))  eq 'ab-ba',                  'permutations 1');
