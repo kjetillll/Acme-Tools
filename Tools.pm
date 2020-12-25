@@ -7209,7 +7209,7 @@ sub tablestring_box {
 	  ."└───┴───┘";
     $ts=~s/^(.+?)([┼┴┬]───|│ [xy] )/$1.$2x$#w/gem;
     $ts=join'',map{for my$w(1..@w){my$pos=2+4*(@w-$w);s/(.{$pos})(.)/$1.($2x$w[@w-$w])/e};"$_\n"}split/\n/,$ts;
-    $ts=~s§([xy])+§sprintf$l{++$i%@w}||$1eq'x'?"%-*s":"%*s",length$&,$t[$i/@w][$i%@w]//''§ge;
+    $ts=~s!([xy])+!sprintf$l{++$i%@w}||$1eq'x'?"%-*s":"%*s",length$&,$t[$i/@w][$i%@w]//''!ge;
    #utf8::encode($ts); #hm ::decode input?
     $ts
 }
@@ -9245,7 +9245,8 @@ sub sum      { &Acme::Tools::bfsum      }
 # - git status
 # - git commit -am versjon
 # - git push                    #eller:
-# - git push origin master
+# - git push origin master      #eller:
+# - git push -u origin v0.28
 # - http://pause.perl.org/
 # - tegnsett/utf8-kroell
 # - https://rt.cpan.org/Dist/Display.html?Queue=Acme-Tools
