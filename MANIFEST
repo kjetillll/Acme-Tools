@@ -12,7 +12,7 @@ t/04_resolve.t
 t/05_distance.t
 t/06_conv.t
 t/07_big.t
-t/08_eta.t
+t/08_functional.t
 t/09_rank_pushsort_binsearch.t
 t/10_md5sum.t
 t/11_part.t
@@ -65,5 +65,7 @@ t/test_perm.pl
 t/test_perm2.pl
 t/test_pi.pl
 t/test_pivot.pl
+t/test_prime.pl
+t/test_primes.pl
 t/test_resolve_bigfloat.pl
 t/test_speed_pushsort.pl
