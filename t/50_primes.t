@@ -41,6 +41,7 @@ for( [1           => 0],  # up to => number of primes
   my $start=time_fp();
   #my@p=primes($$_[0]);
   #is( 0+@p, $$_[1], join(' => ',@$_) );
+  no warnings 'uninitialized';
   is( 0+primes($$_[0]), $$_[1], join(' => ',@$_) );
   $t += time_fp()-$start;
 }

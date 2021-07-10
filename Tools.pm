@@ -1526,8 +1526,8 @@ sub conv_prepare {
       $$ct{$_.$unit}=$x{$_}*$c for keys%x;
     }
     for(keys%$ct){ #kWh kwh KWH ...
-      $$ct{lc$_}//=$$ct{$_};
-      $$ct{uc$_}//=$$ct{$_};
+      $$ct{lc$_}=$$ct{$_} if !defined($$ct{lc$_});
+      $$ct{uc$_}=$$ct{$_} if !defined($$ct{uc$_});
     }
   }
   $conv_prepare_time=time();
@@ -3575,12 +3575,12 @@ itself is surrounded by " chars. Example:
 
 sub csv {
   my $char=@_>0&&!ref($_[-1]) ? pop() : ',';
-  join '', map { join($char,map{!defined?'':do{my$s=s/"/""/gr;/$char|\n|^\s|\s$|"/?qq("$s"):length($s)?$s:'""'}}@$_)."\n" } @_;
+  join '', map { join($char,map{!defined($_)?'':do{my$s=s/"/""/gr;/$char|\n|^\s|\s$|"/?qq("$s"):length($s)?$s:'""'}}@$_)."\n" } @_;
 }
 
 sub uncsv {
   my($char,$tag,@s)=(@_>1?$_[1]:',', '__/&m=m&/__'); #hm, $tag='¤';
-  map{ [ map{ my$q=s/$tag(\d+)/$s[$1]/g; s/""/"/g; length?$_:$q?'':undef } split/\s*$char\s*/ ] }
+  map{ [ map{ my$q=s/$tag(\d+)/$s[$1]/g; s/""/"/g; length($_)?$_:$q?'':undef } split/\s*$char\s*/ ] }
   split /\n|\cM?\cJ/,
   $_[0]=~s/"(.*?(?:""|[^"])*)"/ push@s,$1; $tag.$#s /segr;
 }
@@ -4413,7 +4413,7 @@ This has nothing to do with the way uniq is implemented. It's Perl's C<sort>.
 
 =cut
 
-sub uniq(@) { my(%seen,$undef); grep defined ? !$seen{$_}++ : !$undef++, @_ }
+sub uniq(@) { my(%seen,$undef); grep defined($_) ? !$seen{$_}++ : !$undef++, @_ }
 
 =head1 HASHES
 

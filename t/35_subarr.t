@@ -31,7 +31,7 @@ my @a=qw(e1 e2 e3 e4 e5);
   ok_str( join("+",subarr \@a,-3,2,'x3','x4','x5' ), 'e3+e4' );
   ok_str( join("+",@a), 'e1+e2+x3+x4+x5+e5' );
   subarr(\@a,3,1,undef);
-  ok_str( join("+",@a), 'e1+e2+x3++x5+e5' );
+  ok_str( join("+",map defined($_)?$_:'',@a), 'e1+e2+x3++x5+e5' );
 
   #--pod example
   my $ref = [1..10];
@@ -40,8 +40,8 @@ my @a=qw(e1 e2 e3 e4 e5);
   ok_str( join("+",@arr), '5+6' );
 #}
 
-my @a=subarrays( 'a', 'bb', 'c' );
-is( repl(srlz(\@a),"\n"),
+my @a2=subarrays( 'a', 'bb', 'c' );
+is( repl(srlz(\@a2),"\n"),
     "(['a'],['bb'],['a','bb'],['c'],['a','c'],['bb','c'],['a','bb','c'])" );
 
 is( 2**$_-1, 0+subarrays(1..$_) ) for 0..10;

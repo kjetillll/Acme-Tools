@@ -21,11 +21,11 @@ else {
 }
 sub is_approx { my($got,$exp,$msg)=@_; my $margin=30/31; between($got/$exp, $margin,1/$margin) ? ok(1,$msg) : is($got,$exp,$msg) }
 my($F,$T)=(0.999999,1.000001);
-sub ltst    {my$d=levdist($_[0],$_[1]);  ok(btw($d?$d/$_[2]:$_[2]==0,$F,$T),"levdist: $_[0] | $_[1]   $_[2] $_[3]")}
-sub jtst    {my$d=jsim($_[0],$_[1]);     ok(btw($d?$d/$_[2]:$_[2]==0,$F,$T),"jsim: $_[0] | $_[1]   $_[2] $_[3]")}
-sub jwtst   {my$d=jwsim($_[0],$_[1]);    ok(btw($d?$d/$_[2]:$_[2]==0,$F,$T),"jwsim: $_[0] | $_[1]   $_[2] $_[3]")}
-sub jwtst02 {my$d=jwsim($_[0],$_[1],0.2);ok(btw($d?$d/$_[2]:$_[2]==0,$F,$T),"jwsim: $_[0] | $_[1] | 0.2    $_[2] $_[3]")}
-sub jwtst00 {my$d=jwsim($_[0],$_[1],0.0);ok(btw($d?$d/$_[2]:$_[2]==0,$F,$T),"jwsim: $_[0] | $_[1] | 0.0    $_[2] $_[3]")}
+sub ltst    {my$d=levdist($_[0],$_[1]);  ok(btw($d?$d/$_[2]:$_[2]==0,$F,$T),"levdist: $_[0] | $_[1]   $_[2]")}
+sub jtst    {my$d=jsim($_[0],$_[1]);     ok(btw($d?$d/$_[2]:$_[2]==0,$F,$T),"jsim: $_[0] | $_[1]   $_[2]")}
+sub jwtst   {my$d=jwsim($_[0],$_[1]);    ok(btw($d?$d/$_[2]:$_[2]==0,$F,$T),"jwsim: $_[0] | $_[1]   $_[2]")}
+sub jwtst02 {my$d=jwsim($_[0],$_[1],0.2);ok(btw($d?$d/$_[2]:$_[2]==0,$F,$T),"jwsim: $_[0] | $_[1] | 0.2    $_[2]")}
+sub jwtst00 {my$d=jwsim($_[0],$_[1],0.0);ok(btw($d?$d/$_[2]:$_[2]==0,$F,$T),"jwsim: $_[0] | $_[1] | 0.0    $_[2]")}
 
 ltst( 'elephant', 'elepanto',   2 );
 ltst( 'elephant', 'elephapntv', 2 );

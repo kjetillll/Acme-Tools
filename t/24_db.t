@@ -36,8 +36,9 @@ SKIP:{
   ){
     my($exp,$s,@b)=@$_;
     my $got=drow($s,@b);
-    is($got,$exp,"$s --> $got vs $exp");
-    ddo("delete from tst") if $exp==6;
+    my $info=do{no warnings 'uninitialized'; "$s --> $got vs $exp"};
+    is($got,$exp,$info);
+    ddo("delete from tst") if defined $exp and $exp==6;
   }
   dins('tst',@tst);
   is(drow("select sum(1) from tst"),100,'100 again');

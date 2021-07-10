@@ -35,7 +35,7 @@ sub testscc {
 
 print "----------graph_toposort----------\n";
 
-<<''; #example https://en.wikipedia.org/wiki/Topological_sorting
+#example https://en.wikipedia.org/wiki/Topological_sorting
 
 my @DAG=([5 => 11], [7 => 11], [7 => 8], [3 => 8], [3 => 10], [11 => 2], [11 => 9], [11 => 10], [8 => 9]);
 my @s=graph_toposort(@DAG);
@@ -140,7 +140,7 @@ sub graph_toposort2 { #Khan's topological sort algorithm
 sub is_circular_DAG {
   my @DAG=@_;
   my %seen;
-  my @node=grep!$seep{$_}++,map@$_,@DAG;
+  my @node=grep!$seen{$_}++,map@$_,@DAG;
   #die srlz(\@node,'node').@node."\n";
   
   my $i;

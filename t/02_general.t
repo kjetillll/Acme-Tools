@@ -101,13 +101,13 @@ ok( decode_num($test, 121=>3, 221=>7, '123.0','b') eq 'b' ,'decode_num');
 
 #--between
 ok( between(7, 1,10)           ,'between a');
-ok( between(undef, 1,10) eq '' ,'between b');
+ok( !defined(between(undef, 1,10)),'between b');
 ok( between(7, 10,1)           ,'between c');
 ok( between(5,5,5)             ,'between d');
 
 #--btw, a better(?) between
 ok( btw(7, 1,10)           ,'btw a');
-ok( btw(undef, 1,10) eq '' ,'btw b');
+ok( !defined(btw(undef, 1,10)),'btw b');
 ok( btw(7, 10,1)           ,'btw c');
 ok( btw(5,5,5)             ,'btw d');
 ok( btw(1,1,10)            ,'btw e'); # numeric order since all three looks like number according to =~$Re_isnum

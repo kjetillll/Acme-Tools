@@ -24,7 +24,7 @@ SKIP: {
 sub co{"content inside of file $tmp/file_$_[0]" x 1e1}
 writefile([map{["$tmp/file_a$_"=>co("a$_")]}0..3]);
 writefile({map{("$tmp/file_h$_"=>co("h$_"))}0..3});
-my@id="a0".."a3","h0".."h3";
+my@id=("a0".."a3","h0".."h3");
 my %rf=readfile({map{("$tmp/file_$_"=>1)}@id});
 my @rf=readfile([map"$tmp/file_$_",@id]);
 is_deeply(\%rf,{map{("$tmp/file_$_"=>co($_))}@id}, 'readfile hashref');

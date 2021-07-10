@@ -135,7 +135,7 @@ my @arr=(
 ok(srlz([sortby(\@arr,'Year','Gender','Name')]),
    srlz([map$$_[0],
 	 sort{$$a[1]cmp$$b[1]}
-	 map[$_,sprintf("%-30s%04d%s",@$_{qw(Year Gender Name)})],
+	 map[$_,sprintf("%04d%s%-30s",@$_{qw(Year Gender Name)})],
 	 @arr]));
 
 
