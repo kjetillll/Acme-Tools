@@ -14,7 +14,8 @@ for my $fun (qw(sum min max avg pile)){
     my @list = map rand(), 1..12;
     my $is=/pile/?\&is_deeply:\&is;
     unshift @list, 3 if/pile/;
-    eval<<''=~s|is|/pile/?'is_deeply':'is'|er;
+   #eval<<''=~s|is|/pile/?'is_deeply':'is'|er; #>v5.12
+    my$e=<<'';$e=~s|is|/pile/?'is_deeply':'is'|e;eval$e;
     is( &{"_$fun"}(@list),
         &{$fun}(@list),
         "function: _$fun vs $fun" );

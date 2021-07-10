@@ -2,7 +2,6 @@
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests => 87;
 use Carp;
-use List::MoreUtils 'any';
 use Benchmark;
 
 #       A ---> B       ,---  G <--- H
@@ -77,9 +76,9 @@ for(
     #print "redo: $redo\n";
 #    if($$_{v}==1000){
 #      timethese(20, {
-#	   graph_toposort  => sub { @o=graph_toposort(@e) },
-#	   graph_toposort2 => sub { @o=graph_toposort2(@e) },
-#		  });
+#      graph_toposort  => sub { @o=graph_toposort(@e) },
+#      graph_toposort2 => sub { @o=graph_toposort2(@e) },
+#        });
 #    }
 }
 #print srlz(\@DAG,'DAG');
@@ -94,13 +93,17 @@ sub graph_h2h {
   check_DAG(@_);
   my %hash;
   $hash{$$_[0]}{$$_[1]}++ for @_;
-  %hash	
+  %hash
 }
+
+#use List::MoreUtils 'any';
+#sub any(&@){ my $block=shift; 0+grep$block,@_ }
 
 sub graph_toposort { #Khan's topological sort algorithm
   check_DAG(@_);
   my @DAG=map{[@$_]}@_; #copy
-  my $incoming=sub{ my$node=shift; any{$node eq $$_[1]} @DAG }; #any
+ #my $incoming=sub{ my$node=shift; any{$node eq $$_[1]} @DAG }; #any
+  my $incoming=sub{ my$node=shift; $node eq $$_[1] and return 1 for @DAG; 0 };
   my @l;                          #will contain sorted elem
   my @n=sort(uniq(map @$_,@DAG)); #all nodes
   my @s=grep !&$incoming($_),reverse@n;  #init @s to vertices without incoming edges
@@ -109,8 +112,8 @@ sub graph_toposort { #Khan's topological sort algorithm
       my $n=pop @s;    #shift@s ???                #print"N=".@n." n=$n s=".@s." DAG=".@DAG." l=".@l." ";
       push @l, $n if !in($n,@l);                   #print "l=".@l." ";
       for my $m (map$$_[1],grep $n eq $$_[0],@DAG){  # all from $n, $n -> $m
-	  @DAG=grep{!($$_[0] eq $n and $$_[1] eq $m)}@DAG; #remove current from copy of input
-	  push @s, $m if !&$incoming($m);
+      @DAG=grep{!($$_[0] eq $n and $$_[1] eq $m)}@DAG; #remove current from copy of input
+      push @s, $m if !&$incoming($m);
       }
       #print "s=".@s."\n";
   }
@@ -129,9 +132,9 @@ sub graph_toposort2 { #Khan's topological sort algorithm
     my @s=grep!exists$incoming{$_},reverse@n;
     my(@l,%l_seen);
     while(@s){
-	my $n=pop@s;
-	push @l, $n if !$l_seen{$n}++;
-	push @s, grep {delete$incoming{$_}{$n};!keys%{$incoming{$_}}} @{$outgoing{$n}}
+    my $n=pop@s;
+    push @l, $n if !$l_seen{$n}++;
+    push @s, grep {delete$incoming{$_}{$n};!keys%{$incoming{$_}}} @{$outgoing{$n}}
     }
     die "ERROR: circular graph! so no toposort exists" if grep {keys%$_} values%incoming;
     @l
@@ -148,9 +151,9 @@ sub is_circular_DAG {
       die"for lang? ".srlz(\@_,'_') if @_>200;
       return @_ if @_>1 and $_[-1] eq $_[0];
       for(grep$$_[1] ne $_[-1],
-	  grep $_[-1] eq $$_[0], @DAG){
-	  my @test=(@_,$$_[1]);
-	  return @test if &$circ(@test);
+      grep $_[-1] eq $$_[0], @DAG){
+      my @test=(@_,$$_[1]);
+      return @test if &$circ(@test);
       }
       return ()
   };
@@ -158,10 +161,12 @@ sub is_circular_DAG {
   @circ=&$circ($_) and return @circ for @node;
   ();
 }
-	
+
 sub is_toposorted {
     my $list=shift;
     check_DAG(@_);
     my %pos=map{($$list[$_]=>$_)}0..$#$list;
-    any { $pos{$$_[0]} < $pos{$$_[1]} } @_;
+#   any { $pos{$$_[0]} < $pos{$$_[1]} } @_;
+    $pos{$$_[0]} < $pos{$$_[1]} and return 1 for @_;
+    0
 }

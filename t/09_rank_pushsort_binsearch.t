@@ -151,8 +151,8 @@ for(0..29){
     my $got=join' ',@r; #$got.="x" if .03>rand;
     my $exp=join' ',sort{$b<=>$a}@arr;
     my $info="heap array: size=".@arr."  ".join(' ',@arr);
-    
-    is($got,$exp,$info=~s,^(.{99})...+,$1...,r);
+    $info=~s,^(.{99})...+,$1...,;
+    is($got,$exp,$info);
     is($count,$size,"return $size") if /29/;
 }
 

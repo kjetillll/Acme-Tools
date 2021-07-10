@@ -20,7 +20,7 @@ Cosmo,New Jersey,42
 
 my @a2=uncsv($csv);
 
-is_deeply(\@a,\@a2);
+is_deeply(\@a2,\@a);
 
 $csv=csv(@a,';');
 
@@ -33,7 +33,7 @@ Cosmo;New Jersey;42
 
 @a2=uncsv($csv,';');
 
-is_deeply(\@a,\@a2);
+is_deeply(\@a2,\@a);
 
 #---- from https://en.wikipedia.org/wiki/Comma-separated_values#Example
 my @car=(

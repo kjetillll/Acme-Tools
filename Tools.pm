@@ -3575,14 +3575,16 @@ itself is surrounded by " chars. Example:
 
 sub csv {
   my $char=@_>0&&!ref($_[-1]) ? pop() : ',';
-  join '', map { join($char,map{!defined($_)?'':do{my$s=s/"/""/gr;/$char|\n|^\s|\s$|"/?qq("$s"):length($s)?$s:'""'}}@$_)."\n" } @_;
+ #join '', map { join($char,map{!defined($_)?'':do{my$s=s/"/""/gr;/$char|\n|^\s|\s$|"/?qq("$s"):length($s)?$s:'""'}}@$_)."\n" } @_; #>v5.12
+  join '', map { join($char,map{!defined($_)?'':do{my$s=$_;$s=~s/"/""/g;/$char|\n|^\s|\s$|"/?qq("$s"):length($s)?$s:'""'}}@$_)."\n" } @_;
 }
 
 sub uncsv {
   my($char,$tag,@s)=(@_>1?$_[1]:',', '__/&m=m&/__'); #hm, $tag='¤';
   map{ [ map{ my$q=s/$tag(\d+)/$s[$1]/g; s/""/"/g; length($_)?$_:$q?'':undef } split/\s*$char\s*/ ] }
   split /\n|\cM?\cJ/,
-  $_[0]=~s/"(.*?(?:""|[^"])*)"/ push@s,$1; $tag.$#s /segr;
+ #$_[0]=~s/"(.*?(?:""|[^"])*)"/ push@s,$1; $tag.$#s /segr; #>v5.12
+  do{$_[0]=~s/"(.*?(?:""|[^"])*)"/ push@s,$1; $tag.$#s /seg;$_[0]}
 }
 
 
