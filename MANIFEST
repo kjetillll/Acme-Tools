@@ -52,6 +52,9 @@ t/44_graph.t
 t/45_opts.t
 t/46_x2y_numeric_base_converts.t
 t/47_huffman.t
+t/48_readfile_writefile.t
+t/49_csv.t
+t/50_primes.t
 t/common.pl
 t/test_binsearch_bench.pl
 t/test_fork_bloom.pl
@@ -64,4 +67,3 @@ t/test_pi.pl
 t/test_pivot.pl
 t/test_resolve_bigfloat.pl
 t/test_speed_pushsort.pl
-

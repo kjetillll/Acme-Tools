@@ -39,6 +39,8 @@ our @EXPORT = qw(
   sortedstr
   sortby
   subarrays
+  hpush
+  hpop
   pushsort
   pushsortstr
   binsearch
@@ -150,6 +152,7 @@ our @EXPORT = qw(
   base
   gcd
   lcm
+  primes
   pivot
   tablestring
   tablestring_box
@@ -213,6 +216,8 @@ our @EXPORT = qw(
   pile
   aoh2sql
   aoh2xls
+  csv
+  uncsv
   base64
   unbase64
   opts
@@ -532,6 +537,49 @@ Seems to works with L<Math::BigInt> as well: (C<lcm> of all integers from 1 to 2
 
 sub lcm { my($a,$b,@r)=@_; @r ? lcm($a,lcm($b,@r)) : $a*$b/gcd($a,$b) }
 
+=head2 primes
+
+B<Input:>
+
+* positive number returns primes up to and perhaps including that number
+
+* negative number returns that many of the first primes
+
+B<Output:> a list of the first primes
+
+Uses a sieve algorithm doing bitwise or's.
+
+ primes(1000);  # 2, 3, 5, 7, 11, ..., 997
+ primes(997);   # 2, 3, 5, 7, 11, ..., 997
+ primes(-168);  # 2, 3, 5, 7, 11, ..., 997      (168 primes)
+ primes(-2);    # 2, 3
+ primes(-1);    # 2
+ primes(0);     # empty list
+ primes(1);     # empty list
+ primes(2);     # 2
+ primes(3);     # 2, 3
+ primes(1e6);   # returns a list of the first 78498 primes
+
+=cut
+
+sub primes {
+  my $n = shift;
+  return (2,3) if $n==-2;
+  return (2)   if $n==-1 or $n==2;
+  return ()    if $n==0  or $n==1;
+  return (primes(do{my$N=-$n;$N*=1.1while$N/log($N)<-1.2*$n;$N}))[0..-$n-1] if $n<0;
+  my( $q,$factor,$repeat,$bits ) =( sqrt($n), 1, 1, 0 x $n );
+  while ( $factor <= $q ) {
+    $factor += 2;
+    $factor += 2 while $factor < $n and substr($bits,$factor,1);
+    $repeat .= 0 x (2*$factor-length$repeat);
+    my $times = -($factor**2-length$bits)/2/$factor + 1;
+    $bits |= 0 x $factor**2  .  ($times>0?$repeat x $times:'');
+  }
+  @{[2,map$_*2+1,grep!substr($bits,1+$_*2,1),1..$n/2-.5]};
+}
+
+
 =head2 resolve
 
 Resolves an equation by Newtons method.
@@ -824,7 +872,7 @@ our %conv=(
 		  meters  => 1,
 		  metre   => 1,
 		  metres  => 1,
-		  km      => 1000,
+#		  km      => 1000,
 		  mil     => 10000,                   #scandinavian #also: inch/1000!
 		  in      => 0.0254,
 		  inch    => 0.0254,
@@ -893,6 +941,8 @@ our %conv=(
 		  alen          => 0.0254*12*2,             #0.6096m
 		  favn          => 0.0254*12*2*3,           #1.8288m
 		  kvart         => 0.0254*12*2/4,           #0.1524m a quarter alen
+		 #sjømil_pre1875=> 0.0254*12*2*3*3950,      #3950 favner
+		 #sjømil        => 7420,                    #1 geografisk mil = 1⁄15 ekvatorgrad = 7420 meter
                   #--https://upload.wikimedia.org/wikipedia/commons/e/eb/English_length_units_graph.svg
                   twip          => 0.0254 / 6 / 12 / 20,
                   point         => 0.0254 / 6 / 12,
@@ -1468,12 +1518,16 @@ sub conv_prepare {
   # demi => 1/2, double => 2   #obsolete
   # lakh => 1e5, crore => 1e7  #south	asian
   my %x = (%s,%b);
-  for my $type (keys%conv) {
-    for(grep/^_/,keys%{$conv{$type}}) {
-      my $c=$conv{$type}{$_};
-      delete$conv{$type}{$_};
+  for my $ct (values%conv) {
+    for(grep/^_/,keys%$ct) { # _m -> mm, cm, dm, km, ...
+      my $c=$$ct{$_};
+      delete$$ct{$_};
       my $unit=substr($_,1);
-      $conv{$type}{$_.$unit}=$x{$_}*$c for keys%x;
+      $$ct{$_.$unit}=$x{$_}*$c for keys%x;
+    }
+    for(keys%$ct){ #kWh kwh KWH ...
+      $$ct{lc$_}//=$$ct{$_};
+      $$ct{uc$_}//=$$ct{$_};
     }
   }
   $conv_prepare_time=time();
@@ -2110,8 +2164,9 @@ And removes any whitespace inside the string of more than one char, leaving the 
 
  trim(" asdf \t\n    123 ")  eq "asdf 123"
  trim(" asdf\t\n    123\n")  eq "asdf\t123"
+ trim(" asdf\n\t    123\n")  eq "asdf\n123"
 
-Works on C<< $_ >> if no argument i given:
+Works on C<< $_ >> if no argument is given:
 
  print join",", map trim, " please ", " remove ", " my ", " spaces ";   # please,remove,my,spaces
  print join",", trim(" please ", " remove ", " my ", " spaces ");       # works on arrays as well
@@ -2308,11 +2363,15 @@ To get a huffman encoding:
  my %freq; $freq{$_}++ for chars($str);
  my %code = huffman(%freq);
 
+Alternative input: just the string. The above three lines can be changed to:
+
+ my %code = huffman('A_DEAD_DAD_CEDED_A_BAD_BABE_A_BEADED_ABACA_BED');
+
 %code is now: C< ('A','10', 'B','1111', 'C','1110', 'D','01', 'E','110', '_','00') >.
 
 A tip for decoding:
 
- my %letter = reverse huffman(%freq);
+ my %letter = reverse huffman(%freq);      # $letter{'10'} is now A and so on
 
 =head2 huffman_pack
 
@@ -2321,7 +2380,6 @@ Input: First arg: a string or arrayref. Optional second arg: a hashref to what e
 Output: to elements: the encoded binary string and the hashref to the given or found encoding hash which is to be used upon L</huffman_decode>
 
  my($encoded_binary_string, $encoding_hashref) = huffman_pack("some string which will be split into chars")
-
 
 =head2 huffman_unpack
 
@@ -2453,14 +2511,27 @@ sub repl {
 
 =head2 subarr
 
-The equivalent of C<substr> on arrays or C<splice> without changing the array.
-Input: 1) array or arrayref, 2) offset and optionally 3) length. Without a
-third argument, subarr returns the rest of the array.
+The equivalent of C<substr> on arrays.
 
- @top10    = subarr( @array, 0, 10);   # first 10
- @last_two = subarr( @array, -2, 2);   # last 2
- @last_two = subarr( $array_ref, -2);  # also last 2
- @last_six = subarr $array_ref, -6;    # parens are optional
+Input args: 1) arrayref, 2) offset, 3) optional length and 4) optional replacement array.
+
+Without a third argument, subarr returns the rest of the array.
+
+For one to three input args, subarr works as C<splice> without changing the array.
+
+Negative offsets and lengths works as Perls substr, see C<perldoc -f substr>
+
+For four or more input args, subarr works just as splice with replacement and as substr with four args, and returns what is replaced.
+
+ @top10 = subarr( \@array, 0, 10);   # first 10
+ @last2 = subarr( \@array, -2, 2);   # last 2
+ @last2 = subarr( $array_ref, -2);   # also last 2
+ @last6 = subarr  $array_ref, -6;    # returns last 6 elems, parens are optional
+ @last6 = subarr( $array_ref, -6,6,'x','y'); # replaces last 6 elems with the two string elems x and y, still returns the last six
+ my $ref = [1..10];
+ @arr   = subarr( $ref, -6, -4, qw(X Y ZZ); #replaces sixth and fifth last elems with x, y and zz. Returns replaced two elems
+ print join('+',@arr);               # 5+6
+ print join('+',@$ref);              # 1+2+3+4+X+Y+ZZ+7+8+9+10
 
 The same can be obtained from C<< @array[$from..$to] >> but that dont work the
 same way with negative offsets and boundary control of length.
@@ -2472,24 +2543,27 @@ same way with negative offsets and boundary control of length.
 
 #sub subarr(+$;$) { #perl>=5.14        # t/35_subarr.t
 sub subarr { #perl<5.14
-  my($a,$o,$l)=@_;
-  $o=@$a+$o if $o<0;
-  $o=0      if $o<0;
-  $o=@$a-1  if $o>@$a-1;
-  $l=@$a-$o if @_<3;
-  croak     if $l<0;
-  $l=@$a-$o if $l>@$a-$o;
-  @$a[$o..$o+$l-1];
+  my($a,$o,$l,@r)=@_;
+  croak "subarr: first arg not array ref" if ref($a) ne 'ARRAY';
+  $o=@$a+$o    if $o<0;
+  $o=0         if $o<0;
+  $o=@$a-1     if $o>@$a-1;
+  $l=@$a-$o    if @_<3;
+  $l=@$a-$o+$l if $l<0;
+  $l=@$a-$o    if $l<0;
+  $l=@$a-$o    if $l>@$a-$o;
+  @_>3 ? splice(@$a,$o,$l,@r)
+       : @$a[$o..$o+$l-1];
 }
 
 =head2 min
 
 Returns the smallest number in a list. Undef is ignored.
 
- @lengths=(2,3,5,2,10,undef,5,4);
+ @lengths=(3,2,5,2,10,undef,5,4);
  $shortest = min(@lengths);   # returns 2
 
-Note: The comparison operator is perls C<< < >>> which means empty strings is treated as C<0>, the number zero. The same goes for C<max()>, except of course C<< > >> is used instead.
+Note: The comparison operator is perls C<< < >> which means empty strings is treated as C<0>, the number zero. The same goes for C<max()>, except of course C<< > >> is used instead.
 
  min(3,4,5)       # 3
  min(3,4,5,undef) # 3
@@ -2504,7 +2578,7 @@ Returns the largest number in a list. Undef is ignored.
 
 =head2 mins
 
-Just as L</min>, except for strings.
+Just as L</min>, except for strings. Uses the alphanumerical comparison operator C< lt > (less than).
 
  print min(2,7,10);          # 2
  print mins("2","7","10");   # 10
@@ -2512,7 +2586,7 @@ Just as L</min>, except for strings.
 
 =head2 maxs
 
-Just as L</mix>, except for strings.
+Just as L</max>, except for strings. Uses the alphanumerical comparison operator C< gt > (greater than).
 
  print max(2,7,10);          # 10
  print maxs("2","7","10");   # 7
@@ -2779,6 +2853,36 @@ sub jwsim {
     $sim + $prefix*$p*(1-$sim);
 }
 
+sub hpush {
+    my $heap=shift;
+    my $attr=pop if ref($_[-1]) eq 'HASH';
+    for(@_){
+	push @$heap, $_;
+	my $i=@$heap;
+	while($i>=2 and $$heap[$i-1] > $$heap[$i/2-1]){
+	    @$heap[$i-1,$i/2-1]=@$heap[$i/2-1,$i-1];
+	    $i/=2;
+	}
+	pop@$heap while $attr and @$heap > $$attr{maxsize};
+    }
+    0+@$heap;
+}
+sub hpop {
+    my $heap=shift;
+    my $last=pop@$heap;
+    return $last if !@$heap;
+    my($i,$top)=(1,splice@$heap,0,1,$last);
+    while(1){  #swap with largest kid while any kid is larger
+	my $left_exists=  $#$heap >= $i*2-1 || last;
+	my $right_exists= $#$heap >= $i*2;
+	my($left,$right)=@$heap[$i*2-1,$i*2];
+	last if (!$left_exists  or $last > $left)
+            and (!$right_exists or $last > $right);
+	$i = $i*2 + ($right_exists && $left < $right);
+	@$heap[$i-1,$i/2-1]=@$heap[$i/2-1,$i-1];
+    }
+    $top
+}
 
 =head2 pushsort
 
@@ -3270,7 +3374,7 @@ sub joinr    {join(shift(),@{shift()})}
 
 B<Input:> a pile size s and a list
 
-B<Output:> A list of lists of length s or the length of the remainer in
+B<Output:> A list of lists of length s or the length of the remainder in
 the last list. Piles together the input list in lists of the given size.
 
  my @list=(1,2,3,4,5,6,7,8,9,10);
@@ -3280,7 +3384,11 @@ the last list. Piles together the input list in lists of the given size.
 
 =cut
 
-sub pile { my $size=shift; my @r; for (@_){ push@r,[] if !@r or 0+@{$r[-1]}>=$size; push @{$r[-1]}, $_ } @r }
+sub pile { my $size=shift; my @r; for (@_){ push@r,[] if !@r or @{$r[-1]}>=$size; push @{$r[-1]}, $_ } @r }
+#sub pile {my$s=shift; @{(reduce {!ref($a) ? [[$b]] : @{$$a[-1]} >= $s ? [@$a,[$b]] : [@$a[0..$#$a-1],[@{$$a[-1]},$b]]} 0,@_)[0]} }
+#sub pile {my$s=shift; @{(reduce {!ref($a) ? [[$b]] : @{$$a[-1]} >= $s ? [@$a,[$b]] : [@$a[0..$#$a-1],[@{$$a[-1]},$b]]} 0,@_)[0]} }
+#sub pile {my$s=shift; @{(reduce {!ref($a) ? [[$b]] : @{$$a[-1]} >= $s ? [@$a,[$b]] : do{push@{$$a[-1]},$b;$a}} 0,@_)[0]}
+#sub pile {my$s=shift; @{(reduce {ref($a)?do{push@$a,[]if@{$$a[-1]}>=$s;push@{$$a[-1]},$b;$a}:[[$b]]} 0,@_)[0]}}
 
 =head2 aoh2sql
 
@@ -3444,6 +3552,38 @@ sub aoh2sql {
 }
 
 sub aoh2xls { croak "Not implemented yet: aoh2xls" } #TODO
+
+=head2 csv
+
+Input, one or two arguments:
+* The 1st arg is either an array of arrayrefs or an array of hashrefs
+* The 2nd optional arg is a separation char. A comma is default
+
+Outputs a multiline string where each line is a string of comma
+separated values (thus the name csv). A value that contains comma in
+itself is surrounded by " chars. Example:
+
+ print csv(['Name','Address','Age'], ['Jerry','Manhattan, NYC',35],
+           ['George','Queens, NYC',35], ['Cosmo','New Jersey',42] );
+
+ Name,Address,Age
+ Jerry,"Manhattan NYC",35
+ George,"Queens, NYC",35
+ Cosmo,New Jersey,42
+
+=cut
+
+sub csv {
+  my $char=@_>0&&!ref($_[-1]) ? pop() : ',';
+  join '', map { join($char,map{!defined?'':do{my$s=s/"/""/gr;/$char|\n|^\s|\s$|"/?qq("$s"):length($s)?$s:'""'}}@$_)."\n" } @_;
+}
+
+sub uncsv {
+  my($char,$tag,@s)=(@_>1?$_[1]:',', '__/&m=m&/__'); #hm, $tag='¤';
+  map{ [ map{ my$q=s/$tag(\d+)/$s[$1]/g; s/""/"/g; length?$_:$q?'':undef } split/\s*$char\s*/ ] }
+  split /\n|\cM?\cJ/,
+  $_[0]=~s/"(.*?(?:""|[^"])*)"/ push@s,$1; $tag.$#s /segr;
+}
 
 
 =head1 STATISTICS
@@ -3614,8 +3754,7 @@ Is the same as this:
 
  @p = percentile([25, 50, 75], @data);
 
-But the latter is faster, especially if @data is large since it sorts
-the numbers only once internally.
+But the latter is about three times faster for large @data since it then sorts those numbers only once.
 
 B<Example:>
 
@@ -4274,7 +4413,7 @@ This has nothing to do with the way uniq is implemented. It's Perl's C<sort>.
 
 =cut
 
-sub uniq(@) { my %seen; grep !$seen{$_}++, @_ }
+sub uniq(@) { my(%seen,$undef); grep defined ? !$seen{$_}++ : !$undef++, @_ }
 
 =head1 HASHES
 
@@ -5108,21 +5247,25 @@ See also: L<https://www.google.com/search?q=wipe+file>, L<http://www.dban.org/>
 =cut
 
 sub wipe {
-  my($file,$times,$keep)=@_;
+  my($file,$times,$keep,$progress)=@_;
   $times||=3;
   croak "ERROR: File $file nonexisting\n" if not -f $file or not -e $file;
   my $size=-s$file;
   open my $WIFH, '+<', $file or croak "ERROR: Unable to open $file: $!\n";
   binmode($WIFH);
+  my $bs=10240;
+  my $p;if($progress and require'Term::ProgressBar'){$p=Term::ProgressBar->new({count=>$times*$size/$bs,name=>'Wipe...',remove=>1,ETA=>'linear',max_update_rate=>0.5})}
+  my $i=0;
   for(1..$times){
-    my $block=chr(int(rand(256))) x 1024;#hm
-    for(0..($size/1024)){
-      seek($WIFH,$_*1024,0);
+    my $block=chr(int(rand(256))) x $bs;#hm
+    for(0..($size/$bs)){
+      seek($WIFH,$_*$bs,0);
       print $WIFH $block;
+      $p->update(++$i) if $p;
     }
   }
   close($WIFH);
-  $keep || unlink($file);
+  $keep or unlink($file);
 }
 
 =head2 chall
@@ -6719,7 +6862,7 @@ Many functions can then be implemented with very little code. Such as:
 
 =cut
 
-sub reduce (&@) {
+sub reduce_bk (&@) {
   my ($proc, $first, @rest) = @_;
   return $first if @rest == 0;
   no warnings;
@@ -6727,6 +6870,20 @@ sub reduce (&@) {
   return $proc->();
 }
 
+sub reduce (&@) {
+  my $code = shift;
+  no strict 'refs';
+  return shift unless @_ > 1;
+  use vars qw($a $b);
+  my $caller = caller;
+  local(*{$caller."::a"}) = \my $a;
+  local(*{$caller."::b"}) = \my $b;
+  $a = shift;
+  $b = $_, $a = &{$code}() for @_;
+  $a;
+}
+#sub reduce(&@){my$sub=shift;unshift@_,$sub->(shift,shift) while @_>1; $_[0]}
+#my $sum = reduce { $_[0] + $_[1] } @list;
 
 =head2 pivot
 
@@ -7137,11 +7294,11 @@ sub tablestring {
 
 =head2 tablestring_box
 
-Returns a multiline string of the rendered two dimentional input table with utf-8
-lines (like C<.mode box> in newer sqlite3 versions). Numeric columns are right
-aligned. Requires a UTF-8 enabled terminal to see the UTF-8 lines properly.
-Run the 'locale' command if on Linux-ish systems to check for UTF-8.
-Otherwise, use the C<tablestring()> functions.
+Returns a multiline string of the rendered two dimentional input table with
+utf-8 box-drawing chars (like C<.mode box> in newer sqlite3 versions).
+Numeric columns are right aligned. Requires a UTF-8 enabled terminal to
+see the UTF-8 lines properly. Run the 'locale' command if on Linux-ish
+systems to check for UTF-8. Otherwise, use the C<tablestring()> functions.
 
  my @tab = (  ['aa', 'bbbbb', 'cccc', 'ddddddddd'],
               [1, undef,'hello'],
@@ -7162,7 +7319,7 @@ Output this multiline string with utf-8 lines: (ie for utf-8 terminals or <pre> 
  │ 126 │    20 │ asdfasdf1 │ xyz       │
  └─────┴───────┴───────────┴───────────┘
 
-Supports multiline cells like this:
+Cells can be multilined:
 
  print tablestring_box([
    ["aaaa\n(%)", 'bbbbb', 'cccc', "dddddd\nddd\nasdfdsa"],
@@ -7210,15 +7367,15 @@ sub tablestring_box {
     $ts=~s/^(.+?)([┼┴┬]───|│ [xy] )/$1.$2x$#w/gem;
     $ts=join'',map{for my$w(1..@w){my$pos=2+4*(@w-$w);s/(.{$pos})(.)/$1.($2x$w[@w-$w])/e};"$_\n"}split/\n/,$ts;
     $ts=~s!([xy])+!sprintf$l{++$i%@w}||$1eq'x'?"%-*s":"%*s",length$&,$t[$i/@w][$i%@w]//''!ge;
-   #utf8::encode($ts); #hm ::decode input?
+    #utf8::encode($ts); #hm ::decode input?
     $ts
 }
 
 =head2 serialize
 
 Returns a data structure as a string. See also C<Data::Dumper>
-(serialize was created long time ago before Data::Dumper appeared on
-CPAN, before CPAN even...)
+(serialize was created in the 90s on early Perl5s before awareness
+if Data::Dumper existed or not)
 
 B<Input:> One to four arguments.
 
@@ -7423,6 +7580,10 @@ sub srlz {
   $s=~s,=>'([+-]?(0|[1-9]\d*)(\.\d+)?([eE][-+]?\d+)?)',=>$1,g;  #todo?: ikke ledende null!    hm
   $s;
 }
+
+#sub srz {
+#    ref circular safe...
+#}
 
 =head2 cnttbl
 
@@ -8591,7 +8752,7 @@ random: use C<< dir/* >> to avoid that (but then dot files are not included).
 
 Examples:
 
- finddup . | due     # see disk space that can be freed by deleting duplicates or by turning them into soft or hard links
+ finddup . | due -h  # see disk space that can be freed by deleting duplicates or by turning them into soft or hard links
  finddup -d .        # delete duplicates
  finddup -v -d dir/  # delete and view duplicates in dir/
  finddup -d *jpg     # delete duplicates among *jpg files in current dir
@@ -8739,12 +8900,21 @@ sub cmd_xcat {
   }
 }
 sub cmd_freq {
+  my%o; #my @argv=opts("H",\%o,@_);
+  if($ARGV[0] eq '-H'){$o{H}++;shift@ARGV}
   my(@f,$i);
-  map $f[$_]++, unpack("C*",$_) while <>;
-  my $s=" " x 12;map{print"$_$s$_$s$_\n"}("BYTE  CHAR   COUNT","---- ----- -------");
-  my %m=(145,"DOS-æ",155,"DOS-ø",134,"DOS-å",146,"DOS-Æ",157,"DOS-Ø",143,"DOS-Å",map{($_," ")}0..31);
-  printf("%4d %5s%8d".(++$i%3?$s:"\n"),$_,$m{$_}||chr,$f[$_]) for grep$f[$_],0..255;print "\n";
-  my @no=grep!$f[$_],0..255; print "No bytes for these ".@no.": ".join(" ",@no)."\n";
+  map $f[$_]++, unpack("C*",$_) while <>; #todo: fix "out of memory" (for large files without \n)
+  my @b=grep$f[$_],0..255;
+  my $c=$^O eq 'linux'?`tput cols`||75:75; $c=min(int(($c+10)/(18+10)),0+@b);
+  my $s=" " x 10; map{print join($s,($_)x$c),"\n"}("BYTE  CHAR   COUNT","---- ----- -------"); #len 18
+  my %m=(145,"DOS-æ",155,"DOS-ø",134,"DOS-å",146,"DOS-Æ",157,"DOS-Ø",143,"DOS-Å",127,'DEL  ',map{($_," ")}0..31);
+  my $fmt=$o{H}?"%02X   %5s%8d":"%4d %5s%8d";
+  printf($fmt.(++$i%$c?$s:"\n"),$_,$m{$_}||chr,$f[$_]) for @b; print"\n";
+  my @no; @no&&$no[-1][-1]+1==$_?push(@{$no[-1]},$_):push(@no,[$_]) for grep!$f[$_],0..255;
+  my $info=@no?"No bytes of: ".join(",",map @$_>1?"$$_[0]-$$_[-1]":$$_[0],@no)
+              :"All bytes 0-255 are found";
+  $info=~s/\d+/sprintf"%02X",$&/ge if $o{H};
+  print"$info\n";  
 }
 sub cmd_deldup {
   cmd_finddup('-d',@_);
@@ -8853,10 +9023,10 @@ sub cmd_ccmd {
 #todo:   wipe -n 4 filer*   #virker ikke! tror det er args() eller opts() som ikke virker
 sub cmd_wipe  {
   my %o;
-  my @argv=opts("n:k0123456789",\%o,@_);
+  my @argv=opts("n:k0123456789p",\%o,@_);
   die if 1<grep exists$o{$_},'n',0..9;
   $o{$_} and $o{n}=$_ for 0..9;
-  wipe($_,$o{n},$o{k}) for @argv;
+  wipe($_,$o{n},$o{k},$o{p}) for @argv;
 }
 
 sub which { my $prog=shift; -x "$_/$prog" and return "$_/$prog" for split /:/, $ENV{PATH} }
@@ -9096,25 +9266,30 @@ sub dtype {
   my $connstr=shift;
   return 'SQLite' if $connstr=~/(\.sqlite|sqlite:.*\.db)$/i;
   return 'Oracle' if $connstr=~/\@/;
-  return 'Pg' if 1==2;
+  return 'Pg'     if 1==2;
   die;
 }
 
 our($Dbh,@Dbh,%Sth);
-our %Dbattr=(RaiseError => 1, AutoCommit => 0); #defaults
+our %Dbattr=(RaiseError => 1,
+	     AutoCommit => 0,
+	     FetchHashKeyName => 'NAME_lc'
+    ); #defaults
 sub dlogin {
   my $connstr=shift();
   my %attr=(%Dbattr,@_);
   my $type=dtype($connstr);
   my($dsn,$u,$p)=('','','');
   if($type eq 'SQLite'){
-    $dsn=$connstr;
+      $dsn=$connstr;
+      $attr{sqlite_see_if_its_a_number}=1; #hm $DBD::SQLite::VERSION gt '1.32_02'
+      #later: $dbh->{sqlite_see_if_its_a_number}=1; #hm better? if $DBD::SQLite::VERSION gt '1.32_02'
   }
   elsif($type eq 'Oracle'){
     ($u,$p,$dsn)=($connstr=~m,(.+?)(/.+?)?\@(.+),);
   }
   elsif($type eq 'Pg'){
-    croak "todo";
+    croak "todo: Pg support";
   }
   else{
     croak "dblogin: unknown database type for connection string $connstr\n";
@@ -9129,16 +9304,33 @@ sub dlogout {
   $Dbh=pop@Dbh if @Dbh;
 }
 sub drow {
-  my($q,@b)=_dattrarg(@_);
+  #my($q,@b)=_dattrarg(@_);
+  my($q,@b)=@_;
   #my $sth=do{$Sth{$Dbh,$q} ||= $Dbh->prepare_cached($q)};
   my $sth=$Dbh->prepare_cached($q);
   $sth->execute(@b);
   my @r=$sth->fetchrow_array;
   $sth->finish if $$Dbh{Driver}{Name} eq 'SQLite';
   #$dbh->selectrow_array($statement);
-  return @r==1?$r[0]:@r;
+  @r==1 ? $r[0] : @r;
 }
 sub drows {
+    my($sel,@bind)=@_;
+    $sel=~s/^\w+$/select * from $&/;
+    wantarray ? drowsh($sel,@bind)
+              : drowsa($sel,@bind) ;
+}
+sub drowsh {
+    my($sel,@bind)=@_;
+    my $sth=$Dbh->prepare_cached($sel);
+    $sth->execute(@bind);
+    my @n=map"\u$_",@{$sth->{'NAME_lc'}};
+    my @rows;
+    while(my @r=$sth->fetchrow_array){
+	my %r; @r{@n}=@r;
+	push@rows,\%r;
+    }
+    @rows
 }
 sub drowc {
 }
@@ -9150,12 +9342,20 @@ sub dpk {
 }
 sub dsel {
 }
+#todo: implement CREATE X IF NOT EXISTS and DROP Y IF EXISTS for oracle like in sqlite+pg
 sub ddo {
   my @arg=_dattrarg(@_);
   #warn serialize(\@arg,'arg','',1);
   $Dbh->do(@arg); #hm cache?
 }
 sub dins {
+    my $tbl=shift;
+    return if !@_;
+    my @col=sort(keys%{$_[0]});
+    my $cols=join',',@col;
+    my $qms=join',',map'?',@col;
+    my $sth=$Dbh->prepare_cached("insert into $tbl ($cols) values ($qms)");
+    $sth->execute(@$_{@col}) for @_;
 }
 sub dupd {
 }
