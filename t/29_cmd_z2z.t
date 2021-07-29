@@ -2,8 +2,8 @@
 # perl Makefile.PL && make && perl -Iblib/lib t/29_cmd_z2z.t
 # perl Makefile.PL && make && TMPDIR=/dev/shm perl -Iblib/lib t/29_cmd_z2z.t
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests    => 8;
-warn <<"" and map ok(1),1..8 and exit if $^O!~/^(linux|cygwin)$/;
+use Test::More tests    => 10;
+warn <<"" and map ok(1),1..10 and exit if $^O!~/^(linux|cygwin)$/;
 Tests for cmd_z2z not available for $^O, only linux and cygwin
 
 my $tmp=tmp();
@@ -35,3 +35,19 @@ else {
 }
 my $af=sum(map -s$_,map"$_.gz",@f);
 ok(100*$af/$b4 < 50, "$b4 -> $af less than half");
+
+#----------false extention .gz destroys file unless handled well
+my $fn="$tf.not_gzipped";
+writefile($fn,join(' ',1..100));
+my $md5_pre=md5sum($fn);
+rename($fn,"$fn.gz");
+SKIP: {
+    skip 'check raise error only with true env ATDEBUG', 2 if not $ENV{ATDEBUG};
+    eval{ Acme::Tools::cmd_z2z('-t','gz',"$fn.gz") };
+    $@=~/^ERR/ or warn $@;
+    ok( $@=~/^ERR/, 'Check provoked error' );
+    rename("$fn.gz",$fn);
+    ok( $md5_pre eq md5sum($fn), 'File with erroneous extention has been saved');
+}
+
+done_testing;

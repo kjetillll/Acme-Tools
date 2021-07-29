@@ -9046,12 +9046,17 @@ sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
 #  gzip: stdin: unexpected end of file
 #    1/2   ETA:-0.0000260s 0.0%      900493585 b =>          32 b webdok.20200508.tar.xz
 #    2 files compressed in 0.076 seconds from 900493585 to 32 bytes  (-900493553 bytes) 0.0% of original
-#  filen borte!
+#=> FILEN BORTE!
+#2xz -9pv *gz
+#Converting 2 files, total 7.22 MB
+#gzip: stdin: not in gzip format
+#=> FILENE BORTE!
+
 
 sub cmd_z2z {
   my %o;
   my $pvopts="L:D:i:lIq";
-  my @argv=opts("pt:kvhon123456789es:$pvopts",\%o,@_);
+  my @argv=opts("pt:kvhon123456789es:T".$pvopts, \%o, @_);
   my $t=repl(lc$o{t},qw/gzip gz bzip2 bz2/);
   die "due: unknown compression type $o{t}, known are gz, bz2 and xz" if $t!~/^(gz|bz2|xz)$/;
   $o{p}=$o{q}=1 if!defined$o{p} and grep$pvopts=~/$_/,keys%o; # pvopts implies -p -q (quiet pv if -L++ wo -p)
@@ -9074,7 +9079,8 @@ sub cmd_z2z {
   for(@argv){
     my $new=$_; $new=~s/(\.(gz|bz2|xz))?$/.$t/i or die;
     my $ext=defined($2)?lc($2):'';
-    my $same=/^$new$/; $new.=".tmp" if $same; die if $o{k} and $same;
+    my $same=/^$new$/;
+    $new.=".tmp.$t" if $same; die if $o{k} and $same;
     next if !-e$_ and warn"$_ do not exists\n";
     next if !-r$_ and warn"$_ is not readable\n";
     next if -e$new and !$o{o} and warn"$new already exists, skipping (use -o to overwrite)\n";
@@ -9087,13 +9093,14 @@ sub cmd_z2z {
     my $cmd=qq($cat "$_"|$unz|$z>"$new");
      #todo: "$cat $_|$unz|$cnt|$z>$new";
     #cat /tmp/kontroll-linux.xz|unxz|tee >(wc -c>/tmp/p)|gzip|wc -c;cat /tmp/p
-    $cmd=~s,\|+,|,g; #print "cmd: $cmd\n";
+    $cmd=~s,\|+,|,g; #hm print "cmd: $cmd\n";
     sys($cmd);
     chall($_,$new) or croak("$0 cannot chmod|chown|touch $new") if !$o{n};
     my($szold,$sznew)=map{-s$_}($_,$new);
+    cmd_z2z_test($_,$new) or croak "ERR: Md5 of $_ and $new dont match" if $o{T} or $sznew<50;
     $bsf+=-s$_;
     unlink $_ if !$o{k};
-    rename($new, replace($new,qr/.tmp$/)) or die if $same;
+    rename($new, replace($new,qr/.tmp.$t$/)) or die if $same;
     if($o{v}){
       $sumnew+=$sznew;
       my $pr=sprintf"%0.1f%%",$szold?100*$sznew/$szold:0;
@@ -9125,6 +9132,17 @@ sub cmd_z2z {
       $str=~s,\((\d),(+$1,;
       print $str;
   }
+}
+sub cmd_z2z_test {
+    my($old,$new)=@_;
+    my $md5=sub{
+	my $fn=shift;
+	return 0 if $fn!~/\.(gz|bz2|xz)$/i;
+	return 1 if qx(file "$fn")!~/compressed data/;
+	require Digest::MD5; open my $fh, openstr($fn) or die; binmode($fh);
+	return Digest::MD5->new->addfile($fh)->hexdigest
+    };
+    &$md5($old) eq &$md5($new)
 }
 
 =head2 args
