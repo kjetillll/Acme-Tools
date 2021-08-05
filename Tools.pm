@@ -9206,11 +9206,11 @@ sub opts {
 #cat Tools.pm|perl -I. /usr/local/bin/zsize -tp Tools.pm
 sub cmd_zsize {
   my %o;
-  my @argv=opts("heEpts",\%o,@_);
+  my @argv=args("heEptsGPBXZR",\%o,@_);  
   my $stdin=!@argv || join(",",@argv) eq '-';
   @argv=("/tmp/acme-tools.$$.stdin") if $stdin;
   writefile($argv[0],join("",<STDIN>)) if $stdin;
-  my @prog=grep qx(which $_), qw(gzip bzip2 xz zstd brotli);
+  my @prog=grep qx(which $_), map lc, grep/[A-Z]/&&!$o{$&}, qw(Gzip Pigz Bzip2 Xz Zstd bRotli);
   for my $f (@argv){
       my $sf=-s$f;
       print "--- $f does not exists\n" and next if !-e$f;
@@ -9224,7 +9224,8 @@ sub cmd_zsize {
           my @l=1..9;
           push @l,map"e$_",1..9 if $prog eq 'xz' and $o{e};
           @l=map"e$_",1..9      if $prog eq 'xz' and $o{E};
-          @l=map 10+$_,@l       if $prog eq 'zstd';
+          @l=map 2*$_,@l        if $prog eq 'zstd' and !$o{e};
+          @l=(1,3..19)          if $prog eq 'zstd' and  $o{e};
           @l=map"q $_",3..11    if $prog eq 'brotli';
           printf "%-6s",$prog;
           push @t, $prog, [] if $o{t};
