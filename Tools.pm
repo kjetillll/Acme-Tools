@@ -582,18 +582,33 @@ sub primes {
 
 =head2 fraction
 
-Input: a number
+Input: a number with decimals or not, positive, zero or negative
+
+Output in scalar context: a string n/d where n is the nominator and d is the denominator.
+
+Output in array context: returns an array (N,D,...) in all eight
+numbers where the first two elements are N and D, the nominator and
+denominator respectively.
+
+  fraction(355/113)              # '355/133' the literal string without quotaton marks
+  fraction(-0.41761761761761762) # returns '-2086/4995'
+  $f=-200/600; fraction($f)      # '-1/3'
+  fraction(0)                    # '0/1'
+  fraction(1)                    # '1/1'
+  fraction(sqrt(2))              # returns undef in scalar context
+  my @f = fraction(sqrt(2));     # $f[0] and $f[1] are undef and ...
+                                 # $f[4] and $f[5] are the closest approx for N and D from the goal seek
 
 =cut
 
-sub fraction {
+sub _fraction {
     my$x=shift;
     return wantarray?(0,1,0,1,0,1,0,1):'0/1' if $x==0;
     if($x<0 or $x>1 or $x<.1){
 	my($min_n,$min_d,$min_diff,$min_c, $n,$d,$diff,$c)=
-	    $x<0 ? fraction(-$x):
-	    $x>1 ? fraction($x-int$x):
-	           fraction(1/$x);
+	    $x<0 ? _fraction(-$x):
+	    $x>1 ? _fraction($x-int$x):
+	           _fraction(1/$x);
 	($min_n,$min_d,$n,$d)=
 	    $x<0 ? (-$min_n,$min_d,$n,$d):
 	    $x>1 ? ($min_n+$min_d*int$x,$min_d,$n+$d*int$x,$d):
@@ -616,7 +631,12 @@ sub fraction {
               : "$min_n/$min_d"
               #: "$n/$d"
 }
-
+sub fraction {
+    my @r=_fraction(@_);
+    my($min_n,$min_d,$min_diff,$min_c, $n,$d,$diff,$c)=@r;
+    return wantarray ? (undef,undef,$min_diff,$min_c, $min_n,$min_d,$diff,$c) : undef if $min_diff > 1e-9;
+    return wantarray ? @r : "$min_n/$min_d";
+}
 =head2 resolve
 
 Resolves an equation by Newtons method.
