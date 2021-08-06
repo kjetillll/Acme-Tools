@@ -153,6 +153,7 @@ our @EXPORT = qw(
   gcd
   lcm
   primes
+  fraction
   pivot
   tablestring
   tablestring_box
@@ -579,6 +580,42 @@ sub primes {
   @{[2,map$_*2+1,grep!substr($bits,1+$_*2,1),1..$n/2-.5]};
 }
 
+=head2 fraction
+
+Input: a number
+
+=cut
+
+sub fraction {
+    my$x=shift;
+    return wantarray?(0,1,0,1,0,1,0,1):'0/1' if $x==0;
+    if($x<0 or $x>1 or $x<.1){
+	my($min_n,$min_d,$min_diff,$min_c, $n,$d,$diff,$c)=
+	    $x<0 ? fraction(-$x):
+	    $x>1 ? fraction($x-int$x):
+	           fraction(1/$x);
+	($min_n,$min_d,$n,$d)=
+	    $x<0 ? (-$min_n,$min_d,$n,$d):
+	    $x>1 ? ($min_n+$min_d*int$x,$min_d,$n+$d*int$x,$d):
+	           ($min_d,$min_n,$d,$n);
+	return wantarray?($min_n,$min_d,$min_diff,$min_c, $n,$d,$diff,$c):"$min_n/$min_d";
+    }
+    my($n,$d,$c)=(1,1,0); #nominator, denominator, count
+    my($min_n,$min_d,$min_diff,$min_c,$diff,$f,$X,$F);
+    #my$dec=11-int(1+1e-12+log($x)/log(10));#hm
+    while($c++==0 || $diff==0 || $X ne $F  and  $c==1 || $c <= $min_c*40  and  length($n.$d)<10) { #hm
+	$f    = $n/$d;
+	$diff = $x-$f;
+	($min_n,$min_d,$min_diff,$min_c)=($n,$d,abs$diff,$c) if !defined$min_diff or $min_diff>abs$diff;
+	#$diff > 0 ? $n++ : $diff < 0 ? $d++ : 0; #denne?
+	$diff > 0 ? $n++ : $d++;                  #denne?
+	($X,$F)=map sprintf('%.11f',$_),$x,$f; #11=$dec
+    }
+    #print "c=$c n=$n d=$d diff=$diff min_diff=$min_diff min_n=$min_n min_d=$min_d dec=$dec\n" if $ENV{ATDEBUG};
+    wantarray ? ($min_n,$min_d,$min_diff,$min_c, $n,$d,$diff,$c)
+              : "$min_n/$min_d"
+              #: "$n/$d"
+}
 
 =head2 resolve
 
@@ -2781,16 +2818,18 @@ Jaro-similarity.
 Input: two strings.
 
 Returns a number between 0 and 1 to grade the similarity between two strings.
-See L</jwsim>. Both jsim() and jwsim() are case-sensitive. So A and a is viewed
-as completely different characters.
+See L</jwsim>. Both jsim() and jwsim() are case-sensitive. So A and a is
+counted as different characters.
 
-1 means the strings are equal, 0 means no similarity which means either zero
-common letters or all common letters positions in their strings are too far
-apart adjusted for the max lenght of the two strings.
+1 means the strings are equal
+
+0 means no similarity which means either zero common letters or all common letters
+positions in their strings are too far apart adjusted for the max lenght of the two strings.
 
 Jaro-similarity. L<https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance#Jaro_Similarity>
 
- jsim('DIXON', 'DICKSONX');  # 0.7666666666666666
+ jsim('DIXON', 'DICSONX');   # 0.79047619047619
+
  jsim('ABCDEF', 'GHIJKL');   # 0
  jsim('ABCDEF', 'GHIAJKL');  # 0 also, even if A is common, the A's are too far apart
  jsim('ABCDEF', 'GHAIJKL');  # 0.4444444444444440 because the A's are close enough to be significant
