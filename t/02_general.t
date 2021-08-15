@@ -2,7 +2,7 @@
 # perl Makefile.PL && make && perl -Iblib/lib t/02_general.t
 
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests => 195;
+use Test::More tests => 196;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -133,6 +133,7 @@ ok( curb( $vb, 200, 250 ) == 234,             'curb 1');
 ok( curb( $vb, 150, 200 ) == 200,             'curb 2');
 ok( curb( $vb, 250, 300 ) == 250 && $vb==234, 'curb 3');
 ok( curb(\$vb, 250, 300 ) == 250 && $vb==250, 'curb 4');
+ok( bound(\$vb, 260, 300 ) == 260 && $vb==260,'curb 4, alias bound()');
 ok( do{eval{curb()};          $@=~/^curb/},   'curb 5'); eval{1};
 ok( do{eval{curb(1,2,undef)}; $@=~/^curb/},   'curb 6'); eval{1};
 ok( do{eval{curb(1,2,3,4)};   $@=~/^curb/},   'curb 7'); eval{1};

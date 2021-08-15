@@ -153,7 +153,9 @@ our @EXPORT = qw(
   gcd
   lcm
   primes
+  factors
   fraction
+  dec2frac
   pivot
   tablestring
   tablestring_box
@@ -580,6 +582,22 @@ sub primes {
   @{[2,map$_*2+1,grep!substr($bits,1+$_*2,1),1..$n/2-.5]};
 }
 
+sub factors {
+    my $n = shift;
+    croak "ERR: cannot factor $n\n" if $n<1 or $n>1e15 or $n!=int$n;
+    my @r;
+    my @p=(2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97,101,103,107,109,113,127,131,137,139,149,
+	   151,157,163,167,173,179,181,191,193,197,199,211,223,227,229,233,239,241,251,257,263,269,271,277,281,283,293,
+	   307,311,313,317,331,337,347,349,353,359,367,373,379,383,389,397,401,409,419,421,431,433,439,443,449,457,461,
+	   463,467,479,487,491,499,503,509,521,523,541,547,557,563,569,571,577,587,593,599,601,607,613,617,619,631,641,
+	   643,647,653,659,661,673,677,683,691,701,709,719,727,733,739,743,751,757,761,769,773,787,797,809,811,821,823,
+	   827,829,839,853,857,859,863,877,881,883,887,907,911,919,929,937,941,947,953,967,971,977,983,991,997);
+    push @p, grep$_>997, primes(sqrt($n)) if $n>=1e6;
+    $n%$_==0 and $n/=$_ and push(@r, $_) and redo  or  $_>$n and last for @p;
+    push@r,$n if $n>1;
+    @r;
+}
+
 =head2 fraction
 
 Input: a number with decimals or not, positive, zero or negative
@@ -604,7 +622,9 @@ denominator respectively.
 sub _fraction {
     my$x=shift;
     return wantarray?(0,1,0,1,0,1,0,1):'0/1' if $x==0;
-    if($x<0 or $x>1 or $x<.1){
+    if($x<0 or $x>1 or $x<.2){
+	#print "          x=$x\n";
+	$x=~s/^(\d+)\.0{9,}\d{1,2}$/$1>0?$1:$&/e;
 	my($min_n,$min_d,$min_diff,$min_c, $n,$d,$diff,$c)=
 	    $x<0 ? _fraction(-$x):
 	    $x>1 ? _fraction($x-int$x):
@@ -613,23 +633,23 @@ sub _fraction {
 	    $x<0 ? (-$min_n,$min_d,$n,$d):
 	    $x>1 ? ($min_n+$min_d*int$x,$min_d,$n+$d*int$x,$d):
 	           ($min_d,$min_n,$d,$n);
-	return wantarray?($min_n,$min_d,$min_diff,$min_c, $n,$d,$diff,$c):"$min_n/$min_d";
+	return wantarray ? ($min_n,$min_d,$min_diff,$min_c, $n,$d,$diff,$c)
+	                 : "$min_n/$min_d";
     }
     my($n,$d,$c)=(1,1,0); #nominator, denominator, count
     my($min_n,$min_d,$min_diff,$min_c,$diff,$f,$X,$F);
     #my$dec=11-int(1+1e-12+log($x)/log(10));#hm
-    while($c++==0 || $diff==0 || $X ne $F  and  $c==1 || $c <= $min_c*40  and  length($n.$d)<10) { #hm
+    while($c++==0 || $diff==0 || $X ne $F  and  $c==1 || $c <= $min_c*20 || $c <= 200  and  length($n.$d)<10) { #hm
 	$f    = $n/$d;
 	$diff = $x-$f;
 	($min_n,$min_d,$min_diff,$min_c)=($n,$d,abs$diff,$c) if !defined$min_diff or $min_diff>abs$diff;
-	#$diff > 0 ? $n++ : $diff < 0 ? $d++ : 0; #denne?
-	$diff > 0 ? $n++ : $d++;                  #denne?
+	$diff > 0 ? $n++ : $diff < 0 ? $d++ : 0; #denne?
+       #$diff > 0 ? $n++ : $d++;                  #denne?
 	($X,$F)=map sprintf('%.11f',$_),$x,$f; #11=$dec
     }
     #print "c=$c n=$n d=$d diff=$diff min_diff=$min_diff min_n=$min_n min_d=$min_d dec=$dec\n" if $ENV{ATDEBUG};
     wantarray ? ($min_n,$min_d,$min_diff,$min_c, $n,$d,$diff,$c)
-              : "$min_n/$min_d"
-              #: "$n/$d"
+	      : "$min_n/$min_d";
 }
 sub fraction {
     my @r=_fraction(@_);
@@ -637,6 +657,17 @@ sub fraction {
     return wantarray ? (undef,undef,$min_diff,$min_c, $min_n,$min_d,$diff,$c) : undef if $min_diff > 1e-9;
     return wantarray ? @r : "$min_n/$min_d";
 }
+
+sub dec2frac {
+    my($f,$n,$d,$df,$c)=(shift(),1,1,1,0);
+    while($df != $f and ++$c < 1e4){
+	if( $df<$f ){ $n++ }
+	else        { $d++ }  #;my $new=int($f*$d); $eq++ if $new==$n; $n=$new }
+	$df=$n/$d;
+    }
+    wantarray ? ($n,$d,$c) : "$n/$d"
+}
+
 =head2 resolve
 
 Resolves an equation by Newtons method.
@@ -1721,7 +1752,7 @@ Examples:
 
 sub bytes_readable {
   my $bytes=shift();
-  my $d=shift()||2; #decimals
+  my $d=@_?shift():2; #decimals
   return undef if !defined $bytes;
   return "$bytes B"                         if abs($bytes) <= 2** 0*1000; #bytes
   return sprintf("%.*f kB",$d,$bytes/2**10) if abs($bytes) <  2**10*1000; #kilobyte
@@ -1733,7 +1764,7 @@ sub bytes_readable {
 
 =head2 sec_readable
 
-Time written as C< 14h 37m > is often more humanly comprehensible than C< 52620 seconds >.
+Durations written as C< 14h 37m > is more humanly comprehensible than C< 52620 seconds >.
 
  print sec_readable( 0 );           # 0s
  print sec_readable( 0.0123 );      # 0.0123s
@@ -1778,8 +1809,6 @@ sub sec_readable {
 =head2 int2roman
 
 Converts integers to roman numbers.
-
-B<Examples:>
 
  print int2roman(1234);   # prints MCCXXXIV
  print int2roman(1971);   # prints MCMLXXI
@@ -2114,26 +2143,31 @@ sub isnum {(@_?$_[0]:$_)=~$Re_isnum}
 
 Input: Three arguments.
 
-Returns: Something I<true> if the first argument is numerically between the two next. Uses Perls C<< < >>, C<< >= >> and C<< <= >> operators.
+Returns: Something I<true> if the first argument is numerically between the two next.
+Uses Perls C<< < >>, C<< >= >> and C<< <= >> operators even if passing string args.
+Order of the to last args dont matter.
 
 =head2 btw
 
 Like L<between> but instead of assuming numbers it checks all three input args
-and does alphanumerical comparisons (with Perl operators C<lt>, C<ge> and C<le>) if any of the
-three input args don't look like a number or look like a number but with
-one or more leading zeros.
+and does alphanumerical comparisons (with Perl operators C<lt>, C<ge> and C<le>)
+if any of the three input args don't look like a number or look like a number
+but with one or more leading zeros.
 
  btw(1,1,10)             #true numeric order since all three looks like number according to =~$Re_isnum
  btw(1,'02',13)          #true leading zero in '02' leads to alphabetical order
- btw(10, 012,10)         #true leading zero here means oct number, 012 = 10 (8*1+2), so 10 is btw 10 and 10
+ btw(9, 011,12)          #true, leading zero here means oct number, 011 = 9 is passed to btw() and 9
+                         #...is numerically between 9 and 12
+ btw(9, '011',12)        #false, here '011' is passed so now the leading zero signals alphanumerically
+                         #comparison where "9" is not between "011" and "12"
  btw('003', '02', '09')  #false because '003' lt '02'
  btw('a', 'b', 'c')      #false because 'a' lt 'b'
  btw('a', 'B', 'c')      #true because upper case letters comes before lower case ones in the "ascii alphabet"
  btw('a', 'c', 'B')      #true, btw() and between switches from and to if the first is > the second
  btw( -1, -2, 1)         #true
- btw( -1, -2, 0)         #true
+ btw( -1, 1, -2)         #true also, order of the two last args dont matter
 
-Both between and btw returns C<undef> if any of the three input args are C<undef> (not defined).
+Both between() and btw() return C<undef> if any of the three input args are C<undef> (not defined).
 If you're doing only numerical comparisons, using C<between> is faster than C<btw>.
 
 =cut
@@ -2156,14 +2190,15 @@ sub btw {
 
 =head2 curb
 
-B<Input:> Three arguments: value, minumum, maximum.
+B<Input:> Three numeric arguments: value, minumum, maximum.
 
 B<Output:> Returns the value if its between the given minumum and maximum.
 Returns minimum if the value is less or maximum if the value is more.
-Changes the variable if 1st arg is a scalarref.
+Changes the variable if 1st arg is a scalarref. Croaks if the number of
+input arguments is different than three or if any of them are not defined.
 
  my $enthusiasm = 11;
- print curb( $enthusiasm, 1, 20 );      # prints 11, within bounds
+ print curb( $enthusiasm, 1, 20 );      # prints 11, since 11 is within bounds
  print curb( $enthusiasm, 1, 10 );      # prints 10
  print curb( $enthusiasm, 20, 100 );    # prints 20
  print curb(\$enthusiasm, 1, 10 );      # prints 10 and sets $enthusiasm = 10
@@ -2180,7 +2215,7 @@ sub curb {
   $val > $max ? $max :
                 $val;
 }
-sub bound { curb(@_) }
+sub bound { &curb }
 
 =head2 log10
 
@@ -2189,7 +2224,7 @@ sub bound { curb(@_) }
 =head2 logn
 
  print log10(1000);                  # prints 3
- print log10(10000*sqtr(10));        # prints 4.5
+ print log10(10000*sqrt(10));        # prints 4.5
  print log2(16);                     # prints 4
  print logn(4096, 8);                # prints 4 (12/3=4)
  print logn($PI, 2.71828182845905);  # same as  print log($PI)  using perls builtin log()
@@ -2238,8 +2273,8 @@ Works on C<< $_ >> if no argument is given:
 
 Left or right pads a string to the given length by adding one or more spaces at the end for  I<rpad> or at the start for I<lpad>.
 
-B<Input:> First argument: string to be padded. Second argument: length of the output. Optional third argument: character(s) used to pad.
-Default is space.
+B<Input:> First argument: string to be padded. Second argument: length of the output. Optional third argument: character(s)
+used to pad. Default is space.
 
  rpad('gomle',9);         # 'gomle    '
  lpad('gomle',9);         # '    gomle'
@@ -2254,8 +2289,8 @@ Default is space.
 
 Center pads. Pads the string both on left and right equal to the given length. Centers the string. Pads right side first.
 
- cpad('mat',5)            eq ' mat '
  cpad('mat',4)            eq 'mat '
+ cpad('mat',5)            eq ' mat '
  cpad('mat',6)            eq ' mat  '
  cpad('mat',9)            eq '   mat   '
  cpad('mat',5,'+')        eq '+mat+'
@@ -2322,34 +2357,34 @@ B<Output:> A list of this strings trigrams (See examlpe)
 
 B<Example 1:>
 
- print join ", ", trigram("Kjetil Skotheim");
+ print join ", ", trigram("Humpty Dumpty");
 
 Prints:
 
- Kje, jet, eti, til, il , l S,  Sk, Sko, kot, oth, the, hei, eim
+ Hum, ump, mpt, pty, ty , y D,  Du, Dum, ump, mpt, pty
 
 B<Example 2:>
 
 Default is 3, but here 4 is used instead in the second optional input argument:
 
- print join ", ", trigram("Kjetil Skotheim", 4);
+ print join ", ", trigram("Humpty Dumpty", 4);
 
 And this prints:
 
- Kjet, jeti, etil, til , il S, l Sk,  Sko, Skot, koth, othe, thei, heim
+ Hump, umpt, mpty, pty , ty D, y Du,  Dum, Dump, umpt, mpty
 
-C<trigram()> was created for "fuzzy" name searching. If you have a database of many names,
+C<trigram()> was created for "fuzzy" name searching. With a database of many names,
 addresses, phone numbers, customer numbers etc. You can use trigram() to search
 among all of those at the same time. If the search form only has one input field.
-One general search box.
+One general search box to find equal or similar strings.
 
-Store all of the trigrams of the trigram-indexed input fields coupled
-with each person, and when you search, you take each trigram of you
-query string and adds the list of people that has that trigram. The
-search result should then be sorted so that the persons with most hits
-are listed first. Both the query strings and the indexed database
-fields should have a space added first and last before C<trigram()>-ing
-them.
+How: Store all of the trigrams of the trigram-indexed input fields coupled
+with each person. When searching, for each trigram in your query string add
+to a created list of people that has that trigram. The search result should
+then be sorted so that persons with most hits are listed first (or you could
+combine that with some scoring value using L</jsim> or L</jwsim> as well).
+Both the query strings and the indexed database fields should have a space
+added first and last before C<trigram()>-ing them.
 
 This search algorithm is not includes here yet...
 

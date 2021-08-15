@@ -35,15 +35,28 @@ for(
      #3.141592653589793238462643383279502884197169399375105820974944592307816406286, #355/113
     (map{random(1e0,1e2) .'/'. random(1e4,1e5)}1..10),
     (map{random(1e4,1e5) .'/'. random(1e0,1e2)}1..10),
+    (map{random(1e1,1e2) .'/'. random(1e1,1e2)}1..10),
 #    (map rand(), 1..10), #not yet
+    '3/8',
+    5e6,
+    7e-6,
 ){
-  my($min_n,$min_d,$min_diff,$min_c, $n,$d,$diff,$c)=fraction(eval$_);
+  my $t=time_fp();
+  my($min_n,$min_d,$min_diff,$min_c, $n,$d,$diff,$c)=fraction(eval);
+  $t=int(1e6*(time_fp()-$t));
   my $g="$min_n/$min_d";
-  my $e=eval$_;
-  my $info=sub{sprintf"%s: %-20s %-17s",$_[0],eval($_[1]),$_[1]=~m|/|?"($_[1])":''};
-  $info=join('',map&$info(@$_),['got',$g],['exp',$_])."d=$min_diff c=$c min_c=$min_c";
-  my $diff=eval($g)-$e;
-  is(eval$g, $e, $info)
+  my $info=sub{sprintf"%s: %-20s %-14s",$_[0],eval($_[1]),$_[1]=~m|/|?"($_[1])":''};
+  $info=join('',map&$info(@$_),['got',$g],['exp',$_]).sprintf"%-38s %-8s","d=$min_diff c=$c mc=$min_c","$tμs";
+  my $diff=eval($g)-eval;
+  push@c,$c;
+  is(eval$g, eval, $info)
 }
+print join('   ',map"$_: ".&{$_}(@c),qw(sum avg median)).$/ if $ENV{ATDEBUG};
 ok(!defined fraction(sqrt(2)),'undef for sqrt(2)');
+ok(!defined fraction($PI),"undef for $PI");
+
+my$b='3/8'; #'1/37';
+my($n,$d,$c)=dec2frac(eval$b);
+ok("$n/$d" eq $b, "$n/$d vs $b   count=$c");
+
 done_testing;
