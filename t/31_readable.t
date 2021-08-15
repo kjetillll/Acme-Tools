@@ -1,7 +1,7 @@
 # make test
 # perl Makefile.PL && make && perl -Iblib/lib t/31_readable.t
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests => 37;
+use Test::More tests => 38;
 
 #----------bytes_readable
 my %br=(
