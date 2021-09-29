@@ -266,6 +266,7 @@ our @EXPORT = qw(
 );
 
 #our $PI = log(640320**3+744)/sqrt(163); #nerdycool, 30 digit accuracy ... https://mathworld.wolfram.com/PiApproximations.html
+#our $PI = atan2 0,-1;
 our $PI = '3.141592653589793238462643383279502884197169399375105820974944592307816406286';
 
 =head1 NAME
@@ -9399,6 +9400,7 @@ sub dlogin {
   if($type eq 'SQLite'){
     $dsn=$connstr;
     $attr{sqlite_see_if_its_a_number}=1; #hm $DBD::SQLite::VERSION gt '1.32_02'
+    $attr{sqlite_unicode}=1;
     #later: $dbh->{sqlite_see_if_its_a_number}=1; #hm better? if $DBD::SQLite::VERSION gt '1.32_02'
   }
   elsif($type eq 'Oracle'){
@@ -9448,13 +9450,37 @@ sub drowsh {
   }
   @rows
 }
+sub drowsa {
+  my($sel,@bind)=@_;
+  my $sth=$Dbh->prepare_cached($sel);
+  $sth->execute(@bind);
+  my @rows;
+  while(my @r=$sth->fetchrow_array){
+    push@rows,\@r;
+  }
+  \@rows
+}
 sub drowc {
 }
 sub drowsc {
 }
 sub dcols {
 }
+our %Dpk;
 sub dpk {
+    my $tbl=shift;
+    @{ $Dpk{$tbl} //= do{
+	my $type=$$Dbh{Driver}{Name};
+	if($type eq 'SQLite'){
+	    die if $tbl!~/^\w+$/;
+	    my $s="select name from pragma_table_info('$&') where pk>0 order by pk";
+	    my @t=map"\u$$_[0]",@{$Dbh->selectall_arrayref($s)}; #die srlz(\@t,'t');
+	    \@t
+	}
+	#elsif($type eq 'Oracle'){}
+	#elsif($type eq 'Pg'){}
+	else {die"dpk: not implemented for database type '$type'"}
+    }};
 }
 sub dsel {
 }
@@ -9474,6 +9500,14 @@ sub dins {
   $sth->execute(@$_{@col}) for @_;
 }
 sub dupd {
+    my $tbl=shift;
+    return if !@_;
+    my @pk=dpk($tbl);
+    my @col=sort(grep!in($_,@pk),keys%{$_[0]});
+    my $sets=join',',map"$_=?",@col;
+    my $where=join' and ',map"$_=?",@pk;
+    my $sth=$Dbh->prepare_cached("update $tbl set $sets where $where");
+    $sth->execute(@$_{@col},@$_{@pk}) for @_;
 }
 sub ddel {
 }
