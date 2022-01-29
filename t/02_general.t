@@ -29,7 +29,7 @@ ok(!defined(sum(undef,undef)),  'def sum');
 ok(sum(undef,2)==2,             'def sum');
 ok(sum(3,undef)==3,             'def sum');
 
-#--avg, geomavg
+#--avg, geomavg, smavg
 ok(avg(2,4,9)==5,               'avg 2 4 9 is 5');
 ok(avg([2,4,9])==5,             'avg 2 4 9 is 5');
 ok(avg(2,4,9,undef)==5,         'avg ignore undef');

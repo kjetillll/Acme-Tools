@@ -6,7 +6,7 @@ our $VERSION = '0.28';
 use 5.008;     #Perl 5.8 released July 2002 (perldoc perlhist)
 use strict;
 use warnings;
-use Carp;      #TODO? rid of deps, make own carp+croak here
+use Carp;
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -545,7 +545,7 @@ sub lcm { my($a,$b,@r)=@_; @r ? lcm($a,lcm($b,@r)) : $a*$b/gcd($a,$b) }
 
 B<Input:>
 
-* positive number returns primes up to and perhaps including that number
+* positive number returns primes up to and including that number (including if it's a prime)
 
 * negative number returns that many of the first primes
 
@@ -562,20 +562,21 @@ Uses a sieve algorithm doing bitwise or's.
  primes(1);     # empty list
  primes(2);     # 2
  primes(3);     # 2, 3
- primes(1e6);   # returns a list of the first 78498 primes
+ primes(1e6);   # return list of the first 78498 primes (0.14 seconds on some laptops)
 
 =cut
 
+our $bits;
 sub primes {
   my $n = shift;
   return (2,3) if $n==-2;
   return (2)   if $n==-1 or $n==2;
   return ()    if $n==0  or $n==1;
   return (primes(do{my$N=-$n;$N*=1.1while$N/log($N)<-1.2*$n;$N}))[0..-$n-1] if $n<0;
-  my( $q,$factor,$repeat,$bits ) =( sqrt($n), 1, 1, 0 x $n );
-  while ( $factor <= $q ) {
-    $factor += 2;
-    $factor += 2 while $factor < $n and substr($bits,$factor,1);
+  my( $q,$repeat ) =( sqrt($n), 1 );
+  $bits=0 x $n;
+  for(my$factor=3; $factor<=$q; $factor+=2){
+    next if substr($bits,$factor,1);
     $repeat .= 0 x (2*$factor-length$repeat);
     my $times = -($factor**2-length$bits)/2/$factor + 1;
     $bits |= 0 x $factor**2  .  ($times>0?$repeat x $times:'');
@@ -592,8 +593,8 @@ sub factors {
 	   307,311,313,317,331,337,347,349,353,359,367,373,379,383,389,397,401,409,419,421,431,433,439,443,449,457,461,
 	   463,467,479,487,491,499,503,509,521,523,541,547,557,563,569,571,577,587,593,599,601,607,613,617,619,631,641,
 	   643,647,653,659,661,673,677,683,691,701,709,719,727,733,739,743,751,757,761,769,773,787,797,809,811,821,823,
-	   827,829,839,853,857,859,863,877,881,883,887,907,911,919,929,937,941,947,953,967,971,977,983,991,997);
-    push @p, grep$_>997, primes(sqrt($n)) if $n>=1e6;
+	   827,829,839,853,857,859,863,877,881,883,887,907,911,919,929,937,941,947,953,967,971,977,983,991,997); #<1000
+    push @p, grep$_>997, primes(sqrt($n)) if $n>=1000**2;
     $n%$_==0 and $n/=$_ and push(@r, $_) and redo  or  $_>$n and last for @p;
     push@r,$n if $n>1;
     @r;
@@ -2228,7 +2229,8 @@ sub bound { &curb }
  print log10(10000*sqrt(10));        # prints 4.5
  print log2(16);                     # prints 4
  print logn(4096, 8);                # prints 4 (12/3=4)
- print logn($PI, 2.71828182845905);  # same as  print log($PI)  using perls builtin log()
+ print log(4096) / log(8);           # prints 4, same as above
+ print logn($PI, 2.71828182845905);  # same as Perl's builtin log($PI) which is based on 2.718...
 
 =cut
 
@@ -2393,24 +2395,26 @@ C<trigram()> should perhaps have been named ngram for obvious reasons.
 
 =head2 sliding
 
-Same as trigram (except there is no default width). Works also with arrayref instead of string.
+Same as trigram with any width, not just 3. Works also with arrayref instead of string.
 
-Example:
+ my @a = sliding( "Reven rasker over isen"], 15 );          #string, wanted width 15
+ my @b = sliding( ["Reven","rasker","over","isen"], 2 );    #array of words, width 2
 
- sliding( ["Reven","rasker","over","isen"], 2 )
+Resulting arrays @a and @b respectively:
 
-Result:
-
+  ('Reven rasker ov', 'even rasker ove', 'ven rasker over', 'en rasker over ', 
+   'n rasker over i', ' rasker over is', 'rasker over ise', 'asker over isen')
+ 
   ( ['Reven','rasker'], ['rasker','over'], ['over','isen'] )
 
 =head2 chunks
 
-Splits strings and arrays into chunks of given size:
+Splits strings and arrays into chunks of the given size:
 
  my @a = chunks("Reven rasker over isen",7);
  my @b = chunks([qw/Og gubben satt i kveldinga og koste seg med skillinga/], 3);
 
-Resulting arrays:
+Resulting arrays @a and @b respectively:
 
  ( 'Reven r', 'asker o', 'ver ise', 'n' )
  ( ['Og','gubben','satt'], ['i','kveldinga','og'], ['koste','seg','med'], ['skillinga'] )
@@ -4239,6 +4243,7 @@ sub mix {
     return @e;
   }
 }
+#todo: https://perldoc.perl.org/perlfaq4#How-do-I-shuffle-an-array-randomly?
 
 =head2 pwgen
 
@@ -6938,6 +6943,10 @@ sub cart_easy { #not tested, not exported http://stackoverflow.com/questions/245
   @_ ? (map {my$left=$_; map [@$left, $_], @$last } cart_easy(@_) )
      : (map [$_], @$last);
 }
+# sub cart { reduce { [ map { my $i = $_; map [ @$_, $i ], @$a } @$b ] } [[]], @_ }
+# sub cart { reduce { [ map { //;map [ @$_, $' ], @$a } @$b ] } [[]], @_ }
+
+
 
 =head2 reduce
 
@@ -7441,6 +7450,10 @@ Cells can be multilined:
 TODO: tablestring_box() dont yet support tags in values as in html/xml tags like tablestring() do.
 
 =cut
+
+#todo: double lines? rounded corners? https://en.wikipedia.org/wiki/Box-drawing_character
+#todo: colored headers and borders?
+#todo: locale dependent?
 
 sub tablestring_box {
   use utf8;
@@ -9152,7 +9165,7 @@ sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
 sub cmd_z2z {
   my %o;
   my $pvopts="L:D:i:lIq";
-  my @argv=opts("pt:kvhon123456789es:T".$pvopts, \%o, @_);
+  my @argv=opts("pt:kvhon123456789es:T$pvopts", \%o, @_);
   my $t=repl(lc$o{t},qw/gzip gz bzip2 bz2/);
   die "due: unknown compression type $o{t}, known are gz, bz2 and xz" if $t!~/^(gz|bz2|xz)$/;
   $o{p}=$o{q}=1 if!defined$o{p} and grep$pvopts=~/$_/,keys%o; # pvopts implies -p -q (quiet pv if -L++ wo -p)
@@ -9185,7 +9198,7 @@ sub cmd_z2z {
     #todo: my $cnt="tee >(wc -c>$cntfile)" if $ENV{SHELL}=~/bash/ and $o{v}; #hm dash vs bash
     my $z=  {qw/gz gzip   bz2 bzip2   xz xz/}->{$t};
     $z.=" -$_" for grep$o{$_},1..9,'e';
-    $z.=" -$_ $o{$_}" for grep exists$o{$_},'L';
+   #$z.=" -$_ $o{$_}" for grep exists$o{$_},'L';
     my $cmd=qq($cat "$_"|$unz|$z>"$new");
      #todo: "$cat $_|$unz|$cnt|$z>$new";
     #cat /tmp/kontroll-linux.xz|unxz|tee >(wc -c>/tmp/p)|gzip|wc -c;cat /tmp/p
@@ -9256,10 +9269,10 @@ switch takes an argument.
 sub args {
   my $switches=shift;
   my $hashref=shift;
+  local @ARGV=@_;
   my $re_sw='^([a-z0-9]:?)+$';
   croak "ERR: args: first arg $switches dont match $re_sw\n" if $switches !~ /$re_sw/i;
   croak "ERR: second arg to args() not hashref\n" if ref($hashref) ne 'HASH';
-  local @ARGV=@_;
   require Getopt::Std;
   Getopt::Std::getopts($switches => $hashref);
   (@ARGV);
