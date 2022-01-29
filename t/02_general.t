@@ -2,7 +2,7 @@
 # perl Makefile.PL && make && perl -Iblib/lib t/02_general.t
 
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests => 196;
+use Test::More tests => 199;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -37,6 +37,11 @@ ok(0==0+grep{abs(geomavg($_,$_)-$_)>1e-8}range(3,10000,13));
 ok(abs(geomavg(2,3,4,5)-3.30975091964687)<1e-11);
 ok(abs(geomavg(10,100,1000,10000,100000)-1000)<1e-8);
 ok(!defined(avg(undef)));
+is( join(',',smavg([1,2,2,3,5,9], 2)), join(',', 1, 1.5, 2, 2.5, 4, 7)         ,'smavg1' );
+is( join(',',smavg([1,2,2,3,5,9], 3)), join(',', 1, 1.5, 5/3, 7/3, 10/3, 17/3) ,'smavg2' );
+is( join(',',smavg([1,2,2,3,5,9,1,2,3,4,3,5])),
+    join(',', 1/1, 3/2, 5/3, 8/4, 13/5, 22/6, 23/7, 25/8, 28/9, 32/10, 34/10, (34+5-2)/10)  ,'smavg3' );
+
 
 #--stddev
 ok(stddev(12,13,14)>0);

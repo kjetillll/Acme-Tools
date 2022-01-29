@@ -21,6 +21,7 @@ our @EXPORT = qw(
   avg
   geomavg
   harmonicavg
+  smavg
   stddev
   rstddev
   median
@@ -3754,6 +3755,48 @@ sub harmonicavg { my $s; $s+=1/$_ for @_; @_/$s }
 C<< variance = ( sum (x[i]-Average)**2)/(n-1) >>
 
 =cut
+
+=head2 smavg
+
+Returns an array of Simple Moving Averages of the input array. L<https://en.wikipedia.org/wiki/Moving_average>
+
+B<Input:> an arrayref to the data and an optional window size (default 10)
+
+B<Output:> an array of the same length as the input. For each input element the output returns the average of the element itself and up to window size elements minus one before it.
+
+ smavg([1,2,2,3,5,9], 2)   # returns: 1, 1.5, 2, 2.5, 4, 7            (window size 2)
+ smavg([1,2,2,3,5,9], 3)   # returns: 1, 1.5, 5/3, 7/3, 10/3, 17/3    (window size 3)
+ smavg([1,2,2,3,5,9,1,2,3,4,3,5])) #returns 12 numbers, default window size is 10:
+                                   #  1/1, 3/2, 5/3, 8/4, 13/5, 22/6,
+                                   #  23/7, 25/8, 28/9, 32/10, 34/10, (34+5-2)/10
+
+=cut
+
+sub smavg {
+    my($ar,$win)=@_;
+    croak"ERR: smavg() 1st arg should be arrayref" if ref($ar) ne 'ARRAY';
+    croak"ERR: smavg() optional 2nd arg should be int>0" if defined$win and $win!~/^[1-9]\d*$/;
+    $win//=10;
+    my@win;
+    my$winsum=0;
+    map{
+	push@win,$_;
+	$winsum+=$_;
+	$winsum-=shift@win if @win>$win;
+	$winsum/@win
+    }
+    @$ar;
+}
+
+#=head2 wmavg
+#=cut
+#sub wmavg {
+#    my($ar,$win)=@_;
+#    croak"ERR: wmavg() 1st arg should be arrayref" if ref($ar) ne 'ARRAY';
+#    croak"ERR: wmavg() optional 2nd arg should be int>0" if defined$win and $win!~/^[1-9]\d*$/;
+#    $win//=10;
+#    ...
+#}
 
 sub variance {
   my $sumx2; $sumx2+=$_*$_ for @_;
