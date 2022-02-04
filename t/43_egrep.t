@@ -9,6 +9,7 @@ sub okk{ is(join(', ',@r),shift,shift) }
 okk('3, 6, 9, 12, 15, 18');
 
 @a=2..44;
+no warnings qw(once uninitialized);
 @r = egrep { $prev =~/4$/ or $next =~/2$/ } @a; okk('5, 11, 15, 21, 25, 31, 35, 41');
 @r = egrep { $prevr=~/4$/ or $nextr=~/2$/ } @a; okk('2, 5, 11, 15, 21, 25, 31, 35, 41, 44');
 

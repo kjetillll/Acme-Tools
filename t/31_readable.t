@@ -1,7 +1,7 @@
 # make test
-# perl Makefile.PL; make; perl -Iblib/lib t/31_readable.t
+# perl Makefile.PL && make && perl -Iblib/lib t/31_readable.t
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests => 37;
+use Test::More tests => 38;
 
 #----------bytes_readable
 my %br=(
@@ -17,6 +17,7 @@ my($br,@brk)=('',sort {$a<=>$b} keys %br);
 ok(($br=bytes_readable($_)) eq $br{$_}, "bytes_readable($_) == $br (should be $br{$_})") for @brk;
 s/( [^B])/0$1/ for values %br;
 ok(($br=bytes_readable($_,3)) eq $br{$_}, "bytes_readable($_,3) == $br (should be $br{$_})") for @brk;
+is(bytes_readable(1088516511498,0) => '1 TB', 'with zero decimals'); #0.99 TB
 
 #----------sec_readable
 my %sr=(

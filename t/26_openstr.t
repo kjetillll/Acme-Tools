@@ -1,5 +1,5 @@
 # make test
-# perl Makefile.PL; make; perl -Iblib/lib t/26_openstr.t
+# perl Makefile.PL && make && perl -Iblib/lib t/26_openstr.t
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests => 16;
 #if( $^O =~ /linux/i ) {  plan tests    => 16                 }
@@ -10,7 +10,7 @@ sub tst {
   my $o=eval{openstr($s)};
   if($@=~/(\w+ not found)/){ok(1,$1);return}
   $o=~s,/\S+/,,g;
-  ok($o eq $f, "$s --> $f  (is $o)");
+  is($o, $f, "$s --> $f  (is $o)");
 }
 for(1..2){
   tst( "fil.txt", "fil.txt" );

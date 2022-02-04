@@ -1,10 +1,10 @@
 # make test
-# perl Makefile.PL; make; perl -Iblib/lib t/13_random.t
+# perl Makefile.PL && make && perl -Iblib/lib t/13_random.t
 
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests => 18;
 
-#--random, mix
+#----random, mix
 for(                                 #|hmm|#
   [ sub{random([1..5])},         2000, 1.0, 1.5, 5],
   [ sub{random(["head","tail"])},1000, 1.0, 1.5, 2],
@@ -26,7 +26,7 @@ for(                                 #|hmm|#
 ok(10==random([1..4],10),   'random arrayref -> array');
 ok(10==random({1,1,2,3},10),'random hashref  -> array');
 
-#--random_gauss
+#----random_gauss
 #my $srg=time_fp;
 #my @IQ=map random_gauss(100,15), 1..10000;
 my @IQ=random_gauss(100,15,5000);
@@ -43,3 +43,13 @@ my $percmensa=100*(grep{$_>100+15*2               }@IQ)/@IQ;
 #$b[$_] && print STDERR sprintf "%3d - %3d %6d %s\n",$_*2,$_*2+1,$b[$_],'=' x ($b[$_]*1000/$num) for 1..200/2;
 ok( between($perc1sd,  68.2 - 4.0,  68.2 + 4.0) ); #hm, margin too small?
 ok( between($percmensa, 2.2 - 0.9,   2.2 + 0.9) ); #hm, margin too small?
+
+## push_srand() and pop_srand dont work as intended
+## #----push_srand, pop_srand
+## sub r{push_srand(7);my@r=map rand(),1..5;print srlz(\@Acme::Tools::Srand,'Srand');pop_srand();@r}
+## srand(7);
+## my @r1=map rand(),1..2;
+## my @r2=r();
+## push @r1,map rand(),3..5;
+## is(join(' - ',@r1),
+##    join(' - ',@r2));

@@ -30,6 +30,16 @@ sub perm { #same golfed and faster
     print join(" ",@a)."\n";
     $c[$i]>=$i and $c[$i++]="0e0" or $p=$c[$i]++*($i%2),@a[$p,$i]=@a[$i,$p],$i=0,print(join(" ",@a)."\n") while $i<@a;
 }
+sub permstr { #takes string (as in array of chars) instead of array
+  my $str=shift;
+  my @r=($str);
+  my @a=split//,$str;
+  my($i,@c,$p);
+  no warnings 'uninitialized';
+  $c[$i]>=$i and $c[$i++]="0e0" or $p=$c[$i]++*($i%2),@a[$p,$i]=@a[$i,$p],$i=0,push@r,join'',@a while $i<@a;
+  @r;
+}
+
 
 my $n=shift||4;
 my @a=1..$n;
@@ -40,3 +50,7 @@ https://en.wikipedia.org/wiki/Heap%27s_algorithm
 time perl perm2.pl 8|md5sum                 #a3fc159cae1cdda4e3c8db1021a2ec81
 time perl perm2.pl 8|sort|md5sum            #b34c300f7ec5e403f6f7aac1997e3f9d
 time perl perm.pl 8|md5sum                  #samme
+
+time perl t/test_perm2.pl 9|wcl                                                        # => 362880   0.61s
+time perl -MAlgorithm::Permute=permute -le'@a=1..9;permute{print join(" ",@a)}@a'|wcl  # => 362880   0.141s
+Speed comparison: https://metacpan.org/pod/Algorithm::Permute#COMPARISON

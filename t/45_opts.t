@@ -22,3 +22,5 @@ check_opts('ks:j',[qw(-k -sstr  -j1 -s str2 2 3 4)],undef,undef,qr/has no arg/);
 check_opts('ks:j',[qw(-kj -sstr 1 -s str2 2 3 4)],[1..4],{k=>1,j=>1,s=>'str,str2'});
 check_opts('ks:je',[qw(-kje -sstr 1 -s str2 2 3 4)],[1..4],{e=>1,k=>1,j=>1,s=>'str,str2'});
 check_opts('ks:jet:',[qw(-kjetil -sstr 1 -s str2 2 3 4)],[1..4],{e=>1,k=>1,j=>1,s=>'str,str2',t=>'il'});
+
+#45_opts.t fails for v5.16.3 ?

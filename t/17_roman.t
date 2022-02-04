@@ -1,5 +1,5 @@
 # make test
-# perl Makefile.PL; make; perl -Iblib/lib t/17_roman.t
+# perl Makefile.PL && make && perl -Iblib/lib t/17_roman.t
 
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests => 31;
@@ -13,15 +13,18 @@ ok( int2roman(0) eq '', 'zero');
 ok( !defined(int2roman(undef)), 'undef');
 ok( defined(int2roman("")) && !length(int2roman("")), 'empty');
 my @n=(-100..4999);
-my @err=grep roman2int(int2roman($_))!=$_, grep $_>100?$_%7==0:1, @n;
-ok( @err==0, "all, not ok: ".(join(", ",@err)||'none') );
+my @err=grep roman2int(int2roman($_))!=$_, grep $_>100?$_%13==0:1, @n;
+ok( @err==0, "comparealot, not ok: ".(join(", ",@err)||'none') );
 
+@n=@n[grep $_%23==0, 0..$#n] if !$ENV{ATDEBUG};
 my @t=([time_fp(),join(" ",map int2roman($_)    ,@n),time_fp()],
        [time_fp(),join(" ",map int2roman_old($_),@n),time_fp()]);
-ok( $t[0][1] eq $t[1][1] );
+my $info="comparing ".@n." nums of old vs new impl".($ENV{ATDEBUG}?": ".srlz(\@t,'t','',1):"");
+ok( $t[0][1] eq $t[1][1], $info);
+
 if($ENV{ATDEBUG}){
-  printf "Acme::Tools::int2roman   - %.6fs\n",$t[0][2]-$t[0][0];
-  printf "17_roman.t/int2roman_old - %.6fs\n",$t[1][2]-$t[1][0];
+  printf "int2roman     - %.6fs\n",$t[0][2]-$t[0][0];
+  printf "int2roman_old - %.6fs\n",$t[1][2]-$t[1][0];
 }
 
 sub int2roman_old {

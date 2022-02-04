@@ -1,4 +1,4 @@
-# make;perl -Iblib/lib t/40_aoh2.t
+# perl Makefile.PL && make && perl -Iblib/lib t/40_aoh2.t
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests => 3;
 my @oceania=a2h(
@@ -80,24 +80,27 @@ my $sql3=aoh2sql(\@oceania,{name=>'country',create=>0});
 $sql2=~s,^(drop|create) table.*?;\n\n,,sgm;
 
 is( $sql3, $sql2, 'correct without drop and create' );
-eval{ require Spreadsheet::WriteExcel };
-if($@){
-	ok(1,'Spreadsheet::WriteExcel not installed, skip test for aoh2xls()');
-	exit;
+
+SKIP: {
+  skip 'aoh2xls() w/Spreadsheet::WriteExcel, TODO: implement aoh2xls()',1 if !$ENV{ATDEBUG};
+  eval{ require Spreadsheet::WriteExcel };
+  skip 'Spreadsheet::WriteExcel not installed',1 if $@;
+  my $f=tmp()."/40_aoh2.xls";
+  my $workbook = Spreadsheet::WriteExcel->new($f);
+  my $worksheet = $workbook->add_worksheet();
+  my $format = $workbook->add_format(); # Add a format
+  $format->set_bold();
+  $format->set_color('red');
+  $format->set_align('center');
+  $col = $row = 0;
+  $worksheet->write($row, $col, 'Hi Excel!', $format);
+  $worksheet->write(1,    $col, 'Hi Excel!');
+  # Write a number and a formula using A1 notation
+  $worksheet->write('A3', 1.2345);
+  $worksheet->write('A4', '=SIN(PI()/4)');
+  $workbook->close();
+  ok(-s$f, "wrote $f (TODO: aoh2xls() not implemented yet)");
 }
-my $workbook = Spreadsheet::WriteExcel->new('/tmp/40_aoh2.xls');
-my $worksheet = $workbook->add_worksheet();
-my $format = $workbook->add_format(); # Add a format
-$format->set_bold();
-$format->set_color('red');
-$format->set_align('center');
-$col = $row = 0;
-$worksheet->write($row, $col, 'Hi Excel!', $format);
-$worksheet->write(1,    $col, 'Hi Excel!');
-# Write a number and a formula using A1 notation
-$worksheet->write('A3', 1.2345);
-$worksheet->write('A4', '=SIN(PI()/4)');
-ok(1);
 
 #wget https://en.wikipedia.org/wiki/List_of_largest_cities_and_towns_in_Tennessee_by_population
 #perl -MAcme::Tools -le'print aoh2sql([a2h(ht2t(join("",<>),"listings"))],{name=>"list",fix_colnames=>1})' List_of_largest_cities_and_towns_in_Tennessee_by_population |xz -9e|wcc
