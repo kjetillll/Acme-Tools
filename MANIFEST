@@ -55,6 +55,7 @@ t/47_huffman.t
 t/48_readfile_writefile.t
 t/49_csv.t
 t/50_primes.t
+t/51_cmds.t
 t/common.pl
 t/test_binsearch_bench.pl
 t/test_fork_bloom.pl

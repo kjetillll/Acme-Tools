@@ -8917,7 +8917,7 @@ Examples:
 sub install_tools { install_acme_command_tools() }
 sub install_acme_command_tools {
   my $dir=(grep -d$_, @_, '/usr/local/bin', '/usr/bin')[0];
-  for( qw( conv due xcat freq finddup ccmd wipe rttop  z2z 2gz 2gzip 2bz2 2bzip2 2xz resubst zsize) ){
+  for( qw( conv due xcat freq finddup ccmd wipe rttop  z2z 2gz 2gzip 2bz2 2bzip2 2xz resubst zsize cilmd ) ){
     unlink("$dir/$_");
     writefile("$dir/$_", "#!$^X\nuse Acme::Tools;\nAcme::Tools::cmd_$_(\@ARGV);\n");
     sys("/bin/chmod +x $dir/$_"); #hm umask
@@ -9405,6 +9405,25 @@ sub cmd_zsize {
   unlink $argv[0] if $stdin;
 }
 
+our $Cmd_cilmd_silenzio=0;
+
+sub cmd_cilmd   {
+    my$ci=which('ci');
+    warn"cilmd: ci not installed?!\n" if !-x$ci;
+    for(@_){
+	warn"cilmd: $_ dont exists\n" and next if !-e$_;
+	warn"cilmd: $_ is not a file\n" and next if !-f$_;
+	my@v=grep -f$_,"$_,v",s|[^/]+$|RCS/$&|r;
+	warn"cilmd: both ".join(' and ',@v)." found, skipping\n" and next if @v>1;
+	my@stat=stat;
+	my$cmd="$ci -l -m. -d $_";
+	$cmd=~s/^/echo .|/ if !@v;
+	$cmd.=" 2> /dev/null" if $Cmd_cilmd_silenzio and $^O eq 'linux'; #hm
+	sys($cmd);
+	#warn"cilmd: @v not updated"...
+	chall(\@stat,$_);
+    }
+}
 sub cmd_rttop   { die "rttop: not implemented here yet.\n" }
 sub cmd_whichpm { die "whichpm: not implemented here yet.\n" } #-a (all, inkl VERSION og ls -l)
 sub cmd_catal   { die "catal: not implemented here yet.\n" } #-a (all, inkl VERSION og ls -l)
