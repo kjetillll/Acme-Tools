@@ -605,10 +605,10 @@ sub factors {
 
 Input: a number with decimals or not, positive, zero or negative
 
-Output in scalar context: a string n/d where n is the nominator and d is the denominator.
+Output in scalar context: a string n/d where n is the numerator and d is the denominator.
 
 Output in array context: returns an array (N,D,...) in all eight
-numbers where the first two elements are N and D, the nominator and
+numbers where the first two elements are N and D, the numerator and
 denominator respectively.
 
   fraction(355/113)              # '355/133' the literal string without quotaton marks
@@ -639,7 +639,7 @@ sub _fraction {
 	return wantarray ? ($min_n,$min_d,$min_diff,$min_c, $n,$d,$diff,$c)
 	                 : "$min_n/$min_d";
     }
-    my($n,$d,$c)=(1,1,0); #nominator, denominator, count
+    my($n,$d,$c)=(1,1,0); #numerator, denominator, count
     my($min_n,$min_d,$min_diff,$min_c,$diff,$f,$X,$F);
     #my$dec=11-int(1+1e-12+log($x)/log(10));#hm
     while($c++==0 || $diff==0 || $X ne $F  and  $c==1 || $c <= $min_c*20 || $c <= 200  and  length($n.$d)<10) { #hm
@@ -8927,6 +8927,7 @@ sub install_acme_command_tools {
 sub cmd_conv { print conv(@ARGV)."\n"  }
 our @Due_fake_stdin;
 #TODO: output from tar tvf and ls and find -ls
+#TODO: -G see greatest file, -L see least file (max and min bytes)
 sub cmd_due {
   my %o;
   my @argv=opts("zkKmhciMCAPate:lE:t",\%o,@_);
