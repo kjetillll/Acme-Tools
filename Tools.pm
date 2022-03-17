@@ -9209,7 +9209,7 @@ sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
 sub cmd_z2z {
   my %o;
   my $pvopts="L:D:i:lIq";
-  my @argv=opts("pt:kvhon123456789es:T$pvopts", \%o, @_);
+  my @argv=opts("pt:kvhon123456789es:T".$pvopts, \%o, @_);
   my $t=repl(lc$o{t},qw/gzip gz bzip2 bz2/);
   die "due: unknown compression type $o{t}, known are gz, bz2 and xz" if $t!~/^(gz|bz2|xz)$/;
   $o{p}=$o{q}=1 if!defined$o{p} and grep$pvopts=~/$_/,keys%o; # pvopts implies -p -q (quiet pv if -L++ wo -p)
@@ -9270,8 +9270,10 @@ sub cmd_z2z {
         : "   TA: 0s $str"
           if $sum>1e6;
         $str="$i/".@argv." $str";
+	sleep_fp($o{s}) if exists$o{s} and $o{s}>0 and $i<@ARGV;
       }
       print "$str $new\n";
+      
     }
   }
   if($o{v} and @argv>1){
