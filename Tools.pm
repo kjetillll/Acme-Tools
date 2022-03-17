@@ -2398,7 +2398,7 @@ C<trigram()> should perhaps have been named ngram for obvious reasons.
 
 Same as trigram with any width, not just 3. Works also with arrayref instead of string.
 
- my @a = sliding( "Reven rasker over isen"], 15 );          #string, wanted width 15
+ my @a = sliding( "Reven rasker over isen", 15 );           #string, wanted width 15
  my @b = sliding( ["Reven","rasker","over","isen"], 2 );    #array of words, width 2
 
 Resulting arrays @a and @b respectively:
@@ -9423,6 +9423,19 @@ sub cmd_cilmd   {
 	sys($cmd);
 	#warn"cilmd: @v not updated"...
 	chall(\@stat,$_);
+    }
+}
+sub cmd_delsub {
+    my %o;
+    my @argv=args("s:i:",\%o,@_);
+    croak if !exists$o{s} or $o{s}!~/^(\w+,?)*$/;
+    croak if exists$o{i} and $o{i}!~/^\.?\w+$/;
+    my $r=$o{s}; $r=~s/,/|/g;
+    for my $f (@argv){
+	my $c=readfile($f);
+	$c=~s/^(\s*)sub\s+($r)\b.+?\1}//smg;
+	rename $f, "$f$o{i}" if exists$o{i};
+	writefile($f,$c);
     }
 }
 sub cmd_rttop   { die "rttop: not implemented here yet.\n" }
