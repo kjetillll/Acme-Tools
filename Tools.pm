@@ -1964,6 +1964,7 @@ sub distance_great_circle {
 
 sub distance {
   my($lat1,$lon1,$lat2,$lon2)=map $Distance_factor*$_, @_;
+  return 0 if $lat1==$lat2 and $lon1==$lon2;
   my $a= sin(($lat2-$lat1)/2)**2
        + sin(($lon2-$lon1)/2)**2 * cos($lat1) * cos($lat2);
   my $sqrt_a  =sqrt($a);    $sqrt_a  =1 if $sqrt_a  >1;
@@ -6023,6 +6024,7 @@ sub tms {
 Input: A year (a four digit number)
 
 Output: array of two numbers: day and month of Easter Sunday that year. Month 3 means March and 4 means April.
+Minimum is 22,3 (22nd of March) and maximum is 25,4 (25th of April)
 
  sub easter { use integer;my$Y=shift;my$C=$Y/100;my$L=($C-$C/4-($C-($C-17)/25)/3+$Y%19*19+15)%30;
              (($L-=$L>28||($L>27?1-(21-$Y%19)/11:0))-=($Y+$Y/4+$L+2-$C+$C/4)%7)<4?($L+28,3):($L-3,4) }
@@ -9226,7 +9228,7 @@ sub cmd_z2z {
 
   my $sumnew=0;
   my $start=time_fp();
-  my($i,$bsf)=(0,0);#bytes so far
+  my($done,$bsf)=(0,0);#bytes so far
   $Eta{'z2z'}=[];eta('z2z',0,$sum);
   #@argv=map$$_[1],sort{$$a[0]cmp$$b[0]}map{[$opt{
   for(@argv){
@@ -9263,17 +9265,14 @@ sub cmd_z2z {
       my $str= $o{h}
       ? sprintf("%-7s %9s => %9s",       $pr,(map bytes_readable($_),$szold,$sznew))
       : sprintf("%-7s %11d b => %11d b", $pr,$szold,$sznew);
+      $done++;
       if(@argv>1){
-        $i++;
-        $str=$i<@argv
-        ? "  ETA:".sprintf("%-8s",sec_readable(eta('z2z',$bsf,$sum)-time_fp()))." $str"
-        : "   TA: 0s $str"
-          if $sum>1e6;
-        $str="$i/".@argv." $str";
-	sleep_fp($o{s}) if exists$o{s} and $o{s}>0 and $i<@ARGV;
+	my $eta=sprintf "  ETA: %-8s", sec_readable(eta('z2z',$bsf,$sum)-time_fp());
+	$str=sprintf("%-11s ",$done<@argv?$eta:"").$str if $sum>1e5;
+        $str="$done/".@argv." $str";
       }
       print "$str $new\n";
-      
+      sleep_fp($o{s}) if exists$o{s} and $o{s}>0 and $done<@argv;
     }
   }
   if($o{v} and @argv>1){
@@ -9364,13 +9363,13 @@ sub cmd_zsize {
   my $stdin=!@argv || join(",",@argv) eq '-';
   @argv=("/tmp/acme-tools.$$.stdin") if $stdin;
   writefile($argv[0],join("",<STDIN>)) if $stdin;
-  my @prog=grep qx(which $_), map lc, grep/[A-Z]/&&!$o{$&}, qw(Gzip Pigz Bzip2 Xz Zstd bRotli);
+  my @prog=grep qx(which $_), map lc, grep/[A-Z]/&&!$o{$&}, qw(Gzip Pigz Bzip2 Xz Zstd bRotli Lz4);
   for my $f (@argv){
       my $sf=-s$f;
       print "--- $f does not exists\n" and next if !-e$f;
       print "--- $f is not a file\n" and next if !-f$f;
       print "--- $f ($sf b) is not readable\n" and next if !-r$f;
-      print "--- $sf b  ".bytes_readable($sf)."  ".($stdin?"-":$f)."\n";
+      print "--- $sf b".($sf>1000?" = ".bytes_readable($sf):"")."  ".($stdin?"-":$f)."\n";
       next if !$sf;
       my(@t,@s);
       for my $prog (@prog){
@@ -9386,7 +9385,7 @@ sub cmd_zsize {
           push @s, $prog, [] if $o{p} and $o{s};
           for my $l (@l){ #level
               my $t=time_fp();
-              my $b=qx(cat $f|$prog -$l|wc -c);
+              my $b=qx(cat $f|$prog -$l|wc -c)/1;
               push@{$t[-1]},time_fp()-$t if $o{t};
               push@{$s[-1]},$b           if $o{p} and $o{s};
               $o{p} ? printf("%9.1f%% ",100*$b/$sf)
@@ -9412,7 +9411,7 @@ our $Cmd_cilmd_silenzio=0;
 
 sub cmd_cilmd   {
     my$ci=which('ci');
-    warn"cilmd: ci not installed?!\n" if !-x$ci;
+    warn"cilmd: ci not installed?! Try   sudo yum install rcs   on redhat/centos or   sudo apt install rcs   on ubuntu/debian.\n" if !-x$ci;
     for(@_){
 	warn"cilmd: $_ dont exists\n" and next if !-e$_;
 	warn"cilmd: $_ is not a file\n" and next if !-f$_;
