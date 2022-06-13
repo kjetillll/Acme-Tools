@@ -567,22 +567,32 @@ Uses a sieve algorithm doing bitwise or's.
 
 =cut
 
-our $bits;
-sub primes {
+sub primes {    # sieve of Eratosthenes
   my $n = shift;
   return (2,3) if $n==-2;
   return (2)   if $n==-1 or $n==2;
   return ()    if $n==0  or $n==1;
   return (primes(do{my$N=-$n;$N*=1.1while$N/log($N)<-1.2*$n;$N}))[0..-$n-1] if $n<0;
   my( $q,$repeat ) =( sqrt($n), 1 );
-  $bits=0 x $n;
+  my $bits=0 x $n;
   for(my$factor=3; $factor<=$q; $factor+=2){
     next if substr($bits,$factor,1);
     $repeat .= 0 x (2*$factor-length$repeat);
     my $times = -($factor**2-length$bits)/2/$factor + 1;
     $bits |= 0 x $factor**2  .  ($times>0?$repeat x $times:'');
+    #...since for $factor==7 (i.e.) 14, 21, 28, 35, 42 is already marked by 2, 3, 5
   }
   @{[2,map$_*2+1,grep!substr($bits,1+$_*2,1),1..$n/2-.5]};
+}
+
+sub is_prime {
+    my $n = shift;
+    return $n>1 if $n<=3;
+    return 0    if $n%2==0 or $n%3==0;
+    my($i, $stop) = (5, int sqrt $n);
+   #$n%$i==0 || $n%($i+2)==0  and  return 0   or   $i+=6 while $i <= $stop;
+    !(($n%$i)*($n%($i+2))) and return 0 or $i+=6 while $i <= $stop;
+    return 1
 }
 
 sub factors {
@@ -986,8 +996,10 @@ our %conv=(
         leagues   => 0.0254*12*3*22*10*8*3,   #4828.032 m
         yard_imp           => 0.914398416,
         yard_imperical     => 0.914398416,
-        NM                 => 1852,           #nautical mile
+        NM                 => 1852,           #nautical mile, 1852 by new def, 1851.85 old def: 10e6/90/60, earth arcminute
         nmi                => 1852,           #nautical mile
+        nautical_mile      => 1852,
+        nautical_miles     => 1852,
         'nautical mile'    => 1852,
         'nautical miles'   => 1852,
         micron             => 1e-6,
@@ -1238,7 +1250,8 @@ our %conv=(
         #therm        => 2.74,                #? 100000BTUs?   (!= thermie)
         #thm          => 2.74,                #?               (!= th)
         fat           => 42*231*2.54**3/1e6,
-        bbl           => 42*231*2.54**3/1e6,  #oil barrel ~159 liters https://en.wikipedia.org/wiki/Barrel_(unit)
+        bbl           => 42*231*2.54**3/1e6,
+        barrel        => 42*231*2.54**3/1e6,  #oil barrel ~159 liters https://en.wikipedia.org/wiki/Barrel_(unit)
         Mbbl          => 42*231*2.54**3/1e3,  #mille (thousand) oil barrels, M er mille her, ikke mega!
         MMbbl         => 42*231*2.54**3,      #mille mille (million) oil barrels
         drum          => 0.208,               #208 L
@@ -1303,7 +1316,7 @@ our %conv=(
         moment       => 3600/40,  #1/40th of an hour, used by Medieval Western European computists
         ke           => 864,      #1/100th of a day, trad Chinese, 14m24s
         fortnight    => 14*24*3600,
-        tp           => 5.3910632e-44,  #planck time, time for ligth to travel 1 planck length
+        tp           => 5.3910632e-44,  #planck time, time for light to travel 1 planck length
         nanocentury  =>  100 * 60*60*24*365.2425 / 1e9,   #3.156 ~ pi seconds, response time limit (usability)
         warhol       => 15*60,                            #"fifteen minutes of fame"
     },

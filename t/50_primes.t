@@ -1,6 +1,6 @@
 # make && perl -Iblib/lib t/50_primes.t
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests => 45;
+use Test::More tests => 47;
 my $tt=0;
 my @p=(
   2,  3,  5,  7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71,
@@ -89,6 +89,10 @@ is(0+@err,0,sprintf'primes2() alternative    %.2f%%',avg(@pnt));
 
 #for(1e5-30 .. 1e5){ primes($_); print "_=$_ bits=".length($Acme::Tools::bits)."\n" }
 
+my @p1=primes(1e4);
+my @p2=grep Acme::Tools::is_prime($_), 1..1e4;
+is( join(',',@p1), join(',',@p2), 'is_prime' );
+
 sub primes2($) { #inspired by https://github.com/famzah/langs-performance/blob/master/primes.pl
   my $n=shift;
   return ()  if $n<2;
@@ -123,6 +127,27 @@ sub primes3 {
   }
   @{[2,map$_*2+1,grep!substr($bits,1+$_*2,1),1..$n/2-.5]};
 }
+sub primes4 {    # sieve of Eratosthenes
+  my $n = shift;
+  return (2,3) if $n==-2;
+  return (2)   if $n==-1 or $n==2;
+  return ()    if $n==0  or $n==1;
+  return (primes4(do{my$N=-$n;$N*=1.1while$N/log($N)<-1.2*$n;$N}))[0..-$n-1] if $n<0;
+  my($q, $repeat) = (sqrt($n), 1);
+  my $bits=0 x $n;
+  for(my$factor=3; $factor<=$q; $factor+=2){
+    next if substr($bits,$factor,1);
+    $repeat .= 0 x (2*$factor-length$repeat);
+    my $times = 1-($factor**2-length$bits)/2/$factor;
+   #$bits |= 0 x $factor**2  .  ($times>0?$repeat x $times:'');
+    substr($bits,$factor**2) |= $repeat x $times;
+    #...since for $factor==7 (i.e.) 14, 21, 28, 35, 42 is already marked by 2, 3, 5
+  }
+  @{[2,map$_*2+1,grep!substr($bits,1+$_*2,1),1..$n/2-.5]};
+}
+
+
+
 $ENV{ATDEBUG}&&-s't/primes1.txt.xz'?testalot():ok(1,'skip testalot() wo ATDEBUG');
 sub testalot {
   my $ant=pop//1e4;
@@ -131,6 +156,14 @@ sub testalot {
   is( join(',',@p1), join(',',@p2), "First $ant vs t/primes1.txt.xz" );
 }
 
+$ENV{ATDEBUG} ? is( join(',',Acme::Tools::primes(1e5)), join(',',primes4(1e5)), 'primes4' ) : ok(1,'skip primes4()-test wo ATDEBUG');
+use Benchmark;
+timethese(30,{
+  'A::T::primes'=>'Acme::Tools::primes(1e5)',
+  'primes2'     =>'primes2(1e5)',
+  'primes3'     =>'primes3(1e5)',
+  'primes4'     =>'primes4(1e5)',
+}) if $ENV{ATDEBUG};
 
 __END__
 https://primes.utm.edu/lists/small/millions/
