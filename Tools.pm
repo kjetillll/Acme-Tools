@@ -154,6 +154,7 @@ our @EXPORT = qw(
   gcd
   lcm
   primes
+  is_prime
   factors
   fraction
   dec2frac

@@ -92,6 +92,9 @@ is(0+@err,0,sprintf'primes2() alternative    %.2f%%',avg(@pnt));
 my @p1=primes(1e4);
 my @p2=grep Acme::Tools::is_prime($_), 1..1e4;
 is( join(',',@p1), join(',',@p2), 'is_prime' );
+ok(is_prime(99999989),            'is_prime 99999989');
+ok(!is_prime(99999987),           'is_prime not 99999987');
+
 
 sub primes2($) { #inspired by https://github.com/famzah/langs-performance/blob/master/primes.pl
   my $n=shift;
