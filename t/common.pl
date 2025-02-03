@@ -18,6 +18,7 @@ sub gz {
   writefile($t,shift());
   ''.qx(gzip<$t);
 }
+sub caught {"caught $_[0] (as it should)"}
 1;
 
 __END__

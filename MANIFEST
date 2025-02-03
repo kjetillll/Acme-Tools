@@ -56,6 +56,8 @@ t/48_readfile_writefile.t
 t/49_csv.t
 t/50_primes.t
 t/51_cmds.t
+t/52_comb.t
+t/53_chars.t
 t/common.pl
 t/test_binsearch_bench.pl
 t/test_fork_bloom.pl

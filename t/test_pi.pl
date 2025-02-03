@@ -1,5 +1,5 @@
 use Acme::Tools;
-print "$Acme::Tools::PI\n";
+print "pi:         $Acme::Tools::PI\n";
 my $pi=bigf($PI);
 my $pi_big=bigf(repl(<<'',qr/\s/));
       3.1415926535897932384626433832795028841971693993751058209749445923078
@@ -26,8 +26,12 @@ my $pi_big=bigf(repl(<<'',qr/\s/));
         449872027559602364806654991198818347977535663698074265425278625518184175
         746728909777727938000816470600161452491921732172147723501414419735685481
 
-
 pi_bin();
+#pi_approx();
+#pi_1();
+#pi_2();
+#pi_3();
+pi_ramanujan();
 
 sub pi_1 { #  pi = 4 sigma(0..inf) -1^k/(2k+1)
   for my $n (map 10**$_,1..18){
@@ -46,83 +50,80 @@ sub pi_1 { #  pi = 4 sigma(0..inf) -1^k/(2k+1)
 }
 
 sub pi_2 { # pi^2/6 = 1/1**2 + 1/2**2 + 1/3**2 + 1/4**2 ...
-  for my $n (map 10**$_,0..8){
+  for my $n (map 2**$_, 0..24){
     my($start,$sum)=(time_fp(),0);
-    $sum+=1/$_**2 for 1..$n;
+   #$sum+=1/$_**2 for map bigf($_), 1..$n;
+    $sum+=$_**-2 for 1..$n;
     my $mypi=sqrt(6*$sum);
-    printf "%9d: ".("%30.25f" x 2)."  %5.2fs\n",  $n, $mypi, $pi-$mypi, time_fp()-$start;
+    printf "%9d: ".("%30.25f" x 2)."  %g  %5.2fs\n",  $n, $mypi, $pi-$mypi, $pi-$mypi, time_fp()-$start;
   }
 }
 
 sub pi_3 { # dart and pythagoras
-    for my $n (map 10**$_,0..8){
-	my($start,$s)=(time_fp(),0);
-	for(1..$n){
-	    my($x,$y)=(rand(),rand()); #throw dart
-	    ++$s if sqrt($x*$x + $y*$y) < 1;
-	}
-	my $mypi=4*$s/$n;
-	printf "%9d: %30.25f  %30.25f  %5.2fs\n", $n, $mypi, $pi-$mypi, time_fp()-$start;
+    for my $n (map 2**$_,0..22){
+        my($start,$s)=(time_fp(),0);
+        for(1..$n){
+            my($x,$y)=(rand(),rand()); #throw dart
+            ++$s if sqrt($x*$x + $y*$y) < 1; #count if within radius of 1
+        }
+	#my $s=grep 1 > rand()**2 + rand()**2, 1..$n;
+	#++$s if rand()**2 + rand()**2 < 1 for 1..$n;
+        my $mypi=4*$s/$n;
+#	my $mypi = 4 / $n * grep 1 > rand()**2 + rand()**2, 1..$n;
+        printf "%9d: %30.25f  %30.25f  %.3g  %5.2fs\n", $n, $mypi, $pi-$mypi, $pi-$mypi, time_fp()-$start;
     }
 }
 
 #use Math::BigFloat lib=>"GMP";# if !$INC{'Math/BigFloat.pm'};
-sub pi_4 { # ramaputramama...
-    #use Math::BigFloat ':constant';
-    my @fak; $fak[$_]=$_?$fak[$_-1]*$_:bigf(1) for 0..1000; #die join("\n",@fak)."\n";
+my%fakmz;
+sub fak{my$n=pop;$fakmz{$n}//=$n<1?bigf(1):$n*fak($n-1)}
+sub pi_ramanujan {
     bigscale(1000); #hm
     my $pi_bigger=Math::BigFloat->bpi(1000);
-    for my $n (30..50){
-	my($start,$s)=(time_fp(),bigf(0));
-	for my $k (0..$n) {
-	    my $kf=bigf($k);
-	    $s+=  $fak[$k*4] / $fak[$k]**4
-		* (1103 + 26390*$kf) / 396**($kf*4)
-	}
-	$s*=2*sqrt(bigf(2))/9801;
-	my $mypi=1/$s;
-	printf "%9d: %30.25f  %30.25f  %g %5.2fs\n", $n, $mypi, $pi_bigger-$mypi, $pi_bigger-$mypi, time_fp()-$start;
+    my $mypi;
+    for my $n (1..50){
+        my($start,$s)=(time_fp(),bigf(0));
+        for my $k (0..$n) {
+            my $kf=bigf($k);
+            $s+=  fak($k*4) / fak($k)**4
+                * (1103 + 26390*$kf) / 396**($kf*4)
+        }
+        $s*=2*sqrt(bigf(2))/9801;
+        $mypi=1/$s;
+        printf "%9d: %30.25f  %30.25f  %g %5.2fs\n", $n, $mypi, $pi_bigger-$mypi, $pi_bigger-$mypi, time_fp()-$start;
     }
+    print "$pi_bigger\n$mypi\n";
+    print "$pi_bigger $mypi"=~/^(.*)(.*) \1/ ? "$1\n".(length($1)-2)." decimals\n":die;
 }
 
 sub pi_approx {
     my($min,$imp)=(9e9,0); $|=1;
     for my $n (1..1e7){
-	my $x=int($pi*$n);
-	print "$n\r" if $n%1000==0;
-	for($x..$x+1){
-	    my $mypi=$_/$n;
-	    my $diff=abs($pi-$mypi);
-	    next unless $diff<$min and $imp=$min/$diff and $min=$diff and $imp>1.1;
-	    printf "%9d / %-9d  %20.15f  %20.15f  %g      improvement: %g\n", $_, $n, $mypi, $diff, $diff, $imp;
-	}
-    }
-}
-
-sub pi_bin_old {
-    bigscale(1000); #hm
-    for my $n (1..100){
-	my $start=time_fp();
-	my $sum=0;
-	for my $i (map bigf($_),0..$n){
-	    $sum += 1/16**$i * ( 4/(8*$i+1) - 2/(8*$i+4) - 1/(8*$i+5) - 1/(8*$i+6) );
-	}
-	my $mypi=$sum;
-	my $diff=$pi_big-$mypi;
-	#next unless $diff<$min and $imp=$min/$diff and $min=$diff and $imp>1.1;
-	printf "%9d:  %30.25f  %30.25f  %g  %5.2f\n", $n, $mypi, $diff, $diff, time_fp()-$start;
+        my $x=int($pi*$n);
+        print "$n\r" if $n%1000==0;
+        for($x..$x+1){
+            my $mypi=$_/$n;
+            my $diff=abs($pi-$mypi);
+            next unless $diff<$min and $imp=$min/$diff and $min=$diff and $imp>1.1;
+            printf "%9d / %-9d  %20.15f  %20.15f  %g      improvement: %g\n", $_, $n, $mypi, $diff, $diff, $imp;
+        }
     }
 }
 
 sub pi_bin { # http://www.experimentalmath.info/bbp-codes/bbp-alg.pdf
-    bigscale(500); #hm
+    bigscale(1400); #hm
     my $start=time_fp();
     my $mypi=0;
-    for my $i (map bigf($_), 0..300){
-	$mypi += 1/16**$i * ( 4/(8*$i+1) - 2/(8*$i+4) - 1/(8*$i+5) - 1/(8*$i+6) );  #from Ferguson's PSLQ algorithm
-	next if $i%10;
-	my $diff=$pi_big-$mypi;
-	printf "%9d:  %30.25f  %30.25f  %g  %5.2f\n", $i, $mypi, $diff, $diff, time_fp()-$start;
+    my $pi_bigger=Math::BigFloat->bpi(1000);
+    for my $i (map bigf($_), 0..300){ #from Ferguson's PSLQ algorithm:
+        $mypi += 16 ** -$i * (  4/(8*$i+1)
+                              - 2/(8*$i+4)
+                              - 1/(8*$i+5)
+                              - 1/(8*$i+6) );  
+        next if $i%10 and $i>=10;
+       #my $diff=$pi_big-$mypi;
+        my $diff=$pi_bigger-$mypi;
+        printf "%9d:  %s  %30.25f  %-12g  %5.2f\n", $i, substr($mypi,0,60), $diff, $diff, time_fp()-$start;
     }
 }
 

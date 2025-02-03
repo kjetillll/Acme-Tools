@@ -1,6 +1,6 @@
 # make && perl -Iblib/lib t/44_graph.t
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests => 87;
+use Test::More tests => 93;
 use Carp;
 use Benchmark;
 
@@ -86,8 +86,7 @@ for(
 
 
 sub check_DAG {
-  croak "ERROR: wrong input, not a DAG (not an array of refs to two elem arrays"
-    if grep {ref($_) ne 'ARRAY' or @$_!=2} @_;
+  croak "ERROR: input is not a DAG (not array of refs to two elem arrays" if grep ref($_) ne 'ARRAY' || @$_!=2, @_;
 }
 sub graph_h2h {
   check_DAG(@_);
@@ -169,4 +168,31 @@ sub is_toposorted {
 #   any { $pos{$$_[0]} < $pos{$$_[1]} } @_;
     $pos{$$_[0]} < $pos{$$_[1]} and return 1 for @_;
     0
+}
+
+sub graph_cycle {
+    my %C; $C{ $$_[0] }{ $$_[1] }++ for @_;
+    my %v;
+    my @try = map [$_], sort keys %C;
+    while(@try){
+	my @path = @{ shift @try };
+	return @path if $path[0] eq $path[-1] and @path > 1;
+	push @try, map [@path,$_], sort keys %{ $C{$path[-1]} } if !$v{$path[0],$path[-1]}++;
+    }
+    ()
+}
+
+for( [ [1,2],[2,8],[8,9],[9,2] => [2,8,9,2] ],
+     [ [1,2],[2,3],[3,4],[4,5] => undef     ],
+     [ [3,2],[2,5],[2,1],[1,2] => [1,2,1]   ],
+     [ [3,2],[2,5],[2,4]       => undef     ],
+     [ [0,1],[0,2],[1,2],[2,3] => undef     ],
+     [ ['A'=>'B'], ['B'=>'C'], ['C'=>'D'], ['D'=>'A'],  ['C'=>'E'],
+       ['E'=>'F'], ['F'=>'G'], ['G'=>'E'], ['H'=>'G'],  ['I'=>'H']
+       => ['E'=>'F'=>'G'=>'E'] ]
+){
+    my $expected = pop@$_;
+    my @graph = @$_;
+    my @got = graph_cycle(@graph);
+    ok "@$expected" eq "@got", "graph_cycle: @{[map join('>',@$_), @graph]}   expected: @$expected   got: @got";
 }

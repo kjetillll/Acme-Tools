@@ -122,7 +122,7 @@ ok( sorted(    @num ), 'sorted' );
 ok( sortedstr( @str ), 'sortedstr' );
 ok( !eqarr(\@num,\@str), 'sorted ne sortedstr' );
 
-deb "--------------------------------------------------------------------------------sortby\n";
+deb "--------------------------------------------------------------------------------sortby\n"; #hm sort_by
 my @arr=(
    {Name=>'Alice', Year=>1970, Gender=>'F'},
    {Name=>'Bob',   Year=>1980, Gender=>'M'},
@@ -137,7 +137,6 @@ ok(srlz([sortby(\@arr,'Year','Gender','Name')]),
 	 sort{$$a[1]cmp$$b[1]}
 	 map[$_,sprintf("%04d%s%-30s",@$_{qw(Year Gender Name)})],
 	 @arr]));
-
 
 
 srand(2);

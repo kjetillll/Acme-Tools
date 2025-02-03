@@ -11,7 +11,7 @@ SKIP: {
   local $Acme::Tools::Pwgen_max_sec=0.001;
   eval{pwgen(3)}; ok($@=~/pwgen.*25_pwgen.t/,"pwgen croak works: ".trim($@));
   local $Acme::Tools::Pwgen_max_trials=3;
-  eval{pwgen(3)}; ok($@=~/pwgen.*after 3 .*25_pwgen.t/,"pwgen croak works: ".trim($@));
+  eval{pwgen(3)}; ok($@=~/pwgen timeout or max trials reached, trials: 3 .*25_pwgen.t/,"pwgen croak works: ".trim($@));
 };
 
 ok(length(pwgen())==8, 'default len 8');

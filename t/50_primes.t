@@ -1,6 +1,6 @@
 # make && perl -Iblib/lib t/50_primes.t
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests => 47;
+use Test::More tests => 49;
 my $tt=0;
 my @p=(
   2,  3,  5,  7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71,
@@ -84,14 +84,17 @@ for(0..30,980..1000,5000,25000){  #primes2() faster for small n
 #print srlz([map sprintf('%.5f',$_),@t1],'t1');
 #print srlz([map sprintf('%.5f',$_),@t2],'t2');
 my @pnt;
-push @pnt, 100*(shift(@t2)-$_)/$_ for @t1;
+push @pnt, 100*(shift(@t2)-$_)/($_||0.001) for @t1;
 is(0+@err,0,sprintf'primes2() alternative    %.2f%%',avg(@pnt));
 
 #for(1e5-30 .. 1e5){ primes($_); print "_=$_ bits=".length($Acme::Tools::bits)."\n" }
 
 my @p1=primes(1e4);
+my $t=time_fp;
 my @p2=grep Acme::Tools::is_prime($_), 1..1e4;
-is( join(',',@p1), join(',',@p2), 'is_prime' );
+$t=time_fp()-$t;
+
+is( join(',',@p1), join(',',@p2), "is_prime, time: $t" );
 ok(is_prime(99999989),            'is_prime 99999989');
 ok(!is_prime(99999987),           'is_prime not 99999987');
 
@@ -161,12 +164,48 @@ sub testalot {
 
 $ENV{ATDEBUG} ? is( join(',',Acme::Tools::primes(1e5)), join(',',primes4(1e5)), 'primes4' ) : ok(1,'skip primes4()-test wo ATDEBUG');
 use Benchmark;
-timethese(30,{
+timethese(100,{
   'A::T::primes'=>'Acme::Tools::primes(1e5)',
   'primes2'     =>'primes2(1e5)',
   'primes3'     =>'primes3(1e5)',
   'primes4'     =>'primes4(1e5)',
+  'dj_vector'   =>'dj_vector(1e5)',
+  'string_sieve'=>'string_sieve(1e5)',
 }) if $ENV{ATDEBUG};
 
+sub dj_vector {
+  my($end) = @_;
+  return @{([],[],[2],[2,3],[2,3])[$end]} if $end <= 4;
+  $end-- if ($end & 1) == 0; # Ensure end is odd
+ 
+  my ($sieve, $n, $limit, $s_end) = ( '', 3, int(sqrt($end)), $end >> 1 );
+  while ( $n <= $limit ) {
+    for (my $s = ($n*$n) >> 1; $s <= $s_end; $s += $n) {
+      vec($sieve, $s, 1) = 1;
+    }
+    do { $n += 2 } while vec($sieve, $n >> 1, 1) != 0;
+  }
+  my @primes = (2);
+  do { push @primes, 2*$_+1 if !vec($sieve,$_,1) } for (1..int(($end-1)/2));
+  @primes;
+}
+
+sub string_sieve {  #fastest!?
+  my($n, $i, $s, $d, @primes) = (shift, 7);
+  local $_ = '110010101110101110101110111110' .
+             '101111101110101110101110111110' x ($n/30);
+  until (($s = $i*$i) > $n) {
+    $d = $i<<1;
+    do { substr($_, $s, 1, '1') } until ($s += $d) > $n;
+    1 while substr($_, $i+=2, 1);
+  }
+  $_ = substr($_, 1, $n);
+  #return ($_ =~ tr/0//); #if return the count
+  push @primes, pos while m/0/g;
+  @primes;
+}
+
+#print join(',',dj_vector(1000))."\n";
+#print join(',',string_sieve(1000))."\n";
 __END__
 https://primes.utm.edu/lists/small/millions/

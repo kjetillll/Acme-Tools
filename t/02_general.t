@@ -2,7 +2,7 @@
 # perl Makefile.PL && make && perl -Iblib/lib t/02_general.t
 
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests => 199;
+use Test::More tests => 204;
 use Digest::MD5 qw(md5_hex);
 
 my @empty;
@@ -63,6 +63,14 @@ ok(percentile(25, 1, 4, 6, 7, 8, 9, 22, 24, 39, 49, 555, 992 ) == 6.25);
 ok(percentile(75, 1, 4, 6, 7, 8, 9, 22, 24, 39, 49, 555, 992 ) == 46.5);
 ok(join(", ",percentile([0,1,25,50,75,99,100], 1,4,6,7,8,9,22,24,39,49,555,992))
 	    eq '-2, -1.61, 6.25, 15.5, 46.5, 1372.19, 1429');
+
+#--gini
+is(gini(1,1,1), 0,     "gini 1,1,1 --> 0 all got same");
+is(gini((0)x100,7), 1, "gini 0,0,0,0,1 --> 1 one got all");
+is(gini(80,80,5,5,5,5,5,5,5,5), 0.60,  "gini, pareto, 20% got 80% --> 0.60");
+is(gini(81,79,5,5,5,5,5,5,5,5), 0.601, "gini, pareto, 20% got 80% --> 0.601");
+my @gei=([],[1],[-1,1],[1,undef,2],[0,0],[1,2]); #gini error inputs, last is ok
+is( 0+(grep{$@='';eval{gini(@$_)};$@=~/^\Qgini(): cant\E/}@gei), @gei-1, 'gini check error handling');
 
 
 #--nvl
