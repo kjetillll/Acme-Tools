@@ -58,7 +58,12 @@ $str2=join'',@r;
 substr($str2,length($str))='';
 is($str2,$str,"huffman_pack --> huffman_unpack --> $str");
 
-my $string = "some string which will be split into chars";
+my $string = "some silly silly string will sillily be split into silly chars";
 my($encoded_binary_string, $encoding_hashref) = huffman_pack($string);
+print "string == $string\n";
+print "length '$string' == ".length($string)."\n";
+print "length encoded_binary_string == ".length($encoded_binary_string)." chars, $Acme::Tools::Huffman_pack_bits bits\n";
+print srlz($encoding_hashref,'enc');
 my $string2 = huffman_unpack($encoded_binary_string, $encoding_hashref, length$string);
 is($string2,$string,'YES!');
+

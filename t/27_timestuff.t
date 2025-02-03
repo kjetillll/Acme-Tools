@@ -1,11 +1,12 @@
 # tms() and other time stuff
 # make test
-# perl Makefile.PL; make; perl -Iblib/lib t/27_timestuff.t
+# perl Makefile.PL && make && perl -Iblib/lib t/27_timestuff.t
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More;
 use Digest::MD5 'md5_hex';
-if( $^O=~/(?<!cyg)win/i ) { plan skip_all => 'POSIX::tzset not ok on windows'  }
-else                      { plan tests    => 61                                }
+my $skip_all=$^O=~/(?<!cyg)win/i && !$ENV{ATSLEEP};
+if( $skip_all ) { plan skip_all => 'POSIX::tzset not ok on windows'  }
+else            { plan tests    => 76                                }
 
 $ENV{TZ}='CET';
 #$ENV{TZ}='Europe/Oslo';
@@ -15,11 +16,18 @@ require POSIX; POSIX::tzset();
 my $t =1450624919; #20151220-16:21:59 Sun
 my $t2=1000000000; #20150909-03:46:40 Sun
 my $t3=1560000000; #20190608-15:20:00 Sat
+my $t4=-1e9;       #19380424-23:13:20
+my $t5=-9e9;       #16841019-09:00:00
+my $t6=+9e9;       #22550314-17:00:00
 
 #my @lt=localtime($t);
 #print tms($t),"<<- ".tms()."\n";
 ok( tms()   eq tms(   'YYYYMMDD-HH:MI:SS') ,'no args');
 ok( tms($t) eq tms($t,'YYYYMMDD-HH:MI:SS') ,'one arg');
+is( tms("epoch",tms("YYYY-MM-DDTHH24:MI:SS",$_)), $_,
+    qq(is(tms("epoch",tms("YYYY-MM-DDTHH24:MI:SS",$_)),$_)).' '.tms('YYYYMMDD-HH24:MI:SS',$_))
+  for $t,$t2,$t3,$t4,$t5,$t6,time();
+
 
 sub tst {my($fasit,@arg)=@_;my $tms=tms(@arg); is($tms, $fasit, "$fasit = $tms")}
 tst('16:21:59',          'HH:MI:SS',$t);
@@ -99,20 +107,25 @@ ok(@diff==0,'easter formula1 and 2 eq from year 1498 to 10000');
 ok( time_fp() =~ /^\d+\.\d+$/ , 'time_fp' );
 
 #--sleep_fp
-sleep_fp(0.01); #init, require Time::HiRes
-my $tfp=time_fp();
-sleep_fp(0.1);
-my $diff=abs(time_fp()-$tfp-0.1);
-
-#-fails on many systems...virtual boxes?
-#$^O eq 'linux'
-#? ok($diff < 0.03, "sleep_fp, diff=$diff < 0.03")    #off 30% ok
-#: ok (1);
-
-sleeps(0.010);
-sleepms(10);
-sleepus(10000);
-sleepns(10000000);
+SKIP: {
+  skip 'sleep_fp-tests',2 unless $ENV{ATSLEEP};  #some systems fails...virtual boxes? un-linux-es?
+  my $test_sleep=sub{
+    my($exp,$test)=@_;
+    my $tfp=time_fp();
+    &$test;
+    $got=time_fp()-$tfp;
+    my $p=100*abs(($got-$exp)/$exp); #percent
+    ok($p < 30, sprintf"sleep_fp, got %.7fs vs %.7fs, %.1f%% off, < 30%% off is ok",$got,$exp,$p);
+  };
+  require Time::HiRes; #init
+  &$test_sleep(0.001,sub{sleep_fp(0.001)});
+  &$test_sleep(4*0.01,sub{
+    sleeps(0.010);     #seconds
+    sleepms(10);       #milliseconds 1e-3
+    sleepus(10000);    #microseconds 1e-6 (10000 μs)
+    sleepns(10000000); #nanoseconds  1e-9
+  });
+}
 
 if(eval{require Date::Parse}){
   is(s2t("18/februar/2019:13:53","MM"),'02','s2t MM');
@@ -135,6 +148,28 @@ if(eval{require Date::Parse}){
   1000000000 9/Sep/2001:03:46:40
   1000000000 9/9/2001:03:46:40"
 } else { ok(1) for 1..18 }
+
+#---------- eta
+eta(1,100);
+#warn serialize(\%Acme::Tools::Eta,'Eta','',1);
+my $k=(keys%Acme::Tools::Eta)[0];
+ok( @{$Acme::Tools::Eta{$k}}==1, 'ok aref');
+
+ok(!defined eta("x",6,10,70)                ,'!def');
+ok(         eta("x",8,10,80) == 90          ,'ok 90');
+ok(         eta("x",8,10,80) == 90          ,'ok 90');
+ok(         @{$Acme::Tools::Eta{'x'}} == 2  ,'ok len' );
+#my $s=time_fp;
+my @err;
+for(1..2000){
+  #$t=1e6+$_/100; #time_fp
+  my $e=eta("id",$_,2000,1e6+$_/100);
+  push @err,$_ if defined $e and abs(1-$e/1000020)>1e-5;
+  #printf "%4d   %-20s   %-20s\n", $_, $t, $e if $_%100==0;
+}
+ok(!@err, 'no misses');
+print "Err: ".join(",",@err)."\n" if @err;
+#printf"%.5f\n",time_fp()-$s;
 
 
 __END__

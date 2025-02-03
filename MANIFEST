@@ -12,7 +12,7 @@ t/04_resolve.t
 t/05_distance.t
 t/06_conv.t
 t/07_big.t
-t/08_eta.t
+t/08_functional.t
 t/09_rank_pushsort_binsearch.t
 t/10_md5sum.t
 t/11_part.t
@@ -20,7 +20,7 @@ t/12_ht2t.t
 t/13_random.t
 t/14_brainfu.t
 t/15_zip.t
-t/16_fractional.t
+t/16_fraction.t
 t/17_roman.t
 t/18_pad.t
 t/19_serialize.t
@@ -48,10 +48,16 @@ t/40_aoh2.t
 t/41_changed.t
 t/42_finddup.t
 t/43_egrep.t
-t/44_toposort.t
+t/44_graph.t
 t/45_opts.t
 t/46_x2y_numeric_base_converts.t
 t/47_huffman.t
+t/48_readfile_writefile.t
+t/49_csv.t
+t/50_primes.t
+t/51_cmds.t
+t/52_comb.t
+t/53_chars.t
 t/common.pl
 t/test_binsearch_bench.pl
 t/test_fork_bloom.pl
@@ -62,6 +68,7 @@ t/test_perm.pl
 t/test_perm2.pl
 t/test_pi.pl
 t/test_pivot.pl
+t/test_prime.pl
+t/test_primes.pl
 t/test_resolve_bigfloat.pl
 t/test_speed_pushsort.pl
-

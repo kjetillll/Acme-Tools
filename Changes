@@ -2,6 +2,13 @@ Revision history for Perl extension Acme::Tools.
 
 See also HISTORY in Acme::Tools doc.
 
+0.28  Feb 2025   tablestring_box, graph_scc, opts, huffman,
+                 huffman_pack, huffman_unpack, push_srand, pop_srand, julian_day
+                 brex gini comb csv uncsv dec2fraq factor gini graph_scc
+                 hpush hpop is_prime julian_day l2u u2l geohash geohash2latlon
+                 pluscode pluscode2latlon pluscode_short pluscode_short2latlon OLC
+                 push_srand pop_srand random_exp random_poisson tablestring_box
+
 0.27  Feb 2020   Small fixes for some platforms
 
 0.26  Jan 2020   Convert subs: base bin2dec bin2hex bin2oct dec2bin dec2hex dec2oct
@@ -46,4 +53,3 @@ See also HISTORY in Acme::Tools doc.
 0.01  Mon Dec 22 01:26:38 2008
 	- original version; created by h2xs 1.22 with options
 		-A -X -n Acme::Tools
-

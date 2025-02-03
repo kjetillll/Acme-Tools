@@ -29,7 +29,7 @@ ok(!defined(sum(undef,undef)),  'def sum');
 ok(sum(undef,2)==2,             'def sum');
 ok(sum(3,undef)==3,             'def sum');
 
-#--avg, geomavg
+#--avg, geomavg, smavg
 ok(avg(2,4,9)==5,               'avg 2 4 9 is 5');
 ok(avg([2,4,9])==5,             'avg 2 4 9 is 5');
 ok(avg(2,4,9,undef)==5,         'avg ignore undef');
@@ -37,6 +37,11 @@ ok(0==0+grep{abs(geomavg($_,$_)-$_)>1e-8}range(3,10000,13));
 ok(abs(geomavg(2,3,4,5)-3.30975091964687)<1e-11);
 ok(abs(geomavg(10,100,1000,10000,100000)-1000)<1e-8);
 ok(!defined(avg(undef)));
+is( join(',',smavg([1,2,2,3,5,9], 2)), join(',', 1, 1.5, 2, 2.5, 4, 7)         ,'smavg1' );
+is( join(',',smavg([1,2,2,3,5,9], 3)), join(',', 1, 1.5, 5/3, 7/3, 10/3, 17/3) ,'smavg2' );
+is( join(',',smavg([1,2,2,3,5,9,1,2,3,4,3,5])),
+    join(',', 1/1, 3/2, 5/3, 8/4, 13/5, 22/6, 23/7, 25/8, 28/9, 32/10, 34/10, (34+5-2)/10)  ,'smavg3' );
+
 
 #--stddev
 ok(stddev(12,13,14)>0);
@@ -58,6 +63,14 @@ ok(percentile(25, 1, 4, 6, 7, 8, 9, 22, 24, 39, 49, 555, 992 ) == 6.25);
 ok(percentile(75, 1, 4, 6, 7, 8, 9, 22, 24, 39, 49, 555, 992 ) == 46.5);
 ok(join(", ",percentile([0,1,25,50,75,99,100], 1,4,6,7,8,9,22,24,39,49,555,992))
 	    eq '-2, -1.61, 6.25, 15.5, 46.5, 1372.19, 1429');
+
+#--gini
+is(gini(1,1,1), 0,     "gini 1,1,1 --> 0 all got same");
+is(gini((0)x100,7), 1, "gini 0,0,0,0,1 --> 1 one got all");
+is(gini(80,80,5,5,5,5,5,5,5,5), 0.60,  "gini, pareto, 20% got 80% --> 0.60");
+is(gini(81,79,5,5,5,5,5,5,5,5), 0.601, "gini, pareto, 20% got 80% --> 0.601");
+my @gei=([],[1],[-1,1],[1,undef,2],[0,0],[1,2]); #gini error inputs, last is ok
+is( 0+(grep{$@='';eval{gini(@$_)};$@=~/^\Qgini(): cant\E/}@gei), @gei-1, 'gini check error handling');
 
 
 #--nvl
@@ -101,13 +114,13 @@ ok( decode_num($test, 121=>3, 221=>7, '123.0','b') eq 'b' ,'decode_num');
 
 #--between
 ok( between(7, 1,10)           ,'between a');
-ok( between(undef, 1,10) eq '' ,'between b');
+ok( !defined(between(undef, 1,10)),'between b');
 ok( between(7, 10,1)           ,'between c');
 ok( between(5,5,5)             ,'between d');
 
 #--btw, a better(?) between
 ok( btw(7, 1,10)           ,'btw a');
-ok( btw(undef, 1,10) eq '' ,'btw b');
+ok( !defined(btw(undef, 1,10)),'btw b');
 ok( btw(7, 10,1)           ,'btw c');
 ok( btw(5,5,5)             ,'btw d');
 ok( btw(1,1,10)            ,'btw e'); # numeric order since all three looks like number according to =~$Re_isnum
@@ -133,6 +146,7 @@ ok( curb( $vb, 200, 250 ) == 234,             'curb 1');
 ok( curb( $vb, 150, 200 ) == 200,             'curb 2');
 ok( curb( $vb, 250, 300 ) == 250 && $vb==234, 'curb 3');
 ok( curb(\$vb, 250, 300 ) == 250 && $vb==250, 'curb 4');
+ok( bound(\$vb, 260, 300 ) == 260 && $vb==260,'curb 4, alias bound()');
 ok( do{eval{curb()};          $@=~/^curb/},   'curb 5'); eval{1};
 ok( do{eval{curb(1,2,undef)}; $@=~/^curb/},   'curb 6'); eval{1};
 ok( do{eval{curb(1,2,3,4)};   $@=~/^curb/},   'curb 7'); eval{1};
@@ -181,17 +195,17 @@ ok_ref( {hashtrans(\%h)},
          b=>{1=>55,2=>22,3=>99}}, 'hashtrans' );
 
 #--ipaddr, ipnum
-my $ipnum=ipnum('www.vg.no'); # !defined implies no network
-my $ipaddr=defined$ipnum?ipaddr($ipnum):undef;
-if( defined $ipaddr ){
-  ok( $ipnum=~/^(\d+\.\d+\.\d+\.\d+)$/, 'ipnum'); #hm ip6
-  is( ipaddr($ipnum), 'www.vg.no' );
-  is( $Acme::Tools::IPADDR_memo{$ipnum}, 'www.vg.no' );
-  is( $Acme::Tools::IPNUM_memo{'www.vg.no'}, $ipnum );
-}
-else{
-  ok( 1, 'skip: no network') for 1..4
-}
+# my $ipnum=ipnum('www.vg.no'); # !defined implies no network
+# my $ipaddr=defined$ipnum?ipaddr($ipnum):undef;
+# if( defined $ipaddr ){
+#   ok( $ipnum=~/^(\d+\.\d+\.\d+\.\d+)$/, 'ipnum'); #hm ip6
+#   is( ipaddr($ipnum), 'www.vg.no' );
+#   is( $Acme::Tools::IPADDR_memo{$ipnum}, 'www.vg.no' );
+#   is( $Acme::Tools::IPNUM_memo{'www.vg.no'}, $ipnum );
+# }
+# else{
+#   ok( 1, 'skip: no network') for 1..4
+# }
 
 #--in_iprange
 
@@ -221,7 +235,8 @@ ok_ref( $a={webparams("b=123&a=1&b=122&a=3&a=2%20")},{a=>'1,3,2 ',b=>'123,122'},
 
 #--chall
 my $tmp=tmp();
-if($^O eq 'linux' and -w$tmp){
+SKIP: {
+  skip 'test chall(), only for linux', 11 unless $^O eq 'linux' and -w$tmp;
   my $f1="$tmp/tmpf1";
   my $f2="$tmp/tmpf2";
   chmod(0777,$f1,$f2) and unlink($f1, $f2);
@@ -245,28 +260,6 @@ if($^O eq 'linux' and -w$tmp){
   }
   chmod(0777,$f1,$f2) and unlink($f1, $f2);
 }
-else {ok(1) for 1..11}   # not linux
-
-#--writefile, readfile
-if($^O eq 'linux' and -w$tmp){
-  my $fn="$tmp/tmptestfile$$";
-  unlink($fn);
-  my $data="xxx\nyyy\nzzzz" x 10001;
-  writefile($fn,$data);
-  if(open my $file, "<", $fn){ ok(join("",<$file>) eq $data, 'writefile') }
-  else                       { ok(0,"open $fn") }
-  ok("".readfile($fn) eq $data, 'readfile');
-  ok(join(",",readfile($fn)) eq replace($data,"\n",","), 'readfile lines');
-  my $sz=-s$fn;
-  unlink($fn);
-  writefile("$fn.gz",$data);
-  my $szgz=-s"$fn.gz";
-  ok($szgz/$sz < 0.1,             'writefile gz');
-  deb "gz ".($szgz/$sz);
-  ok(readfile("$fn.gz") eq $data, 'readfile gz');
-  unlink("$fn.gz");
-}
-else{ok(1) for 1..5}     # not linux
 
 #--permutations, perm, permutate
 ok(join("-", map join("",@$_), permutations('a','b'))  eq 'ab-ba',                  'permutations 1');

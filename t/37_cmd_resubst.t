@@ -1,12 +1,12 @@
 # make test
-# perl Makefile.PL; make; perl -Iblib/lib t/37_cmd_resubst.t
+# perl Makefile.PL && make && perl -Iblib/lib t/37_cmd_resubst.t
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests => 2;
 my $gzip=(grep -x$_, '/bin/gzip', '/usr/bin/gzip')[0];
 SKIP:{
-skip "- no cmd_due for $^O (only linux and cygwin)", 2 if $^O!~/^(linux|cygwin)$/;
-skip "- gzip not found", 2                             if !$gzip;
-skip "- md5 not found", 2                              if !eval('require Digest::MD5');
+skip "- no cmd_resubst for $^O (only linux and cygwin)", 2 if $^O!~/^(linux|cygwin)$/;
+skip "- gzip not found", 2                                 if !$gzip;
+skip "- md5 not found", 2                                  if !eval('require Digest::MD5');
 my($tmp,$seed,$n)=(tmp(),1234,15);
 writefile("$tmp/$_",join("",map{"$_ ".rnd()."\n"}1..10)) for 1..$n;
 sub rnd { Digest::MD5::md5_hex($seed++) }
@@ -14,7 +14,7 @@ sub test {
   my($n,$ok,@a)=@_;
   my $p=printed{eval{Acme::Tools::cmd_resubst(@a)}};
   if($@=~/not found/){ok(1);return} #if missing bzip2
-  $p=~s,\s\S*/tmp/\S*/([^\/\s]+), /tmp/x/$1,g;
+  $p=~s,\s\S*\Q$tmp\E/([^\/\s]+), /tmp/x/$1,g;
   is($p, $ok, "test $n");
 }
 test(1,<<".",'-v','-f','e',map"$tmp/$_",1..$n);
@@ -54,4 +54,4 @@ test(2,<<".",'-o','bz2','-9','-v','-f','f',map"$tmp/$_.gz",1..$n);
 15/15 125/8               228 =>     236 b (103%) /tmp/x/15.gz
 Replaces: 125  Bytes before: 3393  After: 3522   Change: 3.8%
 .
-}
+}#SKIP

@@ -3,10 +3,10 @@ package Acme::Tools;
 
 our $VERSION = '0.28';
 
-use 5.008;     #Perl 5.8 was released July 18th 2002
+use 5.008;     #Perl 5.8 released July 2002 (perldoc perlhist)
 use strict;
 use warnings;
-use Carp;      #todo: rid of deps, make own carp+croak here
+use Carp;
 
 require Exporter;
 our @ISA = qw(Exporter);
@@ -21,10 +21,12 @@ our @EXPORT = qw(
   avg
   geomavg
   harmonicavg
+  smavg
   stddev
   rstddev
   median
   percentile
+  gini
   $Resolve_iterations
   $Resolve_last_estimate
   $Resolve_time
@@ -39,12 +41,16 @@ our @EXPORT = qw(
   sortedstr
   sortby
   subarrays
+  hpush
+  hpop
   pushsort
   pushsortstr
   binsearch
   binsearchstr
   random
   random_gauss
+  random_exp
+  random_poisson
   big
   bigi
   bigf
@@ -115,14 +121,18 @@ our @EXPORT = qw(
   username
   range
   globr
+  brex
   permutations
   perm
   permute
   permute_continue
+  comb
   trigram
   sliding
   chunks
   chars
+  l2u
+  u2l
   huffman
   huffman_pack
   huffman_unpack
@@ -148,8 +158,15 @@ our @EXPORT = qw(
   base
   gcd
   lcm
+  primes
+  is_prime
+  factors
+  factors2divisors
+  fraction
+  dec2frac
   pivot
   tablestring
+  tablestring_box
   upper
   lower
   trim
@@ -164,6 +181,13 @@ our @EXPORT = qw(
   bytes_readable
   sec_readable
   distance
+  pluscode
+  pluscode2latlon
+  pluscode_short
+  pluscode_short2latlon
+  geohash
+  geohash2latlon
+  julian_day
   tms
   s2t
   easter
@@ -210,12 +234,15 @@ our @EXPORT = qw(
   pile
   aoh2sql
   aoh2xls
+  csv
+  uncsv
   base64
   unbase64
   opts
   ed
   changed
   $Edcursor
+  graph_scc
   brainfu
   brainfu2perl
   brainfu2perl_optimized
@@ -232,7 +259,6 @@ our @EXPORT = qw(
   bfclone
   bfdimensions
   $PI
-  install_acme_command_tools
 
   $Dbh
   dlogin
@@ -250,8 +276,12 @@ our @EXPORT = qw(
   ddel
   dcommit
   drollback
+  install_tools
+  install_acme_command_tools
 );
 
+#our $PI = log(640320**3+744)/sqrt(163); #nerdycool, 30 digit accuracy ... https://mathworld.wolfram.com/PiApproximations.html
+#our $PI = atan2 0,-1;
 our $PI = '3.141592653589793238462643383279502884197169399375105820974944592307816406286';
 
 =head1 NAME
@@ -296,7 +326,7 @@ Acme::Tools - Lots of more or less useful subs lumped together and exported into
 
 =head1 ABSTRACT
 
-About 120 more or less useful perl subroutines lumped together and exported into your namespace.
+About 160 more or less useful perl subroutines lumped together and exported into your namespace.
 
 =head1 DESCRIPTION
 
@@ -315,9 +345,15 @@ Or to get the very newest:
  make test
  sudo make install
 
+Reported to work on Mac:
+
+ sudo curl -L http://xrl.us/installperlosx | bash
+ sudo brew install cpanminus
+ sudo cpan Acme::Tools
+
 =head1 EXPORT
 
-Almost every sub, about 90 of them.
+Almost every sub, about 100 of them.
 
 Beware of namespace pollution. But what did you expect from an Acme module?
 
@@ -330,7 +366,7 @@ See L</code2num>
 =head2 code2num
 
 C<num2code()> convert numbers (integers) from the normal decimal system to some arbitrary other number system.
-That can be binary (2), oct (8), hex (16) or others.
+This can be binary (2), oct (8), hex (16) or others.
 
 Example:
 
@@ -520,6 +556,219 @@ Seems to works with L<Math::BigInt> as well: (C<lcm> of all integers from 1 to 2
 
 sub lcm { my($a,$b,@r)=@_; @r ? lcm($a,lcm($b,@r)) : $a*$b/gcd($a,$b) }
 
+=head2 primes
+
+B<Input:>
+
+* positive number returns primes up to and including that number (including if it's a prime)
+
+* negative number returns that many of the first primes
+
+B<Output:> a list of the first primes
+
+Uses a sieve algorithm doing bitwise or's.
+
+ primes(1000);  # 2, 3, 5, 7, 11, ..., 997
+ primes(997);   # 2, 3, 5, 7, 11, ..., 997
+ primes(-168);  # 2, 3, 5, 7, 11, ..., 997      (168 primes)
+ primes(-2);    # 2, 3
+ primes(-1);    # 2
+ primes(0);     # empty list
+ primes(1);     # empty list
+ primes(2);     # 2
+ primes(3);     # 2, 3
+ primes(1e6);   # return list of the first 78498 primes (0.14 seconds on some laptops)
+
+=cut
+
+sub primes {    # sieve of Eratosthenes
+  my $n = shift;
+  return (2,3) if $n==-2;
+  return (2)   if $n==-1 or $n==2;
+  return ()    if $n==0  or $n==1;
+  return (primes(do{my$N=-$n;$N*=1.1while$N/log($N)<-1.2*$n;$N}))[0..-$n-1] if $n<0;
+  my( $q,$repeat ) =( sqrt($n), 1 );
+  my $bits=0 x $n;
+  for(my$factor=3; $factor<=$q; $factor+=2){
+    next if substr($bits,$factor,1);
+    $repeat .= 0 x (2*$factor-length$repeat);
+    my $times = -($factor**2-length$bits)/2/$factor + 1;
+    $bits |= 0 x $factor**2  .  ($times>0?$repeat x $times:''); #hm |= use feature 'bitwise'???
+    #...since for $factor==7 (i.e.) 14, 21, 28, 35, 42 is already marked by 2, 3, 5
+  }
+  @{[2,map$_*2+1,grep!substr($bits,1+$_*2,1),1..$n/2-.5]};
+}
+
+our @Primes=qw(2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71 73 79 83 89 97 101 103 107 109 113 127
+    131 137 139 149 151 157 163 167 173 179 181 191 193 197 199 211 223 227 229 233 239 241 251 257 263 269 271 277
+    281 283 293 307 311 313 317 331 337 347 349 353 359 367 373 379 383 389 397 401 409 419 421 431 433 439 443 449
+    457 461 463 467 479 487 491 499 503 509 521 523 541 547 557 563 569 571 577 587 593 599 601 607 613 617 619 631
+    641 643 647 653 659 661 673 677 683 691 701 709 719 727 733 739 743 751 757 761 769 773 787 797 809 811 821 823
+    827 829 839 853 857 859 863 877 881 883 887 907 911 919 929 937 941 947 953 967 971 977 983 991 997
+    1009 1013 1019 1021 1031 1033 1039 1049 1051 1061 1063 1069 1087 1091 1093 1097 1103 1109 1117 1123 1129 1151
+    1153 1163 1171 1181 1187 1193 1201 1213 1217 1223 1229 1231 1237 1249 1259 1277 1279 1283 1289 1291 1297 1301
+    1303 1307 1319 1321 1327 1361 1367 1373 1381 1399 1409 1423 1427 1429 1433 1439 1447 1451 1453 1459 1471 1481
+    1483 1487 1489 1493 1499 1511 1523 1531 1543 1549 1553 1559 1567 1571 1579 1583 1597 1601 1607 1609 1613 1619
+    1621 1627 1637 1657 1663 1667 1669 1693 1697 1699 1709 1721 1723 1733 1741 1747 1753 1759 1777 1783 1787 1789
+    1801 1811 1823 1831 1847 1861 1867 1871 1873 1877 1879 1889 1901 1907 1913 1931 1933 1949 1951 1973 1979 1987
+    1993 1997 1999 2003 2011 2017 2027 2029 2039 2053 2063 2069 2081 2083 2087 2089 2099 2111 2113 2129 2131 2137
+    2141 2143 2153 2161 2179 2203 2207 2213 2221 2237 2239 2243 2251 2267 2269 2273 2281 2287 2293 2297 2309 2311
+    2333 2339 2341 2347 2351 2357 2371 2377 2381 2383 2389 2393 2399 2411 2417 2423 2437 2441 2447 2459 2467 2473
+    2477 2503 2521 2531 2539 2543 2549 2551 2557 2579 2591 2593 2609 2617 2621 2633 2647 2657 2659 2663 2671 2677
+    2683 2687 2689 2693 2699 2707 2711 2713 2719 2729 2731 2741 2749 2753 2767 2777 2789 2791 2797 2801 2803 2819
+    2833 2837 2843 2851 2857 2861 2879 2887 2897 2903 2909 2917 2927 2939 2953 2957 2963 2969 2971 2999 ); #<3000
+my $is_prime;
+sub is_prime {
+    $is_prime //= {map{($_=>1)}@Primes};
+    my $n = shift;
+    my $n_sqrt=int sqrt $n;
+#    return exists $$is_prime{$n} ? 1 : 0 if $n<=@Primes[-1];
+    return $n>1 if $n<=3;
+    return 0    if $n%2==0 or $n%3==0;
+    for(@Primes){
+	return 1 if $_ > $n_sqrt;
+	return 0 if $n%$_==0;
+    }
+    #hm my($i, $stop) = ($Primes[-1]+6, int sqrt $n);
+    my($i, $stop) = (5, int sqrt $n);
+   #$n%$i==0 || $n%($i+2)==0  and  return 0   or   $i+=6 while $i <= $stop;
+    !(($n%$i)*($n%($i+2))) and return 0 or $i+=6 while $i <= $stop;
+    return 1
+}
+
+#faster:
+#sub primes($) {
+#    my $n = pop;
+#    if ($n < 2) { return (); }
+#    if ($n == 2) { return (2); }
+#    my @s;
+#    for (my $i = 3; $i < $n + 1; $i += 2) { push @s, $i }
+#    my( $n_root, $half ) = ($n ** 0.5,  0 + @s);
+#    for (my $m = 3, my $i = 0; $m <= $n_root; $i++, $m = 2*$i + 3) {
+#        if ($s[$i]) {
+#            for (my $j = int(($m*$m - 3) / 2); $j < $half; $j += $m) {
+#                $s[$j] = 0;
+#            }
+#        }
+#    }
+#    (2,grep$_,@s);
+#}
+    
+
+sub factors_bad {
+    my $n = shift;
+    croak "ERR: cannot factor $n\n" if $n<1 or $n>1e15 or $n!=int$n;
+    my @r;
+    my @p=(2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97,101,103,107,109,113,127,131,137,139,149,
+           151,157,163,167,173,179,181,191,193,197,199,211,223,227,229,233,239,241,251,257,263,269,271,277,281,283,293,
+           307,311,313,317,331,337,347,349,353,359,367,373,379,383,389,397,401,409,419,421,431,433,439,443,449,457,461,
+           463,467,479,487,491,499,503,509,521,523,541,547,557,563,569,571,577,587,593,599,601,607,613,617,619,631,641,
+           643,647,653,659,661,673,677,683,691,701,709,719,727,733,739,743,751,757,761,769,773,787,797,809,811,821,823,
+           827,829,839,853,857,859,863,877,881,883,887,907,911,919,929,937,941,947,953,967,971,977,983,991,997); #<1000
+    push @p, grep$_>997, primes(sqrt($n)) if $n>=1000**2;
+    $n%$_==0 and $n/=$_ and push(@r, $_) and redo  or  $_>$n and last for @p;
+    $n>1 ? (@r,$n) : @r;
+}
+
+sub factors {
+    my $n = shift;
+    croak "ERR: cannot factor $n\n" if $n<1 or $n>1e15 or $n!=int$n;
+    my($i,$f,$sqrt_n,@r)=(1,2,sqrt$n);
+    while($f <= $sqrt_n){
+        if   ( $n % $f     == 0 ){  push @r, $f;    $n /= $f;    $sqrt_n=sqrt$n }
+        elsif( $n % ($f+2) == 0 ){  push @r, $f+2;  $n /= $f+2;  $sqrt_n=sqrt$n }
+        elsif( $n % ($f+4) == 0 ){  push @r, $f+4;  $n /= $f+4;  $sqrt_n=sqrt$n }
+        elsif( $n % ($f+6) == 0 ){  push @r, $f+6;  $n /= $f+6;  $sqrt_n=sqrt$n }
+        elsif( $n % ($f+8) == 0 ){  push @r, $f+8;  $n /= $f+8;  $sqrt_n=sqrt$n }
+        else{  $f = $i <= $#Primes ? $Primes[$i++] : $f+10 }
+    }
+    $n>1 ? (@r,$n) : @r;
+}
+
+#sub factors2divisors {
+#    my %freq; $freq{$_}++for@_;
+#    my @a=map{my$f=$_;[map $f**$_, 0..$freq{$_} ]}sort{$a<=>$b}keys%freq; #warn srlz(\@a,'a','',1);
+#    my $p=sub{my$p=1;$p*=$_ for @_; $p};
+#    my @ca=sort {$a<=>$b} map &$p(@$_), cart(@a); # warn "ca: ".@ca." stk\n".srlz(\@ca,'ca','',1);
+#    @ca
+#}
+
+sub factors2divisors {
+    my %freq; $freq{$_}++for@_;
+    my $p=sub{my$p=bigi(1);$p*=bigi($_) for @_; $p};#hm
+    sort {$a<=>$b} map &$p(@$_), cart(map{my$f=$_;[map $f**$_, 0..$freq{$_} ]}keys%freq)
+}
+
+=head2 fraction
+
+Input: a number with decimals or not, positive, zero or negative
+
+Output in scalar context: a string n/d where n is the numerator and d is the denominator.
+
+Output in array context: returns an array (N,D,...) in all eight
+numbers where the first two elements are N and D, the numerator and
+denominator respectively.
+
+  fraction(355/113)              # '355/133' the literal string without quotaton marks
+  fraction(-0.41761761761761762) # returns '-2086/4995'
+  $f=-200/600; fraction($f)      # '-1/3'
+  fraction(0)                    # '0/1'
+  fraction(1)                    # '1/1'
+  fraction(sqrt(2))              # returns undef in scalar context
+  my @f = fraction(sqrt(2));     # $f[0] and $f[1] are undef and ...
+                                 # $f[4] and $f[5] are the closest approx for N and D from the goal seek
+
+=cut
+
+sub _fraction {
+    my$x=shift;
+    return wantarray?(0,1,0,1,0,1,0,1):'0/1' if $x==0;
+    if($x<0 or $x>1 or $x<.2){
+        #print "          x=$x\n";
+        $x=~s/^(\d+)\.0{9,}\d{1,2}$/$1>0?$1:$&/e;
+        my($min_n,$min_d,$min_diff,$min_c, $n,$d,$diff,$c)=
+            $x<0 ? _fraction(-$x):
+            $x>1 ? _fraction($x-int$x):
+                   _fraction(1/$x);
+        ($min_n,$min_d,$n,$d)=
+            $x<0 ? (-$min_n,$min_d,$n,$d):
+            $x>1 ? ($min_n+$min_d*int$x,$min_d,$n+$d*int$x,$d):
+                   ($min_d,$min_n,$d,$n);
+        return wantarray ? ($min_n,$min_d,$min_diff,$min_c, $n,$d,$diff,$c)
+                         : "$min_n/$min_d";
+    }
+    my($n,$d,$c)=(1,1,0); #numerator, denominator, count
+    my($min_n,$min_d,$min_diff,$min_c,$diff,$f,$X,$F);
+    #my$dec=11-int(1+1e-12+log($x)/log(10));#hm
+    while($c++==0 || $diff==0 || $X ne $F  and  $c==1 || $c <= $min_c*20 || $c <= 200  and  length($n.$d)<10) { #hm
+        $f    = $n/$d;
+        $diff = $x-$f;
+        ($min_n,$min_d,$min_diff,$min_c)=($n,$d,abs$diff,$c) if !defined$min_diff or $min_diff>abs$diff;
+        $diff > 0 ? $n++ : $diff < 0 ? $d++ : 0; #denne?
+       #$diff > 0 ? $n++ : $d++;                  #denne?
+        ($X,$F)=map sprintf('%.11f',$_),$x,$f; #11=$dec
+    }
+    #print "c=$c n=$n d=$d diff=$diff min_diff=$min_diff min_n=$min_n min_d=$min_d dec=$dec\n" if $ENV{ATDEBUG};
+    wantarray ? ($min_n,$min_d,$min_diff,$min_c, $n,$d,$diff,$c)
+              : "$min_n/$min_d";
+}
+sub fraction {
+    my @r=_fraction(@_);
+    my($min_n,$min_d,$min_diff,$min_c, $n,$d,$diff,$c)=@r;
+    return wantarray ? (undef,undef,$min_diff,$min_c, $min_n,$min_d,$diff,$c) : undef if $min_diff > 1e-9;
+    return wantarray ? @r : "$min_n/$min_d";
+}
+
+sub dec2frac {
+    my($f,$n,$d,$df,$c)=(shift(),1,1,1,0);
+    while($df != $f and ++$c < 1e4){
+        if( $df<$f ){ $n++ }
+        else        { $d++ }  #;my $new=int($f*$d); $eq++ if $new==$n; $n=$new }
+        $df=$n/$d;
+    }
+    wantarray ? ($n,$d,$c) : "$n/$d"
+}
+
 =head2 resolve
 
 Resolves an equation by Newtons method.
@@ -571,16 +820,19 @@ B<BigFloat-example:>
 If either second, third or fourth argument is an instance of L<Math::BigFloat>, so will the result be:
 
  use Acme::Tools;
- my $equation = sub{ $_ - 1 - 1/$_ };
+ my $equation = sub{ $_ - 1 - 1/$_ };        # x - 1 - 1/x = 0
  my $gr1 = resolve( $equation, 0,      1  ); #
  my $gr2 = resolve( $equation, 0, bigf(1) ); # 1/2 + sqrt(5)/2
  bigscale(50);
  my $gr3 = resolve( $equation, 0, bigf(1) ); # 1/2 + sqrt(5)/2
+ $Resolve_accuracy = bigf(1e-20);                                #default 1e-13
+ my $gr4 = resolve( $equation, 0, bigf(1) ); # 1/2 + sqrt(5)/2
 
  print 1/2 + sqrt(5)/2, "\n";
  print "Golden ratio 1: $gr1\n";
  print "Golden ratio 2: $gr2\n";
  print "Golden ratio 3: $gr3\n";
+ #print "Golden ratio 4: $gr4\n"; #todo
 
 Output:
 
@@ -588,6 +840,20 @@ Output:
  Golden ratio 1: 1.61803398874989
  Golden ratio 2: 1.61803398874989484820458683436563811772029300310882395927211731893236137472439025
  Golden ratio 3: 1.6180339887498948482045868343656381177203091798057610016490334024184302360920167724737807104860909804
+
+B<Another example:>
+
+ my $f = sub{ my$x=pop; $x**5 + $x - 1 };
+ my $x = resolve( $f, 0, bigf(0) );
+ printf "x = $x\nf(x) = %s\nf(x) = %g\nf(x) = %.10G\n", (&$f($x)) x 3;
+ printf "x = $x\nf(x) = %s\nf(x) = %g\nf(x) = %.30G\n", (&$f($x)) x 3;
+
+Output:
+
+ x = 0.754877666246692760049521178995032105578272483263775561
+ f(x) = 0.000000000000000000000032224599678254890457651165179477236742981336744496755631809776977112585601205125390928158932812133731537356145892444064266811651789633660763329239815295613825074787946055243390048719247023532461972510185106710736021451399074782990766689216710573801
+ f(x) = 3.22246e-23
+ f(x) = 3.22245996782548899010111677276E-23
 
 See:
 
@@ -602,6 +868,7 @@ L<http://en.wikipedia.org/wiki/Golden_ratio>
 our $Resolve_iterations;
 our $Resolve_last_estimate;
 our $Resolve_time;
+our $Resolve_accuracy=1e-13;
 
 #sub resolve(\[&$]@) {
 #sub resolve(&@) { <=0.17
@@ -652,7 +919,7 @@ sub resolve {
     #warn "n=$n  fd=$fd  x=$x[$n+1]\n";
     $Resolve_iterations=$n;
     last if $n>3 and $x[$n+1]==$x[$n] and $x[$n]==$x[$n-1];
-    last if $n>4 and $x[$n]!=0 and abs(1-$x[$n+1]/$x[$n])<1e-13; #sub{3*$_+$_**4-12}
+    last if $n>4 and $x[$n]!=0 and abs(1-$x[$n+1]/$x[$n])<$Resolve_accuracy; #sub{3*$_+$_**4-12}
     last if $n>3 and ref($x[$n+1]) eq 'Math::BigFloat' and substr($x[$n+1],0,$ds) eq substr($x[$n],0,$ds); #hm
     croak "Could not resolve, perhaps too little time given ($sec), iteratons=$n"
       if $sec>0 and ($Resolve_time=time_fp()-$time_start)>$sec;
@@ -695,15 +962,17 @@ Converts between:
 
 B<Examples:>
 
- print conv( 2000, "meters", "miles" );  #prints 1.24274238447467
- print conv( 2.1, 'km', 'm');            #prints 2100
- print conv( 70,"cm","in");              #prints 27.5590551181102
- print conv( 4,"USD","EUR");             #prints 3.20481552905431 (depending on todays rates)
- print conv( 4000,"b","kb");             #prints 3.90625 (1 kb = 1024 bytes)
- print conv( 4000,"b","Kb");             #prints 4       (1 Kb = 1000 bytes)
- print conv( 1000,"mb","kb");            #prints 1024000
- print conv( 101010,"bin","roman");      #prints XLII
- print conv( "DCCXLII","roman","oct");   #prints 1346
+ print conv( 2000, "meters", "miles" );   #prints 1.24274238447467
+ print conv( 2.1, 'km', 'm');             #prints 2100
+ print conv( 70,"cm","in");               #prints 27.5590551181102
+ print conv( 4,"USD","EUR");              #prints 3.20481552905431 (depending on todays rates)
+ print conv( 4000,"b","kb");              #prints 3.90625 (1 kb = 1024 bytes)
+ print conv( 4000,"b","Kb");              #prints 4       (1 Kb = 1000 bytes), upper case K
+ print conv( 2048,"b","KiB");             #prints 2       (1 KiB = 1024 bytes)
+ print conv( 1000,"mb","kb");             #prints 1024000
+ print conv( 101010,"bin","roman");       #prints XLII
+ print conv( "DCCXLII","roman","oct");    #prints 1346
+ print conv( "DCCXLII", "roman"=>"oct");  #prints 1346
 
 B<Units, types of measurement and currencies supported by C<conv> are:>
 
@@ -756,7 +1025,7 @@ Note2: Many units have synonyms: m, meter, meters ...
                grain, grains, gram, grams, kilo, kilos, kt, lb, lb_av,
                lb_t, lb_troy, lbs, ounce, ounce_av, ounce_troy, oz, oz_av, oz_t,
                pennyweight, pound, pound_av, pound_metric, pound_troy, pounds,
-               pwt, seer, sl, slug, solar_mass, st, stone, t, tonn, tonne, tonnes, u, wey
+               pwt, seer, sl, slug, solar_mass, st, stone, t, tonn, tonne, tonnes, u, wey, picul
 
  mileage:      mpg, l/100km, l/km, l/10km, lp10km, l/mil, liter_pr_100km, liter_pr_km, lp100km
 
@@ -805,640 +1074,663 @@ See: L<http://en.wikipedia.org/wiki/Units_of_measurement>
 #TODO:  conv(123456789,'b','h'); # h converts to something human-readable
 
 our %conv=(
-	 length=>{
-		  m       => 1,
-		  _m      => 1,
-		  meter   => 1,
-		  meters  => 1,
-		  metre   => 1,
-		  metres  => 1,
-		  km      => 1000,
-		  mil     => 10000,                   #scandinavian #also: inch/1000!
-		  in      => 0.0254,
-		  inch    => 0.0254,
-		  inches  => 0.0254,
-		  ft      => 0.0254*12,               #0.3048 m
-		  feet    => 0.0254*12,               #0.3048 m
-		  yd      => 0.0254*12*3,             #0.9144 m
-		  yard    => 0.0254*12*3,             #0.9144 m
-		  yards   => 0.0254*12*3,             #0.9144 m
-		  fathom  => 0.0254*12*3*2,           #1.8288 m
-		  fathoms => 0.0254*12*3*2,           #1.8288 m
-		  chain   => 0.0254*12*3*22,          #20.1168 m
-		  chains  => 0.0254*12*3*22,          #20.1168 m
-		  furlong => 0.0254*12*3*22*10,       #201.168 m
-		  furlongs=> 0.0254*12*3*22*10,       #201.168 m
-		  mi      => 0.0254*12*3*22*10*8,     #1609.344 m
-		  mile    => 0.0254*12*3*22*10*8,     #1609.344 m
-		  miles   => 0.0254*12*3*22*10*8,
-		  league  => 0.0254*12*3*22*10*8*3,   #4828.032 m
-		  leagues => 0.0254*12*3*22*10*8*3,   #4828.032 m
-		  yard_imp           => 0.914398416,
-		  yard_imperical     => 0.914398416,
-                  NM                 => 1852,           #nautical mile
-                  nmi                => 1852,           #nautical mile
-                  'nautical mile'    => 1852,
-                  'nautical miles'   => 1852,
-		  micron             => 1e-6,
-		  microns            => 1e-6,
-		  micrometre         => 1e-6,
-		  micrometres        => 1e-6,
-                  'Å'                => 1e-10,
-                  'ångstrøm'         => 1e-10,
-                  'angstrom'         => 1e-10,
-		  fm                 => 1e-15,
-		  fermi              => 1e-15, #in honour of Enrico Fermi
-		  fermis             => 1e-15, #in honour of Enrico Fermi
-		  femtometer         => 1e-15, #derived from "femten" (=fifteen in Norwegian and Danish)
-		  femtometre         => 1e-15,
-		  femtometers        => 1e-15, #derived from "femten" (=fifteen in Norwegian and Danish)
-		  femtometres        => 1e-15,
-		  attometer          => 1e-18, #derived from "atten/atton" (=eighteen)
-		  attometre          => 1e-18,
-		  attometers         => 1e-18, #derived from "atten/atton" (=eighteen)
-		  attometres         => 1e-18,
-		  ly                 => 299792458*3600*24*365.25,
-		  lightyear          => 299792458*3600*24*365.25, # = 9460730472580800 by def
-		  ls                 => 299792458,      #light-second
-                  au                 => 149597870700,   # by def: meters earth to sun
-                  astronomical_unit  => 149597870700,
-                 'astronomical unit' => 149597870700,
-                  pc                 => 149597870700*648000/$PI, #3.0857e16 = 3.26156 ly
-                 _pc                 => 149597870700*648000/$PI,
-                  parsec             => 149597870700*648000/$PI,
-		  attoparsec         => 149597870700*648000/$PI/1e18,
-		  apc                => 149597870700*648000/$PI/1e18,
-		  planck             => 1.61619997e-35, #planck length
-		  #Norwegian (old) lengths:
-		  tomme         => 0.0254,
-		  tommer        => 0.0254,
-		  fot           => 0.0254*12,               #0.3048m
-		  alen          => 0.0254*12*2,             #0.6096m
-		  favn          => 0.0254*12*2*3,           #1.8288m
-		  kvart         => 0.0254*12*2/4,           #0.1524m a quarter alen
-                  #--https://upload.wikimedia.org/wikipedia/commons/e/eb/English_length_units_graph.svg
-                  twip          => 0.0254 / 6 / 12 / 20,
-                  point         => 0.0254 / 6 / 12,
-                  pica          => 0.0254 / 6,
-                  line          => 0.0254 / 12,
-		  thou          => 0.0254 / 1000,
-                  barleycorn    => 0.0254 / 3,
-                  poppyseed     => 0.0254 / 3 / 4,
-                  finger        => 0.0254 / 6 / 12 * 63,
-                  palm          => 0.0254 * 3,
-                  digit         => 0.0254 * 3 / 4,
-                  nail          => 0.0254 * 3 / 4 * 3,
-                  rack          => 0.0254 * 1.75,
-                  stick         => 0.0254 * 2,
-                  hand          => 0.0254 * 2 * 2,
-                  foot          => 0.0254 * 2 * 2 * 3,
-                  shaftment     => 0.0254 * 3 * 2,
-                  span          => 0.0254 * 3 * 3,
-                  ell           => 0.0254 * 3 * 3 * 5,
-                  pace          => 0.0254 * 3 * 2 * 5,
-                  step          => 0.0254 * 3 * 2 * 5,
-                  cubit         => 0.0254 * 3 * 2 * 3,
-                  rod           => 0.0254 * 3 * 2 * 3 * 11,
-                  link          => 0.0254 * 3 * 2 * 3 * 11 / 25,
-		  yard          => 0.0254 * 2 * 2 * 3 * 3,
-                  grade         => 0.0254 * 3 * 2 * 5 * 2,
-                  rope          => 0.0254 * 3 * 2 * 5 * 2 * 4,
-                  skein         => 0.0254 * 3 * 3 * 5 * 96,                   # 96 ell
-                  fathom        => 0.0254 * 2 * 2 * 3 * 3 * 2,                # 2 yard
-                  spindle       => 0.0254 * 3 * 3 * 5 * 96 * 120,             # 120 skein
-                  gunter_chain  => 0.0254 * 2 * 2 * 3 * 3 * 2 * 11,           # 11 fathom
-                  ramsden_chain => 0.0254 * 3 * 2 * 5 * 2 * 4 * 5,            # 5 rope
-                  shackle       => 0.0254 * 2 * 2 * 3 * 3 * 2 * 15,           # 15 fathom
-                  cable         => 0.0254 * 2 * 2 * 3 * 3 * 2 * 100,          # 100 fathom
-                  furlong       => 0.0254 * 2 * 2 * 3 * 3 * 2 * 11 * 10,      # 10 gunter_chain, 220 yard
-                  roman_mile    => 0.0254 * 3 * 2 * 5 * 2 * 4 * 5 * 50,       # 50 ramsden_chain
-                  statute_mile  => 0.0254 * 2 * 2 * 3 * 3 * 2 * 11 * 10 * 8,  # 8 furlong
-                  nautic_mile   => 0.0254 * 2 * 2 * 3 * 3 * 2 * 100 * 10,     # 10 cable
-                  league        => 0.0254 * 2 * 2 * 3 * 3 * 2 * 100 * 10 * 5, # 5 nautic_mile
-		  siriometer    => 149597870700*1e6,                          # 1 million astronomical units
-		 },
-	 mass  =>{ #https://en.wikipedia.org/wiki/Unit_conversion#Mass
-		  g            => 1,
-		  _g           => 1,
-		  gram         => 1,
-		  grams        => 1,
-		  kilo         => 1000,
-		  kilos        => 1000,
-		  t            => 1000000,
-		  tonn         => 1000000,
-		  tonne        => 1000000,
-		  tonnes       => 1000000,
-		  seer         => 933.1,          # ~14400 grains (if 933.104304), India, Aden, Saudi-Arabia
-		  maund        => 37320,          # avg of Indias different mauds, ~ 40 x seer
-		  lb           => 453.59237,      # ~453g
-		  lbs          => 453.59237,
-		  lbm          => 453.59237,
-		  lb_av        => 453.59237,
-		  lb_t         => 373.2417216,
-		  lb_troy      => 373.2417216,    # 5760 grains = 453.59237*144/175
-		  pound        => 453.59237,      # 7000 grains
-		  pounds       => 453.59237,
-                  pound_av     => 453.59237,
-                  pound_troy   => 373.2417216,    # ~373g
-                  pound_metric => 500,            # 0.5kg
-		  ounce        => 28,             # US food, 28g
-		  ounce_av     => 453.59237/16,   # avoirdupois  lb/16 = 28.349523125g
-		  ounce_troy   => 31.1034768,     # lb_troy / 12
-		  oz           => 28,             # US food, 28g
-		  oz_av        => 453.59237/16,   # avoirdupois  lb/16 = 28.349523125g
-		  oz_t         => 31.1034768,     # lb_troy / 12,
-		  grain        => 453.59237/7000, # 64.79891/1000, # 
-		  grains       => 64.79891/1000,
-                  pennyweight  => 31.1034768 / 20,
-                  pwt          => 31.1034768 / 20,
-                  dwt          => 31.1034768 / 20,
-                  stone        => 453.59237*14,             # 6.35029318 kg
-                  st           => 453.59237*14,             # 14 lb_av
-		  wey          => 453.59237*14*18,          # 252 lb = 18 stone = 114.30527724 kg
-                  carat        => 0.2,
-                  ct           => 0.2,                      #carat (metric)
-                  kt           => 64.79891/1000 * (3+1/6),  #carat/karat
-                  u            => 1.66053892173e-30, #atomic mass carbon-12
-                  Da           => 1.66053892173e-30, #atomic mass carbon-12
-    		  slug         => 14600,
-    		  sl           => 14600,
-                  eV           => 1.78266172802679e-33,    #e=mc2 = 1.60217646e-19 J / (2.99792458e8 m/s)**2
-                  _eV          => 1.78266172802679e-33,
-		  electronvolt => 1.78266172802679e-33,
-                 'solar mass'  => 1.99e33,
-                  solar_mass   => 1.99e33,
-                  bag          => 60*1000,           #60kg coffee
-		  firkin       => 90 * 453.59237,    #90lb
-		 },
-	 area  =>{               # https://en.wikipedia.org/wiki/Unit_conversion#Area
-                  m2      => 1,
-                  dm2     => 0.1**2,
-                  cm2     => 0.01**2,
-                  mm2     => 0.001**2,
-		 'µm2'    => 1e-6**2,
-		  um2     => 1e-6**2,
-                  sqm     => 1,
-                  sqcm    => 0.01**2,
-                  sqmm    => 0.001**2,
-                  km2     => 1000**2,
-                  sqkm    => 1000**2,
-                  a       => 100,
-                  ar      => 100,
-                  are     => 100,
-                  ares    => 100,
-                  dekar   => 1000,
-                  decare  => 1000,
-                  decares => 1000,
-                  daa     => 1000,
-                 'mål'    => 1000,
-                  ha      => 10000,
-                  hektar  => 10000,
-                  hectare => 10000,
-                  hectares=> 10000,
-                  in2     => 0.0254**2,
-                  inch2   => 0.0254**2,
-                  ft2     => (0.0254*12)**2,
-                  sqft    => (0.0254*12)**2,
-		  mi2     => 1609.344**2,
-		  mile2   => 1609.344**2,
-		  miles2  => 1609.344**2,
-		  sqmi    => 1609.344**2,
-                  yd2     => (0.0254*12*3)**2, #square yard
-                  sqyd    => (0.0254*12*3)**2,
-                  yard2   => (0.0254*12*3)**2,
-                  sqyard  => (0.0254*12*3)**2,
-                  rood      => 1210*(0.0254*12*3)**2,  # 1/4 acres
-                  roods     => 1210*(0.0254*12*3)**2,  # 1/4 acres
-		  ac        => 4840*(0.0254*12*3)**2,  # 4840 square yards = 1 chain x 1 furlong
-		  acre      => 4840*(0.0254*12*3)**2,
-		  acres     => 4840*(0.0254*12*3)**2,
-                  homestead => 4840*(0.0254*12)**2 *160,      #160 acres US Surveyors or 1/4 sqmiles
-                  township  => 4840*(0.0254*12)**2 *160*144,  #144 homesteads or 36 sqmiles
-                  perches   => 4840*(0.0254*12)**2 /160,      #160 perches = 1 acre in sri lanka
-		  sotka     => 100,       #russian are
-                  jerib     => 10000,     #iran hectare
-                  djerib    => 10000,     #turkish hectare
-		  gongqing  => 10000,     #chinese hectare
-                  manzana   => 10000,     #argentinian hectare
-                  bunder    => 10000,     #dutch hectare
-                  centiare  => 1,
-                  deciare   => 10,
-                  ca        => 1,
-                  mu        => 10000/15,    #China
-                  qing      => 10000/0.15,  #China
-                  dunam     => 10000/10,    #Middle East
-                 'dönüm'    => 10000/10,    #Middle East
-                  stremmata => 10000/10,    #Greece
-                  rai       => 10000/6.25,  #Thailand
-                  cho       => 10000/1.008, #Japan
-                  feddan    => 10000/2.381, #Egypt
-                  earths    => 510072000e6, #510072000 km2, surface area of earth
-                  barn      => 1e-28,       #physics
-                  outhouse  => 1e-34,       #physics
-                  shed      => 1e-52,       #physics
-		  brass     => 100*(0.0254*12)**2, #100 square feet ~ 9.29 m2
-		  square    => 100*(0.0254*12)**2, #100 square feet ~ 9.29 m2
-		  morgen    => 0.856532 * 10000,   #0.856532 hectares
-		  bornholm  => 588.36e6,           #area of danish island bornholm, 588km2
-		  texas     => 695670e6,           #area of texas, 695 670 square km
-        	 },
-	 volume=>{
-		  m3            => 1,                #1000 L
-		  l             => 0.001,
-		  L             => 0.001,
-		  _L            => 0.001,
-		  _l            => 0.001,
-		  liter         => 0.001,
-		  liters        => 0.001,
-		  litre         => 0.001,
-		  litres        => 0.001,
-		  gal           => 231 * 0.0254**3, #3.785411784 L = 0.003785411784 m3, #231 cubic inches
-		  gallon        => 231 * 0.0254**3,
-		  gallons       => 231 * 0.0254**3,
-		  gallon_us     => 231 * 0.0254**3, #231 cubic inches
-		  gallon_wine   => 231 * 0.0254**3, #queen anne's gallon
-		  gallon_ale    => 282 * 0.0254**3, #beer
-		  gallon_corn   => 268.8*0.0254**3, #corn, or winchester gallon
-		  gallon_uk     => 4.54609/1000,    #constant 4.54609 from definition
-		  gallon_imp    => 4.54609/1000,    #imperial
-		  gallon_us_dry => 4.40488377086/1000, # ~ 9.25**2*pi*2.54**3/1000 L
-		  #hogshead, gill, pail, jigger, jackpot, The Science of Measurement - A Historical Survey (Klein)
-		  cm3       => 0.01**3,               #0.001 L
-                  in3       => 0.0254**3,             #0.016387064 L
-                  ft3       => (0.0254*12)**3,
-		  tablespoon=> 3.785411784/256,       #14.78676478125 mL
-		  tsp       => 3.785411784/256/3,     #4.92892159375 mL
-		  teaspoon  => 3.785411784/256/3,     #4.92892159375 mL
-                  floz      => 3.785411784/128,       #fluid ounce US
-                  floz_uk   => 4.54609/160,           #fluid ounce UK
-                  pint      => 4.54609/8000,          #0.56826125 L
-                  pint_uk   => 4.54609/8000,
-                  pint_imp  => 4.54609/8000,
-                  pint_us   => 3.785411784/8000,      #0.473176473
-		  quart     => 4.54609/4000,             #2*pint
-		  pottle    => 4.54609/2000,             #2*quart = gallon_uk/2
-		 #therm     => 2.74,                #? 100000BTUs?   (!= thermie)
-		 #thm       => 2.74,                #?               (!= th)
-                  fat       => 42*231*2.54**3/1e6,
-                  bbl       => 42*231*2.54**3/1e6,  #oil barrel ~159 liters https://en.wikipedia.org/wiki/Barrel_(unit)
-		  Mbbl      => 42*231*2.54**3/1e3,  #mille (thousand) oil barrels, M er mille her, ikke mega!
-		  MMbbl     => 42*231*2.54**3,      #mille mille (million) oil barrels
-		  drum      => 0.208,               #208 L
-		  container     => 33.1e3,  #container20
-		  container20   => 33.1e3,
-		  container40   => 67.5e3,
-		  container40HC => 75.3e3,
-		  container45HC => 86.1e3,
-		  firkin        => 282*0.0254**3 * 8, #8 gallon_ale
-		  #Norwegian:
-                  meterfavn => 2 * 2 * 0.6,           #fire wood/ved 2.4 m3
-                  storfavn  => 2 * 2 * 3,             #fire wood/ved 12 m3
-		 },
-	 time  =>{
-		  s           => 1,
-		  _s          => 1,
-		  sec         => 1,
-		  second      => 1,
-		  seconds     => 1,
-		  m           => 60,
-		  min         => 60,
-		  minute      => 60,
-		  minutes     => 60,
-		  h           => 60*60,
-		  hr          => 60*60,
-		  hour        => 60*60,
-		  hours       => 60*60,
-		  d           => 60*60*24,
-		  dy          => 60*60*24,
-		  day         => 60*60*24,
-		  days        => 60*60*24,
-		  w           => 60*60*24*7,
-		  week        => 60*60*24*7,
-		  weeks       => 60*60*24*7,
-		  mo	      => 60*60*24 * 365.2425/12,
-		  mon	      => 60*60*24 * 365.2425/12,
-		  month	      => 60*60*24 * 365.2425/12,
-		  quarter     => 60*60*24 * 365.2425/12 * 3, #3 months
-		  season      => 60*60*24 * 365.2425/12 * 3, #3 months
-		  y           => 60*60*24 * 365.2425, # 365+97/400    #97 leap yers in 400 years
-		  year        => 60*60*24 * 365.2425,
-		  years       => 60*60*24 * 365.2425,
-		  yjulian     => 60*60*24 * 365.25,   # 365+1/4
-		  y365        => 60*60*24 * 365,      # finance/science
-		  ycommon     => 60*60*24 * 365,      # finance/science
-		  ygregorian  => 60*60*24 * 365.2425, # 365+97/400
-		 #ygaussian   => 365+(6*3600+9*60+56)/(24*3600),  # 365+97/400
-                  ytropical   => 60*60*24 * 365.24219,
-                  ysideral    => 365.256363004,
-		  ySI         => 60*60*24*365.25, #31556925.9747
-                  decade      =>   10 * 60*60*24*365.2425,
-                  biennium    =>    2 * 60*60*24*365.2425,
-                  triennium   =>    3 * 60*60*24*365.2425,
-                  olympiad    =>    4 * 60*60*24*365.2425,
-                  lustrum     =>    5 * 60*60*24*365.2425,
-                  indiction   =>   15 * 60*60*24*365.2425,
-		  jubilee     =>   50 * 60*60*24*365.2425,
-		  century     =>  100 * 60*60*24*365.2425,
-		  millennium  => 1000 * 60*60*24*365.2425,
-                  shake       => 1e-8,
-                  moment      => 3600/40,  #1/40th of an hour, used by Medieval Western European computists
-		  ke          => 864,      #1/100th of a day, trad Chinese, 14m24s
-		  fortnight   => 14*24*3600,
-                  tp          => 5.3910632e-44,  #planck time, time for ligth to travel 1 planck length
-		  nanocentury =>  100 * 60*60*24*365.2425 / 1e9,   #3.156 ~ pi seconds, response time limit (usability)
-		  warhol      => 15*60,                            #"fifteen minutes of fame"
-		 },
-          speed=>{
-                 'm/s'      => 1,
-                '_m/s'      => 1,
-                  mps       => 1,
-                  mph       => 1609.344/3600,
-                 'mi/h'     => 1609.344/3600,
-                  kmh       => 1/3.6,
-                  kmph      => 1/3.6,
-                 'km/h'     => 1/3.6,
-                  kmt       => 1/3.6, # t=time(=hour) or temps (scandinavian and french and dutch)
-                 'km/t'     => 1/3.6,
- 		  kt        => 1852/3600,
- 		  kts       => 1852/3600,
- 		  kn        => 1852/3600,
- 		  knot      => 1852/3600,
- 		  knots     => 1852/3600,
- 		  knop      => 1852/3600,    #scandinavian
-		  c         => 299792458,    #speed of light, exact due to definition of meter
-		  mach      => 340.3,        #speed of sound
-		  machs     => 340.3,
-                  fps       => 0.3048, #0.0254*12
-                  ftps      => 0.3048,
-                 'ft/s'     => 0.3048,
-                 },
-	  acceleration=>{
-                 'm/s2'     => 1,
-                 'mps2'     => 1,
-                  g         => 9.80665,
-                  g0        => 9.80665,
-                  #0-100kmh or ca 0-60 mph x seconds...
-                 },
-         temperature=>{  #http://en.wikipedia.org/wiki/Temperature#Conversion
-                  C=>1, F=>1, K=>1, celsius=>1, fahrenheit=>1, kelvin=>1
-                 },
-         radioactivity=>{
-                  Bq          => 1,
-		  becquerel   => 1,
-		  curie       => 3.7e10,
-                 },
-         current=> {
-                  A     => 1,
-                  _A    => 1,
-                 'N/m2' => 2e-7,
-	         },
-         charge=>{
-                  e       => 1,
-                  _e      => 1,
-                  C       => 6.24150964712042e+18,
-                  coulomb => 6.24150964712042e+18,
-                  As      => 6.24150964712042e+18,
-                 #Faraday unit of charge ???
-                 },
-         power=> {
-                  W        => 1,
- 		  _W       => 1,
-                 'J/s'     => 1,
-                  Jps      => 1,
-                  hp       => 746,
-                  hk       => 746,        #hestekrefter (norwegian, scandinavian)
-		  PS       => 746/1.014,  #pferdestärken
-		 'kWh/yr'  => 1000    * 3600/(24*365), #kWh annually
-                  Whpy     =>           3600/(24*365), #kWh annually
-                  kWhpy    => 1000    * 3600/(24*365), #kWh annually
-                  MWhpy    => 1000**2 * 3600/(24*365), #kWh annually
-                  GWhpy    => 1000**3 * 3600/(24*365), #kWh annually
-                  TWhpy    => 1000**4 * 3600/(24*365), #kWh annually
-		  BTU      => 1055.05585262/3600,                    #
-		  BTUph    => 1055.05585262/3600,
-		 'BTU/h'   => 1055.05585262/3600,
-		 'BTU/s'   => 1055.05585262,
-		 'ftlb/s'  => 746/550,
-		 'ftlb/min'=> 746/550/60,
-                 },
-         energy=>{
-                   joule        => 1,
-                   J            => 1,
-                   _J           => 1,
-                   Ws           => 1,
-                   Wps          => 1,
-                  'W/s'         => 1,
-                   Nm           => 1,
-                   newtonmeter  => 1,
-                   newtonmeters => 1,
-                   Wh           => 3600,             #3600 J (joules)
-                   kWh          => 3600000,          #3.6 million J
-                   MWh          => 3600000000,       #3.6 billion J
-                   GWh          => 3600000000000,    #3.6 trillion J
-                   TWh          => 3600000000000000, #3600 trillion J
-                   cal          => 4.1868,           # ~ 3600/860
-		   calorie      => 4.1868,
-		   calories     => 4.1868,
-                   kcal         => 4.1868*1000,
-		   kilocalorie  => 4.1868*1000,
-		   kilocalories => 4.1868*1000,
-		   BTU          => 4.1868 * 252, # = 1055.0736 or is 1055.05585262 right?
-		   Btu          => 4.1868 * 252,
-		   ftlb         => 746/550,      # ~ 1/0.7375621
-		  'foot-pound'  => 746/550,
-		  'foot-pounds' => 746/550,
-		   erg          => 1e-7,
-		   ergs         => 1e-7,
-                   eV           => 1.60217656535e-19,
-                   _eV          => 1.60217656535e-19,
-                   BeV          => 1.60217656535e-10,
-  		   electronvolt => 1.60217656535e-19,
-		   hph          => 3600*746,
-		   PSh          => 3600*746/1.014,
-		   galatm_imp   => 460.63256925,
-		   galatm_US    => 383.5568490138,
-		   quad         => 1.05505585262e18,
-		   Ry           => 2.179872e-18,
-		   rydberg      => 2.179872e-18,
-		   th           => 4.1868e6,
-		   thm          => 4.1868e6,
-		   therm        => 4.1868e6,
-		   thermie      => 4.1868e6,
-                   boe          => 6.12e9,         #barrel of oil equivalent
-		   TCE          => 29.288e9,       #ton of coal equivalent
-		   toe          => 41.868e9,       #tonne of oil equivalent
-		   tTNT         => 4.184e9,        #ton of TNT equivalent
-		   CMO          => 4.454e13*3.6e6, #cubic mile of oil = 4.454*10^13 kWh
-		   CKO          => 4.454e13*3.6e6*1.609344**3, #cubic km   of oil
-                 },
-         force=> {
-	          newton=> 1,
-	          N     => 1,
-	          _N    => 1,
-                  dyn   => 1e-5,
-                  dyne  => 1e-5,
-                  dynes => 1e-5,
-		  lb    => 4.448222,
-                 },
-         pressure=>{
-                  Pa      => 1,
-                  _Pa     => 1,
-                  pascal  => 1,
-                 'N/m2'   => 1,
-                  bar     => 100000.0,
-                  mbar    => 100.0,
-                  at      =>  98066.5,   #technical atmosphere
-		  atm     => 101325.0,     #standard atmosphere
-		  torr    => 133.3224,
-                  psi     => 6894.8,     #pounds per square inch
-                 },
-         bytes=> {
-                  b     => 1,
-                  kb    => 1024,         #2**10
-                  mb    => 1024**2,      #2**20 = 1048576
-		  gb    => 1024**3,      #2**30 = 1073741824
-		  tb    => 1024**4,      #2**40 = 1099511627776
-		  pb    => 1024**5,      #2**50 = 1.12589990684262e+15
-		  eb    => 1024**6,      #2**60 =
-		  zb    => 1024**7,      #2**70 =
-		  yb    => 1024**8,      #2**80 =
-                  KiB   => 1024,         #2**10
-                  KiB   => 1024**2,      #2**20 = 1048576
-		  KiB   => 1024**3,      #2**30 = 1073741824
-		  KiB   => 1024**4,      #2**40 = 1099511627776
-		  KiB   => 1024**5,      #2**50 = 1.12589990684262e+15
-		  KiB   => 1024**6,      #2**60 =
-		  KiB   => 1024**7,      #2**70 =
-		  KiB   => 1024**8,      #2**80 =
-                  Kb    => 1000,         #2**10
-                  Mb    => 1000**2,      #2**20 = 1048576
-		  Gb    => 1000**3,      #2**30 = 1073741824
-		  Tb    => 1000**4,      #2**40 = 1099511627776
-		  Pb    => 1000**5,      #2**50 = 1.12589990684262e+15
-		  Eb    => 1000**6,      #2**60 =
-		  Zb    => 1000**7,      #2**70 =
-		  Yb    => 1000**8,      #2**80 =
-                  byte      => 1,
-                  kilobyte  => 1024,         #2**10
-                  megabyte  => 1024**2,      #2**20 = 1048576
-		  gigabyte  => 1024**3,      #2**30 = 1073741824
-		  terabyte  => 1024**4,      #2**40 = 1099511627776
-		  petabyte  => 1024**5,      #2**50 = 1.12589990684262e+15
-		  exabyte   => 1024**6,      #2**60 =
-		  zettabyte => 1024**7,      #2**70 =
-		  yottabyte => 1024**8,      #2**80 =
-                 },
-         milage=>{                                #fuel consumption
-                 'l/mil'          => 1,
-                 'l/10km'         => 1,
-                 'lp10km'         => 1,
-                 'l/km'           => 10,
-                 'l/100km'        => 1/10,
-                  lp100km         => 1/10,
-                  liter_pr_100km  => 1/10,
-                  liter_pr_km     => 10,
-                  mpg             => -23.5214584,      #negative signals inverse
-         },
-#         light=> {
-#                   cd => 1,
-#                   candela => 1,
-#                 },
+    length=>{
+        m         => 1,
+        _m        => 1,
+        meter     => 1,
+        meters    => 1,
+        metre     => 1,
+        metres    => 1,
+        #km       => 1000,
+        mil       => 10000,                   #scandinavian #also: inch/1000!
+        in        => 0.0254,
+        inch      => 0.0254,
+        inches    => 0.0254,
+        ft        => 0.0254*12,               #0.3048 m
+        feet      => 0.0254*12,               #0.3048 m
+        yd        => 0.0254*12*3,             #0.9144 m
+        yard      => 0.0254*12*3,             #0.9144 m
+        yards     => 0.0254*12*3,             #0.9144 m
+        fathom    => 0.0254*12*3*2,           #1.8288 m
+        fathoms   => 0.0254*12*3*2,           #1.8288 m
+        chain     => 0.0254*12*3*22,          #20.1168 m
+        chains    => 0.0254*12*3*22,          #20.1168 m
+        furlong   => 0.0254*12*3*22*10,       #201.168 m
+        furlongs  => 0.0254*12*3*22*10,       #201.168 m
+        mi        => 0.0254*12*3*22*10*8,     #1609.344 m
+        mile      => 0.0254*12*3*22*10*8,     #1609.344 m
+        miles     => 0.0254*12*3*22*10*8,
+        league    => 0.0254*12*3*22*10*8*3,   #4828.032 m
+        leagues   => 0.0254*12*3*22*10*8*3,   #4828.032 m
+        yard_imp           => 0.914398416,
+        yard_imperical     => 0.914398416,
+        NM                 => 1852,           #nautical mile, 1852 by new def, 1851.85 old def: 10e6/90/60, earth arcminute
+        nmi                => 1852,           #nautical mile
+        nautical_mile      => 1852,
+        nautical_miles     => 1852,
+        'nautical mile'    => 1852,
+        'nautical miles'   => 1852,
+        micron             => 1e-6,
+        microns            => 1e-6,
+        micrometre         => 1e-6,
+        micrometres        => 1e-6,
+        micrometer         => 1e-6,
+        micrometers        => 1e-6,
+        'µm'               => 1e-6,
+        'µmeter'           => 1e-6,
+        'µmeters'          => 1e-6,
+        'Å'                => 1e-10,
+        'ångstrøm'         => 1e-10,
+        'angstrom'         => 1e-10,
+        fm                 => 1e-15,
+        fermi              => 1e-15, #in honour of Enrico Fermi
+        fermis             => 1e-15, #in honour of Enrico Fermi
+        femtometer         => 1e-15, #derived from "femten" (=fifteen in Norwegian and Danish)
+        femtometre         => 1e-15,
+        femtometers        => 1e-15, #derived from "femten" (=fifteen in Norwegian and Danish)
+        femtometres        => 1e-15,
+        attometer          => 1e-18, #derived from "atten/atton" (=eighteen)
+        attometre          => 1e-18,
+        attometers         => 1e-18, #derived from "atten/atton" (=eighteen)
+        attometres         => 1e-18,
+        ly                 => 299792458*3600*24*365.25,
+        lightyear          => 299792458*3600*24*365.25, # = 9460730472580800 by def
+        ls                 => 299792458,      #light-second
+        au                 => 149597870700,   # by def: meters earth to sun
+        astronomical_unit  => 149597870700,
+        'astronomical unit'=> 149597870700,
+        pc                 => 149597870700*648000/$PI, #3.0857e16 = 3.26156 ly
+        _pc                => 149597870700*648000/$PI,
+        parsec             => 149597870700*648000/$PI,
+        attoparsec         => 149597870700*648000/$PI/1e18,
+        apc                => 149597870700*648000/$PI/1e18,
+        planck             => 1.61619997e-35, #planck length
+        #Norwegian (old) lengths:
+        tomme              => 0.0254,
+        tommer             => 0.0254,
+        fot                => 0.0254*12,               #0.3048m
+        alen               => 0.0254*12*2,             #0.6096m, 2 fot
+        favn               => 0.0254*12*2*3,           #1.8288m
+        kvart              => 0.0254*12*2/4,           #0.1524m a quarter alen
+        #sjømil_pre1875=> 0.0254*12*2*3*3950,      #3950 favner
+        #sjømil            => 7420,                    #1 geografisk mil = 1/15 ekvatorgrad = 7420 meter
+        #--https://upload.wikimedia.org/wikipedia/commons/e/eb/English_length_units_graph.svg
+        twip          => 0.0254 / 6 / 12 / 20,
+        point         => 0.0254 / 6 / 12,
+        pica          => 0.0254 / 6,
+        line          => 0.0254 / 12,
+        thou          => 0.0254 / 1000,
+        barleycorn    => 0.0254 / 3,
+        poppyseed     => 0.0254 / 3 / 4,
+        finger        => 0.0254 / 6 / 12 * 63,
+        palm          => 0.0254 * 3,
+        digit         => 0.0254 * 3 / 4,
+        nail          => 0.0254 * 3 / 4 * 3,
+        rack          => 0.0254 * 1.75,
+        stick         => 0.0254 * 2,
+        hand          => 0.0254 * 2 * 2,
+        foot          => 0.0254 * 2 * 2 * 3,
+        shaftment     => 0.0254 * 3 * 2,
+        span          => 0.0254 * 3 * 3,
+        ell           => 0.0254 * 3 * 3 * 5,
+        pace          => 0.0254 * 3 * 2 * 5,
+        step          => 0.0254 * 3 * 2 * 5,
+        cubit         => 0.0254 * 3 * 2 * 3,
+        rod           => 0.0254 * 3 * 2 * 3 * 11,
+        link          => 0.0254 * 3 * 2 * 3 * 11 / 25,
+        yard          => 0.0254 * 2 * 2 * 3 * 3,
+        grade         => 0.0254 * 3 * 2 * 5 * 2,
+        rope          => 0.0254 * 3 * 2 * 5 * 2 * 4,
+        skein         => 0.0254 * 3 * 3 * 5 * 96,                   # 96 ell
+        fathom        => 0.0254 * 2 * 2 * 3 * 3 * 2,                # 2 yard
+        spindle       => 0.0254 * 3 * 3 * 5 * 96 * 120,             # 120 skein
+        gunter_chain  => 0.0254 * 2 * 2 * 3 * 3 * 2 * 11,           # 11 fathom
+        ramsden_chain => 0.0254 * 3 * 2 * 5 * 2 * 4 * 5,            # 5 rope
+        shackle       => 0.0254 * 2 * 2 * 3 * 3 * 2 * 15,           # 15 fathom
+        cable         => 0.0254 * 2 * 2 * 3 * 3 * 2 * 100,          # 100 fathom
+        furlong       => 0.0254 * 2 * 2 * 3 * 3 * 2 * 11 * 10,      # 10 gunter_chain, 220 yard
+        roman_mile    => 0.0254 * 3 * 2 * 5 * 2 * 4 * 5 * 50,       # 50 ramsden_chain
+        statute_mile  => 0.0254 * 2 * 2 * 3 * 3 * 2 * 11 * 10 * 8,  # 8 furlong
+        nautic_mile   => 0.0254 * 2 * 2 * 3 * 3 * 2 * 100 * 10,     # 10 cable
+        league        => 0.0254 * 2 * 2 * 3 * 3 * 2 * 100 * 10 * 5, # 5 nautic_mile
+        siriometer    => 149597870700*1e6,                          # 1 million astronomical units
+        steinkast     => 47.05,
+        landmil       => 11295,                                     # 18000 Norwegian alen
+    },
+    mass  =>{ #https://en.wikipedia.org/wiki/Unit_conversion#Mass
+        g             => 1,
+        _g            => 1,
+        gram          => 1,
+        grams         => 1,
+        kilo          => 1000,
+        kilos         => 1000,
+        t             => 1000000,
+        tonn          => 1000000,
+        tonne         => 1000000,
+        tonnes        => 1000000,
+        seer          => 933.1,          # ~14400 grains (if 933.104304), India, Aden, Saudi-Arabia
+        maund         => 37320,          # avg of Indias different mauds, ~ 40 x seer
+        lb            => 453.59237,      # ~453g
+        lbs           => 453.59237,
+        lbm           => 453.59237,
+        lb_av         => 453.59237,
+        lb_t          => 373.2417216,
+        lb_troy       => 373.2417216,    # 5760 grains = 453.59237*144/175
+        pound         => 453.59237,      # 7000 grains
+        pounds        => 453.59237,
+        pound_av      => 453.59237,
+        pound_troy    => 373.2417216,    # ~373g
+        pound_metric  => 500,            # 0.5kg
+        ounce         => 28,             # US food, 28g
+        ounce_av      => 453.59237/16,   # avoirdupois  lb/16 = 28.349523125g
+        ounce_troy    => 31.1034768,     # lb_troy / 12
+        oz            => 28,             # US food, 28g
+        oz_av         => 453.59237/16,   # avoirdupois  lb/16 = 28.349523125g
+        oz_t          => 31.1034768,     # lb_troy / 12,
+        grain         => 453.59237/7000, # 64.79891/1000, # 
+        grains        => 64.79891/1000,
+        pennyweight   => 31.1034768 / 20,
+        pwt           => 31.1034768 / 20,
+        dwt           => 31.1034768 / 20,
+        stone         => 453.59237*14,             # 6.35029318 kg
+        st            => 453.59237*14,             # 14 lb_av
+        wey           => 453.59237*14*18,          # 252 lb = 18 stone = 114.30527724 kg
+        carat         => 0.2,
+        ct            => 0.2,                      #carat (metric)
+        kt            => 64.79891/1000 * (3+1/6),  #carat/karat
+        u             => 1.66053892173e-30, #atomic mass carbon-12
+        Da            => 1.66053892173e-30, #atomic mass carbon-12
+        slug          => 14600,
+        sl            => 14600,
+        eV            => 1.78266172802679e-33,    #e=mc2 = 1.60217646e-19 J / (2.99792458e8 m/s)**2
+        _eV           => 1.78266172802679e-33,
+        electronvolt  => 1.78266172802679e-33,
+        'solar mass'  => 1.99e33,
+        solar_mass    => 1.99e33,
+        bag           => 60*1000,           #60kg coffee
+        firkin        => 90 * 453.59237,    #90lb
+        picul         => 60478.982,         #
+        catty         => 604.78982,         #
+        catties       => 604.78982,         #
+        kati          => 604.78982,         #
+    },
+    area  =>{               # https://en.wikipedia.org/wiki/Unit_conversion#Area
+        m2            => 1,
+        dm2           => 0.1**2,
+        cm2           => 0.01**2,
+        mm2           => 0.001**2,
+        'µm2'         => 1e-6**2,
+        um2           => 1e-6**2,
+        sqm           => 1,
+        sqcm          => 0.01**2,
+        sqmm          => 0.001**2,
+        km2           => 1000**2,
+        sqkm          => 1000**2,
+        a             => 100,
+        ar            => 100,
+        are           => 100,
+        ares          => 100,
+        dekar         => 1000,
+        decare        => 1000,
+        decares       => 1000,
+        daa           => 1000,
+        'mål'         => 1000,
+        ha            => 10000,
+        hektar        => 10000,
+        hectare       => 10000,
+        hectares      => 10000,
+        in2           => 0.0254**2,
+        inch2         => 0.0254**2,
+        ft2           => (0.0254*12)**2,
+        sqft          => (0.0254*12)**2,
+        mi2           => 1609.344**2,
+        mile2         => 1609.344**2,
+        miles2        => 1609.344**2,
+        sqmi          => 1609.344**2,
+        yd2           => (0.0254*12*3)**2, #square yard
+        sqyd          => (0.0254*12*3)**2,
+        yard2         => (0.0254*12*3)**2,
+        yards2        => (0.0254*12*3)**2,
+        squareyard    => (0.0254*12*3)**2,
+        squareyards   => (0.0254*12*3)**2,
+        rood          => 1210*(0.0254*12*3)**2,  # 1/4 acres
+        roods         => 1210*(0.0254*12*3)**2,  # 1/4 acres
+        ac            => 4840*(0.0254*12*3)**2,  # 4840 square yards = 1 chain x 1 furlong
+        acre          => 4840*(0.0254*12*3)**2,
+        acres         => 4840*(0.0254*12*3)**2,
+        homestead     => 4840*(0.0254*12)**2 *160,      #160 acres US Surveyors or 1/4 sqmiles
+        township      => 4840*(0.0254*12)**2 *160*144,  #144 homesteads or 36 sqmiles
+        perches       => 4840*(0.0254*12)**2 /160,      #160 perches = 1 acre in sri lanka
+        sotka         => 100,       #russian are
+        jerib         => 10000,     #iran hectare
+        djerib        => 10000,     #turkish hectare
+        gongqing      => 10000,     #chinese hectare
+        manzana       => 10000,     #argentinian hectare
+        bunder        => 10000,     #dutch hectare
+        centiare      => 1,
+        deciare       => 10,
+        ca            => 1,
+        mu            => 10000/15,    #China
+        qing          => 10000/0.15,  #China
+        dunam         => 10000/10,    #Middle East
+        'dönüm'       => 10000/10,    #Middle East
+        stremmata     => 10000/10,    #Greece
+        rai           => 10000/6.25,  #Thailand
+        cho           => 10000/1.008, #Japan
+        feddan        => 10000/2.381, #Egypt
+        earths        => 510072000e6, #510072000 km2, surface area of earth
+        barn          => 1e-28,       #physics
+        outhouse      => 1e-34,       #physics
+        shed          => 1e-52,       #physics
+        brass         => 100*(0.0254*12)**2, #100 square feet ~ 9.29 m2
+        square        => 100*(0.0254*12)**2, #100 square feet ~ 9.29 m2
+        morgen        => 0.856532 * 10000,   #0.856532 hectares
+        bornholm      => 588.36e6,           #area of danish island bornholm, 588km2
+        texas         => 695670e6,           #area of texas, 695 670 square km
+    },
+    volume=>{
+        m3            => 1,                #1000 L
+        l             => 0.001,
+        L             => 0.001,
+        _L            => 0.001,
+        _l            => 0.001,
+        liter         => 0.001,
+        liters        => 0.001,
+        litre         => 0.001,
+        litres        => 0.001,
+        gal           => 231 * 0.0254**3, #3.785411784 L = 0.003785411784 m3, #231 cubic inches
+        gallon        => 231 * 0.0254**3,
+        gallons       => 231 * 0.0254**3,
+        gallon_us     => 231 * 0.0254**3, #231 cubic inches
+        gallon_wine   => 231 * 0.0254**3, #queen anne's gallon
+        gallon_ale    => 282 * 0.0254**3, #beer
+        gallon_corn   => 268.8*0.0254**3, #corn, or winchester gallon
+        gallon_uk     => 4.54609/1000,    #constant 4.54609 from definition
+        gallon_imp    => 4.54609/1000,    #imperial
+        gallon_us_dry => 4.40488377086/1000, # ~ 9.25**2*pi*2.54**3/1000 L
+        #hogshead, gill, pail, jigger, jackpot, The Science of Measurement - A Historical Survey (Klein)
+        cm3           => 0.01**3,               #0.001 L
+        in3           => 0.0254**3,             #0.016387064 L
+        ft3           => (0.0254*12)**3,
+        tablespoon    => 3.785411784/256,       #14.78676478125 mL
+        tsp           => 3.785411784/256/3,     #4.92892159375 mL
+        teaspoon      => 3.785411784/256/3,     #4.92892159375 mL
+        floz          => 3.785411784/128,       #fluid ounce US
+        floz_uk       => 4.54609/160,           #fluid ounce UK
+        pint          => 4.54609/8000,          #0.56826125 L
+        pint_uk       => 4.54609/8000,
+        pint_imp      => 4.54609/8000,
+        pint_us       => 3.785411784/8000,      #0.473176473
+        quart         => 4.54609/4000,             #2*pint
+        pottle        => 4.54609/2000,             #2*quart = gallon_uk/2
+        #therm        => 2.74,                #? 100000BTUs?   (!= thermie)
+        #thm          => 2.74,                #?               (!= th)
+        fat           => 42*231*2.54**3/1e6,
+        bbl           => 42*231*2.54**3/1e6,
+        barrel        => 42*231*2.54**3/1e6,  #oil barrel ~159 liters https://en.wikipedia.org/wiki/Barrel_(unit)
+        Mbbl          => 42*231*2.54**3/1e3,  #mille (thousand) oil barrels, M er mille her, ikke mega!
+        MMbbl         => 42*231*2.54**3,      #mille mille (million) oil barrels
+        drum          => 0.208,               #208 L
+        container     => 33.1e3,  #container20
+        container20   => 33.1e3,
+        container40   => 67.5e3,
+        container40HC => 75.3e3,
+        container45HC => 86.1e3,
+        firkin        => 282*0.0254**3 * 8, #8 gallon_ale
+        #Norwegian:
+        meterfavn      => 2 * 2 * 0.6,           #fire wood/ved 2.4 m3
+        storfavn       => 2 * 2 * 3,             #fire wood/ved 12 m3
+       'tønne'         => 138.97/1000,
+       'tønne_tørr'    => 138.97/1000,
+       'tønne_flytende'=> 115.81/1000,
+        fjerding       => 138.97/4/1000,
+        #https://no.wikipedia.org/wiki/Pipe_(m%C3%A5l)
+    },
+    time  =>{
+        s            => 1,
+        _s           => 1,
+        sec          => 1,
+        second       => 1,
+        seconds      => 1,
+        m            => 60,
+        min          => 60,
+        minute       => 60,
+        minutes      => 60,
+        h            => 60*60,
+        hr           => 60*60,
+        hour         => 60*60,
+        hours        => 60*60,
+        d            => 60*60*24,
+        dy           => 60*60*24,
+        day          => 60*60*24,
+        days         => 60*60*24,
+        w            => 60*60*24*7,
+        week         => 60*60*24*7,
+        weeks        => 60*60*24*7,
+        mo           => 60*60*24 * 365.2425/12,
+        mon          => 60*60*24 * 365.2425/12,
+        month        => 60*60*24 * 365.2425/12,
+        quarter      => 60*60*24 * 365.2425/12 * 3, #3 months
+        season       => 60*60*24 * 365.2425/12 * 3, #3 months
+        y            => 60*60*24 * 365.2425, # 365+97/400    #97 leap yers in 400 years
+        year         => 60*60*24 * 365.2425,
+        years        => 60*60*24 * 365.2425,
+        yjulian      => 60*60*24 * 365.25,   # 365+1/4
+        y365         => 60*60*24 * 365,      # finance/science
+        ycommon      => 60*60*24 * 365,      # finance/science
+        ygregorian   => 60*60*24 * 365.2425, # 365+97/400
+        #ygaussian   => 365+(6*3600+9*60+56)/(24*3600),  # 365+97/400
+        ytropical    => 60*60*24 * 365.24219,
+        ysideral     => 365.256363004,
+        ySI          => 60*60*24*365.25, #31556925.9747
+        decade       =>   10 * 60*60*24*365.2425,
+        biennium     =>    2 * 60*60*24*365.2425,
+        triennium    =>    3 * 60*60*24*365.2425,
+        olympiad     =>    4 * 60*60*24*365.2425,
+        lustrum      =>    5 * 60*60*24*365.2425,
+        indiction    =>   15 * 60*60*24*365.2425,
+        jubilee      =>   50 * 60*60*24*365.2425,
+        century      =>  100 * 60*60*24*365.2425,
+        millennium   => 1000 * 60*60*24*365.2425,
+        shake        => 1e-8,
+        moment       => 3600/40,  #1/40th of an hour, used by Medieval Western European computists
+        ke           => 864,      #1/100th of a day, trad Chinese, 14m24s
+        fortnight    => 14*24*3600,
+        tp           => 5.3910632e-44,  #planck time, time for light to travel 1 planck length
+        nanocentury  =>  100 * 60*60*24*365.2425 / 1e9,   #3.156 ~ pi seconds, response time limit (usability)
+        warhol       => 15*60,                            #"fifteen minutes of fame"
+    },
+    speed=>{
+        'm/s'        => 1,
+        '_m/s'       => 1,
+        mps          => 1,
+        mph          => 1609.344/3600,
+        'mi/h'       => 1609.344/3600,
+        kmh          => 1/3.6,
+        kmph         => 1/3.6,
+        'km/h'       => 1/3.6,
+        kmt          => 1/3.6, # t=time(=hour) or temps (scandinavian and french and dutch)
+        'km/t'       => 1/3.6,
+        kt           => 1852/3600,
+        kts          => 1852/3600,
+        kn           => 1852/3600,
+        knot         => 1852/3600,
+        knots        => 1852/3600,
+        knop         => 1852/3600,    #scandinavian
+        c            => 299792458,    #speed of light, exact due to definition of meter
+        mach         => 340.3,        #speed of sound
+        machs        => 340.3,
+        fps          => 0.3048, #0.0254*12
+        ftps         => 0.3048,
+        'ft/s'       => 0.3048,
+    },
+    acceleration=>{
+        'm/s2'       => 1,
+        'mps2'       => 1,
+        g            => 9.80665,
+        g0           => 9.80665,
+        #0-100kmh or ca 0-60 mph x seconds...
+    },
+    temperature=>{  #http://en.wikipedia.org/wiki/Temperature#Conversion
+        C=>1, F=>1, K=>1, celsius=>1, fahrenheit=>1, kelvin=>1
+    },
+    radioactivity=>{
+        Bq           => 1,
+        becquerel    => 1,
+        curie        => 3.7e10,
+    },
+    current=> {
+        A            => 1,
+        _A           => 1,
+        'N/m2'       => 2e-7,
+    },
+    charge=>{
+        e            => 1,
+        _e           => 1,
+        C            => 6.24150964712042e+18,
+        coulomb      => 6.24150964712042e+18,
+        As           => 6.24150964712042e+18,
+        #Faraday unit of charge ???
+    },
+    power=> {
+        W            => 1,
+        _W           => 1,
+        'J/s'        => 1,
+        Jps          => 1,
+        hp           => 746,
+        hk           => 746,        #hestekrefter (norwegian, scandinavian)
+        PS           => 746/1.014,  #pferdestärken
+        'kWh/yr'     => 1000    * 3600/(24*365), #kWh annually
+        Whpy         =>           3600/(24*365), #kWh annually
+        kWhpy        => 1000    * 3600/(24*365), #kWh annually
+        MWhpy        => 1000**2 * 3600/(24*365), #kWh annually
+        GWhpy        => 1000**3 * 3600/(24*365), #kWh annually
+        TWhpy        => 1000**4 * 3600/(24*365), #kWh annually
+        BTU          => 1055.05585262/3600,                    #
+        BTUph        => 1055.05585262/3600,
+        'BTU/h'      => 1055.05585262/3600,
+        'BTU/s'      => 1055.05585262,
+        'ftlb/s'     => 746/550,
+        'ftlb/min'   => 746/550/60,
+    },
+    energy=>{
+        joule        => 1,
+        J            => 1,
+        _J           => 1,
+        Ws           => 1,
+        Wps          => 1,
+        'W/s'        => 1,
+        Nm           => 1,
+        newtonmeter  => 1,
+        newtonmeters => 1,
+        Wh           => 3600,             #3600 J (joules)
+        kWh          => 3600000,          #3.6 million J
+        MWh          => 3600000000,       #3.6 billion J
+        GWh          => 3600000000000,    #3.6 trillion J
+        TWh          => 3600000000000000, #3600 trillion J
+        cal          => 4.1868,           # ~ 3600/860
+        calorie      => 4.1868,
+        calories     => 4.1868,
+        kcal         => 4.1868*1000,
+        kilocalorie  => 4.1868*1000,
+        kilocalories => 4.1868*1000,
+        BTU          => 4.1868 * 252, # = 1055.0736 or is 1055.05585262 right?
+        Btu          => 4.1868 * 252,
+        ftlb         => 746/550,      # ~ 1/0.7375621
+        'foot-pound' => 746/550,
+        'foot-pounds'=> 746/550,
+        erg          => 1e-7,
+        ergs         => 1e-7,
+        eV           => 1.60217656535e-19,
+        _eV          => 1.60217656535e-19,
+        BeV          => 1.60217656535e-10,
+        electronvolt => 1.60217656535e-19,
+        hph          => 3600*746,
+        PSh          => 3600*746/1.014,
+        galatm_imp   => 460.63256925,
+        galatm_US    => 383.5568490138,
+        quad         => 1.05505585262e18,
+        Ry           => 2.179872e-18,
+        rydberg      => 2.179872e-18,
+        th           => 4.1868e6,
+        thm          => 4.1868e6,
+        therm        => 4.1868e6,
+        thermie      => 4.1868e6,
+        boe          => 6.12e9,         #barrel of oil equivalent
+        TCE          => 29.288e9,       #ton of coal equivalent
+        toe          => 41.868e9,       #tonne of oil equivalent
+        tTNT         => 4.184e9,        #ton of TNT equivalent
+        CMO          => 4.454e13*3.6e6, #cubic mile of oil = 4.454*10^13 kWh
+        CKO          => 4.454e13*3.6e6*1.609344**3, #cubic km   of oil
+    },
+    force=> {
+        newton    => 1,
+        N         => 1,
+        _N        => 1,
+        dyn       => 1e-5,
+        dyne      => 1e-5,
+        dynes     => 1e-5,
+        lb        => 4.448222,
+    },
+    pressure=>{
+        Pa        => 1,
+        _Pa       => 1,
+        pascal    => 1,
+        'N/m2'    => 1,
+        bar       => 100000.0,
+        mbar      => 100.0,
+        at        =>  98066.5,   #technical atmosphere
+        atm       => 101325.0,     #standard atmosphere
+        torr      => 133.3224,
+        psi       => 6894.8,     #pounds per square inch
+    },
+    bytes=> {
+        b         => 1,
+        kb        => 1024,         #2**10
+        mb        => 1024**2,      #2**20 = 1048576
+        gb        => 1024**3,      #2**30 = 1073741824
+        tb        => 1024**4,      #2**40 = 1099511627776
+        pb        => 1024**5,      #2**50 = 1.12589990684262e+15
+        eb        => 1024**6,      #2**60 =
+        zb        => 1024**7,      #2**70 =
+        yb        => 1024**8,      #2**80 =
+        KiB       => 1024,         #2**10
+        KiB       => 1024**2,      #2**20 = 1048576
+        KiB       => 1024**3,      #2**30 = 1073741824
+        KiB       => 1024**4,      #2**40 = 1099511627776
+        KiB       => 1024**5,      #2**50 = 1.12589990684262e+15
+        KiB       => 1024**6,      #2**60 =
+        KiB       => 1024**7,      #2**70 =
+        KiB       => 1024**8,      #2**80 =
+        Kb        => 1000,         #10**3
+        Mb        => 1000**2,      #
+        Gb        => 1000**3,      #
+        Tb        => 1000**4,      #
+        Pb        => 1000**5,      #
+        Eb        => 1000**6,      #
+        Zb        => 1000**7,      #
+        Yb        => 1000**8,      #
+        byte      => 1,
+        kilobyte  => 1024,         #2**10
+        megabyte  => 1024**2,      #2**20 = 1048576
+        gigabyte  => 1024**3,      #2**30 = 1073741824
+        terabyte  => 1024**4,      #2**40 = 1099511627776
+        petabyte  => 1024**5,      #2**50 = 1.12589990684262e+15
+        exabyte   => 1024**6,      #2**60 =
+        zettabyte => 1024**7,      #2**70 =
+        yottabyte => 1024**8,      #2**80 =
+    },
+    milage=>{                                #fuel consumption
+        'l/mil'          => 1,
+        'l/10km'         => 1,
+        'lp10km'         => 1,
+        'l/km'           => 10,
+        'l/100km'        => 1/10,
+        lp100km          => 1/10,
+        liter_pr_100km   => 1/10,
+        liter_pr_km      => 10,
+        mpg              => -23.5214584,      #negative signals inverse
+    },
+#    light=> {
+#        cd            => 1,
+#        candela       => 1,
+#    },
 #         lumens
 #         lux
-         angle =>{
-		  turn          => 1,
-                  rad           => 1/(2*$PI), # 2 * pi
-                  radian        => 1/(2*$PI), # 2 * pi
-                  radians       => 1/(2*$PI), # 2 * pi
-                  deg           => 1/360,                                # 4 * 90
-                  degree        => 1/360,                                # 4 * 90
-                  degrees       => 1/360,                                # 4 * 90
-                  grad          => 1/400,
-                  gradian       => 1/400,
-                  gradians      => 1/400,
-                  grade         => 1/400, #french revolutionary unit
-                  gon           => 1/400,
-                  new_degree    => 1/400,
-                  nygrad        => 1/400, #scandinavian
-		  quadrant      => 1/4,
- 		  sextant       => 1/6,
-		  hour          => 1/24,
-		  point         => 1/32,  #used in navigation
-		  hexacontade   => 1/60,
-		  binary_degree => 1/256,
-		  binary_radian => 1/256,
-		  brad          => 1/256,
-                 },
-	 money =>{                      # rates at 18th feb 2018
-           NOK => 1.000000000,          #norwegian kroner
-           AED => 2.118503,             #united arab emirates dirham
-           ARS => 0.393725,             #argentina peso
-           AUD => 6.162408,             #australian dollar
-           BCH => 12118.36327559,       #bitcoin cash
-           BGN => 4.937892,             #bulgarian lev
-           BHD => 20.692023,            #bahrain dinar
-           BND => 5.931982,             #brunei dollar
-           BRL => 2.407647,             #brazilian real
-           BTC => 84864.0984477,        #bitcoin
-           BWP => 0.825478,             #botswana pulaa
-           CAD => 6.201377,             #canadian dollar
-           CHF => 8.391971,             #switzerland franc
-           CLP => 0.013110,             #chili peso
-           CNY => 1.226451,             #china yuan/renminbi
-           COP => 0.00274549,           #colombian peso
-           CZK => 0.380706,             #czech koruna
-           DKK => 1.295957,             #danish kroner
-           ETC => 257.8101864767,       #ethereum-classic
-           ETH => 7410.657012902,       #ethereum
-           EUR => 9.657677,             #euro
-           GBP => 10.913727,            #great britain pound, british pound
-           '£' => 10.913727,            #great britain pound, british pound symbol
-           HKD => 0.994705,             #hong kong dollar
-           HRK => 1.301015,             #croatian kuna
-           HUF => 0.030922,             #hungarian forint
-           IDR => 0.00057358,           #indonesian rupia
-           ILS => 2.191990,             #israel new shekel
-           INR => 0.121070,             #indian rupee
-           IRR => 0.00020984,           #iranian rial
-           ISK => 0.077647,             #icelandic kroner
-           JPY => 0.073271,             #japanish yen
-           KRW => 0.00729673,           #south korean won
-           KWD => 25.925147,            #kuwait dinar
-           KZT => 0.024338,             #kazakhstanian tenge
-           LKR => 0.050121,             #sri lanka rupee
-           LTC => 1782.926421562,       #litecoin
-           LYD => 5.866758,             #libyan dinar
-           MUR => 0.239306,             #mauritius
-           MXN => 0.418798,             #mexico peso
-           MYR => 1.998096,             #malaysian ringgit
-           NPR => 0.075316,             #nepal rupee
-           NZD => 5.745187,             #new zealand dollar
-           OMR => 20.234592,            #oman rial
-           PHP => 0.148869,             #philippines peso
-           PKR => 0.070338,             #pakistan rupee
-           PLN => 2.319848,             #poland zloty
-           QAR => 2.137418,             #qatar rial
-           RON => 2.070137,             #romaina new nei
-           RUB => 0.137791,             #russia rouble / rubel
-           SAR => 2.074720,             #saudi arabia riyal
-           SEK => 0.976704,             #swedish kroner
-           SGD => 5.931982,             #singapore dollar
-           THB => 0.248282,             #thailand baht
-           TRY => 2.076265,             #turkish new lira
-           TTD => 1.150931,             #trinidad/tobago dollar
-           TWD => 0.267321,             #taiwan dollar
-           USD => 7.780201,             #us dollar
-          '$'  => 7.780201,             #us doller, symbol
-           VEF => 0.778994,             #venezuelan bolivares fuertes
-           XBT => 84864.0984477,        #synonym for BTC
-           XRP => 8.96808208868,        #ripple
-           ZAR => 0.667117,             #south africa rand
-          },
-          numbers =>{
-	    dec=>1,hex=>1,bin=>1,oct=>1,roman=>1,      des=>1,#des: spelling error in v0.15-0.16
-            dusin=>1,dozen=>1,doz=>1,dz=>1,gross=>144,gr=>144,gro=>144,great_gross=>12*144,small_gross=>10*12,
-          }
-	);
+    angle =>{
+        turn          => 1,
+        rad           => 1/(2*$PI), # 2 * pi
+        radian        => 1/(2*$PI), # 2 * pi
+        radians       => 1/(2*$PI), # 2 * pi
+        deg           => 1/360,                                # 4 * 90
+        degree        => 1/360,                                # 4 * 90
+        degrees       => 1/360,                                # 4 * 90
+        grad          => 1/400,
+        gradian       => 1/400,
+        gradians      => 1/400,
+        grade         => 1/400, #french revolutionary unit
+        gon           => 1/400,
+        new_degree    => 1/400,
+        nygrad        => 1/400, #scandinavian
+        quadrant      => 1/4,
+        sextant       => 1/6,
+        hour          => 1/24,
+        point         => 1/32,  #used in navigation
+        hexacontade   => 1/60,
+        binary_degree => 1/256,
+        binary_radian => 1/256,
+        brad          => 1/256,
+    },
+    money =>{                      # rates at 18th feb 2018
+        NOK => 1.000000000,          #norwegian kroner
+        AED => 2.118503,             #united arab emirates dirham
+        ARS => 0.393725,             #argentina peso
+        AUD => 6.162408,             #australian dollar
+        BCH => 12118.36327559,       #bitcoin cash
+        BGN => 4.937892,             #bulgarian lev
+        BHD => 20.692023,            #bahrain dinar
+        BND => 5.931982,             #brunei dollar
+        BRL => 2.407647,             #brazilian real
+        BTC => 84864.0984477,        #bitcoin
+        BWP => 0.825478,             #botswana pulaa
+        CAD => 6.201377,             #canadian dollar
+        CHF => 8.391971,             #switzerland franc
+        CLP => 0.013110,             #chili peso
+        CNY => 1.226451,             #china yuan/renminbi
+        COP => 0.00274549,           #colombian peso
+        CZK => 0.380706,             #czech koruna
+        DKK => 1.295957,             #danish kroner
+        ETC => 257.8101864767,       #ethereum-classic
+        ETH => 7410.657012902,       #ethereum
+        EUR => 9.657677,             #euro
+        GBP => 10.913727,            #great britain pound, british pound
+        '£' => 10.913727,            #great britain pound, british pound symbol
+        HKD => 0.994705,             #hong kong dollar
+        HRK => 1.301015,             #croatian kuna
+        HUF => 0.030922,             #hungarian forint
+        IDR => 0.00057358,           #indonesian rupia
+        ILS => 2.191990,             #israel new shekel
+        INR => 0.121070,             #indian rupee
+        IRR => 0.00020984,           #iranian rial
+        ISK => 0.077647,             #icelandic kroner
+        JPY => 0.073271,             #japanish yen
+        KRW => 0.00729673,           #south korean won
+        KWD => 25.925147,            #kuwait dinar
+        KZT => 0.024338,             #kazakhstanian tenge
+        LKR => 0.050121,             #sri lanka rupee
+        LTC => 1782.926421562,       #litecoin
+        LYD => 5.866758,             #libyan dinar
+        MUR => 0.239306,             #mauritius
+        MXN => 0.418798,             #mexico peso
+        MYR => 1.998096,             #malaysian ringgit
+        NPR => 0.075316,             #nepal rupee
+        NZD => 5.745187,             #new zealand dollar
+        OMR => 20.234592,            #oman rial
+        PHP => 0.148869,             #philippines peso
+        PKR => 0.070338,             #pakistan rupee
+        PLN => 2.319848,             #poland zloty
+        QAR => 2.137418,             #qatar rial
+        RON => 2.070137,             #romaina new nei
+        RUB => 0.137791,             #russia rouble / rubel
+        SAR => 2.074720,             #saudi arabia riyal
+        SEK => 0.976704,             #swedish kroner
+        SGD => 5.931982,             #singapore dollar
+        THB => 0.248282,             #thailand baht
+        TRY => 2.076265,             #turkish new lira
+        TTD => 1.150931,             #trinidad/tobago dollar
+        TWD => 0.267321,             #taiwan dollar
+        USD => 7.780201,             #us dollar
+        '$' => 7.780201,             #us doller, symbol
+        VEF => 0.778994,             #venezuelan bolivares fuertes
+        XBT => 84864.0984477,        #synonym for BTC
+        XRP => 8.96808208868,        #ripple
+        ZAR => 0.667117,             #south africa rand
+    },
+    numbers =>{
+        dec=>1,hex=>1,bin=>1,oct=>1,roman=>1,      des=>1,#des: spelling error in v0.15-0.16
+        dusin=>1,dozen=>1,doz=>1,dz=>1,gross=>144,gr=>144,gro=>144,great_gross=>12*144,small_gross=>10*12,
+    }
+    );
 our $conv_prepare_time=0;
 our $conv_prepare_money_time=0;
 sub conv_prepare {
@@ -1448,14 +1740,18 @@ sub conv_prepare {
   my %small=(deci=>1e-1, centi=>1e-2, milli=>1e-3, micro =>1e-6,          nano=>1e-9, pico=>1e-12, femto=>1e-15, atto=>1e-18, zepto=>1e-21, yocto=>1e-24);
   # myria=> 10000              #obsolete
   # demi => 1/2, double => 2   #obsolete
-  # lakh => 1e5, crore => 1e7  #south	asian
+  # lakh => 1e5, crore => 1e7  #south    asian
   my %x = (%s,%b);
-  for my $type (keys%conv) {
-    for(grep/^_/,keys%{$conv{$type}}) {
-      my $c=$conv{$type}{$_};
-      delete$conv{$type}{$_};
+  for my $ct (values%conv) {
+    for(grep/^_/,keys%$ct) { # _m -> mm, cm, dm, km, ...
+      my $c=$$ct{$_};
+      delete$$ct{$_};
       my $unit=substr($_,1);
-      $conv{$type}{$_.$unit}=$x{$_}*$c for keys%x;
+      $$ct{$_.$unit}=$x{$_}*$c for keys%x;
+    }
+    for(keys%$ct){ #kWh kwh KWH ...
+      $$ct{lc$_}=$$ct{$_} if !defined($$ct{lc$_});
+      $$ct{uc$_}=$$ct{$_} if !defined($$ct{uc$_});
     }
   }
   $conv_prepare_time=time();
@@ -1592,7 +1888,7 @@ Examples:
 
 sub bytes_readable {
   my $bytes=shift();
-  my $d=shift()||2; #decimals
+  my $d=@_?shift():2; #decimals
   return undef if !defined $bytes;
   return "$bytes B"                         if abs($bytes) <= 2** 0*1000; #bytes
   return sprintf("%.*f kB",$d,$bytes/2**10) if abs($bytes) <  2**10*1000; #kilobyte
@@ -1604,7 +1900,7 @@ sub bytes_readable {
 
 =head2 sec_readable
 
-Time written as C< 14h 37m > is often more humanly comprehensible than C< 52620 seconds >.
+Durations written as C< 14h 37m > is more humanly comprehensible than C< 52620 seconds >.
 
  print sec_readable( 0 );           # 0s
  print sec_readable( 0.0123 );      # 0.0123s
@@ -1634,26 +1930,24 @@ Time written as C< 14h 37m > is often more humanly comprehensible than C< 52620 
 sub sec_readable {
   my $s=shift();
   my($h,$d,$y)=(3600,24*3600,365.25*24*3600);
-   !defined$s     ? undef
-  :!length($s)    ? ''
-  :$s<0           ? '-'.sec_readable(-$s)
-  :$s<60 && int($s)==$s
-                  ? $s."s"
-  :$s<60          ? sprintf("%.*fs",int(3+-log($s)/log(10)),$s)
-  :$s<3600        ? int($s/60)."m " .($s%60)        ."s"
-  :$s<24*3600     ? int($s/$h)."h " .int(($s%$h)/60)."m"
-  :$s<366*24*3600 ? int($s/$d)."d " .int(($s%$d)/$h)."h"
-  :                 int($s/$y)."yr ".int(($s%$y)/$d)."d";
+   !defined$s           ? undef
+  :!length($s)          ? ''
+  :$s<0                 ? '-'.sec_readable(-$s)
+  :$s<60 && int($s)==$s ? $s."s"
+  :$s<60                ? sprintf("%.*fs",int(3+-log($s)/log(10)),$s)
+  :$s<3600              ? int($s/60)."m " .($s%60)        ."s"
+  :$s<24*3600           ? int($s/$h)."h " .int(($s%$h)/60)."m"
+  :$s<366*24*3600       ? int($s/$d)."d " .int(($s%$d)/$h)."h"
+  :                       int($s/$y)."yr ".int(($s%$y)/$d)."d";
 }
 
 =head2 int2roman
 
 Converts integers to roman numbers.
 
-B<Examples:>
-
- print int2roman(1234);   # prints MCCXXXIV
- print int2roman(1971);   # prints MCMLXXI
+ print int2roman(1234);           # prints MCCXXXIV
+ print int2roman(1971);           # prints MCMLXXI
+ print conv(1971,"dec"=>"roman"); # prints MCMLXXI
 
 (Adapted subroutine from Peter J. Acklam, jacklam(&)math.uio.no)
 
@@ -1762,7 +2056,7 @@ Calculation is done using the Haversine Formula for spherical distance:
     + sin((lon2-lon1)/2)^2 * cos(lat1) * cos(lat2);
 
   c = 2 * atan2(min(1,sqrt(a)),
-	        min(1,sqrt(1-a)))
+            min(1,sqrt(1-a)))
 
   distance = c * R
 
@@ -1774,8 +2068,8 @@ Where C<Re = 6378137.0> (equatorial radius) and C<Rp = 6356752.3> (polar radius)
 
 B<Example:>
 
- my @oslo = ( 59.93937,  10.75135);    # oslo in norway
- my @rio  = (-22.97673, -43.19508);    # rio in brazil
+ my @oslo = ( 59.93937,  10.75135);    # Oslo in Norway
+ my @rio  = (-22.97673, -43.19508);    # Rio in Brazil
 
  printf "%.1f km\n",   distance(@oslo,@rio)/1000;                  # 10431.7 km
  printf "%.1f km\n",   distance(@rio,@oslo)/1000;                  # 10431.7 km
@@ -1804,6 +2098,7 @@ sub distance_great_circle {
 
 sub distance {
   my($lat1,$lon1,$lat2,$lon2)=map $Distance_factor*$_, @_;
+  return 0 if $lat1==$lat2 and $lon1==$lon2;
   my $a= sin(($lat2-$lat1)/2)**2
        + sin(($lon2-$lon1)/2)**2 * cos($lat1) * cos($lat2);
   my $sqrt_a  =sqrt($a);    $sqrt_a  =1 if $sqrt_a  >1;
@@ -1812,6 +2107,138 @@ sub distance {
   my($Re,$Rp)=( 6378137.0, 6356752.3 ); #earth equatorial and polar radius
   my $R=$Re-($Re-$Rp)*sin(abs($lat1+$lat2)/2); #approx
   return $c*$R;
+}
+
+=head2 pluscode
+
+Input: two or three args: Latitude and longitude as two floating point numbers
+and an optional precision (default 10).
+
+Output: returns the corresponding pluscode, also know as Google Pluscode and Open Location Code (OLC). Returned in one of these formats depending on precision argument:
+
+ XXXXYYYY+YYYY      (precision 12, uofficial)
+ XXXXYYYY+YYG       (precision 11 with the last char reprecenting a 5x4 grid code)
+ XXXXYYYY+YY        (precision 10)
+ XXXXYYYY+          (precision 8)
+ XXXXYY00+          (precision 6)
+ XXXX0000+          (precision 4)
+ XX000000+          (precision 2)
+
+Pluscodes are often given in Short Form where the first four chars (XXXX) are deleted and a place name added behind: C<< YYYY+YY Place
+>>. To convert Short Form and Place to actual latitude and longitude requires a database to find the nearest for that town, city or smaller
+area (an area small enough so XXXX dont become indeterminate). L<pluscode()> here don't return Short Form codes.
+
+The C<< + >> char contains do data, but makes the codes recogniseable as Pluscodes. Google's site https://plus.codes/map
+overlays their world map with plus code and a click reveals latitude, longitude and the pluscode for that position.
+
+Examples:
+
+ my @et=(48.858312, 2.294437); # latitude and longitude for the Eiffel Tower in Paris, France
+ print pluscode(@et);          # prints: 8FW4V75V+8Q
+ print pluscode(@et,10);       # prints: 8FW4V75V+8Q (same, default precision is 10)
+ print pluscode(@et,8);        # prints: 8FW4V75V+
+ print pluscode(@et,6);        # prints: 8FW4V700+
+
+See L<pluscode2latlon()> for the opposite conversion.
+
+=head2 pluscode2latlon
+
+Converts a Pluscode to latitude and longitude. See L<pluscode()> for the opposite conversion. Example:
+
+ my($latitude, $longitude) = pluscode2latlon("8FW4V75V+8Q");
+ print "Lat: $latitude   Lon: $longitude\n";  #Lat: 48.85825   Lon: 2.294375
+
+Note: this will not return exactly the same floating point number that was input in pluscode()
+since there is a limit to how accurate a location the 2, 4, 6, 8, 10, 11 and 12 chars can encode.
+
+=head2 pluscode_short
+
+Removes the first four chars from pluscode(lat,lon,10) and adds place from the string. Example:
+
+ @et=(48.858312, 2.294437);                    # lat, longitude at the Eiffel Tower in Paris, France
+ print pluscode_short(@et,'Paris, France');    # prints: V75V+8Q Paris, France
+ print pluscode_short(@et,'Paris, France',11); # prints: V75V+8Q8 Paris, France
+
+
+=head2 pluscode_short2latlon
+
+Converting from a Pluscode in Short Form requires either a database of names for places with lat, lon or with a closeby latitude and
+longitude from witch the first four chars are taken. Note: this can lead to edge cases where neighbouring first four char gridcode is
+closer for that YYYY+YY...TODO/KNOW BUG.
+
+=cut
+
+sub OLC {pluscode(@_)} #https://en.wikipedia.org/wiki/Open_Location_Code
+sub pluscode {         #https://en.wikipedia.org/wiki/Open_Location_Code OLC a.k.a. pluscode
+    my($lat,$lon,$pr)=@_;
+    $pr=10 if !defined$pr;
+    croak if $pr!~/^(2|4|6|8|10|11|12)$/;
+    my @c="23456789CFGHJMPQRVWX"=~/./g;
+    if($pr==11){
+        my $n=0; my %c=map{$_=>$n++}@c;
+        return pluscode($lat,$lon,12)=~s{(.)(.)$}{$c[4*int($c{$1}/5)+$c{$2}/4]}er;
+    }
+    my($i,@l)=(0, ($lat+90)/400, ($lon+180)/400 );
+    my $pc=join'',map{my$d=$c[$l[$i]*=20];$l[$i]-=int$l[$i];$i=1-$i;$d}1..$pr;
+    $pc.='00' while 8>length$pc;
+    $pc=~s/.{8}/$&+/r;
+}
+sub pluscode2latlon {
+    carp"pluscode2latlon: 11 digits not yet supported" if length($_[0])%2==0;
+    my $n=0; my %c=map{$_=>$n++}"23456789CFGHJMPQRVWX"=~/./g;
+    my($f,$i,@l)=(1/20,1,0,0);
+    $l[$i=1-$i]+=$_/$f, $f*=$i?20:1 for map$_?$c{$_}:9.5,pop=~/\w/g;
+    ($l[0]-90, $l[1]-180)
+}
+sub pluscode_short {
+    my($lat,$lon,$place,$pr)=@_;
+    $pr=10 if !defined$pr;
+    pluscode($lat,$lon,$pr) =~ s/^....(.+)$/$1 $place/r;
+}
+sub pluscode_short2latlon {
+    my($pcs,$near_lat,$near_lon)=@_;
+    my $chars="23456789CFGHJMPQRVWX";
+    croak if not $pcs=~s/^([$chars]{4}\+([$chars]{2}\b)?).*/$1/s;
+    my $near=substr(pluscode($near_lat,$near_lon),0,4);
+    carp"TODO: pluscode_short2latlon: dont yet deal with corner cases";
+    pluscode2latlon("$near$pcs"); #TODO!
+}
+
+=head2 geohash
+
+Converts a floating point latitude and longitude, and an optional code length (precision, default 8) to a geohash code of that length. Example:
+
+ my @et=(48.858312, 2.294437); # latitude and longitude for the Eiffel Tower in Paris, France
+ print geohash(@et);              # prints: u09tunqu2
+ print geohash(@et, 9);           # prints: u09tunqu2           (same since 9 is the default length)
+ print geohash(@et, 6);           # prints: u09tun
+
+L<https://en.wikipedia.org/wiki/Geohash>
+
+=head2 geohash2latlon
+
+Converts a geohash code to latitude and longitude floating point numbers. Example:
+
+ my($lat,$lon) = geohash2latlon("u09tunqu2");
+ print "$lat, $lon";              # prints: 48.8583254814148, 2.2944474220275
+
+=cut
+
+sub geohash {
+    my($lat,$lon,$chars)=@_;
+    $chars=9 if !defined$chars;
+    croak"geohash: @_ outside domain" if @_<2 or @_>3 or $lat<-90 or $lat>90 or $lon<-180 or $lon>180 or $chars>20;
+    my($i, @l)=(3, $lat,-90,90, $lon,-180,180);
+    my $nextbit=sub{my$m=($l[1+$i]+$l[2+$i])/2;my$b=$l[$i]<$m?0:1;$l[2+$i-$b]=$m;$i=3-$i;$b};
+    my @c=(0..9,'b'..'h',qw(j k m n),'p'..'z');
+    join'',map$c[oct"0b".join'',map&$nextbit,1..5],1..$chars;
+}
+sub geohash2latlon {
+    croak"geohash2latlon: illegal char $_[0]" if $_[0]=~/[^0-9b-hjkmnp-z]/;
+    my($n,$i,@l)=(0, 2, -90,90, -180,180);
+    my %c=map{$_=>sprintf'%05b',$n++}0..9,'b'..'h',qw(j k m n),'p'..'z';
+    $l[$i+1-$_]=($l[$i]+$l[$i+1])/2,$i=2-$i for map $c{$_}=~/./g,pop=~/./g;
+    ( ($l[0]+$l[1])/2, ($l[2]+$l[3])/2 );
 }
 
 
@@ -1856,17 +2283,17 @@ C<< Math::BigInt->new() >>, C<< Math::BigFloat->new() >> and C<< Math::BigRat->n
 In C<big()> the characters C<< . >> and C<< / >> will make it return a
 Math::BigFloat- and Math::BigRat-object accordingly. Or else a Math::BigInt-object is returned.
 
-Instead of guessing, use C<bigi>, C<bigf> and C<bigr> to return what you want.
+Instead of letting C<big> guess, use C<bigi>, C<bigf> and C<bigr> to explicitly say what you want.
 
-B<Note:> Acme::Tools does not depend on Math::BigInt and
+B<Note:> Acme::Tools does not in general need/depend on Math::BigInt,
 Math::BigFloat and GMP, but these four big*-subs do (by C<require>).
-To use big, bigi, bigf and bigr effectively you should
-install Math::BigInt::GMP and Math::BigFloat::GMP like this:
-
-  sudo cpanm Math::BigFloat Math::GMP Math::BingInt::GMP         # or
-  sudo cpan  Math::BigFloat Math::GMP Math::BingInt::GMP         # or
+To use big, bigi, bigf and bigr effectively you should install
+Math::BigInt::GMP and Math::BigFloat::GMP like this on some OS variants:
+ 
+  sudo cpanm Math::BigFloat Math::GMP Math::BigInt::GMP          # or
+  sudo cpan  Math::BigFloat Math::GMP Math::BigInt::GMP          # or
   sudo yum install perl-Math-BigInt-GMP perl-Math-GMP            # on RedHat, RHEL or
-  sudo apt-get install libmath-bigint-gmp-perl libmath-gmp-perl  # on Ubuntu or some other way
+  sudo apt-get install libmath-bigint-gmp-perl libmath-gmp-perl  # on Ubuntu
 
 Unless GMP is installed for perl like this, the Math::Big*-modules
 will fall back to using similar but slower built in modules. See: L<https://gmplib.org/>
@@ -1907,7 +2334,7 @@ sub bigscale {
 
   #my $R_authalic=6371007.2; #earth radius in meters, mean, Authalic radius, real R varies 6353-6384km, http://en.wikipedia.org/wiki/Earth_radius
 #*)
-         #    ( 6378157.5, 6356772.2 )  #hmm
+    #    ( 6378157.5, 6356772.2 )  #hmm
     #my $e=0.081819218048345;#sqrt(1 - $b**2/$a**2); #eccentricity of the ellipsoid
     #my($a,$b)=( 6378137.0, 6356752.3 ); #earth equatorial and polar radius
     #warn "e=$e\n";
@@ -1937,7 +2364,7 @@ sub fractional { #http://mathcentral.uregina.ca/QQ/database/QQ.09.06/h/lil1.html
       print "_ = $_ ".length($2)."\n";
       if(length($2)>$max){
         $l=$_;
-	$te="$1$3"-$1;
+        $te="$1$3"-$1;
         $max=length($2);
       }
     }
@@ -1947,8 +2374,8 @@ sub fractional { #http://mathcentral.uregina.ca/QQ/database/QQ.09.06/h/lil1.html
   $ne="9" x $l;
   print log($n),"\n";
   my $st=sub{print "status: ".($te/$ne)."   n=$n   ".($n/$te*$ne)."\n"};
-  while($n/$te*$ne<0.99){ &$st(); $ne*=10 }
-  while($te/$n/$ne<0.99){ &$st(); $te*=10 }
+  while( $n/$te*$ne<0.99 ){ &$st(); $ne*=10 }
+  while( $te/$n/$ne<0.99 ){ &$st(); $te*=10 }
   &$st();
   while(1){
     my $d=gcd($te,$ne); print "gcd=$d\n";
@@ -1984,26 +2411,31 @@ sub isnum {(@_?$_[0]:$_)=~$Re_isnum}
 
 Input: Three arguments.
 
-Returns: Something I<true> if the first argument is numerically between the two next. Uses Perls C<< < >>, C<< >= >> and C<< <= >> operators.
+Returns: Something I<true> if the first argument is numerically between the two next.
+Uses Perls C<< >= >> and C<< <= >> operators even if passing string args.
+Order of the to last args dont matter.
 
 =head2 btw
 
 Like L<between> but instead of assuming numbers it checks all three input args
-and does alphanumerical comparisons (with Perl operators C<lt>, C<ge> and C<le>) if any of the
-three input args don't look like a number or look like a number but with
-one or more leading zeros.
+and does alphanumerical comparisons (with Perl operators C<lt>, C<ge> and C<le>)
+if any of the three input args don't look like a number or look like a number
+but with one or more leading zeros.
 
  btw(1,1,10)             #true numeric order since all three looks like number according to =~$Re_isnum
  btw(1,'02',13)          #true leading zero in '02' leads to alphabetical order
- btw(10, 012,10)         #true leading zero here means oct number, 012 = 10 (8*1+2), so 10 is btw 10 and 10
+ btw(9, 011,12)          #true, leading zero here means oct number, 011 = 9 is passed to btw() and 9
+                         #...is numerically between 9 and 12
+ btw(9, '011',12)        #false, here '011' is passed so now the leading zero signals alphanumerically
+                         #comparison where "9" is not between "011" and "12"
  btw('003', '02', '09')  #false because '003' lt '02'
  btw('a', 'b', 'c')      #false because 'a' lt 'b'
  btw('a', 'B', 'c')      #true because upper case letters comes before lower case ones in the "ascii alphabet"
  btw('a', 'c', 'B')      #true, btw() and between switches from and to if the first is > the second
  btw( -1, -2, 1)         #true
- btw( -1, -2, 0)         #true
+ btw( -1, 1, -2)         #true also, order of the two last args dont matter
 
-Both between and btw returns C<undef> if any of the three input args are C<undef> (not defined).
+Both between() and btw() return C<undef> if any of the three input args are C<undef> (not defined).
 If you're doing only numerical comparisons, using C<between> is faster than C<btw>.
 
 =cut
@@ -2011,7 +2443,8 @@ If you're doing only numerical comparisons, using C<between> is faster than C<bt
 sub between {
   my($test ,$fom, $tom)=@_;
   return if !defined$test or !defined$fom or !defined$tom;
-  $fom < $tom ? $test >= $fom && $test <= $tom : $test >= $tom && $test <= $fom;
+  $fom < $tom ? $test >= $fom && $test <= $tom
+              : $test >= $tom && $test <= $fom;
 }
 
 sub btw {
@@ -2026,18 +2459,19 @@ sub btw {
 
 =head2 curb
 
-B<Input:> Three arguments: value, minumum, maximum.
+B<Input:> Three numeric arguments: value, minumum, maximum.
 
 B<Output:> Returns the value if its between the given minumum and maximum.
 Returns minimum if the value is less or maximum if the value is more.
-Changes the variable if 1st arg is a scalarref.
+Changes the variable if 1st arg is a scalarref. Croaks if the number of
+input arguments is different than three or if any of them are not defined.
 
  my $enthusiasm = 11;
- print curb( $enthusiasm, 1, 20 );      # prints 11, within bounds
- print curb( $enthusiasm, 1, 10 );      # prints 10
- print curb( $enthusiasm, 20, 100 );    # prints 20
+ print curb( $enthusiasm, 1, 20 );      # prints 11 since 11 is within the given bounds
+ print curb( $enthusiasm, 1, 10 );      # prints 10 since 10 is upper limit here
+ print curb( $enthusiasm, 20, 100 );    # prints 20 since 20 is lower limit here
  print curb(\$enthusiasm, 1, 10 );      # prints 10 and sets $enthusiasm = 10
- print $enthusiasm;                     # prints 10
+ print $enthusiasm;                     # prints 10 since that is now the new value
 
 =cut
 
@@ -2050,7 +2484,7 @@ sub curb {
   $val > $max ? $max :
                 $val;
 }
-sub bound { curb(@_) }
+sub bound { &curb }
 
 =head2 log10
 
@@ -2059,10 +2493,12 @@ sub bound { curb(@_) }
 =head2 logn
 
  print log10(1000);                  # prints 3
- print log10(10000*sqtr(10));        # prints 4.5
+ print log10(10000*sqrt(10));        # prints 4.5
  print log2(16);                     # prints 4
  print logn(4096, 8);                # prints 4 (12/3=4)
- print logn($PI, 2.71828182845905);  # same as  print log($PI)  using perls builtin log()
+ print log(4096) / log(8);           # prints 4, same as above
+ print logn($PI, 2.71828182845905);  # 1.1447298858494 ($PI is exported from Acme::Tools)
+ print log($PI);                     # 1.1447298858494 same, with Perl's own log() now
 
 =cut
 
@@ -2080,9 +2516,17 @@ Returns input string as uppercase or lowercase.
 
 Can be used if Perls build in C<uc()> and C<lc()> for some reason does not convert æøå or other latin1 letters outsize a-z.
 
-Converts C<< æøåäëïöüÿâêîôûãõàèìòùáéíóúýñð >> to and from C<< ÆØÅÄËÏÖÜ?ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ >>
+Converts C<< æøåäëïöüÿâêîôûãõàèìòùáéíóúýñð >> to ...
 
-See also C<< perldoc -f uc >> and C<< perldoc -f lc >>
+and from C<< ÆØÅÄËÏÖÜ?ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ >> and only those iso-8859-1 letters.
+
+Or use Perl's own uc() and lc() like this:
+
+ use utf8;                                  # tells perl that script (may) have UTF-8 chars
+ use open ":std", ":encoding(UTF-8)";
+ print uc("æøå");                           # ÆØÅ  (the three extra letters in Norwegian and Danish)
+
+See also C<< perldoc -f uc >> and C<< perldoc -f lc >>. Note: upper+lower is unchanged here for backward compatability purposes.
 
 =head2 trim
 
@@ -2091,11 +2535,12 @@ And removes any whitespace inside the string of more than one char, leaving the 
 
  trim(" asdf \t\n    123 ")  eq "asdf 123"
  trim(" asdf\t\n    123\n")  eq "asdf\t123"
+ trim(" asdf\n\t    123\n")  eq "asdf\n123"
 
-Works on C<< $_ >> if no argument i given:
+Works on C<< $_ >> if no argument is given:
 
- print join",", map trim, " please ", " remove ", " my ", " spaces ";   # please,remove,my,spaces
- print join",", trim(" please ", " remove ", " my ", " spaces ");       # works on arrays as well
+ print join ",", map trim, " please ", " remove ", " my ", " spaces ";  # please,remove,my,spaces
+ print join ",", trim(" please ", " remove ", " my ", " spaces ");      # works on arrays as well
  my $s=' please '; trim(\$s);                                           # now  $s eq 'please'
  trim(\@untrimmedstrings);                                              # trims array strings inplace
  @untrimmedstrings = map trim, @untrimmedstrings;                       # same, works on $_
@@ -2107,8 +2552,8 @@ Works on C<< $_ >> if no argument i given:
 
 Left or right pads a string to the given length by adding one or more spaces at the end for  I<rpad> or at the start for I<lpad>.
 
-B<Input:> First argument: string to be padded. Second argument: length of the output. Optional third argument: character(s) used to pad.
-Default is space.
+B<Input:> First argument: string to be padded. Second argument: length of the output. Optional third argument: character(s)
+used to pad. Default is space.
 
  rpad('gomle',9);         # 'gomle    '
  lpad('gomle',9);         # '    gomle'
@@ -2123,11 +2568,11 @@ Default is space.
 
 Center pads. Pads the string both on left and right equal to the given length. Centers the string. Pads right side first.
 
- cpad('mat',5)            eq ' mat '
  cpad('mat',4)            eq 'mat '
+ cpad('mat',5)            eq ' mat '
  cpad('mat',6)            eq ' mat  '
  cpad('mat',9)            eq '   mat   '
- cpad('mat',5,'+')        eq '+mat+'
+ cpad('mat',6,'+')        eq '+mat++'
  cpad('MMMM',20,'xyzXYZ') eq 'xyzXYZxyMMMMxyzXYZxy'
 
 =cut
@@ -2191,34 +2636,34 @@ B<Output:> A list of this strings trigrams (See examlpe)
 
 B<Example 1:>
 
- print join ", ", trigram("Kjetil Skotheim");
+ print join ", ", trigram("Humpty Dumpty");
 
 Prints:
 
- Kje, jet, eti, til, il , l S,  Sk, Sko, kot, oth, the, hei, eim
+ Hum, ump, mpt, pty, ty , y D,  Du, Dum, ump, mpt, pty
 
 B<Example 2:>
 
-Default is 3, but here 4 is used instead in the second optional input argument:
+Default is 3, hence the name trigram, but here 4 overrides that default in the second optional input argument:
 
- print join ", ", trigram("Kjetil Skotheim", 4);
+ print join ", ", trigram("Humpty Dumpty", 4);
 
 And this prints:
 
- Kjet, jeti, etil, til , il S, l Sk,  Sko, Skot, koth, othe, thei, heim
+ Hump, umpt, mpty, pty , ty D, y Du,  Dum, Dump, umpt, mpty
 
-C<trigram()> was created for "fuzzy" name searching. If you have a database of many names,
+C<trigram()> was created for "fuzzy" name searching. With a database of many names,
 addresses, phone numbers, customer numbers etc. You can use trigram() to search
 among all of those at the same time. If the search form only has one input field.
-One general search box.
+One general search box to find equal or similar strings.
 
-Store all of the trigrams of the trigram-indexed input fields coupled
-with each person, and when you search, you take each trigram of you
-query string and adds the list of people that has that trigram. The
-search result should then be sorted so that the persons with most hits
-are listed first. Both the query strings and the indexed database
-fields should have a space added first and last before C<trigram()>-ing
-them.
+How: Store all of the trigrams of the trigram-indexed input fields coupled
+with each person. When searching, for each trigram in your query string add
+to a created list of people that has that trigram. The search result should
+then be sorted so that persons with most hits are listed first (or you could
+combine that with some scoring value using L</jsim> or L</jwsim> as well).
+Both the query strings and the indexed database fields should have a space
+added first and last before C<trigram()>-ing them.
 
 This search algorithm is not includes here yet...
 
@@ -2226,24 +2671,26 @@ C<trigram()> should perhaps have been named ngram for obvious reasons.
 
 =head2 sliding
 
-Same as trigram (except there is no default width). Works also with arrayref instead of string.
+Same as trigram with any width, not just 3. Works also with arrayref instead of string.
 
-Example:
+ my @a = sliding( "Reven rasker over isen", 15 );           #string, wanted width 15
+ my @b = sliding( ["Reven","rasker","over","isen"], 2 );    #array of words, width 2
 
- sliding( ["Reven","rasker","over","isen"], 2 )
+Resulting arrays @a and @b respectively:
 
-Result:
-
+  ('Reven rasker ov', 'even rasker ove', 'ven rasker over', 'en rasker over ', 
+   'n rasker over i', ' rasker over is', 'rasker over ise', 'asker over isen')
+ 
   ( ['Reven','rasker'], ['rasker','over'], ['over','isen'] )
 
 =head2 chunks
 
-Splits strings and arrays into chunks of given size:
+Splits strings and arrays into chunks of the given size:
 
  my @a = chunks("Reven rasker over isen",7);
  my @b = chunks([qw/Og gubben satt i kveldinga og koste seg med skillinga/], 3);
 
-Resulting arrays:
+Resulting arrays @a and @b respectively:
 
  ( 'Reven r', 'asker o', 'ver ise', 'n' )
  ( ['Og','gubben','satt'], ['i','kveldinga','og'], ['koste','seg','med'], ['skillinga'] )
@@ -2252,7 +2699,7 @@ Resulting arrays:
 
  chars("Tittentei");     # ('T','i','t','t','e','n','t','e','i')
 
-Perhaps a more readable way of writing C< split(//,"Tittentei") >
+Return the chars as an array. Perhaps more readable than C< split(//,"Tittentei") > and perhaps not.
 
 =cut
 
@@ -2272,6 +2719,10 @@ sub chunks {
 
 sub chars { split//, shift }
 
+sub l2u { $_[0] =~ s/[\x80-\xFF]/chr(ord$&<192?194:195).chr(ord$&&191)/ger }
+#sub l2u { shift =~ s/[\x80-\xFF]/chr(195-(192>ord$&)).chr(128+ord($&)%64)/ger }
+sub u2l { shift =~ s/([\xC2\xC3])([\x80-\xBF])/chr(64*(ord($1)%2)+ord$2)/ger }
+
 =head2 huffman
 
 Input: a hash of frequencies of the different letters or strings.
@@ -2289,11 +2740,15 @@ To get a huffman encoding:
  my %freq; $freq{$_}++ for chars($str);
  my %code = huffman(%freq);
 
+Alternative input: just the string. The above three lines can be changed to:
+
+ my %code = huffman('A_DEAD_DAD_CEDED_A_BAD_BABE_A_BEADED_ABACA_BED');
+
 %code is now: C< ('A','10', 'B','1111', 'C','1110', 'D','01', 'E','110', '_','00') >.
 
 A tip for decoding:
 
- my %letter = reverse huffman(%freq);
+ my %letter = reverse huffman(%freq);      # $letter{'10'} is now A and so on
 
 =head2 huffman_pack
 
@@ -2302,7 +2757,6 @@ Input: First arg: a string or arrayref. Optional second arg: a hashref to what e
 Output: to elements: the encoded binary string and the hashref to the given or found encoding hash which is to be used upon L</huffman_decode>
 
  my($encoded_binary_string, $encoding_hashref) = huffman_pack("some string which will be split into chars")
-
 
 =head2 huffman_unpack
 
@@ -2329,10 +2783,10 @@ Output: A string or an array of codes depending on scalar or list context.
 
 sub huffman {
   if(@_==1){
-      if   (ref($_[0]) eq 'SCALAR'){ return huffman([split//,${$_[0]}]) }
-      elsif(!ref($_[0])           ){ return huffman([split//,$_[0]   ]) }
-      elsif(ref($_[0]) eq 'ARRAY' ){ my %freq; $freq{$_}++ for @{pop()}; return huffman(map+($_=>$freq{$_}),sort keys%freq) }
-      elsif(ref($_[0]) eq 'HASH'  ){ my$f=shift;return huffman(map+($_=>$$f{$_}),sort{$$f{$b}<=>$$f{$a} or $a<=>$b}keys%$f) }
+    if   (ref($_[0]) eq 'SCALAR'){ return huffman([split//,${$_[0]}]) }
+    elsif(!ref($_[0])           ){ return huffman([split//,$_[0]   ]) }
+    elsif(ref($_[0]) eq 'ARRAY' ){ my %freq; $freq{$_}++ for @{pop()}; return huffman(map+($_=>$freq{$_}),sort keys%freq) }
+    elsif(ref($_[0]) eq 'HASH'  ){ my$f=shift;return huffman(map+($_=>$$f{$_}),sort{$$f{$b}<=>$$f{$a} or $a<=>$b}keys%$f) }
   }
   my($s,@c,%h,$h)=0 x 9;
   push @c, [splice@_,0,2] while @_;
@@ -2345,31 +2799,35 @@ sub huffman {
   %h
 }
 
+our $Huffman_pack_length;
+our $Huffman_pack_bits;
 sub huffman_pack {
-    my($data,$enchash)=@_;
-    $enchash={huffman($data)} if @_<2;
-    if(ref($data) eq 'ARRAY'){
-	my($i,$r)=(0,'');
-	vec($r,$i++,1)=$_ for map split(//,$$enchash{$_}), @$data;
-	($r,$enchash);
-    }
-    elsif(ref($data) eq 'SCALAR'){ (huffman_pack($$data,         $enchash),$enchash) }
-    else                         { (huffman_pack([split//,$data],$enchash),$enchash) }
+  my($data,$enchash)=@_;
+  $enchash={huffman($data)} if @_<2;
+  if(ref($data) eq 'ARRAY'){
+    my($i,$r)=(0,'');
+    vec($r,$i++,1)=$_ for map split(//,$$enchash{$_}), @$data;
+    $Huffman_pack_length=@$data;
+    $Huffman_pack_bits=$i;
+    ($r,$enchash);
+  }
+  elsif(ref($data) eq 'SCALAR'){ (huffman_pack($$data,         $enchash),$enchash) }
+  else                         { (huffman_pack([split//,$data],$enchash),$enchash) }
 }
 
 sub huffman_unpack {
-    my($str,$enchash,$len)=@_;
-    $len=9e9 if @_<3;
-    my($bits,$r,%dec,@r)=('','',reverse%$enchash);
-    for(0..8*length($str)-1){
-	$bits.=vec($str,$_,1);
-	if(exists$dec{$bits} and $len--){
-	    if(wantarray){ push @r, $dec{$bits} }
-	    else         { $r.=$dec{$bits}      }
-	    $bits='';
-	}
+  my($str,$enchash,$len)=@_;
+  $len=9e9 if @_<3;
+  my($bits,$r,%dec,@r)=('','',reverse%$enchash);
+  for(0..8*length($str)-1){
+    $bits.=vec($str,$_,1);
+    if(exists$dec{$bits} and $len--){
+        if(wantarray){ push @r, $dec{$bits} }
+        else         { $r.=$dec{$bits}      }
+        $bits='';
     }
-    wantarray ? @r : $r;
+  }
+  wantarray ? @r : $r;
 }
 
 =head2 repl
@@ -2430,14 +2888,27 @@ sub repl {
 
 =head2 subarr
 
-The equivalent of C<substr> on arrays or C<splice> without changing the array.
-Input: 1) array or arrayref, 2) offset and optionally 3) length. Without a
-third argument, subarr returns the rest of the array.
+The equivalent of C<substr> on arrays.
 
- @top10    = subarr( @array, 0, 10);   # first 10
- @last_two = subarr( @array, -2, 2);   # last 2
- @last_two = subarr( $array_ref, -2);  # also last 2
- @last_six = subarr $array_ref, -6;    # parens are optional
+Input args: 1) arrayref, 2) offset, 3) optional length and 4) optional replacement array.
+
+Without a third argument, subarr returns the rest of the array.
+
+For one to three input args, subarr works as C<splice> without changing the array.
+
+Negative offsets and lengths works as Perls substr, see C<perldoc -f substr>
+
+For four or more input args, subarr works just as splice with replacement and as substr with four args, and returns what is replaced.
+
+ @top10 = subarr( \@array, 0, 10);   # first 10
+ @last2 = subarr( \@array, -2, 2);   # last 2
+ @last2 = subarr( $array_ref, -2);   # also last 2
+ @last6 = subarr  $array_ref, -6;    # returns last 6 elems, parens are optional
+ @last6 = subarr( $array_ref, -6,6,'x','y'); # replaces last 6 elems with the two string elems x and y, still returns the last six
+ my $ref = [1..10];
+ @arr   = subarr( $ref, -6, -4, qw(X Y ZZ); #replaces sixth and fifth last elems with x, y and zz. Returns replaced two elems
+ print join('+',@arr);               # 5+6
+ print join('+',@$ref);              # 1+2+3+4+X+Y+ZZ+7+8+9+10
 
 The same can be obtained from C<< @array[$from..$to] >> but that dont work the
 same way with negative offsets and boundary control of length.
@@ -2449,24 +2920,27 @@ same way with negative offsets and boundary control of length.
 
 #sub subarr(+$;$) { #perl>=5.14        # t/35_subarr.t
 sub subarr { #perl<5.14
-  my($a,$o,$l)=@_;
-  $o=@$a+$o if $o<0;
-  $o=0      if $o<0;
-  $o=@$a-1  if $o>@$a-1;
-  $l=@$a-$o if @_<3;
-  croak     if $l<0;
-  $l=@$a-$o if $l>@$a-$o;
-  @$a[$o..$o+$l-1];
+  my($a,$o,$l,@r)=@_;
+  croak "subarr: first arg not array ref" if ref($a) ne 'ARRAY';
+  $o=@$a+$o    if $o<0;
+  $o=0         if $o<0;
+  $o=@$a-1     if $o>@$a-1;
+  $l=@$a-$o    if @_<3;
+  $l=@$a-$o+$l if $l<0;
+  $l=@$a-$o    if $l<0;
+  $l=@$a-$o    if $l>@$a-$o;
+  @_>3 ? splice(@$a,$o,$l,@r)
+       : @$a[$o..$o+$l-1];
 }
 
 =head2 min
 
 Returns the smallest number in a list. Undef is ignored.
 
- @lengths=(2,3,5,2,10,undef,5,4);
+ @lengths=(3,2,5,2,10,undef,5,4);
  $shortest = min(@lengths);   # returns 2
 
-Note: The comparison operator is perls C<< < >>> which means empty strings is treated as C<0>, the number zero. The same goes for C<max()>, except of course C<< > >> is used instead.
+Note: The comparison operator is perls C<< < >> which means empty strings is treated as C<0>, the number zero. The same goes for C<max()>, except of course C<< > >> is used instead.
 
  min(3,4,5)       # 3
  min(3,4,5,undef) # 3
@@ -2481,7 +2955,7 @@ Returns the largest number in a list. Undef is ignored.
 
 =head2 mins
 
-Just as L</min>, except for strings.
+Just as L</min>, except for strings. Uses the alphanumerical comparison operator C< lt > (less than).
 
  print min(2,7,10);          # 2
  print mins("2","7","10");   # 10
@@ -2489,7 +2963,7 @@ Just as L</min>, except for strings.
 
 =head2 maxs
 
-Just as L</mix>, except for strings.
+Just as L</max>, except for strings. Uses the alphanumerical comparison operator C< gt > (greater than).
 
  print max(2,7,10);          # 10
  print maxs("2","7","10");   # 7
@@ -2532,7 +3006,7 @@ sub zip {
   ref($_) ne 'ARRAY' and croak "ERROR: zip should have arrayrefs as arguments" for @t;
   @{$t[$_]} != @{$t[0]} and croak "ERROR: zip should have equal sized arrays" for 1..$#t;
   my @res;
-  for my $i (0..@{$t[0]}-1){
+  for my $i ( 0 .. @{$t[0]}-1 ){
     push @res, $$_[$i] for @t;
   }
   return @res;
@@ -2643,7 +3117,7 @@ sub sim_perm {
     }
     last if $max==1;
   }
-  return $max;
+  $max;
 }
 
 =head2 levdist
@@ -2684,16 +3158,18 @@ Jaro-similarity.
 Input: two strings.
 
 Returns a number between 0 and 1 to grade the similarity between two strings.
-See L</jwsim>. Both jsim() and jwsim() are case-sensitive. So A and a is viewed
-as completely different characters.
+See L</jwsim>. Both jsim() and jwsim() are case-sensitive. So A and a is
+counted as different characters.
 
-1 means the strings are equal, 0 means no similarity which means either zero
-common letters or all common letters positions in their strings are too far
-apart adjusted for the max lenght of the two strings.
+1 means the strings are equal
+
+0 means no similarity which means either zero common letters or all common letters
+positions in their strings are too far apart adjusted for the max lenght of the two strings.
 
 Jaro-similarity. L<https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance#Jaro_Similarity>
 
- jsim('DIXON', 'DICKSONX');  # 0.7666666666666666
+ jsim('DIXON', 'DICSONX');   # 0.79047619047619
+
  jsim('ABCDEF', 'GHIJKL');   # 0
  jsim('ABCDEF', 'GHIAJKL');  # 0 also, even if A is common, the A's are too far apart
  jsim('ABCDEF', 'GHAIJKL');  # 0.4444444444444440 because the A's are close enough to be significant
@@ -2702,11 +3178,13 @@ Jaro-similarity. L<https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance#J
 
 Jaro-Winkler-similarity.
 
-Input: two string and an optional scaling factor (between 0 and 0.25) with a default of 0.1.
+Input: two strings and an optional scaling factor (between 0 and 0.25) with a default of 0.1.
 
 Returns a number between 0 and 1 to grade the similarity between two strings. See L</jsim>.
 
-Returns jsim() + a reward if the first 1-4 chars are equal. The longer the equal prefix (up to 4) the higher the reward.
+jwsim = jsim + reward
+
+If the first 1-4 chars are equal the reward is higher. The longer the equal prefix (up to 4) the higher the reward.
 
 L<https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance#Jaro%E2%80%93Winkler_Similarity>
 
@@ -2722,38 +3200,78 @@ L<https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance#Jaro%E2%80%93Winkl
 =cut
 
 sub jsim {
-    my @s = split//,shift;
-    my @t = split//,shift;
-    return 1 if !@s and !@t;
-    my($match_distance, $matches, @s_matches, @t_matches) = (int(max(0+@s,0+@t)/2)-1, 0);
-    for my $i (0 .. $#s) {
-	my $start = max(0,    $i-$match_distance);
-	my $end   = min(0+@t, $i+$match_distance+1);
-	for my $j (grep !$t_matches[$_] && $s[$i] eq $t[$_], $start .. $end - 1) {
-	    $s_matches[$i]=1;
-	    $t_matches[$j]=1;
-	    $matches++;
-	    last;
-	}
+  my @s = split//,shift;
+  my @t = split//,shift;
+  return 1 if !@s and !@t;
+  my($match_distance, $matches, @s_matches, @t_matches) = (int(max(0+@s,0+@t)/2)-1, 0);
+  for my $i (0 .. $#s) {
+    my $start = max(0,    $i-$match_distance);
+    my $end   = min(0+@t, $i+$match_distance+1);
+    for my $j (grep !$t_matches[$_] && $s[$i] eq $t[$_], $start .. $end - 1) {
+      $s_matches[$i]=1;
+      $t_matches[$j]=1;
+      $matches++;
+      last;
     }
-    return 0 if !$matches;
-    my($k,$tr) = (0,0);
-    for(grep $s_matches[$_], 0..$#s) {
-	$k++ while !$t_matches[$k];
-	$tr++ if $s[$_] ne $t[$k++];
-    }
-    (  $matches/@s + $matches/@t + 1 - $tr/$matches/2  ) / 3;
+  }
+  return 0 if !$matches;
+  my($k,$tr) = (0,0);
+  for(grep $s_matches[$_], 0..$#s) {
+    $k++ while !$t_matches[$k];
+    $tr++ if $s[$_] ne $t[$k++];
+  }
+  (  $matches/@s + $matches/@t + 1 - $tr/$matches/2  ) / 3;
 }
 
 sub jwsim {
-    my($s1,$s2,$p)=@_;
-    $p=0.1 if @_<3; #default
-    my $sim=jsim($s1,$s2);
-    my $prefix=(grep substr($s1,0,$_) eq substr($s2,0,$_), 0..min(4,length($s1),length($s2)))[-1];
-    #print "...prefix=$prefix\n";
-    $sim + $prefix*$p*(1-$sim);
+  my($s1,$s2,$p)=@_;
+  $p=0.1 if @_<3; #default
+  my $sim=jsim($s1,$s2);
+  my $prefix=(grep substr($s1,0,$_) eq substr($s2,0,$_), 0..min(4,length($s1),length($s2)))[-1];
+  #print "...prefix=$prefix\n";
+  $sim + $prefix*$p*(1-$sim);
 }
 
+=head2 hpush
+
+=head2 hpop
+
+=cut
+
+#https://en.wikipedia.org/wiki/Binary_heap
+# hpushs, hpops
+# hpushstr, hpopstr
+
+sub hpush {
+  my $heap=shift;
+  my $attr=pop if ref($_[-1]) eq 'HASH';
+  for(@_){
+    push @$heap, $_;
+    my $i=@$heap;
+    while($i>=2 and $$heap[$i-1] > $$heap[$i/2-1]){
+      @$heap[$i-1,$i/2-1]=@$heap[$i/2-1,$i-1];
+      $i/=2;
+    }
+    pop@$heap while $attr and @$heap > $$attr{maxsize};
+  }
+  0+@$heap;
+}
+sub hpop {
+  my $heap=shift;
+  my $last=pop@$heap;
+  return $last if !@$heap;
+  my($i,$top)=(1,splice@$heap,0,1,$last);
+  while(1){  #swap with largest kid while any kid is larger
+    my $left_exists=  $#$heap >= $i*2-1 || last;
+    my $right_exists= $#$heap >= $i*2;
+    my($left,$right)=@$heap[$i*2-1,$i*2];
+    last if (!$left_exists  or $last > $left)
+        and (!$right_exists or $last > $right);
+    $i = $i*2 + ($right_exists && $left < $right);
+    @$heap[$i-1,$i/2-1]=@$heap[$i/2-1,$i-1];
+  }
+  $top
+}
 
 =head2 pushsort
 
@@ -2771,7 +3289,7 @@ Same as pushsort except that the array is kept sorted alphanumerically (cmp) ins
 
 =cut
 
-#todo: use List::BinarySearch::XS 'binsearch_pos';
+#todo: use List::BinarySearch::XS 'binsearch_pos'; # hvis installert
 our $Pushsort_cmpsub=undef;
 sub pushsort (\@@) {
   my $ar=shift;
@@ -2859,8 +3377,8 @@ sub binsearch {
   croak "binsearch did not get arrayref as second arg" if ref($aref) ne 'ARRAY';
   croak "binsearch got fourth arg which is not a code-ref" if defined $cmpsub and ref($cmpsub) and ref($cmpsub) ne 'CODE';
   if(defined $cmpsub and !ref($cmpsub)){
-      my $key=$cmpsub;
-      $cmpsub = sub{ $_[0]{$key} <=> $_[1]{$key} };
+    my $key=$cmpsub;
+    $cmpsub = sub{ $_[0]{$key} <=> $_[1]{$key} };
   }
   return $insertpos ? -0.5 : undef if !@$aref;
   my($min,$max)=(0,$#$aref);
@@ -2980,20 +3498,20 @@ $_ is the current value, just as with Perls built-in grep
 =cut
 
 sub egrep (&@) {
-    my($code,$i,$package)=(shift,-1,(caller)[0]);
-    my %h=map{($_=>"${package}::$_")}qw(i n prev next prevr nextr);
-    no strict 'refs';
-    grep {
-	#no strict 'refs'; #not here! "no" not allowed in expression in perl5.16
-	local ${$h{i}}     = ++$i;
-	local ${$h{n}}     = $i+1;
-	local ${$h{prev}}  = $i>0?$_[$i-1]:undef;
-	local ${$h{next}}  = $i<$#_?$_[$i+1]:undef;
-	local ${$h{prevr}} = $_[$i>0?$i-1:$#_];
-	local ${$h{nextr}} = $_[$i<$#_?$i+1:0];
-	&$code;
-    }
-    @_;
+  my($code,$i,$package)=(shift,-1,(caller)[0]);
+  my %h=map{($_=>"${package}::$_")}qw(i n prev next prevr nextr);
+  no strict 'refs';
+  grep {
+    #no strict 'refs'; #not here! "no" not allowed in expression in perl5.16
+    local ${$h{i}}     = ++$i;
+    local ${$h{n}}     = $i+1;
+    local ${$h{prev}}  = $i>0?$_[$i-1]:undef;
+    local ${$h{next}}  = $i<$#_?$_[$i+1]:undef;
+    local ${$h{prevr}} = $_[$i>0?$i-1:$#_];
+    local ${$h{nextr}} = $_[$i<$#_?$i+1:0];
+    &$code;
+  }
+  @_;
 }
 
 =head2 eqarr
@@ -3019,12 +3537,11 @@ sub eqarr {
   ref($_) ne 'ARRAY' and croak for @arefs;
   @{$arefs[0]} != @{$arefs[$_]} and return undef for 1..$#arefs;
   my $ant;
-
   for my $ar (@arefs[1..$#arefs]){
     for(0..@$ar-1){
       ++$ant and $ant>100 and croak ">100";  #TODO: feiler ved sammenligning av to tabeller > 10000(?) tall
       return 0 if $arefs[0][$_] ne $$ar[$_]
-   	       or $arefs[0][$_] != $$ar[$_];
+              or $arefs[0][$_] != $$ar[$_];
     }
   }
   return 1;
@@ -3060,13 +3577,13 @@ sub sorted (\@@) {
 sub sortedstr { $_[$_] gt $_[$_+1] and return 0 for 0..$#$_-1; return 1 }
 
 sub sortby {
-    my($arr,@by)=@_;
-    die if grep/^-/,@by; #hm 4now todo! - dash meaning descending order
-    my $pattern=join(" ",map"%-40s",@by);#hm 4now bad, cant handle numeric sort
-    map$$_[0],
-    sort{$$a[1]cmp$$b[1]}
-    map[$_,sprintf($pattern,@$_{@by})],
-    @$arr;
+  my($arr,@by)=@_;
+  die if grep/^-/,@by; #hm 4now todo! - dash meaning descending order
+  my $pattern=join(" ",map"%-40s",@by);#hm 4now bad, cant handle numeric sort
+  map$$_[0],
+  sort{$$a[1]cmp$$b[1]}
+  map[$_,sprintf($pattern,@$_{@by})],
+  @$arr;
 }
 
 
@@ -3115,10 +3632,11 @@ B<Input:> A code-ref and a list
 
 B<Output:> A hash where the returned values from the code-ref are keys and the values are arrayrefs to the list elements which gave those keys.
 
- my %hash = parth { uc(substr($_,0,1)) } ('These','are','the','words','of','this','array');
- print serialize(\%hash);
+ my @list = ('These','are','the','words','of','this','array');
+ my %hash = parth { uc(substr($_,0,1)) } @list;  #returns a hash where keys are first char in uppercase
+ print srlz(\%hash, 'hash');
 
-Result:
+Prints:
 
  %hash = (  T=>['These','the','this'],
             A=>['are','array'],
@@ -3234,8 +3752,8 @@ sub keysr    { ref($_[0]) eq 'HASH' ? keys(%{shift()}) : keysr({@{shift()}})  } 
 sub valuesr  { values( %{shift()} )    }
 sub eachr    { ref($_[0]) eq 'HASH'  ? each(%{shift()})
              #:ref($_[0]) eq 'ARRAY' ? each(@{shift()})  # perl 5.8.8 cannot compile each on array! eval?
-		   :                        croak("eachr needs hashref or arrayref got '".ref($_[0])."'") }
-sub joinr    {join(shift(),@{shift()})}
+              :                        croak("eachr needs hashref or arrayref got '".ref($_[0])."'") }
+sub joinr    { join(shift(),@{shift()}) }
 #sub mapr    # som scala: hvis map faar subref se kalles den sub paa hvert elem og resultatet returneres
 
 #sub eachr    { each(%{shift()}) }
@@ -3244,7 +3762,7 @@ sub joinr    {join(shift(),@{shift()})}
 
 B<Input:> a pile size s and a list
 
-B<Output:> A list of lists of length s or the length of the remainer in
+B<Output:> A list of lists of length s or the length of the remainder in
 the last list. Piles together the input list in lists of the given size.
 
  my @list=(1,2,3,4,5,6,7,8,9,10);
@@ -3254,7 +3772,11 @@ the last list. Piles together the input list in lists of the given size.
 
 =cut
 
-sub pile { my $size=shift; my @r; for (@_){ push@r,[] if !@r or 0+@{$r[-1]}>=$size; push @{$r[-1]}, $_ } @r }
+sub pile { my $size=shift; my @r; for (@_){ push@r,[] if !@r or @{$r[-1]}>=$size; push @{$r[-1]}, $_ } @r }
+#sub pile {my$s=shift; @{(reduce {!ref($a) ? [[$b]] : @{$$a[-1]} >= $s ? [@$a,[$b]] : [@$a[0..$#$a-1],[@{$$a[-1]},$b]]} 0,@_)[0]} }
+#sub pile {my$s=shift; @{(reduce {!ref($a) ? [[$b]] : @{$$a[-1]} >= $s ? [@$a,[$b]] : [@$a[0..$#$a-1],[@{$$a[-1]},$b]]} 0,@_)[0]} }
+#sub pile {my$s=shift; @{(reduce {!ref($a) ? [[$b]] : @{$$a[-1]} >= $s ? [@$a,[$b]] : do{push@{$$a[-1]},$b;$a}} 0,@_)[0]}
+#sub pile {my$s=shift; @{(reduce {ref($a)?do{push@$a,[]if@{$$a[-1]}>=$s;push@{$$a[-1]},$b;$a}:[[$b]]} 0,@_)[0]}}
 
 =head2 aoh2sql
 
@@ -3345,79 +3867,114 @@ Returns:
 =cut
 
 sub aoh2sql {
-    my($aoh,$conf)=@_;
-    my %def=( #defaults
-	name=>'my_table',
-	number=>'numeric',
-	varchar=>'varchar',
-	date=>'date',
-	varchar_maxlen=>4000,
-	create=>1,
-	drop=>0,  # 1 drop table if exists, 2 plain drop
-	end=>"commit;\n",
-	begin=>"begin;\n",
-	fix_colnames=>0,
-	);
-    my %conf=(%def,(@_<2?():%$conf));
-#    $conf{$_}||=$def{$_} for keys%def;
-    my %col;
-    map $col{$_}++, keys %$_ for @$aoh;
-    my @col=sort keys %col;
-    my @colerr=grep!/^[a-z]\w+$/i,@col;
-    croak "Invalid column name(s): @colerr" if @colerr and !$conf{fix_colnames};
-    my(%t,%tdb);
-    for my $c (@col){
-	my($l,$s,$p,$nn,%ant,$t)=(0,0,0,0);
-	for my $r (@$aoh){
-	    my $v=$$r{$c};
-	    next if !defined$v or $v!~/\S/;
-	    $nn++;
-	    $l=length($v) if length($v)>$l;
-	    no warnings 'uninitialized';
-	    if($v=~/^(18|19|20)\d\d(0[1-9]|1[0-2])(0[1-9]|1\d|2\d|3[01])-?\d\d:?\d\d:?\d\d$/ and $conf{date}){
-		$ant{date}++;
-		next;
-	    }
-	    elsif($v=~/^\s*[-+]?(\d*)(\.\d+)?([Ee]\-?\d+)?\s*$/ and length("$1$2") and $conf{number}){
-		$ant{number}++;
-		$s=length("$1.$2") if length("$1.$2")>$s;#hm
-		$p=length($2)-1 if $2 and length($2)-1>$p;
-		next;
-	    }
-	    else {
-		$ant{varchar}++;
-	    }
-	}
-	$t||='varchar' if $ant{varchar}  or  $ant{number} and $ant{date};
-	$t||='number'  if $ant{number};
-	$t||='date'    if $ant{date};
-	$t||='varchar'; #hm
-	$l=$conf{varchar_maxlen} if $conf{varchar_maxlen} and $l>$conf{varchar_maxlen};
-	$l||=1;
-	my $tdb;
-	$tdb="$conf{$t}($l)"    if $t eq 'varchar';
-	$tdb="$conf{$t}($s)"    if $t eq 'number' and $p==0;
-	$tdb="$conf{$t}($s,$p)" if $t eq 'number' and $p>0 and ++$s;
-	$tdb.=" not null" if $nn == 0+@$aoh;
-	$t{$c}=$t;
-	$tdb{$c}=$tdb;
-    }
-    my $sql;
-    $sql="create table $conf{name} (".
-	 join(",",map sprintf("\n  %-30s %s",do{s/\W+//g;$_},$tdb{$_}), @col). "\n);\n\n" if $conf{create};
-    my $val=sub{my($v,$t)=@_;defined$v or $v="";!length($v)?'null':$t eq 'number' ? $v : "'".repl($v,"\'","''")."'"};
+  my($aoh,$conf)=@_;
+  my %def=( #defaults
+            name=>'my_table',
+            number=>'numeric',
+            varchar=>'varchar',
+            date=>'date',
+            varchar_maxlen=>4000,
+            create=>1,
+            drop=>0,  # 1 drop table if exists, 2 plain drop
+            end=>"commit;\n",
+            begin=>"begin;\n",
+            fix_colnames=>0,
+      );
+  my %conf=(%def,(@_<2?():%$conf));
+  #$conf{$_}||=$def{$_} for keys%def;
+  my %col;
+  map $col{$_}++, keys %$_ for @$aoh;
+  my @col=sort keys %col;
+  my @colerr=grep!/^[a-z]\w+$/i,@col;
+  croak "Invalid column name(s): @colerr" if @colerr and !$conf{fix_colnames};
+  my(%t,%tdb);
+  for my $c (@col){
+    my($l,$s,$p,$nn,%ant,$t)=(0,0,0,0);
     for my $r (@$aoh){
-	my $v=join",",map &$val($$r{$_},$t{$_}), @col;
-	$sql.="insert into $conf{name} values ($v);\n";
+      my $v=$$r{$c};
+      next if !defined$v or $v!~/\S/;
+      $nn++;
+      $l=length($v) if length($v)>$l;
+      no warnings 'uninitialized';
+      if($v=~/^(18|19|20)\d\d(0[1-9]|1[0-2])(0[1-9]|1\d|2\d|3[01])-?\d\d:?\d\d:?\d\d$/ and $conf{date}){
+        $ant{date}++;
+        next;
+      }
+      elsif($v=~/^\s*[-+]?(\d*)(\.\d+)?([Ee]\-?\d+)?\s*$/ and length("$1$2") and $conf{number}){
+        $ant{number}++;
+        $s=length("$1.$2") if length("$1.$2")>$s;#hm
+        $p=length($2)-1 if $2 and length($2)-1>$p;
+        next;
+      }
+      else {
+        $ant{varchar}++;
+      }
     }
-    $sql="drop table $conf{name};\n\n$sql" if $conf{drop}==1;
-    $sql="drop table if exists $conf{name};\n\n$sql" if $conf{drop}>=2;
-    $sql="$conf{begin}\n$sql" if $conf{begin};
-    $sql.=$conf{end};
-    $sql;
+    $t||='varchar' if $ant{varchar}  or  $ant{number} and $ant{date};
+    $t||='number'  if $ant{number};
+    $t||='date'    if $ant{date};
+    $t||='varchar'; #hm
+    $l=$conf{varchar_maxlen} if $conf{varchar_maxlen} and $l>$conf{varchar_maxlen};
+    $l||=1;
+    my $tdb;
+    $tdb="$conf{$t}($l)"    if $t eq 'varchar';
+    $tdb="$conf{$t}($s)"    if $t eq 'number' and $p==0;
+    $tdb="$conf{$t}($s,$p)" if $t eq 'number' and $p>0 and ++$s;
+    $tdb.=" not null" if $nn == 0+@$aoh;
+    $t{$c}=$t;
+    $tdb{$c}=$tdb;
+  }
+  my $sql;
+  $sql="create table $conf{name} (".
+    join(",",map sprintf("\n  %-30s %s",do{s/\W+//g;$_},$tdb{$_}), @col). "\n);\n\n"
+      if $conf{create};
+  my $val=sub{my($v,$t)=@_;defined$v or $v="";!length($v)?'null':$t eq 'number' ? $v : "'".repl($v,"\'","''")."'"};
+  for my $r (@$aoh){
+    my $v=join",",map &$val($$r{$_},$t{$_}), @col;
+    $sql.="insert into $conf{name} values ($v);\n";
+  }
+  $sql="drop table $conf{name};\n\n$sql" if $conf{drop}==1;
+  $sql="drop table if exists $conf{name};\n\n$sql" if $conf{drop}>=2;
+  $sql="$conf{begin}\n$sql" if $conf{begin};
+  $sql.=$conf{end};
+  $sql;
 }
 
-sub aoh2xls { croak "Not implemented yet: aoh2xls" }
+sub aoh2xls { croak "Not implemented yet: aoh2xls" } #TODO
+
+=head2 csv
+
+Input, one or two arguments:
+* The 1st arg is either an array of arrayrefs or an array of hashrefs
+* The 2nd optional arg is a separation char. A comma is default
+
+Outputs a multiline string where each line is a string of comma
+separated values (thus the name csv). A value that contains comma in
+itself is surrounded by " chars. Example:
+
+ print csv(['Name','Address','Age'], ['Jerry','Manhattan, NYC',35],
+           ['George','Queens, NYC',35], ['Cosmo','New Jersey',42] );
+
+ Name,Address,Age
+ Jerry,"Manhattan NYC",35
+ George,"Queens, NYC",35
+ Cosmo,New Jersey,42
+
+=cut
+
+sub csv {
+  my $char=@_>0&&!ref($_[-1]) ? pop() : ',';
+ #join '', map { join($char,map{!defined($_)?'':do{my$s=s/"/""/gr;/$char|\n|^\s|\s$|"/?qq("$s"):length($s)?$s:'""'}}@$_)."\n" } @_; #>v5.12
+  join '', map { join($char,map{!defined($_)?'':do{my$s=$_;$s=~s/"/""/g;/$char|\n|^\s|\s$|"/?qq("$s"):length($s)?$s:'""'}}@$_)."\n" } @_;
+}
+
+sub uncsv {
+  my($char,$tag,@s)=(@_>1?$_[1]:',', '__/&m=m&/__'); #hm, $tag='¤';
+  map{ [ map{ my$q=s/$tag(\d+)/$s[$1]/g; s/""/"/g; length($_)?$_:$q?'':undef } split/\s*$char\s*/ ] }
+  split /\n|\cM?\cJ/,
+ #$_[0]=~s/"(.*?(?:""|[^"])*)"/ push@s,$1; $tag.$#s /segr; #>v5.12
+  do{$_[0]=~s/"(.*?(?:""|[^"])*)"/ push@s,$1; $tag.$#s /seg;$_[0]}
+}
 
 
 =head1 STATISTICS
@@ -3487,6 +4044,48 @@ sub harmonicavg { my $s; $s+=1/$_ for @_; @_/$s }
 C<< variance = ( sum (x[i]-Average)**2)/(n-1) >>
 
 =cut
+
+=head2 smavg
+
+Returns an array of Simple Moving Averages of the input array. L<https://en.wikipedia.org/wiki/Moving_average>
+
+B<Input:> an arrayref to the data and an optional window size (default 10)
+
+B<Output:> an array of the same length as the input. For each input element the output returns the average of the element itself and up to window size elements minus one before it.
+
+ smavg([1,2,2,3,5,9], 2)   # returns: 1, 1.5, 2, 2.5, 4, 7            (window size 2)
+ smavg([1,2,2,3,5,9], 3)   # returns: 1, 1.5, 5/3, 7/3, 10/3, 17/3    (window size 3)
+ smavg([1,2,2,3,5,9,1,2,3,4,3,5])) #returns 12 numbers, default window size is 10:
+                                   #  1/1, 3/2, 5/3, 8/4, 13/5, 22/6,
+                                   #  23/7, 25/8, 28/9, 32/10, 34/10, (34+5-2)/10
+
+=cut
+
+sub smavg {
+    my($ar,$win)=@_;
+    croak"ERR: smavg() 1st arg should be arrayref" if ref($ar) ne 'ARRAY';
+    croak"ERR: smavg() optional 2nd arg should be int>0" if defined$win and $win!~/^[1-9]\d*$/;
+    $win//=10;
+    my@win;
+    my$winsum=0;
+    map{
+        push@win,$_;
+        $winsum+=$_;
+        $winsum-=shift@win if @win>$win;
+        $winsum/@win
+    }
+    @$ar;
+}
+
+#=head2 wmavg
+#=cut
+#sub wmavg {
+#    my($ar,$win)=@_;
+#    croak"ERR: wmavg() 1st arg should be arrayref" if ref($ar) ne 'ARRAY';
+#    croak"ERR: wmavg() optional 2nd arg should be int>0" if defined$win and $win!~/^[1-9]\d*$/;
+#    $win//=10;
+#    ...
+#}
 
 sub variance {
   my $sumx2; $sumx2+=$_*$_ for @_;
@@ -3588,8 +4187,7 @@ Is the same as this:
 
  @p = percentile([25, 50, 75], @data);
 
-But the latter is faster, especially if @data is large since it sorts
-the numbers only once internally.
+But the latter is about three times faster for large @data since it then sorts those numbers only once.
 
 B<Example:>
 
@@ -3695,9 +4293,9 @@ place. Instead the closest number from the data set is picked.)
 
 sub percentile {
   my(@p,@t,@ret);
-  if(ref($_[0]) eq 'ARRAY'){ @p=@{shift()} }
-  elsif(not ref($_[0]))    { @p=(shift())  }
-  else{croak()}
+  if    ( ref($_[0]) eq 'ARRAY' ) { @p=@{shift()} }
+  elsif ( not ref($_[0])        ) { @p=(shift())  }
+  else                            { croak() }
   @t=@_;
   return if !@p;
   croak if !@t;
@@ -3714,6 +4312,40 @@ sub percentile {
   }
   return @p==1 ? $ret[0] : @ret;
 }
+
+=head2 gini
+
+ my $gini_coefficient = gini( @incomes );
+
+Calculates the inequality gini coefficient for a list of positive numbers or zero.
+
+Returns a number between 0 and 1.
+
+0 if every element is the same and 1 if only one element is larger than zero (one ruler gets everything, all others have zero income)
+
+If 20% of the best payed get 80% of the total income, a.k.a. pareto or "80-20-rule", then the coefficient is 0.6 approximately but not less. Why approximately?
+
+Example 1: two earns 80 beans each and eight earns 5 each => 0.60
+Example 2: one earns 81, next earns 79 and the eight lowest payed earn 5 each => 0.601
+
+Both examples adheres to the 80-20-rule, but the last have a little more inequality.
+
+L<https://en.wikipedia.org/wiki/Gini_coefficient>
+
+=cut
+
+sub gini {
+  croak "gini(): cant have less than two data points" if @_<2;
+  croak "gini(): cant have undef data point" if grep !defined,@_;
+  croak "gini(): cant have negative data point" if grep$_<0,@_;
+  my @d=sort{$a<=>$b}@_;
+  croak "gini(): cant have all zero data points" if $d[-1]==0;
+  my $n=@d;
+  my $sumd; $sumd += $_ for @d;  $sumd==$d[-1] and return 1;
+  my $sum;  $sum  += ($n+1-$_)*$d[$_-1] for 1..$n;
+  ($n+1-2*$sum/$sumd)/$n
+}
+#todo: random_gini($gini_coefficient) # return 0 - 1 with that distribution
 
 =head1 RANDOM
 
@@ -3799,7 +4431,7 @@ Example:
  print "Stddev  is:    ".stddev(@I)."\n";     # prints a number close to 15
 
  my @M=grep $_>100+15*2, @I;                  # those above 130
- print "Percent above two stddevs: ".(100*@M/@I)."%\n"; #prints a number close to 2.2%
+ print "Percent above two stddevs: ".(100*@M/@I)."%\n"; #prints a number close to 2.27%
 
 Example 2:
 
@@ -3875,7 +4507,7 @@ sub random_gauss {
   $avg=0    if !defined $avg;
   $stddev=1 if !defined $stddev;
   $num=1    if !defined $num;
-  croak "random_gauss should not have more than 3 arguments" if @_>3;
+  croak "random_gauss should have 0-3 arguments" if @_>3;
   my @r;
   while (@r<$num) {
     my($x1,$x2,$w);
@@ -3893,11 +4525,29 @@ sub random_gauss {
   return @r;
 }
 
+sub random_exp {
+  my($lambda,$n)=@_;
+  my $L=-1/$lambda;
+  return     $L*log(1-rand()) if !@_;
+  return map $L*log(1-rand()), 1..(defined$n?$n:1);
+}
+
+sub random_poisson {
+  my($alpha,$n)=@_;
+  $n=1 if !defined$n;
+  my $A=exp(-$alpha);
+  my @r=map{
+    my($x,$p)=(1,rand());
+    $p*=rand() while $p>=$A and ++$x;
+    $x
+  }1..$n;
+  return $r[0] if @_<2;
+  return @r;
+}
+
 =head2 mix
 
-Mixes an array in random order. In-place if given an array reference or not if given an array.
-
-C<mix()> could also have been named C<shuffle()>, as in shuffling a deck of cards.
+Mixes/shuffles an array in random order. Does this in-place if given an array reference.
 
 Example:
 
@@ -3939,16 +4589,16 @@ Shuffles a deck of cards: (s=spaces, h=hearts, c=clubs, d=diamonds)
 
  perl -MAcme::Tools -le '@cards=map join("",@$_),cart([qw/s h c d/],[2..10,qw/J Q K A/]); print join " ",mix(@cards)'
 
-(Uses L</cart>, which is not a typo, see further down here)
+(This example uses L</cart>, which is not a typo, see further down)
 
 Note: C<List::Util::shuffle()> is approximately four times faster. Both respects the Perl built-in C<srand()>.
 
 =cut
 
 sub mix {
-  if(@_==1 and ref($_[0]) eq 'ARRAY'){ #just one arg, and its ref array
+  if(@_==1 and ref($_[0]) eq 'ARRAY'){ #one arg and its an arrayref
     my $r=$_[0];
-    push@$r,splice(@$r,rand(@$r-$_),1) for 0..(@$r-1);
+    push@$r,splice(@$r,rand(@$r-$_),1) for 0..$#$r;
     return $r;
   }
   else{
@@ -3957,6 +4607,7 @@ sub mix {
     return @e;
   }
 }
+#todo: https://perldoc.perl.org/perlfaq4#How-do-I-shuffle-an-array-randomly?
 
 =head2 pwgen
 
@@ -3980,11 +4631,12 @@ B<Input:> 0-n args
 
 To keep the default requirement-sub but add additional ones just set the fourth arg to false/undef
 and add your own requirements in the fifth arg and forward (examples below). Sub pwgen uses perls
-own C<rand()> internally.
+own C<rand()> internally so srand() can be used to get consistent deterministic results.
 
 C<< $Acme::Tools::Pwgen_max_sec >> and C<< $Acme::Tools::Pwgen_max_trials >> can be set to adjust for how long
-pwgen tries to find a password. Defaults for those are 0.01 and 10000.
-Whenever one of the two limits is reached, a first generates a croak.
+pwgen tries to find  password(s) before croak-ing. Defaults for those are 0.05 seconds and 10000 trials, whichever
+occur first. Those defaults can be change by setting $Acme::Tools::Pwgen_max_sec and $Acme::Tools::Pwgen_max_trials.
+Note: those limits are for all the passwords so change the defaults if you generate many at once with hard constraints.
 
 Examples:
 
@@ -3994,22 +4646,23 @@ Examples:
  my @pw=pwgen(0,1000,'A-Z'); # 1000 random 8 chars passwords containing just uppercase letters from A to Z
 
  pwgen(3);                                # dies, defaults require chars in each of 4 group (see above)
- pwgen(5,1,'A-C0-9',  qr/^\D{3}\d{2}$/);  # a 5 char string starting with three A, B or Cs and endring with two digits
+ pwgen(5,1,'A-C0-9',  qr/^\D{3}\d{2}$/);  # a 5 char string starting with three A, B or Cs and ending with two digits, i.e. ABA09
  pwgen(5,1,'ABC0-9',sub{/^\D{3}\d{2}$/}); # same as above
 
 Examples of adding additional requirements to the default ones:
 
- my @pwreq = ( qr/^[A-C]/ );
+ my @pwreq = ( qr/^[A-C]/, qr/\d$/ );
  pwgen(8,1,'','',@pwreq);    # use defaults for allowed chars and the standard requirements
                              # but also demand that the password must start with A, B or C
+                             # and end with a digit
 
- push @pwreq, sub{ not /[a-z]{3}/i };
- pwgen(8,1,'','',@pwreq);    # as above and in addition the password should not contain three
-                             # or more consecutive letters (to avoid "offensive" words perhaps)
+ push @pwreq, sub{ !/[a-z]{3}/i };
+ pwgen(8,1,'','',@pwreq);    # as above and in addition the password should not contain three or
+                             # more consecutive letters perhaps to avoid unwanted/offensive words
 
 =cut
 
-our $Pwgen_max_sec=0.01;     #max seconds/password before croak (for hard to find requirements)
+our $Pwgen_max_sec=0.05;     #max seconds/password before croak (for hard to find requirements)
 our $Pwgen_max_trials=10000; #max trials/password  before croak (for hard to find requirements)
 our $Pwgen_sec=0;            #seconds used in last call to pwgen()
 our $Pwgen_trials=0;         #trials in last call to pwgen()
@@ -4025,13 +4678,14 @@ sub pwgen {
   ($Pwgen_trials,$Pwgen_sec)=(0,0);
   TRIAL:
   while(@pw<$num){
-    croak "pwgen timeout after $Pwgen_trials trials"
+    croak "pwgen timeout or max trials reached, trials: $Pwgen_trials time: $d sec"
       if ++$Pwgen_trials   >= $Pwgen_max_trials
-      or ($d=time_fp()-$t) >  $Pwgen_max_sec*$num
-            and $d!~/^\d+$/; #jic int from time_fp
+      or ($d=time_fp()-$t) >  $Pwgen_max_sec*$num and $d!~/^\d+$/; #jic int from time_fp
     my $pw=join"",map substr($chars,rand($c),1),1..$len;
     for my $r (@req){
-      if   (ref($r) eq 'CODE'  ){ local$_=$pw; &$r()    or next TRIAL }
+        if   (ref($r) eq 'CODE'  ){
+            local$_=$pw;
+            &$r()   or next TRIAL }
       elsif(ref($r) eq 'Regexp'){ no warnings; $pw=~$r or next TRIAL }
       else                      { croak "pwgen: invalid req type $r ".ref($r) }
     }
@@ -4040,6 +4694,27 @@ sub pwgen {
   $Pwgen_sec=time_fp()-$t;
   return $pw[0] if $num==1;
   return @pw;
+}
+
+#push_srand() and pop_srand dont work as intended
+#=head2 push_srand
+#
+# srand(7); print rand(), 
+#
+#=head2 pop_srand
+#
+#=cut
+our @Srand;
+sub push_srand {
+  $] >= 5.024 or croak "Returning current srand (when called without params) started with Perl v5.14, see perldoc -f srand";
+  my($new,$old)=(shift(),srand());
+  push @Srand, $old;
+  srand($new) if defined $new;
+  $old;
+}
+sub pop_srand {
+  croak "Can not pop_srand more times than push_srand" if !@Srand;
+  srand(pop@Srand);
 }
 
 # =head1 veci
@@ -4207,7 +4882,7 @@ This has nothing to do with the way uniq is implemented. It's Perl's C<sort>.
 
 =cut
 
-sub uniq(@) { my %seen; grep !$seen{$_}++, @_ }
+sub uniq(@) { my(%seen,$undef); grep defined($_) ? !$seen{$_}++ : !$undef++, @_ }
 
 =head1 HASHES
 
@@ -4313,15 +4988,15 @@ Opposite of L</a2h>
 =cut
 
 sub a2h {
-    my @col=@{shift@_};
-    map { my%h;@h{@col}=@$_;\%h} @_;
+  my @col=@{shift@_};
+  map { my%h;@h{@col}=@$_;\%h} @_;
 }
 
 sub h2a {
-    my %c;
-    map $c{$_}++, keys%$_ for @_;
-    my @c=sort{$c{$a}<=>$c{$b} or $a cmp $b}keys%c;
-    (\@c,map[@$_{@c}],@_);
+  my %c;
+  map $c{$_}++, keys%$_ for @_;
+  my @c=sort{$c{$a}<=>$c{$b} or $a cmp $b}keys%c;
+  (\@c,map[@$_{@c}],@_);
 }
 
 =head1 COMPRESSION
@@ -4569,34 +5244,34 @@ sub ipnum {
 our $Ipnum_errmsg;
 our $Ipnum;
 sub ipnum_ok {
-    my $ipnum=shift;
-    $Ipnum=undef;
-    eval{
-      die "malformed ipnum $ipnum\n" if not $ipnum=~/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/;
-      die "invalid ipnum $ipnum\n"   if grep$_>255,$1,$2,$3,$4;
-      $Ipnum=$1*256**3 + $2*256**2 + $3*256 + $4;
-    };
-    my$r=($Ipnum_errmsg=$@) ? 0 : 1;
-    $r
+  my $ipnum=shift;
+  $Ipnum=undef;
+  eval{
+    die "malformed ipnum $ipnum\n" if not $ipnum=~/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/;
+    die "invalid ipnum $ipnum\n"   if grep$_>255,$1,$2,$3,$4;
+    $Ipnum=$1*256**3 + $2*256**2 + $3*256 + $4;
+  };
+  my$r=($Ipnum_errmsg=$@) ? 0 : 1;
+  $r
 }
 our $Iprange_errmsg;
 our $Iprange_start;
 sub iprange_ok {
-    my $iprange=shift;
-    $Iprange_start=undef;
-    my($r,$m);
-    eval{
-      die "malformed iprange $iprange\n"   if not $iprange=~m|^(\d+)\.(\d+)\.(\d+)\.(\d+)(?:/(\d+))$|;
-      die "iprange part should be 0-255\n" if grep$_<0||$_>255,$1,$2,$3,$4;
-      die "iprange mask should be 0-32\n"  if defined$5 and $5>32;
-      ($r,$m)=($1*256**3+$2*256**2+$3*256+$4,32-$5);
-    };
-    return if $Iprange_errmsg=$@;
-    my $x=$r>>$m<<$m;
-    return if $r!=$x and $Iprange_errmsg=sprintf("need zero in last %d bits, should be %d.%d.%d.%d/%d",
-						 $m, $x>>24, ($x>>16)&255, ($x>>8)&255, $x&255, 32-$m);
-    $Iprange_start=$r;
-    return 1;
+  my $iprange=shift;
+  $Iprange_start=undef;
+  my($r,$m);
+  eval{
+    die "malformed iprange $iprange\n"   if not $iprange=~m|^(\d+)\.(\d+)\.(\d+)\.(\d+)(?:/(\d+))$|;
+    die "iprange part should be 0-255\n" if grep$_<0||$_>255,$1,$2,$3,$4;
+    die "iprange mask should be 0-32\n"  if defined$5 and $5>32;
+    ($r,$m)=($1*256**3+$2*256**2+$3*256+$4,32-$5);
+  };
+  return if $Iprange_errmsg=$@;
+  my $x=$r>>$m<<$m;
+  return if $r!=$x and $Iprange_errmsg=sprintf("need zero in last %d bits, should be %d.%d.%d.%d/%d",
+                                               $m, $x>>24, ($x>>16)&255, ($x>>8)&255, $x&255, 32-$m);
+  $Iprange_start=$r;
+  return 1;
 }
 sub in_iprange {
   my($ipnum,$iprange)=@_;
@@ -4744,10 +5419,9 @@ Example:
 
  use Acme::Tools;
  use LWP::Simple;
- my $url = "http://en.wikipedia.org/wiki/List_of_countries_by_population";
+ my $url = "https://en.wikipedia.org/wiki/List_of_countries_and_dependencies_by_population";
  for( ht2t( get($url), "Countries" ) ) {
-   my($rank, $country, $pop) = @$_;
-   $pop =~ s/,//g;
+   my($rank, $country, $pop) = map s/(\d),(\d)/$1$2/gr, @$_;
    printf "%3d | %-32s | %9d\n", @$_ if $pop>0;
  }
 
@@ -4770,8 +5444,10 @@ sub ht2t {
   $f=~s/<t(d|r|h).*?>/\l$1$s/gsi;
   $f=~s/\s*<.*?>\s*/ /gsi;
   my @t=split("r$s",$f);shift @t;
-  $r||=sub{s/&(#160|nbsp);/ /g;s/&amp;/&/g;s/^\s*(.*?)\s*$/$1/s;
-	   s/(\d) (\d)/$1$2/g if /^[\d \.\,]+$/};
+  $r||=sub{s/&(#160|nbsp);/ /g;
+           s/&amp;/&/g;
+           s/^\s*(.*?)\s*$/$1/s;
+           s/(\d) (\d)/$1$2/g if /^[\d \.\,]+$/};
   for(@t){my @r=split/[dh]$s/;shift@r;$_=[map{&$r;$_}@r]}
   @t;
 }
@@ -4803,7 +5479,7 @@ B<Second input argument> is one of:
 
 =over 4
 
-=item * Either a scaler. That is a normal string to be written to the file.
+=item * Either a scalar. That is a normal string to be written to the file.
 
 =item * Or a reference to a scalar. That referred text is written to the file.
 
@@ -4830,36 +5506,26 @@ Example, this:
 
 Automatic compression:
 
- writefile('file.txt.gz','my text is compressed by /bin/gzip before written to the file');
+ writefile('file.txt.gz','my text is compressed by /bin/gzip when written to the file');
 
-Extentions C<.gz>, C<.bz2> and C<.xz> are recognized for compression. See also C<readfile()> and C<openstr()>.
+Extentions C<.gz>, C<.bz2>, C<.xz> and C<.zst> are recognized for compression. See also C<readfile()> and C<openstr()>.
 
 B<Output:> Nothing (for the time being). C<die()>s (C<croak($!)> really) if something goes wrong.
 
 =cut
 
-#todo: use openstr() as in readfile(), transparently gzip .gz filenames and so on
 sub writefile {
-    my($filename,$text)=@_;
-    if(ref($filename) eq 'ARRAY'){
-	writefile(@$_) for @$filename;
-	return;
-    }
-    open(WRITEFILE,openstr(">$filename")) and binmode(WRITEFILE) or croak($!);
-    if(!defined $text or !ref($text)){
-	print WRITEFILE $text;
-    }
-    elsif(ref($text) eq 'SCALAR'){
-	print WRITEFILE $$text;
-    }
-    elsif(ref($text) eq 'ARRAY'){
-	print WRITEFILE "$_\n" for @$text;
-    }
-    else {
-	croak;
-    }
-    close(WRITEFILE);
-    return;
+  my($file,$text)=@_;
+  return map writefile(@$_), @$file                     if ref($file) eq 'ARRAY';
+  return map writefile($_,$$file{$_}), sort keys %$file if ref($file) eq 'HASH';
+  open my $FH, openstr(">$file") or croak($!);
+  binmode($FH);
+  if   ( !ref$text              ){ print $FH $text }
+  elsif( ref($text) eq 'SCALAR' ){ print $FH $$text }
+  elsif( ref($text) eq 'ARRAY'  ){ print $FH "$_\n" for @$text }
+  else                           { croak }
+  close($FH);
+  return;
 }
 
 =head2 readfile
@@ -4913,17 +5579,21 @@ Extentions C<.gz>, C<.bz2> and C<.xz> are recognized for decompression. See also
 #todo: readfile with grep-filter code ref in a third arg (avoid reading all into mem)
 
 sub readfile {
-  my($filename,$ref)=@_;
-  if(@_==1){
-    if(wantarray){ my @data; readfile($filename,\@data); return @data }
-    else         { my $data; readfile($filename,\$data); return $data }
+  my($file,$ref,$filter)=@_;
+  return readfile($file,undef,$ref) if ref($ref) eq 'CODE';
+  return map{[$_=>"".readfile($_)]}@$file           if ref($file) eq 'ARRAY';
+  return map{($_=>"".readfile($_))}sort keys %$file if ref($file) eq 'HASH';
+
+  if(@_==1 or @_==3 and !defined$ref){
+    if(wantarray){ my @data; readfile($file,\@data,$filter); return @data }
+    else         { my $data; readfile($file,\$data,$filter); return $data }
   }
   else {
-    open my $fh,openstr($filename) or croak("ERROR: readfile $! $?");
-    if   ( ref($ref) eq 'SCALAR') { $$ref=join"",<$fh> }
-    elsif( ref($ref) eq 'ARRAY' ) { while(my $l=<$fh>){ chomp($l); push @$ref, $l } }
+    open my $FH, openstr($file) or croak("ERROR: readfile $! $?");
+    if   ( ref($ref) eq 'SCALAR') { $$ref=join"",<$FH> }
+    elsif( ref($ref) eq 'ARRAY' ) { while(my $l=<$FH>){ chomp($l); push @$ref, $l if!defined$filter or &$filter($l)} }
     else { croak "ERROR: Second arg to readfile should be a ref to a scalar og array" }
-    close($fh);
+    close($FH);
     return;#?
   }
 }
@@ -5047,21 +5717,25 @@ See also: L<https://www.google.com/search?q=wipe+file>, L<http://www.dban.org/>
 =cut
 
 sub wipe {
-  my($file,$times,$keep)=@_;
+  my($file,$times,$keep,$progress)=@_;
   $times||=3;
   croak "ERROR: File $file nonexisting\n" if not -f $file or not -e $file;
   my $size=-s$file;
   open my $WIFH, '+<', $file or croak "ERROR: Unable to open $file: $!\n";
   binmode($WIFH);
+  my $bs=10240;
+  my $p;if($progress and require'Term::ProgressBar'){$p=Term::ProgressBar->new({count=>$times*$size/$bs,name=>'Wipe...',remove=>1,ETA=>'linear',max_update_rate=>0.5})}
+  my $i=0;
   for(1..$times){
-    my $block=chr(int(rand(256))) x 1024;#hm
-    for(0..($size/1024)){
-      seek($WIFH,$_*1024,0);
+    my $block=chr(int(rand(256))) x $bs;#hm
+    for(0..($size/$bs)){
+      seek($WIFH,$_*$bs,0);
       print $WIFH $block;
+      $p->update(++$i) if $p;
     }
   }
   close($WIFH);
-  $keep || unlink($file);
+  $keep or unlink($file);
 }
 
 =head2 chall
@@ -5126,8 +5800,8 @@ sub makedir {
   my($d,$p,$dd)=@_;
   $p=0777^umask() if !defined$p;
   (
-  $MAKEDIR{$d} or -d$d or mkdir($d,$p) #or croak("mkdir $d, $p")
-  or ($dd)=($d=~m,^(.+)/+([^/]+)$,) and makedir($dd,$p) and mkdir($d,$p) #or die;
+   $MAKEDIR{$d} or -d$d or mkdir($d,$p) #or croak("mkdir $d, $p")
+   or ($dd)=($d=~m,^(.+)/+([^/]+)$,) and makedir($dd,$p) and mkdir($d,$p) #or die;
   ) and ++$MAKEDIR{$d};
 }
 
@@ -5219,12 +5893,14 @@ its own hassles.
  print $conf{''}{switch};                        #prints OK with the file above
  print $conf{switch};                            #prints OK here as well
 
+=head2 read_conf_yaml (TODO)
+
 =cut
 
 our $Read_conf_empty_section=0;
 sub read_conf {
   my($fn,$hr)=(@_,{});
-  my $conf=ref($fn)?$$fn:readfile($fn);
+  my $conf=ref($fn) ? $$fn : readfile($fn);
   $conf=~s,\s*(?<!\\)#.*,,g;
   my($section,@l)=('',split"\n",$conf);
   while(@l) {
@@ -5268,15 +5944,17 @@ See also C<writefile()> and C<readfile()> for automatic compression and decompre
 
 =cut
 
-our @Openstrpath=(grep$_,split(":",$ENV{PATH}),qw(/usr/bin /bin /usr/local/bin));
+our @Openstrpath=(grep$_,split(":",$ENV{PATH}),
+                  qw( /usr/bin  /bin  /usr/local/bin
+                      /usr/sbin /sbin /usr/local/sbin ));
 our $Magic_openstr=1;
 sub openstr_prog { @Openstrpath or return $_[0];(grep -x$_, map "$_/$_[0]", @Openstrpath)[0] or croak"$_[0] not found" }
 sub openstr {
-  my($fn,$ext)=(shift()=~/^(.*?(?:\.(t?gz|bz2|xz))?)$/i);
-  return $fn if !$ext or !$Magic_openstr;
-  $fn =~ /^\s*>/
-      ?  "| ".(openstr_prog({qw/gz gzip bz2 bzip2 xz xz tgz gzip/   }->{lc($ext)})).$fn
-      :        openstr_prog({qw/gz zcat bz2 bzcat xz xzcat tgz zcat/}->{lc($ext)})." $fn |";
+  my($fn,$ext)=(shift()=~/^(.*?(?:\.(t?gz|bz2|xz|zstd?))?)$/i);
+  !$ext           ? $fn :
+  !$Magic_openstr ? $fn :
+  $fn=~/^\s*>/    ? "| ".(openstr_prog({qw/gz gzip bz2 bzip2 xz xz    tgz gzip zst zstd    zstd zstd/   }->{lc($ext)})).$fn
+                  :       openstr_prog({qw/gz zcat bz2 bzcat xz xzcat tgz zcat zst zstdcat zstd zstdcat/}->{lc($ext)})." $fn |";
 }
 
 =head2 printed
@@ -5395,58 +6073,60 @@ interpreted as a date of the form YYYYMMDD, not as a number of seconds since epo
 
 our $Tms_pattern;
 our %Tms_str=
-	  ('MÅNED' => [4, 'JANUAR','FEBRUAR','MARS','APRIL','MAI','JUNI','JULI',
-		          'AUGUST','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER' ],
-	   'Måned' => [4, 'Januar','Februar','Mars','April','Mai','Juni','Juli',
-		          'August','September','Oktober','November','Desember'],
-	   'måned' => [4, 'januar','februar','mars','april','mai','juni','juli',
-		          'august','september','oktober','november','desember'],
-	   'MÅNE.' => [4, 'JAN.','FEB.','MARS','APR.','MAI','JUNI','JULI','AUG.','SEP.','OKT.','NOV.','DES.'],
-	   'Måne.' => [4, 'Jan.','Feb.','Mars','Apr.','Mai','Juni','Juli','Aug.','Sep.','Okt.','Nov.','Des.'],
-	   'måne.' => [4, 'jan.','feb.','mars','apr.','mai','juni','juli','aug.','sep.','okt.','nov.','des.'],
-	   'MÅNE'  => [4, 'JAN','FEB','MARS','APR','MAI','JUNI','JULI','AUG','SEP','OKT','NOV','DES'],
-	   'Måne'  => [4, 'Jan','Feb','Mars','Apr','Mai','Juni','Juli','Aug','Sep','Okt','Nov','Des'],
-	   'måne'  => [4, 'jan','feb','mars','apr','mai','juni','juli','aug','sep','okt','nov','des'],
-	   'MÅN'   => [4, 'JAN','FEB','MAR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DES'],
-	   'Mån'   => [4, 'Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'],
-	   'mån'   => [4, 'jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'],
-	   'MONTH' => [4, 'JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY',
-		          'AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'],
-	   'Month' => [4, 'January','February','March','April','May','June','July',
-		          'August','September','October','November','December'],
-	   'month' => [4, 'january','february','march','april','may','june','july',
-		          'august','september','october','november','december'],
-	   'MONT.' => [4, 'JAN.','FEB.','MAR.','APR.','MAY','JUNE','JULY','AUG.','SEP.','OCT.','NOV.','DEC.'],
-	   'Mont.' => [4, 'Jan.','Feb.','Mar.','Apr.','May','June','July','Aug.','Sep.','Oct.','Nov.','Dec.'],
-	   'mont.' => [4, 'jan.','feb.','mar.','apr.','may','june','july','aug.','sep.','oct.','nov.','dec.'],
-	   'MONT'  => [4, 'JAN','FEB','MAR','APR','MAY','JUNE','JULY','AUG','SEP','OCT','NOV','DEC'],
-	   'Mont'  => [4, 'Jan','Feb','Mar','Apr','May','June','July','Aug','Sep','Oct','Nov','Dec'],
-	   'mont'  => [4, 'jan','feb','mar','apr','may','june','july','aug','sep','oct','nov','dec'],
-	   'MON'   => [4, 'JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],
-	   'Mon'   => [4, 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
-	   'mon'   => [4, 'jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'],
-	   'DAY'   => [6, 'SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'],
-	   'Day'   => [6, 'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
-	   'day'   => [6, 'sunday','monday','tuesday','wednesday','thursday','friday','saturday'],
-	   'DY'    => [6, 'SUN','MON','TUE','WED','THU','FRI','SAT'],
-	   'Dy'    => [6, 'Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
-	   'dy'    => [6, 'sun','mon','tue','wed','thu','fri','sat'],
-	   'DAG'   => [6, 'SØNDAG','MANDAG','TIRSDAG','ONSDAG','TORSDAG','FREDAG','LØRDAG'],
-	   'Dag'   => [6, 'Søndag','Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag'],
-	   'dag'   => [6, 'søndag','mandag','tirsdag','onsdag','torsdag','fredag','lørdag'],
-	   'DG'    => [6, 'Søn','MAN','TIR','ONS','TOR','FRE','LØR'],
-	   'Dg'    => [6, 'SØn','Man','Tir','Ons','Tor','Fre','Lør'],
-	   'dg'    => [6, 'søn','man','tir','ons','tor','fre','lør'],
-	   );
+      ('MÅNED' => [4, 'JANUAR','FEBRUAR','MARS','APRIL','MAI','JUNI','JULI',
+                      'AUGUST','SEPTEMBER','OKTOBER','NOVEMBER','DESEMBER' ],
+       'Måned' => [4, 'Januar','Februar','Mars','April','Mai','Juni','Juli',
+                      'August','September','Oktober','November','Desember'],
+       'måned' => [4, 'januar','februar','mars','april','mai','juni','juli',
+                      'august','september','oktober','november','desember'],
+       'MÅNE.' => [4, 'JAN.','FEB.','MARS','APR.','MAI','JUNI','JULI','AUG.','SEP.','OKT.','NOV.','DES.'],
+       'Måne.' => [4, 'Jan.','Feb.','Mars','Apr.','Mai','Juni','Juli','Aug.','Sep.','Okt.','Nov.','Des.'],
+       'måne.' => [4, 'jan.','feb.','mars','apr.','mai','juni','juli','aug.','sep.','okt.','nov.','des.'],
+       'MÅNE'  => [4, 'JAN','FEB','MARS','APR','MAI','JUNI','JULI','AUG','SEP','OKT','NOV','DES'],
+       'Måne'  => [4, 'Jan','Feb','Mars','Apr','Mai','Juni','Juli','Aug','Sep','Okt','Nov','Des'],
+       'måne'  => [4, 'jan','feb','mars','apr','mai','juni','juli','aug','sep','okt','nov','des'],
+       'MÅN'   => [4, 'JAN','FEB','MAR','APR','MAI','JUN','JUL','AUG','SEP','OKT','NOV','DES'],
+       'Mån'   => [4, 'Jan','Feb','Mar','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Des'],
+       'mån'   => [4, 'jan','feb','mar','apr','mai','jun','jul','aug','sep','okt','nov','des'],
+       'MONTH' => [4, 'JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY',
+                      'AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'],
+       'Month' => [4, 'January','February','March','April','May','June','July',
+                      'August','September','October','November','December'],
+       'month' => [4, 'january','february','march','april','may','june','july',
+                      'august','september','october','november','december'],
+       'MONT.' => [4, 'JAN.','FEB.','MAR.','APR.','MAY','JUNE','JULY','AUG.','SEP.','OCT.','NOV.','DEC.'],
+       'Mont.' => [4, 'Jan.','Feb.','Mar.','Apr.','May','June','July','Aug.','Sep.','Oct.','Nov.','Dec.'],
+       'mont.' => [4, 'jan.','feb.','mar.','apr.','may','june','july','aug.','sep.','oct.','nov.','dec.'],
+       'MONT'  => [4, 'JAN','FEB','MAR','APR','MAY','JUNE','JULY','AUG','SEP','OCT','NOV','DEC'],
+       'Mont'  => [4, 'Jan','Feb','Mar','Apr','May','June','July','Aug','Sep','Oct','Nov','Dec'],
+       'mont'  => [4, 'jan','feb','mar','apr','may','june','july','aug','sep','oct','nov','dec'],
+       'MON'   => [4, 'JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'],
+       'Mon'   => [4, 'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+       'mon'   => [4, 'jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'],
+       'DAY'   => [6, 'SUNDAY','MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY'],
+       'Day'   => [6, 'Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
+       'day'   => [6, 'sunday','monday','tuesday','wednesday','thursday','friday','saturday'],
+       'DY'    => [6, 'SUN','MON','TUE','WED','THU','FRI','SAT'],
+       'Dy'    => [6, 'Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+       'dy'    => [6, 'sun','mon','tue','wed','thu','fri','sat'],
+       'DAG'   => [6, 'SØNDAG','MANDAG','TIRSDAG','ONSDAG','TORSDAG','FREDAG','LØRDAG'],
+       'Dag'   => [6, 'Søndag','Mandag','Tirsdag','Onsdag','Torsdag','Fredag','Lørdag'],
+       'dag'   => [6, 'søndag','mandag','tirsdag','onsdag','torsdag','fredag','lørdag'],
+       'DG'    => [6, 'Søn','MAN','TIR','ONS','TOR','FRE','LØR'],
+       'Dg'    => [6, 'SØn','Man','Tir','Ons','Tor','Fre','Lør'],
+       'dg'    => [6, 'søn','man','tir','ons','tor','fre','lør'],
+       );
 my $_tms_inited=0;
 sub tms_init {
   return if $_tms_inited++;
   for(qw(MAANED Maaned maaned MAAN Maan maan),'MAANE.','Maane.','maane.'){
     $Tms_str{$_}=$Tms_str{replace($_,"aa","å","AA","Å")};
   }
-  $Tms_pattern=join("|",map{quotemeta($_)}
-		        sort{length($b)<=>length($a)}
-			keys %Tms_str);
+  $Tms_pattern=join( "|",
+      map{quotemeta($_)}
+      sort{length($b)<=>length($a)}
+      keys %Tms_str
+  );
   #without sort "måned" could be "mared" because "mån"=>"mar"
 }
 
@@ -5477,9 +6157,8 @@ sub s2t {
   elsif($s           =~ /^[19]\d{9}$/){ $s=localtime($s)      } #hm, make faster
   elsif($s           =~ /^[19]\d{12}$/
     and int($s/1000) =~ /^[19]\d{9}$/){ $s=localtime($s/1000) } #hm
-  elsif($s=~/^((?:17|18|19|20|21)\d\d)(0[1-9]|1[012])(0[1-9]|[12]\d|3[01])$/){#hm
-      $s="$1-$2-$3T00:00:00";
-  }
+  elsif($s=~/^((?:17|18|19|20|21)\d\d)(0[1-9]|1[012])(0[1-9]|[12]\d|3[01])$/)
+                                      { $s="$1-$2-$3T00:00:00" }
   return Date::Parse::str2time($s)                  if !@_;
   return tms(Date::Parse::str2time($s),shift(@_))   if 0+@_ == 1;
   return map tms(Date::Parse::str2time($s),$_), @_;
@@ -5530,20 +6209,49 @@ sub weeknum {
 
 #perl -MAcme::Tools -le 'print "$_ ".tms($_."0501","day",1) for 2015..2026'
 
+sub _yyyymmddhh24miss_time{
+  my $s=shift;
+  $s=~s/\D+//g;
+  $s=~s/^((?:19|20)\d{6})$/${1}000000/; #burde vært unødv, kun 19yy og 20yy
+  $s=~/^(\d{4})(\d\d)(\d\d)(\d\d)(\d\d)(\d\d)?/ or croak("Ugyldig tidspunkt $s til yyyymmddhh24miss_time()");
+  my($year,$mon,$mday,$hours,$min,$sec)=($1,$2,$3,$4,$5,$6);
+  croak("Time::Local cannot handle years before 1000 AD") if $year<1000;
+  my $time;
+  eval{
+    require Time::Local;
+    $time=Time::Local::timelocal(0+$sec,0+$min,0+$hours,$mday,$mon-1,$year);
+  };
+  $@ and croak("<$s> | <$@> | year=$year | mon=$mon | mday=$mday");
+  $time;
+}
+
+sub julian_day {
+    my($yyyy,$mm,$dd,$hh,$mi,$ss)=(@_,12,0,0); #hm (@_,0,0,0);
+    return do{my@lt=localtime;julian_day(1900+$lt[5],1+$lt[4],@lt[3,2,1,0])} if !@_;
+    my $a = int( (14 - $mm) / 12 );
+    my($y,$m) = ($yyyy + 4800 - $a, $mm + 12*$a - 3);
+    $dd + int((153*$m + 2) / 5) + 365*$y + int($y/4) - int($y/100) + int($y / 400) - 32045 + ($hh-12)/24 + $mi/1440 + $ss/86400 #hm
+}
+
 sub tms {
-  return undef if @_>1 and not defined $_[1]; #time=undef => undef
-  if(@_==1){
+  if(@_>1 and not defined $_[1]){
+    return undef; #time=undef => undef
+  }
+  elsif(@_==0){
+    my @lt=localtime();
+    return sprintf("%04d%02d%02d-%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]);
+  }
+  elsif(@_==1){
     my $isnum=$_[0]=~$Re_isnum;
     my @lt=$isnum?localtime($_[0]):localtime();
     $isnum              and return sprintf('%04d%02d%02d-%02d:%02d:%02d',1900+$lt[5],1+$lt[4],@lt[3,2,1,0]);
     $_[0] eq 'YYYYMMDD' and return sprintf('%04d%02d%02d',               1900+$lt[5],1+$lt[4],$lt[3]);
     $_[0] eq 'YYYY'     and return 1900+$lt[5];
-
   }
   my($format,$time,$is_date)=@_;
   $time=time_fp() if !defined$time;
   ($time,$format)=($format,$time) if @_>=2 and $format=~/^[\d+\:\-\.]+$/; #swap /hm/
-  my @lt=localtime($time);
+  my @lt;
   #todo? $is_date=0 if $time=~s/^\@(\-?\d)/$1/; #@n where n is sec since epoch makes it clear that its not a formatted, as in `date`
   #todo? date --date='TZ="America/Los_Angeles" 09:00 next Fri' #`info date`
   #      Fri Nov 13 18:00:00 CET 2015
@@ -5554,59 +6262,64 @@ sub tms {
   #date --date="-1 day"  #date --date='10 week'
 
   if( $is_date ){
+    @lt=localtime($time);
     my $yy2c=sub{10+$_[0]>$lt[5]%100?"20":"19"}; #hm 10+
     $time=totime(&$yy2c($1)."$1$2$3")."000000" if $time=~/^(\d\d)(\d\d)(\d\d)$/;
     $time=totime("$1$2${3}000000")             if $time=~/^((?:18|19|20)\d\d)(\d\d)(\d\d)$/; #hm 18-20?
   }
   else {
-    $time = yyyymmddhh24miss_time("$1$2$3$4$5$6") #yyyymmddhh24miss_time ???
-      if $time=~/^((?:19|20|18)\d\d)          #yyyy
-                  (0[1-9]|1[012])             #mm
-                  (0[1-9]|[12]\d|3[01]) \-?   #dd
-                  ([01]\d|2[0-3])       \:?   #hh24
-                  ([0-5]\d)             \:?   #mi
-                  ([0-5]\d)             $/x;  #ss
+    $time = _yyyymmddhh24miss_time("$1$2$3$4$5$6") #yyyymmddhh24miss_time ???
+      if $time=~/^((?:1\d|2\d)\d\d)     -?        #yyyy
+                  (0[1-9]|1[012])       -?        #mm
+                  (0[1-9]|[12]\d|3[01]) (?:\-|T)? #dd
+                  ([01]\d|2[0-3])       \:?       #hh24
+                  ([0-5]\d)             \:?       #mi
+                  ([0-5]\d)             $/x;      #ss
+    return $time if $format eq 'epoch' or $format eq 'E';
+    #return do{require Time::Piece; Time::Piece->strptime(tms($time),q(%Y%m%d-%H:%M:%S))->julian_day} if $format =~ /^JDN?$/; #hm
+    @lt=localtime($time);
+    return julian_day(1900+$lt[5],1+$lt[4],@lt[3,2,1,0]) if $format =~ /^JDN?$/; #hm
   }
   tms_init() if !$_tms_inited;
   return sprintf("%04d%02d%02d-%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]) if !$format;
   my %p=('%'=>'%',
-	 a=>'Dy',
-	 A=>'Day',
-	 b=>'Mon',
-	 b=>'Month',
-	 c=>'Dy Mon D HH:MI:SS YYYY',
-	 C=>'CC',
-	 d=>'DD',
-	 D=>'MM/DD/YY',
-	 e=>'D',
-	 F=>'YYYY-MM-DD',
+         a=>'Dy',
+         A=>'Day',
+         b=>'Mon',
+         b=>'Month',
+         c=>'Dy Mon D HH:MI:SS YYYY',
+         C=>'CC',
+         d=>'DD',
+         D=>'MM/DD/YY',
+         e=>'D',
+         F=>'YYYY-MM-DD',
         #G=>'',
-	 h=>'Month', H=>'HH24', I=>'HH12',
-	 j=>'DoY', #day of year
-	 k=>'H24', _H=>'H24',
-	 l=>'H12', _I=>'H12',
-	 m=>'MM', M=>'MI',
-	 n=>"\n",
-	#N=>'NS', #sprintf%09d,1e9*(time_fp()-time()) #000000000..999999999
-	 p=>'AM', #AM|PM upper (yes, opposite: date +%H%M%S%P%p)
-	 P=>'am', #am|pm lower
-	 S=>'SS',
-	 t=>"\t",
-	 T=>'HH24:MI:SS',
-	 u=>'DoW',  #day of week 1..7, 1=mon 7=sun
-	 w=>'DoW0', #day of week 0..6, 1=mon 0=sun
-	#U=>'WoYs', #week num of year 00..53, sunday as first day of week
-	#V=>'UKE',  #ISO week num of year 01..53, monday as first day of week
-	#W=>'WoYm', #week num of year 00..53, monday as first day of week, not ISO!
-	#x=>$ENV{locale's date representation}, #e.g. MM/DD/YY
-	#X=>$ENV{locale's time representation}, #e.g. HH/MI/SS
-	 y=>'YY',
-	 Y=>'YYYY',
-	#z=>'TZHHMI', #time zone hour minute e.g. -0430
-	#':z'=>'TZHH:MI',
-	#'::z'=>'TZHH:MI:SS',
-	#':::z'=>'TZ', #number of :'s necessary precision, e.g. -02 or +03:30
-	#Z=>'TZN', #e.g. CET, EDT, ...
+         h=>'Month', H=>'HH24', I=>'HH12',
+         j=>'DoY', #day of year
+         k=>'H24', _H=>'H24',
+         l=>'H12', _I=>'H12',
+         m=>'MM', M=>'MI',
+         n=>"\n",
+        #N=>'NS', #sprintf%09d,1e9*(time_fp()-time()) #000000000..999999999
+         p=>'AM', #AM|PM upper (yes, opposite: date +%H%M%S%P%p)
+         P=>'am', #am|pm lower
+         S=>'SS',
+         t=>"\t",
+         T=>'HH24:MI:SS',
+         u=>'DoW',  #day of week 1..7, 1=mon 7=sun
+         w=>'DoW0', #day of week 0..6, 1=mon 0=sun
+        #U=>'WoYs', #week num of year 00..53, sunday as first day of week
+        #V=>'UKE',  #ISO week num of year 01..53, monday as first day of week
+        #W=>'WoYm', #week num of year 00..53, monday as first day of week, not ISO!
+        #x=>$ENV{locale's date representation}, #e.g. MM/DD/YY
+        #X=>$ENV{locale's time representation}, #e.g. HH/MI/SS
+         y=>'YY',
+         Y=>'YYYY',
+        #z=>'TZHHMI', #time zone hour minute e.g. -0430
+        #':z'=>'TZHH:MI',
+        #'::z'=>'TZHH:MI:SS',
+        #':::z'=>'TZ', #number of :'s necessary precision, e.g. -02 or +03:30
+        #Z=>'TZN', #e.g. CET, EDT, ...
       );
   my $pkeys=join"|",keys%p;
   $format=~s,\%($pkeys),$p{$1},g;
@@ -5635,6 +6348,7 @@ sub tms {
   $format=~s/(?:AM|PM|APM|XM)  / $lt[2]<13 ? 'AM' : 'PM'        /gxe;
   $format=~s/WWI|WW            / sprintf("%02d",weeknum($time)) /gxei;
   $format=~s/W                 / weeknum($time)                 /gxei;
+  $format=~s/(?:\bE\b|epoch)   /$time                           /gxi;
   $format;
 }
 
@@ -5643,6 +6357,7 @@ sub tms {
 Input: A year (a four digit number)
 
 Output: array of two numbers: day and month of Easter Sunday that year. Month 3 means March and 4 means April.
+Minimum is 22,3 (22nd of March) and maximum is 25,4 (25th of April)
 
  sub easter { use integer;my$Y=shift;my$C=$Y/100;my$L=($C-$C/4-($C-($C-17)/25)/3+$Y%19*19+15)%30;
              (($L-=$L>28||($L>27?1-(21-$Y%19)/11:0))-=($Y+$Y/4+$L+2-$C+$C/4)%7)<4?($L+28,3):($L-3,4) }
@@ -5698,15 +6413,15 @@ Or just:
 =cut
 
 sub time_fp {  # {return 0+gettimeofday} is just as well?
-    eval{ require Time::HiRes } or return time();
-    my($sec,$mic)=Time::HiRes::gettimeofday();
-    return $sec+$mic/1e6; #1e6 not portable?
+  eval{ require Time::HiRes } or return time();
+  my($sec,$mic)=Time::HiRes::gettimeofday();
+  return $sec+$mic/1e6; #1e6 not portable?
 }
 
 sub timems {
-    eval{ require Time::HiRes } or return time();
-    my($sec,$mic)=Time::HiRes::gettimeofday();
-    return $sec*1000+$mic/1e3;
+  eval{ require Time::HiRes } or return time();
+  my($sec,$mic)=Time::HiRes::gettimeofday();
+  return $sec*1000+$mic/1e3;
 }
 
 =head2 sleep_fp
@@ -5733,16 +6448,18 @@ longer) than physical ones. This was tested on VMware and RHEL
  sleep_fp(0.020);   #sleeps for 20 milliseconds
  sleeps(0.020);     #sleeps for 20 milliseconds, sleeps() is a synonym to sleep_fp()
  sleepms(20);       #sleeps for 20 milliseconds
- sleepus(20000);    #sleeps for 20000 microseconds = 20 milliseconds
+ sleepus(20000);    #sleeps for 20000 microseconds = 20000 µs = 20 milliseconds
  sleepns(20000000); #sleeps for 20 million nanoseconds = 20 milliseconds
 
 =cut
 
-sub sleep_fp { eval{require Time::HiRes} or (sleep(shift()),return);Time::HiRes::sleep(shift()) }
-sub sleeps   { eval{require Time::HiRes} or (sleep(shift()),return);Time::HiRes::sleep(shift()) }
-sub sleepms  { eval{require Time::HiRes} or (sleep(shift()/1e3),return);Time::HiRes::sleep(shift()/1e3) }
-sub sleepus  { eval{require Time::HiRes} or (sleep(shift()/1e6),return);Time::HiRes::sleep(shift()/1e6) }
-sub sleepns  { eval{require Time::HiRes} or (sleep(shift()/1e9),return);Time::HiRes::sleep(shift()/1e9) }
+#73e-6 (73µs) below is call overhead (on some systems, like on v5.22 on linux on a 2015 state of the art intel laptop)
+#TODO: self modifying overhead estimation
+sub sleep_fp { eval{require Time::HiRes} or (sleep(shift()),    return);my$s=shift()-73e-6;Time::HiRes::sleep($s>0?$s:0) }
+sub sleeps   { eval{require Time::HiRes} or (sleep(shift()),    return);my$s=shift()-73e-6;Time::HiRes::sleep($s>0?$s:0) }
+sub sleepms  { eval{require Time::HiRes} or (sleep(shift()/1e3),return);my$s=shift()-73e-6;Time::HiRes::sleep($s>0?$s/1e3:0) }
+sub sleepus  { eval{require Time::HiRes} or (sleep(shift()/1e6),return);my$s=shift()-73e-6;Time::HiRes::sleep($s>0?$s/1e6:0) }
+sub sleepns  { eval{require Time::HiRes} or (sleep(shift()/1e9),return);my$s=shift()-73e-6;Time::HiRes::sleep($s>0?$s/1e9:0) }
 
 =head2 eta
 
@@ -6107,19 +6824,19 @@ digits.
 =cut
 
 sub ccn_ok {
-    my $ccn=shift(); #credit card number
-    $ccn=~s/\D+//g;
-    if(KID_ok($ccn)){
-	return "MasterCard"                   if $ccn=~/^5[1-5]\d{14}$/;
-	return "Visa"                         if $ccn=~/^4\d{12}(?:\d{3})?$/;
-	return "American Express"             if $ccn=~/^3[47]\d{13}$/;
-	return "Discover"                     if $ccn=~/^6011\d{12}$/;
-	return "Diners Club / Carte Blanche"  if $ccn=~/^3(?:0[0-5]\d{11}|[68]\d{12})$/;
-	return "JCB"                          if $ccn=~/^(?:3\d{15}|(?:2131|1800)\d{11})$/;
-	return 1;
-    }
-    #return "enRoute"                        if $ccn=~/^(?:2014|2149)\d{11}$/; #ikke LUHN-krav?
-    return 0;
+  my $ccn=shift(); #credit card number
+  $ccn=~s/\D+//g;
+  if(KID_ok($ccn)){
+    return "MasterCard"                   if $ccn=~/^5[1-5]\d{14}$/;
+    return "Visa"                         if $ccn=~/^4\d{12}(?:\d{3})?$/;
+    return "American Express"             if $ccn=~/^3[47]\d{13}$/;
+    return "Discover"                     if $ccn=~/^6011\d{12}$/;
+    return "Diners Club / Carte Blanche"  if $ccn=~/^3(?:0[0-5]\d{11}|[68]\d{12})$/;
+    return "JCB"                          if $ccn=~/^(?:3\d{15}|(?:2131|1800)\d{11})$/;
+    return 1;
+  }
+  #return "enRoute"                        if $ccn=~/^(?:2014|2149)\d{11}$/; #ikke LUHN-krav?
+  return 0;
 }
 
 =head2 KID_ok
@@ -6241,7 +6958,7 @@ Examples:
  my @arr = globr "X{a..f..2}";          # step 2, returns array: Xa Xc Xe
  my @arr = globr "{aa..bz..13}Z";       # aaZ anZ baZ bnZ
  my @arr = globr "{1..12}b";            # 1b 2b 3b 4b 5b 6b 7b 8b 9b 10b 11b 12b
- my @arr = globr "{01..11}b";           # 01b 02b 03b 04b 05b 06b 07b 08b 09b 10b 11b (keep leading zero)
+ my @arr = globr "{01..11}b";           # 01b 02b 03b 04b 05b 06b 07b 08b 09b 10b 11b (keeps leading zero)
  my @arr = globr "{01..12..3}b";        # 01b 04b 07b 10b
 
 =cut
@@ -6257,6 +6974,34 @@ sub globr($) {
     "{" . join(",",@r) . "}"
   }xeg;
   glob $p;
+}
+
+=head2 brex
+
+Brace expasion. Input: a string without the special meaning for * and ? and ~ in Perl's builtin C<< glob() >>. Outputs a list.
+
+ perl -MAcme::Tools -E' say for brex "~/{Documents,Backup{1..3}}/*.{doc{,.gz,.xz}}" '
+
+Prints:
+
+ ~/Documents/*.doc
+ ~/Documents/*.doc.gz
+ ~/Documents/*.doc.xz
+ ~/Backup1/*.doc
+ ~/Backup1/*.doc.gz
+ ~/Backup1/*.doc.xz
+ ~/Backup2/*.doc
+ ~/Backup2/*.doc.gz
+ ~/Backup2/*.doc.xz
+ ~/Backup3/*.doc
+ ~/Backup3/*.doc.gz
+ ~/Backup3/*.doc.xz
+
+=cut
+
+sub brex($) {
+    my $s=@_?$_[0]:$_;
+    globr $s =~ s/(?<!\\)[\*\?\~]/\\$&/gr #protect special (joker) chars for files
 }
 
 =head2 permutations
@@ -6370,40 +7115,40 @@ sub permutations {
   return ([@_[0,1]],[@_[1,0]]) if @_==2;
 
   return ([@_[0,1,2]],[@_[0,2,1]],[@_[1,0,2]],
-	  [@_[1,2,0]],[@_[2,0,1]],[@_[2,1,0]]) if @_==3;
+          [@_[1,2,0]],[@_[2,0,1]],[@_[2,1,0]]) if @_==3;
 
   return ([@_[0,1,2,3]],[@_[0,1,3,2]],[@_[0,2,1,3]],[@_[0,2,3,1]],
-	  [@_[0,3,1,2]],[@_[0,3,2,1]],[@_[1,0,2,3]],[@_[1,0,3,2]],
-	  [@_[1,2,0,3]],[@_[1,2,3,0]],[@_[1,3,0,2]],[@_[1,3,2,0]],
-	  [@_[2,0,1,3]],[@_[2,0,3,1]],[@_[2,1,0,3]],[@_[2,1,3,0]],
-	  [@_[2,3,0,1]],[@_[2,3,1,0]],[@_[3,0,1,2]],[@_[3,0,2,1]],
-	  [@_[3,1,0,2]],[@_[3,1,2,0]],[@_[3,2,0,1]],[@_[3,2,1,0]]) if @_==4;
+          [@_[0,3,1,2]],[@_[0,3,2,1]],[@_[1,0,2,3]],[@_[1,0,3,2]],
+          [@_[1,2,0,3]],[@_[1,2,3,0]],[@_[1,3,0,2]],[@_[1,3,2,0]],
+          [@_[2,0,1,3]],[@_[2,0,3,1]],[@_[2,1,0,3]],[@_[2,1,3,0]],
+          [@_[2,3,0,1]],[@_[2,3,1,0]],[@_[3,0,1,2]],[@_[3,0,2,1]],
+          [@_[3,1,0,2]],[@_[3,1,2,0]],[@_[3,2,0,1]],[@_[3,2,1,0]]) if @_==4;
 
   return ([@_[0,1,2,3,4]],[@_[0,1,2,4,3]],[@_[0,1,3,2,4]],[@_[0,1,3,4,2]],[@_[0,1,4,2,3]],
-	  [@_[0,1,4,3,2]],[@_[0,2,1,3,4]],[@_[0,2,1,4,3]],[@_[0,2,3,1,4]],[@_[0,2,3,4,1]],
-	  [@_[0,2,4,1,3]],[@_[0,2,4,3,1]],[@_[0,3,1,2,4]],[@_[0,3,1,4,2]],[@_[0,3,2,1,4]],
-	  [@_[0,3,2,4,1]],[@_[0,3,4,1,2]],[@_[0,3,4,2,1]],[@_[0,4,1,2,3]],[@_[0,4,1,3,2]],
-	  [@_[0,4,2,1,3]],[@_[0,4,2,3,1]],[@_[0,4,3,1,2]],[@_[0,4,3,2,1]],[@_[1,0,2,3,4]],
-	  [@_[1,0,2,4,3]],[@_[1,0,3,2,4]],[@_[1,0,3,4,2]],[@_[1,0,4,2,3]],[@_[1,0,4,3,2]],
-	  [@_[1,2,0,3,4]],[@_[1,2,0,4,3]],[@_[1,2,3,0,4]],[@_[1,2,3,4,0]],[@_[1,2,4,0,3]],
-	  [@_[1,2,4,3,0]],[@_[1,3,0,2,4]],[@_[1,3,0,4,2]],[@_[1,3,2,0,4]],[@_[1,3,2,4,0]],
-	  [@_[1,3,4,0,2]],[@_[1,3,4,2,0]],[@_[1,4,0,2,3]],[@_[1,4,0,3,2]],[@_[1,4,2,0,3]],
-	  [@_[1,4,2,3,0]],[@_[1,4,3,0,2]],[@_[1,4,3,2,0]],[@_[2,0,1,3,4]],[@_[2,0,1,4,3]],
-	  [@_[2,0,3,1,4]],[@_[2,0,3,4,1]],[@_[2,0,4,1,3]],[@_[2,0,4,3,1]],[@_[2,1,0,3,4]],
-	  [@_[2,1,0,4,3]],[@_[2,1,3,0,4]],[@_[2,1,3,4,0]],[@_[2,1,4,0,3]],[@_[2,1,4,3,0]],
-	  [@_[2,3,0,1,4]],[@_[2,3,0,4,1]],[@_[2,3,1,0,4]],[@_[2,3,1,4,0]],[@_[2,3,4,0,1]],
-	  [@_[2,3,4,1,0]],[@_[2,4,0,1,3]],[@_[2,4,0,3,1]],[@_[2,4,1,0,3]],[@_[2,4,1,3,0]],
-	  [@_[2,4,3,0,1]],[@_[2,4,3,1,0]],[@_[3,0,1,2,4]],[@_[3,0,1,4,2]],[@_[3,0,2,1,4]],
-	  [@_[3,0,2,4,1]],[@_[3,0,4,1,2]],[@_[3,0,4,2,1]],[@_[3,1,0,2,4]],[@_[3,1,0,4,2]],
-	  [@_[3,1,2,0,4]],[@_[3,1,2,4,0]],[@_[3,1,4,0,2]],[@_[3,1,4,2,0]],[@_[3,2,0,1,4]],
-	  [@_[3,2,0,4,1]],[@_[3,2,1,0,4]],[@_[3,2,1,4,0]],[@_[3,2,4,0,1]],[@_[3,2,4,1,0]],
-	  [@_[3,4,0,1,2]],[@_[3,4,0,2,1]],[@_[3,4,1,0,2]],[@_[3,4,1,2,0]],[@_[3,4,2,0,1]],
-	  [@_[3,4,2,1,0]],[@_[4,0,1,2,3]],[@_[4,0,1,3,2]],[@_[4,0,2,1,3]],[@_[4,0,2,3,1]],
-	  [@_[4,0,3,1,2]],[@_[4,0,3,2,1]],[@_[4,1,0,2,3]],[@_[4,1,0,3,2]],[@_[4,1,2,0,3]],
-	  [@_[4,1,2,3,0]],[@_[4,1,3,0,2]],[@_[4,1,3,2,0]],[@_[4,2,0,1,3]],[@_[4,2,0,3,1]],
-	  [@_[4,2,1,0,3]],[@_[4,2,1,3,0]],[@_[4,2,3,0,1]],[@_[4,2,3,1,0]],[@_[4,3,0,1,2]],
-	  [@_[4,3,0,2,1]],[@_[4,3,1,0,2]],[@_[4,3,1,2,0]],[@_[4,3,2,0,1]],[@_[4,3,2,1,0]]) if @_==5;
-
+          [@_[0,1,4,3,2]],[@_[0,2,1,3,4]],[@_[0,2,1,4,3]],[@_[0,2,3,1,4]],[@_[0,2,3,4,1]],
+          [@_[0,2,4,1,3]],[@_[0,2,4,3,1]],[@_[0,3,1,2,4]],[@_[0,3,1,4,2]],[@_[0,3,2,1,4]],
+          [@_[0,3,2,4,1]],[@_[0,3,4,1,2]],[@_[0,3,4,2,1]],[@_[0,4,1,2,3]],[@_[0,4,1,3,2]],
+          [@_[0,4,2,1,3]],[@_[0,4,2,3,1]],[@_[0,4,3,1,2]],[@_[0,4,3,2,1]],[@_[1,0,2,3,4]],
+          [@_[1,0,2,4,3]],[@_[1,0,3,2,4]],[@_[1,0,3,4,2]],[@_[1,0,4,2,3]],[@_[1,0,4,3,2]],
+          [@_[1,2,0,3,4]],[@_[1,2,0,4,3]],[@_[1,2,3,0,4]],[@_[1,2,3,4,0]],[@_[1,2,4,0,3]],
+          [@_[1,2,4,3,0]],[@_[1,3,0,2,4]],[@_[1,3,0,4,2]],[@_[1,3,2,0,4]],[@_[1,3,2,4,0]],
+          [@_[1,3,4,0,2]],[@_[1,3,4,2,0]],[@_[1,4,0,2,3]],[@_[1,4,0,3,2]],[@_[1,4,2,0,3]],
+          [@_[1,4,2,3,0]],[@_[1,4,3,0,2]],[@_[1,4,3,2,0]],[@_[2,0,1,3,4]],[@_[2,0,1,4,3]],
+          [@_[2,0,3,1,4]],[@_[2,0,3,4,1]],[@_[2,0,4,1,3]],[@_[2,0,4,3,1]],[@_[2,1,0,3,4]],
+          [@_[2,1,0,4,3]],[@_[2,1,3,0,4]],[@_[2,1,3,4,0]],[@_[2,1,4,0,3]],[@_[2,1,4,3,0]],
+          [@_[2,3,0,1,4]],[@_[2,3,0,4,1]],[@_[2,3,1,0,4]],[@_[2,3,1,4,0]],[@_[2,3,4,0,1]],
+          [@_[2,3,4,1,0]],[@_[2,4,0,1,3]],[@_[2,4,0,3,1]],[@_[2,4,1,0,3]],[@_[2,4,1,3,0]],
+          [@_[2,4,3,0,1]],[@_[2,4,3,1,0]],[@_[3,0,1,2,4]],[@_[3,0,1,4,2]],[@_[3,0,2,1,4]],
+          [@_[3,0,2,4,1]],[@_[3,0,4,1,2]],[@_[3,0,4,2,1]],[@_[3,1,0,2,4]],[@_[3,1,0,4,2]],
+          [@_[3,1,2,0,4]],[@_[3,1,2,4,0]],[@_[3,1,4,0,2]],[@_[3,1,4,2,0]],[@_[3,2,0,1,4]],
+          [@_[3,2,0,4,1]],[@_[3,2,1,0,4]],[@_[3,2,1,4,0]],[@_[3,2,4,0,1]],[@_[3,2,4,1,0]],
+          [@_[3,4,0,1,2]],[@_[3,4,0,2,1]],[@_[3,4,1,0,2]],[@_[3,4,1,2,0]],[@_[3,4,2,0,1]],
+          [@_[3,4,2,1,0]],[@_[4,0,1,2,3]],[@_[4,0,1,3,2]],[@_[4,0,2,1,3]],[@_[4,0,2,3,1]],
+          [@_[4,0,3,1,2]],[@_[4,0,3,2,1]],[@_[4,1,0,2,3]],[@_[4,1,0,3,2]],[@_[4,1,2,0,3]],
+          [@_[4,1,2,3,0]],[@_[4,1,3,0,2]],[@_[4,1,3,2,0]],[@_[4,2,0,1,3]],[@_[4,2,0,3,1]],
+          [@_[4,2,1,0,3]],[@_[4,2,1,3,0]],[@_[4,2,3,0,1]],[@_[4,2,3,1,0]],[@_[4,3,0,1,2]],
+          [@_[4,3,0,2,1]],[@_[4,3,1,0,2]],[@_[4,3,1,2,0]],[@_[4,3,2,0,1]],[@_[4,3,2,1,0]]) if @_==5;
+  
   my(@r,@p,@c,@i,@n); @i=(0,@_); @p=@c=1..@_; @n=1..@_-1;
   PERM:
   while(1){
@@ -6443,49 +7188,78 @@ The permute BLOCK needs to return true (which print does) for permute to continu
 =cut
 
 sub perm {
-    my(@i,@r) = 0..$#_;
-    @_ || return;
-    while ( push @r, [@_[@i]] ) {
-	my $p = $#i || last;
-	--$p || last while $i[$p-1] > $i[$p];
-	push @i, reverse splice @i, my$q=$p;
-	++$q while $i[$p-1] > $i[$q];
-	@i[$p-1,$q] = @i[$q,$p-1];
-    }
-    @r
+  my(@i,@r) = 0..$#_;
+  @_ || return;
+  while ( push @r, [@_[@i]] ) {
+    my $p = $#i || last;
+    --$p || last while $i[$p-1] > $i[$p];
+    push @i, reverse splice @i, my$q=$p;
+    ++$q while $i[$p-1] > $i[$q];
+    @i[$p-1,$q] = @i[$q,$p-1];
+  }
+  @r
 }
 
+#sub perm is 3 times faster than sub perm2 for 5-8 elems, 4 times for 9, 5 times for 10...
+sub perm2{@_?map{my$i=$_;map[$_[$i],@$_],perm2(@_[0..$i-1,$i+1..$#_])}0..$#_:[]}
+sub perm3{@_?map{my$i=$_;map[$_[$i],@$_],perm3(@_[grep$_!=$i,0..$#_])}0..$#_:[]}
+sub perm4{@_==3?([@_[0,1,2]],[@_[0,2,1]],[@_[1,0,2]],[@_[1,2,0]],[@_[2,0,1]],[@_[2,1,0]]):
+          @_?map{my$i=$_;map[$_[$i],@$_],perm4(@_[grep$_!=$i,0..$#_])}0..$#_:[]}
+
 sub permute (&@) {
-    return permute_continue(@_) if 'CODE,ARRAY,ARRAY' eq join',',map ref,@_;
-    my $f = shift;
-    my @i = 0..$#_;
-    my $n = 0;
-    @_ || do{ &$f(@_); return 0 };
-    while ( ++$n and &$f(@_[@i]) ) {
-	my $p = $#i || last;
-	--$p || last while $i[$p-1] > $i[$p];
-	push @i, reverse splice @i, my$q=$p;
-	++$q while $i[$p-1] > $i[$q];
-	@i[$p-1,$q] = @i[$q,$p-1];
-    }
-    $n;
+  return permute_continue(@_) if 'CODE,ARRAY,ARRAY' eq join',',map ref,@_;
+  my $f = shift;
+  my @i = 0..$#_;
+  my $n = 0;
+  @_ || do{ &$f(@_); return 0 };
+  while ( ++$n and &$f(@_[@i]) ) {
+    my $p = $#i || last;
+    --$p || last while $i[$p-1] > $i[$p];
+    push @i, reverse splice @i, my$q=$p;
+    ++$q while $i[$p-1] > $i[$q];
+    @i[$p-1,$q] = @i[$q,$p-1];
+  }
+  $n;
 }
 
 #Fischer-Krause permutation starting from a specific sequence, for example to farm out permute to more than one process
 sub permute_continue (&\@\@) {
-    my ($f,$begin,$from) = @_;
-    my %h; @h{@$begin} = 0 .. $#$begin;
-    my @idx = @h{@$from};
-    my $n = 0;
-    while ( ++$n and &$f(@$begin[@idx]) ) {
-	my $p = $#idx || last;
-	--$p || last while $idx[$p-1] > $idx[$p];
-	push @idx, reverse splice @idx, my$q=$p;
-	++$q while $idx[$p-1] > $idx[$q];
-	@idx[$p-1,$q]=@idx[$q,$p-1];
-    }
-    $n
+  my ($f,$begin,$from) = @_;
+  my %h; @h{@$begin} = 0 .. $#$begin;
+  my @idx = @h{@$from};
+  my $n = 0;
+  while ( ++$n and &$f(@$begin[@idx]) ) {
+    my $p = $#idx || last;
+    --$p || last while $idx[$p-1] > $idx[$p];
+    push @idx, reverse splice @idx, my$q=$p;
+    ++$q while $idx[$p-1] > $idx[$q];
+    @idx[$p-1,$q]=@idx[$q,$p-1];
+  }
+  $n
 }
+
+=head2 comb
+
+Combinations. Returns all unique sets of k elements from a list. That is the number of ways to pick k balls from a hat when the order doesn't matter and each ball can only be picked once.
+
+ my @list = (1,2,3,4,5);
+ print "[@$_]\n" for comb( \@list, 3 );
+
+Prints these ten arrayrefs:
+
+[10 20 30], [10 20 40], [10 20 50], [10 30 40], [10 30 50], [10 40 50], [20 30 40], [20 30 50], [20 40 50] and [30 40 50].
+
+See also this faster implementation:
+
+ sudo apt install libalgorithm-combinatorics-perl #works on ubuntu20
+ perl -le'use Algorithm::Combinatorics "combinations";print"@$_" for combinations([1..34],7)'|wc -l #5379616
+
+...where the 5379616 is 34! / (7! * 27!) discribed on L<https://en.wikipedia.org/wiki/Binomial_coefficient>
+
+=cut
+
+#sub lottorekker { comb([1..34],7) } #5379616 stk arrayrefs, n!/(k!(n-k)!) = 34!/(7! * 27!)
+sub comb{my($l,$k,$s)=(@_,0);$k?map{my$i=$_;map[$$l[$i],@$_],comb($l,$k-1,$i+1)}$s..@$l-$k:[]}
 
 
 =head2 cart
@@ -6604,6 +7378,11 @@ sub cart_easy { #not tested, not exported http://stackoverflow.com/questions/245
   @_ ? (map {my$left=$_; map [@$left, $_], @$last } cart_easy(@_) )
      : (map [$_], @$last);
 }
+# sub cart { reduce { [ map { my $i = $_; map [ @$_, $i ], @$a } @$b ] } [[]], @_ }
+# sub cart { reduce { [ map { //;map [ @$_, $' ], @$a } @$b ] } [[]], @_ } #arref
+# sub cart{@{(reduce{[map{//;map[@$_,$'],@$a}@$b]}[[]],@_)}} #arr
+
+
 
 =head2 reduce
 
@@ -6626,7 +7405,7 @@ Many functions can then be implemented with very little code. Such as:
 
 =cut
 
-sub reduce (&@) {
+sub reduce_bk (&@) {
   my ($proc, $first, @rest) = @_;
   return $first if @rest == 0;
   no warnings;
@@ -6634,6 +7413,20 @@ sub reduce (&@) {
   return $proc->();
 }
 
+sub reduce (&@) {
+  my $code = shift;
+  no strict 'refs';
+  return shift unless @_ > 1;
+  use vars qw($a $b);
+  my $caller = caller;
+  local(*{$caller."::a"}) = \my $a;
+  local(*{$caller."::b"}) = \my $b;
+  $a = shift;
+  $b = $_, $a = &{$code}() for @_;
+  $a;
+}
+#sub reduce(&@){my$sub=shift;unshift@_,$sub->(shift,shift) while @_>1; $_[0]}
+#my $sum = reduce { $_[0] + $_[1] } @list;
 
 =head2 pivot
 
@@ -6820,24 +7613,24 @@ sub pivot {
   for my $rad (sort $sortsub_nedover keys(%h)){
     my @rad=(split($;,$rad),
              map { defined($_)?$_:exists$opt{undefined}?$opt{undefined}:undef }
-	     map {
-	       if(/^\%/ and defined $opt_pro){
-		 my $sum=$h{$rad}{Sum};
-		 my $verdi=$h{$rad}{$_};
-		 if($sum!=0){
-		   defined $verdi
-                   ?sprintf("%*.*f",3+1+$opt_pro,$opt_pro,100*$verdi/$sum)
-		   :$verdi;
-		 }
-		 else{
-		   $verdi!=0?"div0":$verdi;
-		 }
-	       }
-	       else{
+             map {
+               if(/^\%/ and defined $opt_pro){
+                 my $sum=$h{$rad}{Sum};
+                 my $verdi=$h{$rad}{$_};
+                 if($sum!=0){
+                   defined $verdi
+                     ?sprintf("%*.*f",3+1+$opt_pro,$opt_pro,100*$verdi/$sum)
+                     :$verdi;
+                 }
+                 else{
+                   $verdi!=0?"div0":$verdi;
+                 }
+               }
+               else{
                  $h{$rad}{$_};
-	       }
-	     }
-	     @feltfinnes);
+               }
+             }
+             @feltfinnes);
     push(@t,[@rad]);
   }
   push(@t,"-",["Sum",(map{""}(2..$antned)),map{print "<$_>\n";$sum{$_}}@feltfinnes]) if $opt_sum;
@@ -6864,7 +7657,13 @@ sub _sortsub {
 
 =head2 tablestring
 
-B<Input:> a reference to an array of arrayrefs  -- a two dimensional table of strings and numbers
+B<Input:> one or two arguments:
+
+1) a reference to an array of arrayrefs  -- a two dimensional table of strings and numbers
+
+2) an optional hashref to options:
+
+
 
 B<Output:> a string containing the textual table -- a string of two or more lines
 
@@ -6909,7 +7708,7 @@ As you can see, rows containing multi-lined cells gets an empty line before and 
 
 =cut
 
-sub tablestring {
+sub tablestring {  #see Term::Table?
   my $tab=shift;
   my %o=$_[0] ? %{shift()} : ();
   my $remove_empty       = $o{remove_empty_columns};
@@ -6928,33 +7727,33 @@ sub tablestring {
     my $nodup_rad=$nodup;
     if(ref($_) eq 'ARRAY'){
       for(@$_){
-	my $cell=$_;
-	$width[$j]||=0;
-	if($nodup_rad and $i>0 and $$tab[$i][$j] eq $$tab[$i-1][$j] || ($nodup_rad=0)){
-	  $cell=$nodup==1?"":$nodup;
-	  $nodup[$i][$j]=1;
-	}
-	else{
-	  my $height=0;
-	  my $wider;
-	  no warnings;
-	  $not_empty[$j]=1 if !$head && length($cell)>0;
-	  for(split("\n",$cell)){
-	    $wider=/<input.+type=text.+size=(\d+)/i?$1:0; #hm
-	    s/<[^>]+>//g;
-	    $height++;
-	    s/&gt;/>/g;
-	    s/&lt;/</g;
-	    $width[$j]=length($_)+1+$wider if length($_)+1+$wider>$width[$j];
-	    $left[$j]=1 if $_ && !/^\s*[\-\+]?(\d+|\d*\.\d+)\s*\%?$/ && !$head;
-	  }
-	  if( $height>1 && !$no_multiline_space){
-	    $height++ if !$head;
-	    $height[$i-1]++ if $i>1 && $height[$i-1]==1;
-	  }
-	  $height[$i]=$height if $height>$height[$i];
-	}
-	$j++;
+        my $cell=$_;
+        $width[$j]||=0;
+        if($nodup_rad and $i>0 and $$tab[$i][$j] eq $$tab[$i-1][$j] || ($nodup_rad=0)){
+          $cell=$nodup==1?"":$nodup;
+          $nodup[$i][$j]=1;
+        }
+        else{
+          my $height=0;
+          my $wider;
+          no warnings;
+          $not_empty[$j]=1 if !$head && length($cell)>0;
+          for(split("\n",$cell)){
+            $wider=/<input.+type=text.+size=(\d+)/i?$1:0; #hm
+            s/<[^>]+>//g;
+            $height++;
+            s/&gt;/>/g;
+            s/&lt;/</g;
+            $width[$j]=length($_)+1+$wider if length($_)+1+$wider>$width[$j];
+            $left[$j]=1 if $_ && !/^\s*[\-\+]?(\d+|\d*\.\d+)\s*\%?$/ && !$head;
+          }
+          if( $height>1 && !$no_multiline_space){
+            $height++ if !$head;
+            $height[$i-1]++ if $i>1 && $height[$i-1]==1;
+          }
+          $height[$i]=$height if $height>$height[$i];
+        }
+        $j++;
       }
     }
     else{
@@ -6966,79 +7765,164 @@ sub tablestring {
   }
   $i=$#height;
   $j=$#width;
-  if($i==0 or $left_force) { @left=map{1}(0..$j)                         }
-  else { for(0..$j){ $left[$_]=1 if !$not_empty[$_] }  }
+  if($i==0 or $left_force) { @left=map{1}(0..$j)                          }
+  else                     { for(0..$j){ $left[$_]=1 if !$not_empty[$_] } }
   my @tabout;
   my $row_start_line=0;
   my @header;
   my $header_last;
   for my $x (0..$i){
     if($$tab[$x] eq '-'){
-      my @tegn=map {$$tab[$x-1][$_]=~/\S/?"-":" "} (0..$j);
-      $tabout[$row_start_line]=join(" ",map {$tegn[$_] x ($width[$_]-1)} (0..$j));
+      my @char=map {$$tab[$x-1][$_]=~/\S/?"-":" "} (0..$j);
+      $tabout[$row_start_line]=join(" ",map {$char[$_] x ($width[$_]-1)} (0..$j));
     }
     else{
       for my $y (0..$j){
-	next if $remove_empty && !$not_empty[$y];
-	no warnings;
-	my @cell = !$header_last&&$nodup&&$nodup[$x][$y]
-     	         ? ($nodup>0?():((" " x (($width[$y]-length($nodup))/2)).$nodup))
-                 : split("\n",$$tab[$x][$y]);
-	for(0..($height[$x]-1)){
-	  my $line=$row_start_line+$_;
-	  my $txt=shift(@cell);
-	  $txt='' if !defined$txt;
-	  $txt=sprintf("%*s",$width[$y]-1,$txt) if length($txt)>0 && !$left[$y] && ($x>0 || $no_header_line);
-	  $tabout[$line].=$txt;
-	  if($y==$j){
-	    $tabout[$line]=~s/\s+$//;
-	  }
-	  else{
-	    my $wider;
-	       $wider = $txt=~/<input.+type=text.+size=(\d+)/i?1+$1:0;
-	    $txt=~s/<[^>]+>//g;
-	    $txt=~s/&gt;/>/g;
-	    $txt=~s/&lt;/</g;
-	    $tabout[$line].= ' ' x ($width[$y]-length($txt)-$wider);
-	  }
-	}
+        next if $remove_empty && !$not_empty[$y];
+        no warnings;
+        my @cell = !$header_last&&$nodup&&$nodup[$x][$y]
+            ? ($nodup>0?():((" " x (($width[$y]-length($nodup))/2)).$nodup))
+            : split("\n",$$tab[$x][$y]);
+        for(0..($height[$x]-1)){
+          my $line=$row_start_line+$_;
+          my $txt=shift(@cell);
+          $txt='' if !defined$txt;
+          $txt=sprintf("%*s",$width[$y]-1,$txt) if length($txt)>0 && !$left[$y] && ($x>0 || $no_header_line);
+          $tabout[$line].=$txt;
+          if($y==$j){
+            $tabout[$line]=~s/\s+$//;
+          }
+          else{
+            my $wider;
+            $wider = $txt=~/<input.+type=text.+size=(\d+)/i?1+$1:0;
+            $txt=~s/<[^>]+>//g;
+            $txt=~s/&gt;/>/g;
+            $txt=~s/&lt;/</g;
+            $tabout[$line].= ' ' x ($width[$y]-length($txt)-$wider);
+          }
+        }
       }
     }
     $row_start_line+=$height[$x];
-
+    
     #--lage streker?
     if(not $no_header_line){
       if($x==0){
-	for my $y (0..$j){
-	  next if $remove_empty && !$not_empty[$y];
-	  $tabout[$row_start_line].=('-' x ($width[$y]-1))." ";
-	}
-	$row_start_line++;
-	@header=("",@tabout);
+        for my $y (0..$j){
+          next if $remove_empty && !$not_empty[$y];
+          $tabout[$row_start_line].=('-' x ($width[$y]-1))." ";
+        }
+        $row_start_line++;
+        @header=("",@tabout);
       }
       elsif(
-	    $x%$pagesize==0 || $nodup>0&&!$nodup[$x+1][$nodup-1]
-	    and $x+1<@$tab
-	    and !$no_header_line
-	    )
+        $x%$pagesize==0 || $nodup>0&&!$nodup[$x+1][$nodup-1]
+        and $x+1<@$tab
+        and !$no_header_line
+          )
       {
-	push(@tabout,@header);
-	$row_start_line+=@header;
-	$header_last=1;
+        push(@tabout,@header);
+        $row_start_line+=@header;
+        $header_last=1;
       }
       else{
-	$header_last=0;
+        $header_last=0;
       }
     }
   }#for x
-  return join("\n",@tabout)."\n";
+  my $r=join("\n",@tabout)."\n";
+  #tablestring_box(\$r) if $o{box}; #hm
+  $r
+}
+
+=head2 tablestring_box
+
+Returns a multiline string of the rendered two dimentional input table with
+utf-8 box-drawing chars (like C<.mode box> in newer sqlite3 versions).
+Numeric columns are right aligned. Requires a UTF-8 enabled terminal to
+see the UTF-8 lines properly. Run the 'locale' command if on Linux-ish
+systems to check for UTF-8. Otherwise, use the C<tablestring()> functions.
+
+ my @tab = (  ['aa', 'bbbbb', 'cccc', 'ddddddddd'],
+              [1, undef,'hello'],
+              [2],
+              ['3', -23.4, 'xxx'],
+              [126, 20, 'asdfasdf1', 'xyz'] );
+  
+ print tablestring_box(\@tab);
+
+Output this multiline string with utf-8 lines: (ie for utf-8 terminals or <pre> blocks in html)
+
+ ┌─────┬───────┬───────────┬───────────┐
+ │ aa  │ bbbbb │ cccc      │ ddddddddd │
+ ├─────┼───────┼───────────┼───────────┤
+ │   1 │       │ hello     │           │
+ │   2 │       │           │           │
+ │   3 │ -23.4 │ xxx       │           │
+ │ 126 │    20 │ asdfasdf1 │ xyz       │
+ └─────┴───────┴───────────┴───────────┘
+
+Cells can be multilined:
+
+ print tablestring_box([
+   ["aaaa\n(%)", 'bbbbb', 'cccc', "dddddd\nddd\nasdfdsa"],
+   [1, undef,'hello'],
+   ['3', -23.4, 'xxx'],
+   [12345, 20, "asdfasdf1\nasdffdsa\nxasdf", 'xyz']]);
+ ┌───────┬───────┬───────────┬─────────┐
+ │ aaaa  │ bbbbb │ cccc      │ dddddd  │
+ │ (%)   │       │           │ ddd     │
+ │       │       │           │ asdfdsa │
+ ├───────┼───────┼───────────┼─────────┤
+ │     1 │       │ hello     │         │
+ │     3 │ -23.4 │ xxx       │         │
+ │       │       │           │         │
+ │ 12345 │    20 │ asdfasdf1 │ xyz     │
+ │       │       │ asdffdsa  │         │
+ │       │       │ xasdf     │         │
+ │       │       │           │         │
+ └───────┴───────┴───────────┴─────────┘
+
+TODO: tablestring_box() dont yet support tags in values as in html/xml tags like tablestring() do.
+
+=cut
+
+#todo: double lines? rounded corners? https://en.wikipedia.org/wiki/Box-drawing_character
+#todo: colored headers and borders?
+#todo: locale dependent?
+
+sub tablestring_box {
+  use utf8;
+  my $tmpo=ref($_[-1]) eq 'HASH'?pop:{};
+  return tablestring_box([@_],$tmpo) if !ref($_[0]) or !ref($_[0][0]);
+  my($hl,$i,$t,$opt)=(0,-1,@_);
+  my @t=map {
+      my @r=map[split/\n/,$_//''],@$_;
+      my $l=0;$l=$l<@$_?@$_:$l for@r;
+      my @l=map{my$i=$_;[map$$_[$i]//'',@r]}0..$l-1;
+      @l=([],@l,[]) if $l>1 and $hl;
+      $hl||=$l;
+      @l
+  }@$t;
+  my @w;for(@t){$w[$i]=!defined$w[++$i]||length>$w[$i]?length:$w[$i] for@$_;$i=-1} #width
+  my %l;for(@t[$hl..$#t]){++$i,/\S/&&!/$Re_isnum/&&$l{$i}++for@$_;$i=-1} #left align
+  my $ts="┌───┬───┐\n"
+        ."│ x │ x │\n"x$hl
+        ."├───┼───┤\n"
+        ."│ y │ y │\n"x(@t-$hl)
+        ."└───┴───┘";
+  $ts=~s/^(.+?)([┼┴┬]───|│ [xy] )/$1.$2x$#w/gem;
+  $ts=join'',map{for my$w(1..@w){my$pos=2+4*(@w-$w);s/(.{$pos})(.)/$1.($2x$w[@w-$w])/e};"$_\n"}split/\n/,$ts;
+  $ts=~s!([xy])+!sprintf$l{++$i%@w}||$1eq'x'?"%-*s":"%*s",length$&,$t[$i/@w][$i%@w]//''!ge;
+  #utf8::encode($ts); #hm ::decode input?
+  $ts
 }
 
 =head2 serialize
 
 Returns a data structure as a string. See also C<Data::Dumper>
-(serialize was created long time ago before Data::Dumper appeared on
-CPAN, before CPAN even...)
+(serialize was created in the 90s on early Perl5s before awareness
+if Data::Dumper existed or not)
 
 B<Input:> One to four arguments.
 
@@ -7206,11 +8090,11 @@ sub serialize {
     my $tilbake;
     my($pakke,$fil,$line,$sub,$hasargs,$wantarray);
       ($pakke,$fil,$line,$sub,$hasargs,$wantarray)=caller($tilbake++) until $sub ne 'serialize' || $tilbake>20;
-    croak("serialize() argument should be reference!\n".
-        "\$r=$r\n".
-        "ref(\$r)   = ".ref($r)."\n".
-        "ref(\$\$r) = ".ref($$r)."\n".
-        "kallstack:\n". _kallstack());
+    croak( "serialize() argument should be reference!\n"
+          ."\$r=$r\n"
+          ."ref(\$r)   = ".ref($r)."\n"
+          ."ref(\$\$r) = ".ref($$r)."\n"
+          ."kallstack:\n". _kallstack() );
   }
 }
 
@@ -7239,10 +8123,14 @@ in certain cases). L</srlz> will be kept as a synonym (or the other way around).
 
 sub srlz {
   my $s=serialize(@_);
-  $s=~s,'(\w+)'=>,$1=>,g;
-  $s=~s,=>'([+-]?(0|[1-9]\d*)(\.\d+)?([eE][-+]?\d+)?)',=>$1,g;  #ikke ledende null!    hm
+  $s=~s,'(\w+)'=>,$1=>,g;                                       #todo: ikke ledende null!
+  $s=~s,=>'([+-]?(0|[1-9]\d*)(\.\d+)?([eE][-+]?\d+)?)',=>$1,g;  #todo?: ikke ledende null!    hm
   $s;
 }
+
+#sub srz {
+#    ref circular safe...
+#}
 
 =head2 cnttbl
 
@@ -7301,7 +8189,7 @@ Same as ref, but goes deeper.
 =cut
 
 sub ref_deep {
-  my $s=shift; #
+  my $s=shift;
 }
 
 
@@ -7331,7 +8219,6 @@ Call instead of C<system> if you want C<die> (Carp::croak) when something fails.
 
  sub sys($){ my$s=shift; my$r=system($s); $r==0 or croak"ERROR: system($s)==$r ($!) ($?)" }
 
-
 =cut
 
 sub sys($){ my$s=shift; my$r=system($s); $r==0 or croak"ERROR: system($s)==$r ($!) ($?)" }
@@ -7341,10 +8228,8 @@ sub sys($){ my$s=shift; my$r=system($s); $r==0 or croak"ERROR: system($s)==$r ($
 Returns true or false (actually 1 or 0) depending on whether the
 current sub has been called by itself or not.
 
- sub xyz
- {
+ sub xyz {
     xyz() if not recursed;
-
  }
 
 =cut
@@ -7442,16 +8327,59 @@ that line of perl source code.
 
 our %Changed_lastval;
 sub changed {
-    my $now=join($;,@_);
-    my $key=join($;,caller());
-    my $e=exists $Changed_lastval{$key};
-    if($e){
-	my $last=$Changed_lastval{$key};
-	return 0 if  defined $last and  defined $now and $last eq $now
-                 or !defined $last and !defined $now;
-    }
-    $Changed_lastval{$key}=$now;
-    return $e?1:undef;
+  my $now=join($;,@_);
+  my $key=join($;,caller());
+  my $e=exists $Changed_lastval{$key};
+  if($e){
+    my $last=$Changed_lastval{$key};
+    return 0 if  defined $last and  defined $now and $last eq $now
+             or !defined $last and !defined $now;
+  }
+  $Changed_lastval{$key}=$now;
+  return $e?1:undef;
+}
+
+=head2 graph_scc
+
+Returns the strongly connected components of a graph.
+
+A strongly connected component (a SCC) is a group of vertices in the graph that can all be reached from every other vertice in the same
+group by following the directed edges.  A SCC is either one vertice, a subset of the vertices in the graph or all the vertices. A graph has
+one or more SCCs. In graph_scc() Kosaraju's algorithm is implemented L<https://en.wikipedia.org/wiki/Kosaraju%27s_algorithm> Example:
+
+       A ---> B       ,---  G <--- H
+       ^      |      /      ^      ^
+       |      |      |      |      |
+       |      v      v      |      |
+       D <--- C ---> E ---> F      I
+
+ my @scc = graph_scc(
+     ['A'=>'B'], ['B'=>'C'], ['C'=>'D'], ['D'=>'A'],   ['C'=>'E'],
+     ['E'=>'F'], ['F'=>'G'], ['G'=>'E'],              ['H'=>'G'],  ['I'=>'H']
+ );
+ print srlz( \@scc, 'scc' );
+
+This will print the four SCCs (four lists of vertices) of that graph:
+
+ @scc=(  ['A','B','C','D'],   ['E','F','G'],  ['H'],  ['I']  );
+
+=cut
+
+sub graph_scc {
+  my($vtag, @stack, %visited, %goto, %seen, $dfs, $trav) = (1);
+
+  $dfs= sub { my $v = shift; $visited{$v} = $vtag; &$trav(@{$goto{$v}}); unshift @stack, $v };
+  $trav=sub { $visited{$_} or &$dfs($_) for @_ };
+
+  push @{$goto{$$_[0]}}, $$_[1] for @_;
+  &$trav(sort grep !$seen{$_}++, map@$_, @_);
+  %visited = %goto = ();
+  push @{$goto{$$_[1]}}, $$_[0] for @_;
+
+  sort { $$a[0] cmp $$b[0] } #sort unnecessary?
+  grep ref,
+  map { $visited{$_} ? 0 : do { $vtag++; &$dfs($_); [ sort grep $visited{$_}==$vtag, keys %visited ] } }
+  @stack
 }
 
 #todo: sub unbless eller sub damn
@@ -7543,19 +8471,21 @@ sub brainfu2perl_optimized {
 
 Bloom filters can be used to check whether an element (a string) is a
 member of a large set using much less memory or disk space than other
-data structures. Trading speed and accuracy for memory usage. While
-risking false positives, Bloom filters have a very strong space
-advantage over other data structures for representing sets.
+data structures. Trading speed and accuracy for smaller memory usage.
+Accepting a few false positives, Bloom filters have a very strong
+space advantage over other data structures for representing sets.
 
 In the example below, a set of 100000 phone numbers (or any string of
 any length) can be "stored" in just 91230 bytes if you accept that you
 can only check the data structure for existence of a string and accept
-false positives with an error rate of 0.03 (that is three percent, error
-rates are given in numbers larger than 0 and smaller than 1).
+false positives with an error rate of 0.03 (that is three percent as
+rates are given in numbers between 0 and 1). While false positives
+will occur, false negatives will not. If the bloom filter says a
+string is not in the set, then it's not.
 
 You can not retrieve the strings in the set without using "brute
-force" methods and even then you would get slightly more strings than
-you put in because of the error rate inaccuracy.
+force" methods and even then you would get slightly more strings
+out than you put in because of the error rate inaccuracy.
 
 Bloom Filters have many uses.
 
@@ -7573,8 +8503,7 @@ The same:
 
   my $bf = bfinit( 0.01, 100000 );
 
-since two arguments is interpreted as error_rate and capacity accordingly.
-
+Two arguments is interpreted as error_rate and capacity accordingly.
 
 =head2 bfadd
 
@@ -7582,7 +8511,7 @@ since two arguments is interpreted as error_rate and capacity accordingly.
 
   bfadd($bf, @phone_numbers);          # ...or all at once (faster)
 
-Returns 1 on success. Dies (croaks) if more strings than capacity is added.
+Returns 1 on success or C<die>s (croaks) if more strings than capacity is added.
 
 =head2 bfcheck
 
@@ -7598,12 +8527,12 @@ Returns true if C<$phone_number> exists in C<@phone_numbers>.
 
 Returns false most of the times, but sometimes true*), if C<$phone_number> doesn't exists in C<@phone_numbers>.
 
-*) This is called a false positive.
+*) This is what is called a false positive.
 
 Checking more than one key:
 
  @bools = bfcheck($bf, @keys);          # or ...
- @bools = bfcheck($bf, \@keys);         # better, uses less memory if @keys is large
+ @bools = bfcheck($bf, \@keys);         # better, uses less memory if @keys are many
 
 Returns an array the same size as @keys where each element is true or false accordingly.
 
@@ -7612,7 +8541,7 @@ Returns an array the same size as @keys where each element is true or false acco
 Same as C<bfcheck> except it returns the keys that exists in the bloom filter
 
  @found = bfgrep($bf, @keys);           # or ...
- @found = bfgrep($bf, \@keys);          # better, uses less memory if @keys is large, or ...
+ @found = bfgrep($bf, \@keys);          # uses less memory if @keys are many, or ...
  @found = grep bfcheck($bf,$_), @keys;  # same but slower
 
 =head2 bfgrepnot
@@ -7620,7 +8549,7 @@ Same as C<bfcheck> except it returns the keys that exists in the bloom filter
 Same as C<bfgrep> except it returns the keys that do NOT exists in the bloom filter:
 
  @not_found = bfgrepnot($bf, @keys);          # or ...
- @not_found = bfgrepnot($bf, \@keys);         # better, uses less memory if @keys is large, or ...
+ @not_found = bfgrepnot($bf, \@keys);         # uses less memory if @keys are many, or ...
  @not_found = grep !bfcheck($bf,$_), @keys);  # same but slower
 
 =head2 bfdelete
@@ -7636,7 +8565,7 @@ small error rates would not overflow.
 *) Acme::Tools do not currently support C<< counting_bits => 3 >> so 4
 and 8 are the only practical alternatives where 8 is almost always overkill.
 
- my $bf=bfinit(
+ my $bf = bfinit(
    error_rate    => 0.001,
    capacity      => 10000000,
    counting_bits => 4              # power of 2, that is 2, 4, 8, 16 or 32
@@ -7646,10 +8575,10 @@ and 8 are the only practical alternatives where 8 is almost always overkill.
 
 Example: examine the frequency of the counters with 4 bit counters and 4 million keys:
 
- my $bf=bfinit( error_rate=>0.001, capacity=>4e6, counting_bits=>4 );
- bfadd($bf,[1e3*$_+1 .. 1e3*($_+1)]) for 0..4000-1;  # adding 4 million keys one thousand at a time
+ my $bf = bfinit( error_rate=>0.001, capacity=>4e6, counting_bits=>4 );
+ bfadd($bf,[1e3*$_+1 .. 1e3*($_+1)]) for 0..4000-1;  # add 4 million keys one thousand at a time
  my %c; $c{vec($$bf{filter},$_,$$bf{counting_bits})}++ for 0..$$bf{filterlength}-1;
- printf "%8d counters = %d\n",$c{$_},$_ for sort{$a<=>$b}keys%c;
+ printf "%8d counters = %d\n",$c{$_},$_ for sort {$a<=>$b} keys %c;
 
 The output:
 
@@ -7664,7 +8593,8 @@ The output:
        46 counters = 8
         1 counters = 9
 
-Even after the error_rate is changed from 0.001 to a percent of that, 0.00001, the limit of 16 (4 bits) is still far away:
+Even after the error_rate is changed from 0.001 to a percent of that,
+0.00001, the upper limit of counting 0-15 (4 bits) is still far away:
 
  47162242 counters = 0
  33457237 counters = 1
@@ -7679,13 +8609,15 @@ Even after the error_rate is changed from 0.001 to a percent of that, 0.00001, t
 
 In algorithmic terms the number of bits needed is C<ln of ln of n>.  Thats why 4 bits (counters up
 to 15) is "always" good enough except for extremely large capasities or extremely small error rates.
-(Except when adding the same key many times, which should be avoided, and Acme::Tools::bfadd do not
-check for that, perhaps in future versions).
+(Except when adding the same key many times, which is the users responsibility to avoid as
+Acme::Tools::bfadd do not check for that, perhaps in a mode of a future version. In
+non-counting bloom filters, for when you don't need delete, you can add the same keys
+many times without ruining the filter).
 
 Bloom filters of the counting type are not very space efficient: The tables above shows that 84%-85%
-of the counters are 0 or 1. This means most bits are zero-bits. This doesn't have to be a problem if
-a counting bloom filter is used to be sent over slow networks because they are very compressable by
-common compression tools like I<gzip> or L<Compress::Zlib> and such.
+of the counters are 0 or 1. This means most counting bits are zero. This doesn't have to be a problem
+if a counting bloom filter is used to be sent over slow networks because they are very compressable by
+common tools like I<gzip> or L<Compress::Zlib>.
 
 Deletion of non-existing keys makes C<bfdelete> die (croak).
 
@@ -7698,7 +8630,7 @@ Deletes from a counting bloom filter:
 
 Returns C<$bf> after deletion.
 
-Croaks (dies) on deleting a non-existing key or deleting from an previouly overflown counter in a counting bloom filter.
+Croaks (dies) on deleting a non-existing key or deleting from a previouly overflown counter in a counting bloom filter.
 
 =head2 bfaddbf
 
@@ -7711,13 +8643,13 @@ hash functions, adds the filters:
   my $bf1=bfinit(error_rate=>0.01,capacity=>$cap,keys=>[1..500]);
   my $bf2=bfinit(error_rate=>0.01,capacity=>$cap,keys=>[501..1000]);
 
-  bfaddbf($bf1,$bf2);
+  bfaddbf($bf1,$bf2);     # bf1 = bf1 + bf2
 
-  print "Yes!" if bfgrep($bf1, 1..1000) == 1000;
+  print "Yes!" if bfgrep($bf1, 1..1000) == 1000;  #prints Yes!
 
 Prints yes since C<bfgrep> now returns an array of all the 1000 elements.
 
-Croaks if the filters are of different dimensions.
+Croaks if the filters are of different dimensions and properties.
 
 Works for counting bloom filters as well (C<< counting_bits=>4 >> e.g.)
 
@@ -7781,7 +8713,7 @@ Storing and retrieving bloom filters to and from disk uses L<Storable>s C<store>
 
  bfstore($bf,'filename.bf');
 
-It the same as:
+Is the same as:
 
  use Storable qw(store retrieve);
  ...
@@ -7802,6 +8734,11 @@ Is the same as:
  use Storable qw(store retrieve);
  my $bf=retrieve('filename.bf');
 
+...except that bfretrieve/bfinit/new will C<warn> (carp) if the stored filter was created
+with an earlier version of Acme::Tools. (Todo: only C<warn> or C<die> rather when the new
+version has actually broken backwards compatibility. Most new versions do not and might never do.
+Todo2: backwards compatibility in versions of Storable should also be checked)
+
 =head2 bfclone
 
 Deep copies the bloom filter data structure. (Which btw is not very deep, two levels at most)
@@ -7810,9 +8747,8 @@ This:
 
  my $bfc = bfclone($bf);
 
-Works just as:
+Is the same as:
 
- use Storable;
  my $bfc=Storable::dclone($bf);
 
 =head2 Object oriented interface to bloom filters
@@ -7853,13 +8789,19 @@ if it werent for the fact that it's much slower than Digest::MD5.
 
 String::CRC32::crc32 is faster than Digest::MD5, but not 4 times faster:
 
- time perl -e'use Digest::MD5 qw(md5);md5("asdf$_") for 1..10e6'       #5.56 sec
- time perl -e'use String::CRC32;crc32("asdf$_") for 1..10e6'           #2.79 sec, faster but not per bit
- time perl -e'use Digest::SHA qw(sha512);sha512("asdf$_") for 1..10e6' #36.10 sec, too slow (sha1, sha224, sha256 and sha384 too)
+ time perl -e'use Digest::MD5 qw(md5);md5("asdf$_")       for 1..1e7' #5.56 sec
+ time perl -e'use String::CRC32;crc32("asdf$_")           for 1..1e7' #2.79 sec, faster but not per bit
+ time perl -e'use Digest::SHA qw(sha512);sha512("asdf$_") for 1..1e7' #36.10 sec, too slow (sha1, sha224, sha256 and sha384 too)
 
-Md5 seems to be an ok choice both for speed and avoiding collitions due to skewed data keys.
+MD5 seems to be an ok choice both for speed and avoiding collitions due to skewed data keys.
 
-=head2 Theory and math behind bloom filters
+Todo: check out Digest::MurmurHash3::murmur128_x64() which seems faster than md5 and also return 128 bits, but not a core module. (Use if installed AND asked for?). murmur is a lot faster for several 1K byte long input strings, like 10 x, but only about 30% faster for many short words (tested on /usr/share/dict/american-english), might not be worth the effort.
+
+time perl -nle'use Digest::MurmurHash3 "murmur128_x64"; print join" ",$_,murmur128_x64($_);' /usr/share/dict/american-english|wcl
+time perl -nle'use Digest::MD5 "md5"; print join" ",$_,md5($_);' /usr/share/dict/american-english|wcl
+
+
+=head2 Theory and math on bloom filters
 
 L<http://www.internetmathematics.org/volumes/1/4/Broder.pdf>
 
@@ -7867,7 +8809,7 @@ L<http://blogs.sun.com/jrose/entry/bloom_filters_in_a_nutshell>
 
 L<http://pages.cs.wisc.edu/~cao/papers/summary-cache/node8.html>
 
-See also Scaleable Bloom Filters: L<http://gsd.di.uminho.pt/members/cbm/ps/dbloom.pdf> (not implemented in Acme::Tools)
+See also Scaleable Bloom Filters for when you don't know the capacity in advance: L<http://gsd.di.uminho.pt/members/cbm/ps/dbloom.pdf> (not implemented in Acme::Tools)
 
 ...and perhaps L<http://intertrack.naist.jp/Matsumoto_IEICE-ED200805.pdf>
 
@@ -7885,18 +8827,18 @@ sub bfinit {
   croak "Not ok param to bfinit: ".join(", ",@not_ok) if @not_ok;
   croak "Not an arrayref in keys-param" if exists $arg{keys} and ref($arg{keys}) ne 'ARRAY';
   croak "Not implemented counting_bits=$arg{counting_bits}, should be 2, 4, 8, 16 or 32" if !in(nvl($arg{counting_bits},1),1,2,4,8,16,32);
-  croak "An bloom filters here can not be in both adaptive and counting_bits modes" if $arg{adaptive} and $arg{counting_bits}>1;
+  croak "A bloom filters here can not be in both adaptive and counting_bits modes" if $arg{adaptive} and $arg{counting_bits}>1;
   my $bf={error_rate    => 0.001,  #default p
-	  capacity      => 100000, #default n
+          capacity      => 100000, #default n
           min_hashfuncs => 1,
           max_hashfuncs => 100,
-	  counting_bits => 1,      #default: not counting filter
-	  adaptive      => 0,
-	  %arg,                    #arguments
-	  key_count     => 0,
-	  overflow      => {},
-	  version       => $Acme::Tools::VERSION,
-	 };
+          counting_bits => 1,      #default: not counting filter
+          adaptive      => 0,
+          %arg,                    #arguments
+          key_count     => 0,
+          overflow      => {},
+          version       => $Acme::Tools::VERSION,
+  };
   croak "Error rate ($$bf{error_rate}) should be larger than 0 and smaller than 1" if $$bf{error_rate}<=0 or $$bf{error_rate}>=1;
   @$bf{'min_hashfuncs','max_hashfuncs'}=(map$arg{hashfuncs},1..2) if $arg{hashfuncs};
   @$bf{'filterlength','hashfuncs'}=bfdimensions($bf); #m and k
@@ -7921,24 +8863,23 @@ sub bfaddbf {
   $$bf{key_count}+=$$bf2{key_count};
   if($$bf{counting_bits}==1){
     $$bf{filter} |= $$bf2{filter};
-    #$$bf{filter} = $$bf{filter} | $$bf2{filter}; #or-ing
+   #$$bf{filter} = $$bf{filter} | $$bf2{filter}; #or-ing
   }
   else {
     my $cb=$$bf{counting_bits};
     for(0..$$bf{filterlength}-1){
-      my $sum=
-      vec($$bf{filter}, $_,$cb)+
-      vec($$bf2{filter},$_,$cb);
+      my $sum=vec($$bf{filter}, $_,$cb)
+             +vec($$bf2{filter},$_,$cb);
       if( $sum>2**$cb-1 ){
-	$sum=2**$cb-1;
-	$$bf{overflow}{$_}++;
+        $sum=2**$cb-1;
+        $$bf{overflow}{$_}++;
       }
       vec($$bf{filter}, $_,$cb)=$sum;
       no warnings;
       $$bf{overflow}{$_}+=$$bf2{overflow}{$_}
-	and keys(%{$$bf{overflow}})>10 #hmm, arbitrary limit
-	and croak "Too many overflows, concider doubling counting_bits from $cb to ".(2*$cb)
-	if exists $$bf2{overflow}{$_};
+      and keys(%{$$bf{overflow}})>10 #hmm, arbitrary limit
+      and croak "Too many overflows, concider doubling counting_bits from $cb to ".(2*$cb)
+        if exists $$bf2{overflow}{$_};
     }
   }
   return $bf; #for convenience
@@ -7965,26 +8906,25 @@ sub bfadd {
     }
     elsif ($cb>1) {                 # counting bloom filter
       for(0..$k-1){
-	my $pos=$h[$_] % $m;
-	my $c=
-  	vec($$bf{filter}, $pos, $cb) =
-	vec($$bf{filter}, $pos, $cb) + 1;
-	if($c==0){
-	  vec($$bf{filter}, $pos, $cb) = -1;
-	  $$bf{overflow}{$pos}++
-	    and keys(%{$$bf{overflow}})>10 #hmm, arbitrary limit
-	    and croak "Too many overflows, concider doubling counting_bits from $cb to ".(2*$cb);
-	}
+        my $pos=$h[$_] % $m;
+        my $c=vec($$bf{filter}, $pos, $cb) =
+              vec($$bf{filter}, $pos, $cb) + 1;
+        if($c==0){
+          vec($$bf{filter}, $pos, $cb) = -1;
+          $$bf{overflow}{$pos}++
+            and keys(%{$$bf{overflow}})>10 #hmm, arbitrary limit
+            and croak "Too many overflows, concider doubling counting_bits from $cb to ".(2*$cb);
+        }
       }
     }
     elsif ($adaptive) {             # adaptive bloom filter
       my($i,$key,$bit)=(0+@h,$_);
       for(0..$$bf{filterlength}-1){
-	$i+=push(@h, unpack $up, Digest::MD5::md5($key,$i)) if !@h;
-	my $pos=shift(@h) % $m;
-	$bit=vec($$bf{filter}, $pos, 1);
-	vec($$bf{filter}, $pos, 1)=1;
-	last if $_>=$k-1 and $bit==0;
+        $i+=push(@h, unpack $up, Digest::MD5::md5($key,$i)) if !@h;
+        my $pos=shift(@h) % $m;
+        $bit=vec($$bf{filter}, $pos, 1);
+        vec($$bf{filter}, $pos, 1)=1;
+        last if $_>=$k-1 and $bit==0;
       }
     }
     else {croak}
@@ -8005,22 +8945,24 @@ sub bfcheck {
       vec($$bf{filter}, $h[$_] % $m, $cb) or $match=0 or last for 0..$k-1;
       return $match if !$wa;
       $match;
-    } @$keysref;
+    }
+    @$keysref;
   }
   else {             # adaptive bloom filter
     return map {
       my($match,$i,$key,$bit,@h)=(1,0,$_);
       for(0..$$bf{filterlength}-1){
-	$i+=push(@h, unpack $up, Digest::MD5::md5($key,$i)) if !@h;
-	my $pos=shift(@h) % $m;
-	$bit=vec($$bf{filter}, $pos, 1);
-	$match++ if $_ >  $k-1 and $bit==1;
-	$match=0 if $_ <= $k-1 and $bit==0;
-	last     if $bit==0;
+        $i+=push(@h, unpack $up, Digest::MD5::md5($key,$i)) if !@h;
+        my $pos=shift(@h) % $m;
+        $bit=vec($$bf{filter}, $pos, 1);
+        $match++ if $_ >  $k-1 and $bit==1;
+        $match=0 if $_ <= $k-1 and $bit==0;
+        last     if $bit==0;
       }
       return $match if !$wa;
       $match;
-    } @$keysref;
+    }
+    @$keysref;
   }
 }
 sub bfgrep { # just a copy of bfcheck with map replaced by grep
@@ -8067,7 +9009,7 @@ sub bfdelete {
       vec($$bf{filter}, $pos, $cb)=$c-1;
       $croak="Cannot delete a non-existing key $key" if $c==0;
       $croak="Cannot delete with previously overflown position. Try doubleing counting_bits"
-	if $c==1 and ++$ones and $$bf{overflow}{$pos};
+        if $c==1 and ++$ones and $$bf{overflow}{$pos};
     }
     if($croak){ #rollback
       vec($$bf{filter}, $h[$_] % $m, $cb)=
@@ -8084,7 +9026,8 @@ sub bfstore {
 sub bfretrieve {
   require Storable;
   my $bf=Storable::retrieve(@_);
-  carp  "Retrieved bloom filter was stored in version $$bf{version}, this is version $VERSION" if $$bf{version}>$VERSION;
+  carp "Retrieved bloom filter was stored in version $$bf{version}, this is version $VERSION"
+    if $$bf{version} > $VERSION;
   return $bf;
 }
 sub bfclone {
@@ -8095,7 +9038,7 @@ sub bfdimensions_old {
   my($n,$p,$mink,$maxk, $k,$flen,$m)=
     @_==1 ? (@{$_[0]}{'capacity','error_rate','min_hashfuncs','max_hashfuncs'},1)
    :@_==2 ? (@_,1,100,1)
-          : croak "Wrong number of arguments (".@_."), should be 2";
+   :        croak "Wrong number of arguments (".@_."), should be 2";
   croak "p ($p) should be > 0 and < 1" if not ( 0<$p && $p<1 );
   $m=-1*$_*$n/log(1-$p**(1/$_)) and (!defined $flen or $m<$flen) and ($flen,$k)=($m,$_) for $mink..$maxk;
   $flen = int(1+$flen);
@@ -8105,7 +9048,7 @@ sub bfdimensions {
   my($n,$p,$mink,$maxk)=
     @_==1 ? (@{$_[0]}{'capacity','error_rate','min_hashfuncs','max_hashfuncs'})
    :@_==2 ? (@_,1,100)
-          : croak "Wrong number of arguments (".@_."), should be 2";
+   :        croak "Wrong number of arguments (".@_."), should be 2";
   my $k=log(1/$p)/log(2);           # k hash funcs
   my $m=-$n*log($p)/log(2)**2;      # m bits in filter
   return ($m+0.5,min($maxk,max($mink,int($k+0.5))));
@@ -8132,9 +9075,9 @@ sub _update_currency_file { #call from cron
   eval "require JSON;"; croak if $@;
   my $arr=JSON::decode_json($json);
   for my $c (qw(BTC LTC XBT ETH XRP BCH ETC)) {
-      my @a=grep$$_{symbol} eq $c,@$arr;
-      next if @a != 1 or !$a[0]{price_usd};
-      push @data, "$c ".($a[0]{price_usd}*$data{USD})."\n";
+    my @a=grep$$_{symbol} eq $c,@$arr;
+    next if @a != 1 or !$a[0]{price_usd};
+    push @data, "$c ".($a[0]{price_usd}*$data{USD})."\n";
   }
   #die srlz(\@data,'data');
   print $F sort(@data);
@@ -8164,21 +9107,22 @@ sub ext2mime {
   #return "application/json";#feks
 }
 
-sub base64 ($;$) { #
-  if ($] >= 5.006) {
+sub base64 ($;$$) { #
+  if ( $] >= 5.006 ) {
     require bytes;
     croak "base64 failed: only defined for bytes"
       if bytes::length($_[0]) > length($_[0])
       or $] >= 5.008 && $_[0] =~ /[^\0-\xFF]/
   }
-  my $eol=defined$_[1]?$_[1]:"\n";
+  my $wid=defined$_[1] ? $_[1] : 76;
+  my $eol=defined$_[2] ? $_[2] : "\n";
   my $res=pack("u",$_[0]);
   $res=~s/^.//mg;
   $res=~s/\n//g;
   $res=~tr|` -_|AA-Za-z0-9+/|;
   my $pad=(3-length($_[0])%3)%3;
   $res=~s/.{$pad}$/'=' x $pad/e if $pad;
-  $res=~s/(.{1,76})/$1$eol/g if length($eol); #todo !=76
+  $res=~s/(.{1,$wid})/$1$eol/g if length($eol);
   $res;
 }
 
@@ -8196,9 +9140,11 @@ sub unbase64 ($) {
 
 =head1 COMMANDS
 
+=head2 install_tools
+
 =head2 install_acme_command_tools
 
- sudo perl -MAcme::Tools -e install_acme_command_tools
+ sudo perl -MAcme::Tools -e install_tools
 
  Wrote executable /usr/local/bin/conv
  Wrote executable /usr/local/bin/due
@@ -8233,7 +9179,6 @@ Examples of commands then made available:
  2gz                           #same as z2z with -t gz
 
  rttop
- trunc file(s)
  wipe file(s)
 
 =head3 z2z
@@ -8256,8 +9201,9 @@ Keeps uid, gid, mode (chmod) and mtime.
  -v              Verbose, shows info on degree of compression and file
                  number if more than one file is being converted
  -o              Overwrites existing result file, otherwise stop with error msg
- -1 .. -9        Degree of compression, -1 fastest .. -9 best
- -e              With -t xz (or 2xz) passes -e to xz (-9e = extreme compression)
+ -1 .. -9        Degree or level of compression, -1 fastest .. -9 best
+ -e              With 2xz (or z2z -t xz) passes -e to xz
+                 (-9e = extreme compression and extremly slow and memory hungry)
 
  -L rate         With -p. Slow down, ex:  -L 200K  means 200 kilobytes per second
  -D sec          With -p. Only turn on progress meter (pv) after x seconds
@@ -8265,15 +9211,29 @@ Keeps uid, gid, mode (chmod) and mtime.
  -l              With -p. Line mode
  -I              With -p. Show ETA as time of arrival as well as time left
  -q              With -p. Quiet. Useful with -L to limit rate, but no output
+ -m 32           Skips converting .xz files to a different compression if mem usage is already
+                 >= 32 MiB. Level 1-9 corresponds to 2, 3, 5, 5, 9, 9, 17, 33, 65 MiB so -m 64
+                 recompresses xz files with compression level option -9 if it's not already at
+                 that level. -m currently only works for .xz (not .gz, .bz2 etc)
 
-The options -L -D -i -l -I -q implicitly turns on -p. Those options are passed
-through to pv. See: man pv.
+The options -L -D -i -l -I -q implicitly turns on -p and -q for pv unless -p
+(with or without -q is used). Those options are passed on to pv. See: C<man pv>
+
+Examples:
+
+Slowly turn .gz files into probably smaller .xz files while keeping times and ownerskip of files.
+The -L 100K (or lower) slows down the compression and cpu usage (i.e. to not start a laptop fan)
+
+ 2xz -pvL 100K big_files*.gz 
+ 2xz -pvkL 100K big_files*.gz  #same but -k keep the original .gz files
+ 2xz -9pv big_files*.xz        #convert already .xz files with maybe tighter compression (level 9)
 
 =head3 due
 
 Like C<du> command but views space used by file extentions instead of dirs. Options:
 
  due [-options] [dirs] [files]
+ due -?          todo: show this help
  due -h          View bytes "human readable", i.e. C<8.72 MB> instead of C<9145662 b> (bytes)
  due -k | -m     View bytes in kilobytes | megabytes (1024 | 1048576)
  due -K          Like -k but uses 1000 instead of 1024
@@ -8283,52 +9243,86 @@ Like C<du> command but views space used by file extentions instead of dirs. Opti
  due -A          Like -M, but access time instead (atime)
  due -P          Also show 10, 50 (medium) and 90 percentile of file date
  due -MP         Both -M and -P, shows min, 10p, 50p, 90p and max
+ #due -U         TODO: view top 5 users by size for each .ext
  due -a          Sort output alphabetically by extention (default order is by size)
  due -c          Sort output by number of files
  due -i          Ignore case, .GZ and .gz is the same, output in lower case
  due -t          Adds time of day to -M and -P output
  due -e 'regex'  Exclude files (full path) matching regex. Ex: due -e '\.git'
  TODO: due -l    TODO: Exclude hardlinks (dont count "same" file more than once, "man du")
+ TODO: -S        TODO: exclude for sparse files (like 'du')
  ls -l | due     Parses output of ls -l, find -ls, tar tvf for size+filename and reports
  find | due      List of filenames from stdin produces same as just command 'due'
  ls | due        Reports on just files in current dir without recursing into subdirs
 
 =head3 finddup
 
-Find duplicate files. Three steps to speed this up in case of many
-large files: 1) Find files of same size, 2) of those: find files with
-the same first 8 kilobytes, 3) of those: find duplicate files by
-finding the MD5sums of the whole files.
+Finds duplicate files. Does this in three steps to speed this up in case of
+many large files:
+
+=over 4
+
+=item step 1: collect files of the same size as files of different size can never be duplicates (share the same content)
+
+=item step 2: among those found in the previous step, find files with the same first 8 kilobytes (or the same n bytes if -P n is used as option)
+
+=item step 3: among those found in the previos step, find those files who share the same md5sum of the whole files. Those are deemed to be duplicates.
+
+=back
 
  finddup [-d -s -h] paths/ files/* ...  #reports (+deletes with -d) duplicate files
                                         #-s for symlinkings dups, -h for hardlink
- finddup <files>    # print duplicate files, <files> might be filenames and directories
- finddup -a <files> # print duplicate files, also print the first file
- finddup -d <files> # delete duplicate files, use -v to also print them before deletion
- finddup -s <files> # make symbolic links of duplicate files
- finddup -h <files> # make hard links of duplicate files
- finddup -v ...     # verbose, print before -d, -s or -h
+ finddup <files>        # print duplicate files, <files> might be filenames and directories
+ finddup -a <files>     # print duplicate files, also print the first file
+ finddup -d <files>     # delete duplicate files, use -v to also print them before deletion
+ finddup -s <files>     # make symbolic links of duplicate files
+ finddup -h <files>     # make hard links of duplicate files
+ finddup -v ...         # verbose, print before -d, -s or -h
  finddup -n -d <files>  # dry run: show rm commands without actually running them
- finddup -n -s <files>  # dry run: show ln commands to make symlinks of duplicate files todo:NEEDS FIX!
+ finddup -n -s <files>  # dry run: show ln commands to make symlinks of duplicate files TODO: need fix!
  finddup -n -h <files>  # dry run: show ln commands to make hard links of duplicate files
  finddup -q ...         # quiet
- finddup -k o           # keep oldest with -d, -s, -h, consider newer files duplicates
- finddup -k n           # keep newest with -d, -s, -h, consider older files duplicates
+ finddup -k o           # keep oldest with -d -s -h, consider the newer files to be the duplicates
+ finddup -k n           # keep newest with -d -s -h, consider the older files to be the duplicates
  finddup -k O           # same as -k o, just use access time instead of modify time
  finddup -k N           # same as -k n, just use access time instead of modify time
+ finddup -k s | l       # keep file with shortest | longest basename (filename), i.e. ...(1).txt
+ finddup -k a | z       # keep file (basename) alphanumerically sorted first | last
+ finddup -e <h|s>+      # TODO: exclude hardlinks|softlinks from being found
  finddup -0 ...         # use ascii 0 instead of the normal \n, for xargs -0
  finddup -P n           # use n bytes from start of file in 1st md5 check (default 8192)
+ finddup -m method      # TODO: method is all, md5 or sha256, default is md5
+                        # sha256 is slower but safer, different files can be
+                        # found to share the same MD5, but as of yet in 2020
+                        # no such collisions are known for SHA256
+ finddup -L rate        # TODO: uses `pv -L` to rate limit in (full?) file scans
+ finddup -S sec         # TODO: sleep seconds between each full file scan
+ finddup -3 | -2 | -1   # check up to step 1, 2 or 3 (default 3)
  finddup -p             # view progress in last and slowest of the three steps
+ finddup -z             # TODO: skip zero sized files
+ finddup                # TODO: without args, show this help
 
 Default ordering of files without C<-k n> or C<-k o> is the order they
 are mentioned on the command line. For directory args the order might be
 random: use C<< dir/* >> to avoid that (but then dot files are not included).
 
+Examples:
+
+ finddup . | due -h  # see disk space that can be freed by deleting duplicates or by turning them into soft or hard links
+ finddup -d .        # delete duplicates
+ finddup -v -d dir/  # delete and view duplicates in dir/
+ finddup -d *jpg     # delete duplicates among *jpg files in current dir
+ finddup -0ko . | xargs -0 rm -i
+                     #answer y/n to delete each file or not, 0 for problematic filenames, ko=keep oldest
+
 =cut
 
+#hm http://manpages.ubuntu.com/manpages/trusty/man1/rdfind.1.html  apt install rdfind      # rdfind - finds duplicate files
+
+sub install_tools { install_acme_command_tools() }
 sub install_acme_command_tools {
   my $dir=(grep -d$_, @_, '/usr/local/bin', '/usr/bin')[0];
-  for( qw( conv due xcat freq finddup ccmd trunc wipe rttop  z2z 2gz 2gzip 2bz2 2bzip2 2xz resubst zsize) ){
+  for( qw( conv due xcat freq finddup ccmd wipe rttop  z2z 2gz 2gzip 2bz2 2bzip2 2xz resubst zsize cilmd delsub anlz ) ){
     unlink("$dir/$_");
     writefile("$dir/$_", "#!$^X\nuse Acme::Tools;\nAcme::Tools::cmd_$_(\@ARGV);\n");
     sys("/bin/chmod +x $dir/$_"); #hm umask
@@ -8338,6 +9332,9 @@ sub install_acme_command_tools {
 sub cmd_conv { print conv(@ARGV)."\n"  }
 our @Due_fake_stdin;
 #TODO: output from tar tvf and ls and find -ls
+#TODO: argument .tar(.gz|xz|bz2|...), .zip, 7z(a) read from tar tvf etc
+#TODO: -G see greatest file, -L see least file (max and min bytes)
+#TODO: due *   #dykker i dirs ett nivaa?  -0, ..., -9 kunne bety maxdepth
 sub cmd_due {
   my %o;
   my @argv=opts("zkKmhciMCAPate:lE:t",\%o,@_);
@@ -8375,18 +9372,21 @@ sub cmd_due {
   }
   else { #hm DRY
     @argv=('.') if !@argv;
-    File::Find::find({follow=>0, wanted =>
-      sub {
-        return if !-f$_;
-        return if $qrexcl and defined $File::Find::name and $File::Find::name=~$qrexcl;
-        my($sz,$xtime)=(stat($_))[7,$x];
-        my $ext=m/$r/?$1:'';
-        $ext=lc($ext) if $o{i};
-        $cnt++;    $c{$ext}++;
-        $bts+=$sz; $b{$ext}+=$sz;
-        $xtime{$ext}.=",$xtime" if $o{M} || $o{C} || $o{A} || $o{P};
-	1;
-      } },@argv);
+    File::Find::find(
+      {
+        follow => 0,
+        wanted => sub {
+          return if !-f$_;
+          return if $qrexcl and defined $File::Find::name and $File::Find::name=~$qrexcl;
+          my($sz,$xtime)=(stat($_))[7,$x];
+          my $ext=m/$r/?$1:'';
+          $ext=lc($ext) if $o{i};
+          $cnt++;    $c{$ext}++;
+          $bts+=$sz; $b{$ext}+=$sz;
+          $xtime{$ext}.=",$xtime" if $o{M} || $o{C} || $o{A} || $o{P};
+          1;
+        }
+      },@argv);
   }
   my($f,$s)=$o{k}?("%14.2f kb",sub{$_[0]/1024})
            :$o{K}?("%14.2f Kb",sub{$_[0]/1000})
@@ -8407,7 +9407,7 @@ sub cmd_due {
       my $fmt=$o{t}?'YYYY/MM/DD-MM:MI:SS':'YYYY/MM/DD';
       @r=map tms($_,$fmt), @r;
       "  ".join(" ",@r);
-  };
+    };
   my $width=max( 10, grep $_, map length($_), @e );
   @e=@e[-10..-1] if $o{t} and @e>10; #-t tail
   printf("%-*s %8d $f %7.2f%%%s\n",$width,$_,$c{$_},&$s($b{$_}),100*$b{$_}/$bts,&$perc($_)) for @e;
@@ -8420,35 +9420,35 @@ sub cmd_resubst {
   if(exists$o{t}){ $o{t}=~s,\\,\$, } else { $o{t}='' }
   my($i,$tc,$tbfr,$tbto)=(0,0,0,0);
   for my $file (@argv){
-      my $zopt=join" ",map"-$_",grep$o{$_},split//,$zo;
-      my $oext=$o{o}?$o{o}:$file=~/\.(gz|bz2|xz)$/i?$1:'';
-      my $open_out_pre=$oext?"|".openstr_prog({qw/gz gzip bz2 bzip2 xz xz/}->{lc($oext)})." $zopt":'';
-      my $open_out="$open_out_pre > $file.tmp$$";
-      my $open_in=openstr($file);
-      #      die srlz(\%o,'o','',1);
-      open my $I, $open_in  or croak"ERR: open $open_in failed. $! $?\n";
-      open my $O, $open_out or croak"ERR: open $open_out failed. $! $?\n";
-      my $c=0;
-      my $mod=join"",grep$o{$_},qw(g i);
-      eval"while(<\$I>){ \$c+=s/\$o{f}/$o{t}/$mod;print \$O \$_ }";
-      $tc+=$c;
-      close($I);close($O);
-      chall($file,"$file.tmp$$") or croak"ERR: chall $file\n" if !$o{n};
-      my($bfr,$bto)=(-s$file,-s"$file.tmp$$");
-      unlink $file or croak"ERR: cant rm $file\n";
-      my $newfile=$o{o}?repl($file,qr/\.(gz|bz2|xz)$/i,".$oext"):$file;
-      rename("$file.tmp$$",$newfile) or croak"ERR: rename $file.tmp$$ -> $newfile failed\n";
-      if($o{v}){
-	my $pr=$bfr?100*$bto/$bfr:0;
-	printf "%*d/%d %*s %7d =>%8d b (%2d%%) %s\n",
-	  length(0+@argv), ++$i, 0+@argv, -15, "$tc/$c", $bfr, $bto, $pr, $file;
-	$tbfr+=$bfr;
-	$tbto+=$bto;
-      }
+    my $zopt=join" ",map"-$_",grep$o{$_},split//,$zo;
+    my $oext=$o{o}?$o{o}:$file=~/\.(gz|bz2|xz)$/i?$1:'';
+    my $open_out_pre=$oext?"|".openstr_prog({qw/gz gzip bz2 bzip2 xz xz/}->{lc($oext)})." $zopt":'';
+    my $open_out="$open_out_pre > $file.tmp$$";
+    my $open_in=openstr($file);
+    #      die srlz(\%o,'o','',1);
+    open my $I, $open_in  or croak"ERR: open $open_in failed. $! $?\n";
+    open my $O, $open_out or croak"ERR: open $open_out failed. $! $?\n";
+    my $c=0;
+    my $mod=join"",grep$o{$_},qw(g i);
+    eval"while(<\$I>){ \$c+=s/\$o{f}/$o{t}/$mod;print \$O \$_ }";
+    $tc+=$c;
+    close($I);close($O);
+    chall($file,"$file.tmp$$") or croak"ERR: chall $file\n" if !$o{n};
+    my($bfr,$bto)=(-s$file,-s"$file.tmp$$");
+    unlink $file or croak"ERR: cant rm $file\n";
+    my $newfile=$o{o}?repl($file,qr/\.(gz|bz2|xz)$/i,".$oext"):$file;
+    rename("$file.tmp$$",$newfile) or croak"ERR: rename $file.tmp$$ -> $newfile failed\n";
+    if($o{v}){
+      my $pr=$bfr?100*$bto/$bfr:0;
+      printf "%*d/%d %*s %7d =>%8d b (%2d%%) %s\n",
+      length(0+@argv), ++$i, 0+@argv, -15, "$tc/$c", $bfr, $bto, $pr, $file;
+      $tbfr+=$bfr;
+      $tbto+=$bto;
+    }
   }
   if($o{v} and @argv>1){
-      printf "Replaces: %d  Bytes before: %d  After: %d   Change: %.1f%%\n",
-        $tc, $tbfr, $tbto, $tbfr?100*($tbto-$tbfr)/$tbfr:0
+    printf "Replaces: %d  Bytes before: %d  After: %d   Change: %.1f%%\n",
+           $tc, $tbfr, $tbto, $tbfr?100*($tbto-$tbfr)/$tbfr:0
   }
   $tc;
 }
@@ -8462,12 +9462,38 @@ sub cmd_xcat {
   }
 }
 sub cmd_freq {
+  my%o; #my @argv=opts("H",\%o,@_);
+  if(@ARGV and $ARGV[0] eq '-H'){$o{H}++;shift@ARGV}
   my(@f,$i);
-  map $f[$_]++, unpack("C*",$_) while <>;
-  my $s=" " x 12;map{print"$_$s$_$s$_\n"}("BYTE  CHAR   COUNT","---- ----- -------");
-  my %m=(145,"DOS-æ",155,"DOS-ø",134,"DOS-å",146,"DOS-Æ",157,"DOS-Ø",143,"DOS-Å",map{($_," ")}0..31);
-  printf("%4d %5s%8d".(++$i%3?$s:"\n"),$_,$m{$_}||chr,$f[$_]) for grep$f[$_],0..255;print "\n";
-  my @no=grep!$f[$_],0..255; print "No bytes for these ".@no.": ".join(" ",@no)."\n";
+  map $f[$_]++, unpack("C*",$_) while <>; #todo: fix "out of memory" (for large files without \n)
+  my @b=grep$f[$_],0..255;
+  my $c=$^O eq 'linux'?`tput cols`||75:75; $c=min(int(($c+10)/(18+10)),0+@b);
+  my $s=" " x 10; map{print join($s,($_)x$c),"\n"}("BYTE  CHAR   COUNT","---- ----- -------"); #len 18
+  my %m=(145,"DOS-æ",155,"DOS-ø",134,"DOS-å",146,"DOS-Æ",157,"DOS-Ø",143,"DOS-Å",127,'DEL  ',map{($_," ")}0..31);
+  my $fmt=$o{H}?"%02X   %5s%8d":"%4d %5s%8d";
+  printf($fmt.(++$i%$c?$s:"\n"),$_,$m{$_}||chr,$f[$_]) for @b; print"\n";
+  my @no; @no&&$no[-1][-1]+1==$_?push(@{$no[-1]},$_):push(@no,[$_]) for grep!$f[$_],0..255;
+  my $info=@no?"No bytes of: ".join(",",map @$_>1?"$$_[0]-$$_[-1]":$$_[0],@no)
+              :"All bytes 0-255 are found";
+  $info=~s/\d+/sprintf"%02X",$&/ge if $o{H};
+  print"$info\n";  
+}
+sub cmd_anlz {
+  my%o;
+  my @argv=opts("zqs", \%o, @_);
+  my($l,$c,$b)=(0,0,0);
+  require bytes;
+  while(<>){
+      print if !$o{'q'}; #quiet
+      $l++;
+      $c+=length($_);
+      $b+=bytes::length($_);
+  }
+  print "Sum columns...\n" if $o{'s'};
+  print "Lines: $l   Chars: $c   Bytes: $b   Empty lines:   Whitespace lines: Line lengths: avg= median= max= percs 10 25 75 90=\n";
+  #print"mix of utf8 and iso88591?" if ...
+  #print info from `file`
+  #print ...anlz_compressability...gzip bytes of first, mid and last x lines? if $o{'z'};
 }
 sub cmd_deldup {
   cmd_finddup('-d',@_);
@@ -8476,8 +9502,9 @@ sub cmd_finddup {
   # http://www.commandlinefu.com/commands/view/3555/find-duplicate-files-based-on-size-first-then-md5-hash
   # die "todo: finddup not ready yet"
   my %o;
-  my @argv=opts("ak:dhsnqv0P:FMRp",\%o,@_); $o{P}=1024*8 if!defined$o{P}; $o{k}='' if!defined$o{k};
+  my @argv=opts("ak:dhsnqv0P:FRp123z",\%o,@_); $o{P}=1024*8 if!defined$o{P}; $o{k}='' if!defined$o{k};
   croak"ERR: cannot combine -a with -d, -s or -h" if $o{a} and $o{d}||$o{s}||$o{h};
+  croak"ERR: cannot combine -1, -2 or -3" if 1<grep$o{$_},1..3;
   require File::Find;
   @argv=map{
       my @f;
@@ -8485,8 +9512,10 @@ sub cmd_finddup {
       else    { @f=($_) }
       @f;
   }@argv;
+  @argv=grep -s$_, @argv if $o{z};
   my %md5sum;
-  my $md5sum=sub{$md5sum{$_[0]}=md5sum($_[0]) if!defined$md5sum{$_[0]}}; #memoize
+ #my $md5sum=sub{$md5sum{$_[0]}//=md5sum($_[0])}; #memoize //= is v5.10 and later
+  my $md5sum=sub{$md5sum{$_[0]}=md5sum($_[0]) if!defined$md5sum{$_[0]};$md5sum{$_[0]}}; #memoize
   my $md5sum_1st_part=sub{
       open my $fh, "<", $_[0] or die "ERR: Could not read $_[0]";
       binmode($fh);
@@ -8499,7 +9528,7 @@ sub cmd_finddup {
       sub{-s$_[0]<=$o{P}?md5sum($_[0]):&$md5sum_1st_part($_[0])},
       sub{md5sum($_[0])}
   );
-  pop @checks if $o{M}; #4tst
+  splice@checks,$o{1}?1:$o{2}?2:3;
   my $i=0;
   my %s=map{($_=>++$i)}@argv; #sort
   my %f=map{($_=>[$_])}@argv; #also weeds out dupl params
@@ -8509,12 +9538,12 @@ sub cmd_finddup {
       my $sum=@f?sum(map -s$_,@f):0;
       my($corg,$cnt,$cntmb,$mb)=($c,0,0,$sum/1e6);
       $c=sub{
-	  $cntmb+=(-s$_[0])/1e6;
-	  my $eol=++$cnt==@f?"\n":"\r";
-	  print STDERR sprintf("%d/%d files checked (%d%%), %d/%d MB (%d%%), ETA in %d sec       $eol",
-			       $cnt, 0+@f, 100*$cnt/@f, $cntmb, $mb, 100*$cntmb/$mb,
-			       curb(nvl(eta($cnt,0+@f),time)-time(),0,1e7));
-	  &$corg(@_)
+      $cntmb+=(-s$_[0])/1e6;
+      my $eol=++$cnt==@f?"\n":"\r";
+      print STDERR sprintf("%d/%d files checked (%d%%), %d/%d MB (%d%%), ETA in %d sec       $eol",
+                   $cnt, 0+@f, 100*$cnt/@f, $cntmb, $mb, 100*$cntmb/$mb,
+                   curb(nvl(eta($cnt,0+@f),time)-time(),0,1e7));
+      &$corg(@_)
       };
     }
     my %n; push @{$n{&$c($_)}}, $_ for @f;
@@ -8524,10 +9553,16 @@ sub cmd_finddup {
   return %f if $o{F};
   my@r=sort{$s{$$a[0]}<=>$s{$$b[0]}}values%f;
   my $si={qw(o 9 n 9 O 8 N 8)}->{$o{k}}; #stat index: 9=mtime, 8=atime
-  my $sort=lc$o{k} eq 'o' ? sub{sprintf"%011d%9d",     (stat($_[0]))[$si],$s{$_[0]}}
-          :lc$o{k} eq 'n' ? sub{sprintf"%011d%9d",1e11-(stat($_[0]))[$si],$s{$_[0]}}
-          :                 sub{sprintf     "%9d",                        $s{$_[0]}};
-  @$_=map$$_[1],sort{$$a[0]cmp$$b[0]}map[&$sort($_),$_],@$_ for @r;
+  my $sort=lc$o{k} eq 'o' ? sub{sprintf"%011d%9d",     (stat($_[0]))[$si]     ,$s{$_[0]}}
+          :lc$o{k} eq 'n' ? sub{sprintf"%011d%9d",1e11-(stat($_[0]))[$si]     ,$s{$_[0]}}
+          :  $o{k} eq 's' ? sub{sprintf"%011d%9d",     length(basename($_[0])),$s{$_[0]}}
+          :  $o{k} eq 'l' ? sub{sprintf"%011d%9d",1e11-length(basename($_[0])),$s{$_[0]}}
+          :  $o{k} eq 'a' ? sub{sprintf"%-1000s%9d", basename($_[0]),          $s{$_[0]}}
+          :  $o{k} eq 'z' ? sub{sprintf"%-1000s%9d", basename($_[0]),      9e8-$s{$_[0]}}
+          :                 sub{sprintf     "%9d",                             $s{$_[0]}};
+  if($o{k} eq 'z'){  @$_=map$$_[1],sort{$$b[0]cmp$$a[0]}map[&$sort($_),$_],@$_ for @r }
+  else            {  @$_=map$$_[1],sort{$$a[0]cmp$$b[0]}map[&$sort($_),$_],@$_ for @r }
+
   my %of; #dup of
   for my $r (@r){
       $of{$_}=$$r[0] for @$r[1..$#$r];
@@ -8564,15 +9599,13 @@ sub cmd_ccmd {
   print STDERR "".readfile($fne);
 }
 
-sub cmd_trunc { die "todo: trunc not ready yet"} #truncate a file, size 0, keep all other attr
-
 #todo:   wipe -n 4 filer*   #virker ikke! tror det er args() eller opts() som ikke virker
 sub cmd_wipe  {
   my %o;
-  my @argv=opts("n:k0123456789",\%o,@_);
+  my @argv=opts("n:k0123456789p",\%o,@_);
   die if 1<grep exists$o{$_},'n',0..9;
   $o{$_} and $o{n}=$_ for 0..9;
-  wipe($_,$o{n},$o{k}) for @argv;
+  wipe($_,$o{n},$o{k},$o{p}) for @argv;
 }
 
 sub which { my $prog=shift; -x "$_/$prog" and return "$_/$prog" for split /:/, $ENV{PATH} }
@@ -8584,13 +9617,26 @@ sub cmd_2bzip2 {cmd_z2z("-t","bz2",@_)}
 sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
 #todo: sub cmd_7z
 #todo: .tgz same as .tar.gz (but not .tbz2/.txz)
+#todo:
+#  2xz -9pvkL 100K big_fat_file.tar.gz  # -L100K for slow compress (ie dont start laptop fan)
+#  pv: -L: integer argument expected
+#  gzip: stdin: unexpected end of file
+#    1/2   ETA:-0.0000260s 0.0%      900493585 b =>          32 b webdok.20200508.tar.xz
+#    2 files compressed in 0.076 seconds from 900493585 to 32 bytes  (-900493553 bytes) 0.0% of original
+#=> FILEN BORTE!
+#2xz -9pv *gz
+#Converting 2 files, total 7.22 MB
+#gzip: stdin: not in gzip format
+#=> FILENE BORTE!
+
+
 sub cmd_z2z {
   my %o;
   my $pvopts="L:D:i:lIq";
-  my @argv=opts("pt:kvhon123456789es:$pvopts",\%o,@_);
+  my @argv=opts("pt:kvhon123456789es:Tm:".$pvopts, \%o, @_);
   my $t=repl(lc$o{t},qw/gzip gz bzip2 bz2/);
   die "due: unknown compression type $o{t}, known are gz, bz2 and xz" if $t!~/^(gz|bz2|xz)$/;
-  $o{p}=1 if!defined$o{p} and grep$pvopts=~/$_/,keys%o;
+  $o{p}=$o{q}=1 if!defined$o{p} and grep$pvopts=~/$_/,keys%o; # pvopts implies -p -q (quiet pv if -L++ wo -p)
   delete $o{e} if $o{e} and $o{t} ne 'xz' and warn "-e available only for type xz\n";
   my $sum=sum(map -s$_,@argv);
   print "Converting ".@argv." files, total ".bytes_readable($sum)."\n" if $o{v} and @argv>1;
@@ -8604,13 +9650,15 @@ sub cmd_z2z {
 
   my $sumnew=0;
   my $start=time_fp();
-  my($i,$bsf)=(0,0);#bytes so far
+  my($done,$bsf)=(0,0);#bytes so far
   $Eta{'z2z'}=[];eta('z2z',0,$sum);
   #@argv=map$$_[1],sort{$$a[0]cmp$$b[0]}map{[$opt{
   for(@argv){
+    next if defined$o{m} and /\.xz$/ and $t eq 'xz' and (max(qx(xz -lvv "$_")=~/(\d+) *MiB/g)=~/.*/?$&:die)>=$o{m} and warn "$_ already have level (mem) $&, skipping\n";
     my $new=$_; $new=~s/(\.(gz|bz2|xz))?$/.$t/i or die;
     my $ext=defined($2)?lc($2):'';
-    my $same=/^$new$/; $new.=".tmp" if $same; die if $o{k} and $same;
+    my $same=$_ eq $new;
+    $new.=".tmp.$t" if $same; die if $o{k} and $same;
     next if !-e$_ and warn"$_ do not exists\n";
     next if !-r$_ and warn"$_ is not readable\n";
     next if -e$new and !$o{o} and warn"$new already exists, skipping (use -o to overwrite)\n";
@@ -8619,17 +9667,18 @@ sub cmd_z2z {
     #todo: my $cnt="tee >(wc -c>$cntfile)" if $ENV{SHELL}=~/bash/ and $o{v}; #hm dash vs bash
     my $z=  {qw/gz gzip   bz2 bzip2   xz xz/}->{$t};
     $z.=" -$_" for grep$o{$_},1..9,'e';
-    $z.=" -$_ $o{$_}" for grep exists$o{$_},'L';
+   #$z.=" -$_ $o{$_}" for grep exists$o{$_},'L';
     my $cmd=qq($cat "$_"|$unz|$z>"$new");
      #todo: "$cat $_|$unz|$cnt|$z>$new";
     #cat /tmp/kontroll-linux.xz|unxz|tee >(wc -c>/tmp/p)|gzip|wc -c;cat /tmp/p
-    $cmd=~s,\|+,|,g; #print "cmd: $cmd\n";
+    $cmd=~s,\|+,|,g; #hm print "cmd: $cmd\n";
     sys($cmd);
     chall($_,$new) or croak("$0 cannot chmod|chown|touch $new") if !$o{n};
     my($szold,$sznew)=map{-s$_}($_,$new);
+    cmd_z2z_test($_,$new) or croak "ERR: Md5 of $_ and $new dont match" if $o{T} or $sznew<50;
     $bsf+=-s$_;
     unlink $_ if !$o{k};
-    rename($new, replace($new,qr/.tmp$/)) or die if $same;
+    rename($new, replace($new,qr/.tmp.$t$/)) or die if $same;
     if($o{v}){
       $sumnew+=$sznew;
       my $pr=sprintf"%0.1f%%",$szold?100*$sznew/$szold:0;
@@ -8639,28 +9688,37 @@ sub cmd_z2z {
       my $str= $o{h}
       ? sprintf("%-7s %9s => %9s",       $pr,(map bytes_readable($_),$szold,$sznew))
       : sprintf("%-7s %11d b => %11d b", $pr,$szold,$sznew);
+      $done++;
       if(@argv>1){
-	$i++;
-	$str=$i<@argv
-            ? "  ETA:".sprintf("%-8s",sec_readable(eta('z2z',$bsf,$sum)-time_fp()))." $str"
-	    : "   TA: 0s $str"
-	  if $sum>1e6;
-        $str="$i/".@argv." $str";
+        my $eta=sprintf "  ETA: %-8s", sec_readable(eta('z2z',$bsf,$sum)-time_fp());
+        $str=sprintf("%-11s ",$done<@argv?$eta:"").$str if $sum>1e5;
+        $str="$done/".@argv." $str";
       }
       print "$str $new\n";
+      sleep_fp($o{s}) if exists$o{s} and $o{s}>0 and $done<@argv;
     }
   }
   if($o{v} and @argv>1){
-      my $bytes=$o{h}?'':'bytes ';
-      my $str=
-        sprintf "%d files compressed in %.3f seconds from %s to %s $bytes (%s bytes) %.1f%% of original\n",
-	  0+@argv,
-	  time_fp()-$start,
-	  (map{$o{h}?bytes_readable($_):$_}($sum,$sumnew,$sumnew-$sum)),
-	  100*$sumnew/$sum;
+    my $bytes=$o{h}?'':'bytes ';
+    my $str=sprintf "%d files compressed in %.3f seconds from %s to %s $bytes (%s bytes) %.1f%% of original\n",
+      0+@argv,
+      time_fp()-$start,
+      (map{$o{h}?bytes_readable($_):$_}($sum,$sumnew,$sumnew-$sum)),
+      100*$sumnew/$sum;
       $str=~s,\((\d),(+$1,;
       print $str;
   }
+}
+sub cmd_z2z_test {
+    my($old,$new)=@_;
+    my $md5=sub{
+        my $fn=shift;
+        return 0 if $fn!~/\.(gz|bz2|xz)$/i;
+        return 1 if qx(file "$fn")!~/compressed data/;
+        require Digest::MD5; open my $fh, openstr($fn) or die; binmode($fh);
+        return Digest::MD5->new->addfile($fh)->hexdigest
+    };
+    &$md5($old) eq &$md5($new)
 }
 
 =head2 args
@@ -8677,46 +9735,46 @@ switch takes an argument.
 =cut
 
 sub args {
-    my $switches=shift;
-    my $hashref=shift;
-    my $re_sw='^([a-z0-9]:?)+$';
-    croak "ERR: args: first arg $switches dont match $re_sw\n" if $switches !~ /$re_sw/i;
-    croak "ERR: second arg to args() not hashref\n" if ref($hashref) ne 'HASH';
-    local @ARGV=@_;
-    require Getopt::Std;
-    Getopt::Std::getopts($switches => $hashref);
-    (@ARGV);
+  my $switches=shift;
+  my $hashref=shift;
+  local @ARGV=@_;
+  my $re_sw='^([a-z0-9]:?)+$';
+  croak "ERR: args: first arg $switches dont match $re_sw\n" if $switches !~ /$re_sw/i;
+  croak "ERR: second arg to args() not hashref\n" if ref($hashref) ne 'HASH';
+  require Getopt::Std;
+  Getopt::Std::getopts($switches => $hashref);
+  (@ARGV);
 }
 
 sub opts {
-    my($def, $hashref, @a)=@_;
-    @a=@ARGV if @_<=2;
-    my %def=map{/(\w)(:?)/;($1=>$2?2:1)}$def=~/(\w:?)/g;
-    my $o1=join"",grep$def{$_}==1,sort keys%def;
-    my $o= join"",                sort keys%def;
-    my @r;
-    while(@a){
-	my $a=shift(@a);
-	if($a=~/^-([$o1])([$o].*)$/){
-	    unshift@a,"-$1","-$2";
-	}
-	elsif($a=~/^-(\w)(.*)$/){
-	    my $d=$def{$1}//0;
-	    push@{$$hashref{$1}},$d==1 && length($2) ? croak"opt -$1 has no arg (is $2 here)"
-		                :$d==1               ? 1
-				:$d==2 && length($2) ? $2
-				:$d==2               ? shift(@a)
-				:croak"unknown opt -$1";
-	}
-	elsif($a eq '--'){
-	    last;
-	}
-	else {
-	    push @r, $a;
-	}
+  my($def, $hashref, @a)=@_;
+  @a=@ARGV if @_<=2;
+  my %def=map{/(\w)(:?)/;($1=>$2?2:1)}$def=~/(\w:?)/g;
+  my $o1=join"",grep$def{$_}==1,sort keys%def;
+  my $o= join"",                sort keys%def;
+  my @r;
+  while(@a){
+    my $a=shift(@a);
+    if($a=~/^-([$o1])([$o].*)$/){
+      unshift@a,"-$1","-$2";
     }
-    $_=join",",@$_ for values %$hashref;
-    (@r,@a)
+    elsif($a=~/^-(\w)(.*)$/){
+      my $d=$def{$1}//0;
+      push@{$$hashref{$1}},$d==1 && length($2) ? croak"opt -$1 has no arg (is $2 here)"
+          :$d==1               ? 1
+          :$d==2 && length($2) ? $2
+          :$d==2               ? shift(@a)
+          :croak"unknown opt -$1";
+    }
+    elsif($a eq '--'){
+      last;
+    }
+    else {
+      push @r, $a;
+    }
+  }
+  $_=join",",@$_ for values %$hashref;
+  (@r,@a)
 }
 
 #cat Tools.pm|perl -I. /usr/local/bin/zsize -tp
@@ -8724,32 +9782,33 @@ sub opts {
 #cat Tools.pm|perl -I. /usr/local/bin/zsize -tp Tools.pm
 sub cmd_zsize {
   my %o;
-  my @argv=opts("heEpts",\%o,@_);
+  my @argv=args("heEptsGPBXZR",\%o,@_);  
   my $stdin=!@argv || join(",",@argv) eq '-';
   @argv=("/tmp/acme-tools.$$.stdin") if $stdin;
   writefile($argv[0],join("",<STDIN>)) if $stdin;
-  my @prog=grep qx(which $_), qw(gzip bzip2 xz zstd brotli);
+  my @prog=grep qx(which $_), map lc, grep/[A-Z]/&&!$o{$&}, qw(Gzip Pigz Bzip2 Xz Zstd bRotli Lz4);
   for my $f (@argv){
       my $sf=-s$f;
       print "--- $f does not exists\n" and next if !-e$f;
       print "--- $f is not a file\n" and next if !-f$f;
       print "--- $f ($sf b) is not readable\n" and next if !-r$f;
-      print "--- $sf b  ".bytes_readable($sf)."  ".($stdin?"-":$f)."\n";
+      print "--- $sf b".($sf>1000?" = ".bytes_readable($sf):"")."  ".($stdin?"-":$f)."\n";
       next if !$sf;
       my(@t,@s);
       for my $prog (@prog){
           next if !qx(which $prog);
           my @l=1..9;
-          push @l,map"e$_",1..9 if $prog eq 'xz' and $o{e};
-          @l=map"e$_",1..9      if $prog eq 'xz' and $o{E};
-          @l=map 10+$_,@l       if $prog eq 'zstd';
-          @l=map"q $_",3..11    if $prog eq 'brotli';
+          push @l,map"e$_",1..9             if $prog eq 'xz' and $o{e};
+          @l=map"e$_",1..9                  if $prog eq 'xz' and $o{E};
+          @l=map 2*$_,@l                    if $prog eq 'zstd' and !$o{e};
+          @l=(1,3..19)                      if $prog eq 'zstd' and  $o{e};
+          @l=map"q $_",0,1,3,5,7,8,9,10,11  if $prog eq 'brotli';
           printf "%-6s",$prog;
           push @t, $prog, [] if $o{t};
           push @s, $prog, [] if $o{p} and $o{s};
           for my $l (@l){ #level
               my $t=time_fp();
-              my $b=qx(cat $f|$prog -$l|wc -c);
+              my $b=qx(cat $f|$prog -$l|wc -c)/1;
               push@{$t[-1]},time_fp()-$t if $o{t};
               push@{$s[-1]},$b           if $o{p} and $o{s};
               $o{p} ? printf("%9.1f%% ",100*$b/$sf)
@@ -8766,10 +9825,47 @@ sub cmd_zsize {
           printf "%-6s",shift@t;
           printf "%9.3fs ",$_ for @{shift@t}; print "\n";
       }
+      print "\n";
   }
   unlink $argv[0] if $stdin;
 }
 
+our $Cmd_cilmd_silenzio=0;
+
+sub cmd_cilmd   {
+    my $ci=which('ci');
+    warn "cilmd: ci not installed?! Try   sudo yum install rcs   on redhat/centos or   sudo apt install rcs   on ubuntu/debian.\n" if !-x$ci;
+    my @err;
+    for(@_){
+        warn "cilmd: $_ dont exists\n"   and next if !-e$_;
+        warn "cilmd: $_ is not a file\n" and next if !-f$_;
+        my @v=grep -f$_,"$_,v",s|[^/]+$|RCS/$&|r;
+        warn "cilmd: both ".join(' and ',@v)." found, skipping\n" and next if @v>1;
+        my @stat=stat;
+        my $cmd="$ci -l -m. -d $_";
+        $cmd=~s/^/echo .|/ if !@v;
+        $cmd.=" 2> /dev/null" if $Cmd_cilmd_silenzio and $^O eq 'linux'; #hm
+        eval{ sys($cmd) };
+        push @err, [$_,$@] if $@;
+        #warn "cilmd: @v not updated"...
+        chall(\@stat,$_);
+    }
+    print "---------- $$_[0]\n$$_[1]" for @err;
+    exit 1 if @err;
+}
+sub cmd_delsub {
+    my %o;
+    my @argv=args("s:i:d",\%o,@_);
+    croak if !exists$o{s} or $o{s}!~/^(\w+,?)*$/;
+    croak if exists$o{i} and $o{i}!~/^\.?\w+$/;
+    my $r=$o{s}; $r=~s/,/|/g;
+    for my $f (@argv){
+        my $c=readfile($f);
+        $c=~s/^([ \t]*)sub\s+($r)\b.+?^\1}/$o{d}?"$1sub $2 {die qq(sub $2 deleted)}":""/smge;
+        rename $f, "$f$o{i}" if exists$o{i};
+        writefile($f,$c);
+    }
+}
 sub cmd_rttop   { die "rttop: not implemented here yet.\n" }
 sub cmd_whichpm { die "whichpm: not implemented here yet.\n" } #-a (all, inkl VERSION og ls -l)
 sub cmd_catal   { die "catal: not implemented here yet.\n" } #-a (all, inkl VERSION og ls -l)
@@ -8804,12 +9900,15 @@ sub dtype {
   my $connstr=shift;
   return 'SQLite' if $connstr=~/(\.sqlite|sqlite:.*\.db)$/i;
   return 'Oracle' if $connstr=~/\@/;
-  return 'Pg' if 1==2;
+  return 'Pg'     if 1==2;
   die;
 }
 
 our($Dbh,@Dbh,%Sth);
-our %Dbattr=(RaiseError => 1, AutoCommit => 0); #defaults
+our %Dbattr=(RaiseError => 1,
+             AutoCommit => 0,
+             FetchHashKeyName => 'NAME_lc'
+            ); #defaults
 sub dlogin {
   my $connstr=shift();
   my %attr=(%Dbattr,@_);
@@ -8817,12 +9916,15 @@ sub dlogin {
   my($dsn,$u,$p)=('','','');
   if($type eq 'SQLite'){
     $dsn=$connstr;
+    $attr{sqlite_see_if_its_a_number}=1; #hm $DBD::SQLite::VERSION gt '1.32_02'
+    $attr{sqlite_unicode}=1;
+    #later: $dbh->{sqlite_see_if_its_a_number}=1; #hm better? if $DBD::SQLite::VERSION gt '1.32_02'
   }
   elsif($type eq 'Oracle'){
     ($u,$p,$dsn)=($connstr=~m,(.+?)(/.+?)?\@(.+),);
   }
   elsif($type eq 'Pg'){
-    croak "todo";
+    croak "todo: Pg support";
   }
   else{
     croak "dblogin: unknown database type for connection string $connstr\n";
@@ -8837,16 +9939,43 @@ sub dlogout {
   $Dbh=pop@Dbh if @Dbh;
 }
 sub drow {
-  my($q,@b)=_dattrarg(@_);
+  #my($q,@b)=_dattrarg(@_);
+  my($q,@b)=@_;
   #my $sth=do{$Sth{$Dbh,$q} ||= $Dbh->prepare_cached($q)};
   my $sth=$Dbh->prepare_cached($q);
   $sth->execute(@b);
   my @r=$sth->fetchrow_array;
   $sth->finish if $$Dbh{Driver}{Name} eq 'SQLite';
   #$dbh->selectrow_array($statement);
-  return @r==1?$r[0]:@r;
+  @r==1 ? $r[0] : @r;
 }
 sub drows {
+  my($sel,@bind)=@_;
+  $sel=~s/^\w+$/select * from $&/;
+  wantarray ? drowsh($sel,@bind)
+            : drowsa($sel,@bind) ;
+}
+sub drowsh {
+  my($sel,@bind)=@_;
+  my $sth=$Dbh->prepare_cached($sel);
+  $sth->execute(@bind);
+  my @n=map"\u$_",@{$sth->{'NAME_lc'}};
+  my @rows;
+  while(my @r=$sth->fetchrow_array){
+    my %r; @r{@n}=@r;
+    push@rows,\%r;
+  }
+  @rows
+}
+sub drowsa {
+  my($sel,@bind)=@_;
+  my $sth=$Dbh->prepare_cached($sel);
+  $sth->execute(@bind);
+  my @rows;
+  while(my @r=$sth->fetchrow_array){
+    push@rows,\@r;
+  }
+  \@rows
 }
 sub drowc {
 }
@@ -8854,18 +9983,48 @@ sub drowsc {
 }
 sub dcols {
 }
+our %Dpk;
 sub dpk {
+    my $tbl=shift;
+    @{ $Dpk{$tbl} //= do{
+        my $type=$$Dbh{Driver}{Name};
+        if($type eq 'SQLite'){
+            die if $tbl!~/^\w+$/;
+            my $s="select name from pragma_table_info('$&') where pk>0 order by pk";
+            my @t=map"\u$$_[0]",@{$Dbh->selectall_arrayref($s)}; #die srlz(\@t,'t');
+            \@t
+        }
+        #elsif($type eq 'Oracle'){}
+        #elsif($type eq 'Pg'){}
+        else {die"dpk: not implemented for database type '$type'"}
+    }};
 }
 sub dsel {
 }
+#todo: implement CREATE X IF NOT EXISTS and DROP Y IF EXISTS for oracle like in sqlite+pg
 sub ddo {
   my @arg=_dattrarg(@_);
   #warn serialize(\@arg,'arg','',1);
   $Dbh->do(@arg); #hm cache?
 }
 sub dins {
+  my $tbl=shift;
+  return if !@_;
+  my @col=sort(keys%{$_[0]});
+  my $cols=join',',@col;
+  my $qms=join',',map'?',@col;
+  my $sth=$Dbh->prepare_cached("insert into $tbl ($cols) values ($qms)");
+  $sth->execute(@$_{@col}) for @_;
 }
 sub dupd {
+    my $tbl=shift;
+    return if !@_;
+    my @pk=dpk($tbl);
+    my @col=sort(grep!in($_,@pk),keys%{$_[0]});
+    my $sets=join',',map"$_=?",@col;
+    my $where=join' and ',map"$_=?",@pk;
+    my $sth=$Dbh->prepare_cached("update $tbl set $sets where $where");
+    $sth->execute(@$_{@col},@$_{@pk}) for @_;
 }
 sub ddel {
 }
@@ -8925,6 +10084,8 @@ sub sum      { &Acme::Tools::bfsum      }
 
 # Ny versjon:
 # - git clone https://github.com/kjetillll/Acme-Tools.git
+# - git fetch
+# - git checkout v0.28  #or whatever the remote branch name is, check for "remote" in output
 # - c-s todo
 # - endre $VERSION
 # - endre Release history under HISTORY
@@ -8940,7 +10101,8 @@ sub sum      { &Acme::Tools::bfsum      }
 # - perlbrew exec "perl Makefile.PL && make test" | grep -P '^(perl-|All tests successful)'
 # - perlbrew use perl-5.10.1; perl Makefile.PL && make test; perlbrew off
 # - test evt i cygwin og mingw-perl
-# - pod2html Tools.pm > Tools.html ; firefox Tools.html
+# - pod2html Tools.pm > Tools.html && chromium-browser Tools.html
+# - pod2html Tools.pm > Tools.html && firefox          Tools.html
 # - https://metacpan.org/pod/Acme::Tools
 # - http://cpants.cpanauthors.org/dist/Acme-Tools   #kvalitee
 # - perl Makefile.PL && make test && make dist
@@ -8950,11 +10112,18 @@ sub sum      { &Acme::Tools::bfsum      }
 # - git status
 # - git commit -am versjon
 # - git push                    #eller:
-# - git push origin master
+# - git push origin master      #eller:
+# - git push -u origin v0.28
 # - http://pause.perl.org/
-# - tegnsett/utf8-kroell
+# - UTF-8-feil: finn ikke-utf8-tegn og fjern de i emacs: diff Tools.pm <(iconv -f utf-8 -t utf-8 -c Tools.pm)
+# - fjern TAB ?
 # - https://rt.cpan.org/Dist/Display.html?Queue=Acme-Tools
+# - grep '//=' Tools.pm t/*.t  #v5.10 and later
+# - Failed test 'pwgen croak works: pwgen timeout or max trials reached, trials: 3 time: 1.00135803222656e-05 sec at t/25_pwgen.t line 14.'
+#   at t/25_pwgen.t line 14.
 # http://en.wikipedia.org/wiki/Birthday_problem#Approximations
+# todo: undersøk perl-Module-Signature støttet av rhel9 og {/usr,}/bin/prove i perlcore siden lenge
+# todo: undersøk https://en.wikipedia.org/wiki/Merkle_tree
 
 # memoize_expire()           http://perldoc.perl.org/Memoize/Expire.html
 # memoize_file_expire()
@@ -9003,6 +10172,13 @@ sub sum      { &Acme::Tools::bfsum      }
 
 Release history
 
+ 0.28  Feb 2025   tablestring_box, graph_scc, opts, huffman,
+                  huffman_pack, huffman_unpack, push_srand, pop_srand, julian_day
+                  brex gini comb csv uncsv dec2fraq factor gini graph_scc
+                  hpush hpop is_prime julian_day l2u u2l geohash geohash2latlon
+                  pluscode pluscode2latlon pluscode_short pluscode_short2latlon OLC
+                  push_srand pop_srand random_exp random_poisson tablestring_box
+
  0.27  Feb 2020   Small fixes for some platforms
 
  0.26  Jan 2020   Convert subs: base bin2dec bin2hex bin2oct dec2bin dec2hex dec2oct
@@ -9010,7 +10186,7 @@ Release history
                   Array subs: joinr perm permute permute_continue pile sortby subarrays
                   Other subs: btw in_iprange ipnum_ok iprange_ok opts s2t
 
- 0.24  Feb 2019   fixed failes on perl 5.16 and older
+ 0.24  Feb 2019   fixed fails on perl 5.16 and older
 
  0.23  Jan 2019   Subs: logn, egrep, which. More UTF-8 "oriented" (lower, upper, ...)
                   Commands: zsize, finddup, due (improved), conv (improved, [MGT]?Wh
@@ -9049,10 +10225,10 @@ Kjetil Skotheim, E<lt>kjetil.skotheim@gmail.comE<gt>
 
 =head1 COPYRIGHT
 
-2008-2020, Kjetil Skotheim
+2008-2025, Kjetil Skotheim
 
 =head1 LICENSE
 
 This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
-
-=cut
+=
+cut

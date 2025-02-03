@@ -1,7 +1,7 @@
-#perl Makefile.PL;make;          perl -Iblib/lib t/09_rank_pushsort_binsearch.t
-#perl Makefile.PL;make;ATDEBUG=1 perl -Iblib/lib t/09_rank_pushsort_binsearch.t
+#perl Makefile.PL && make &&           perl -Iblib/lib t/09_rank_pushsort_binsearch.t
+#perl Makefile.PL && make && ATDEBUG=1 perl -Iblib/lib t/09_rank_pushsort_binsearch.t
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests => 62;
+use Test::More tests => 99;
 
 my @a=(1,10,20,50,70,90,120,130);
 testsearch(1,@a);
@@ -122,7 +122,7 @@ ok( sorted(    @num ), 'sorted' );
 ok( sortedstr( @str ), 'sortedstr' );
 ok( !eqarr(\@num,\@str), 'sorted ne sortedstr' );
 
-deb "--------------------------------------------------------------------------------sortby\n";
+deb "--------------------------------------------------------------------------------sortby\n"; #hm sort_by
 my @arr=(
    {Name=>'Alice', Year=>1970, Gender=>'F'},
    {Name=>'Bob',   Year=>1980, Gender=>'M'},
@@ -135,5 +135,47 @@ my @arr=(
 ok(srlz([sortby(\@arr,'Year','Gender','Name')]),
    srlz([map$$_[0],
 	 sort{$$a[1]cmp$$b[1]}
-	 map[$_,sprintf("%-30s%04d%s",@$_{qw(Year Gender Name)})],
+	 map[$_,sprintf("%04d%s%-30s",@$_{qw(Year Gender Name)})],
 	 @arr]));
+
+
+srand(2);
+sub rndarr{my($sz,$max)=@_;}
+for(0..29){
+    my $size=$_<12?$_%6:$_==29?200:int 10+rand(30);
+    my @arr=map random(-40,99),1..$size;
+    my @heap;
+    my $count=hpush(\@heap,@arr);
+    my @r; push @r, hpop(\@heap) while @heap;
+    my $got=join' ',@r; #$got.="x" if .03>rand;
+    my $exp=join' ',sort{$b<=>$a}@arr;
+    my $info="heap array: size=".@arr."  ".join(' ',@arr);
+    $info=~s,^(.{99})...+,$1...,;
+    is($got,$exp,$info);
+    is($count,$size,"return $size") if /29/;
+}
+
+sub nlargest_ {(sort{$b<=>$a}@{$_[1]})[0..$_[0]-1]}
+sub nlargest {
+    my($n,$arr)=@_;
+    my @heap;
+    my $maxsize=2**$n-1;
+    hpush(\@heap,@$arr,{maxsize=>$maxsize});
+    (sort{$b<=>$a}@heap)[0..$n-1];
+}
+
+sub nthlargest { (nlargest(@_))[$_[0]-1] } #hmm hpop() while..
+
+sub t(&\@){my($c,$T)=@_;my$t=time_fp;my@r=&$c;push@$T,time_fp()-$t;wantarray?@r:$r[0]}
+
+my(@t1,@t2);
+for my $n (5..10) {
+    my @arr=map int(rand(10000))-4000, 1..200;
+    my $got=t{ nthlargest($n,\@arr)      } @t1;
+    my $exp=t{ (sort{$b<=>$a}@arr)[$n-1] } @t2;
+    is($got,$exp, "nthlargest by hpush, n=$n $got==$exp");
+}
+deb( sprintf"smart?  %9.3f ms\n",1000*avg(@t1) );
+deb( sprintf"dumb?   %9.3f ms\n",1000*avg(@t2) );
+deb( sprintf"ratio  %.1f\n",avg(@t1)/avg(@t2) );
+#done_testing;
