@@ -91,7 +91,7 @@ for(@pt){
     is( $pc=pluscode($lat,$lon,$precision), $exp,   sprintf"%-20s -> pluscode $pc","$lat, $lon" );
 }
 for(@pt){
-    next if $$_[2]==11; #todo
+    next if defined $$_[2] and $$_[2] eq '11'; #todo
     my $exp=$$_[-1];
     my $z=0+$exp=~s/0/0/g;
     my($lat,$lon)=@$_[0,1];
@@ -116,6 +116,7 @@ use Math::Trig;
 for my $f ( qw( acos tan ) ){
   my @lst = map rand(2)-1, 1..1e1;
   @lst = $f eq 'acos' ? (-1,0,1,@lst) : (2*$PI,$PI,0,-$PI,-2*$PI,$PI/2,-$PI/2,1,2,3,@lst);
-  my @err = grep !/(=\S+ ).*\1/, map { "Acme::Tools::$f($_) != Math::Trig::$f($_)" =~ s/(\S{3,})\K/'='.eval($1).' '/ger } @lst;
+ #my @err = grep !/(=\S+ ).*\1/, map { "Acme::Tools::$f($_) != Math::Trig::$f($_)" =~ s/(\S{3,})\K/'='.eval($1).' '/ger } @lst;
+  my @err = grep !/(=\S+ ).*\1/, map { my $str="Acme::Tools::$f($_) != Math::Trig::$f($_)"; $str =~ s/(\S{3,})\K/'='.eval($1).' '/ge; $str } @lst;
   ok( !@err, $f . ( @err ? " errors: @err" : ""));
 }

@@ -47,7 +47,7 @@ sub send_importeposter
   writefile($f,$src);
   Acme::Tools::cmd_delsub(@opt);
   my $src2=readfile($f);
-  is( $src=~s/^(\s*)sub (s|e|x|y|send_importeposter)\b.+?^\1}/sub $2 {die qq(sub $2 deleted)}/smgr, $src2 );
+  is( do{$src=~s/^(\s*)sub (s|e|x|y|send_importeposter)\b.+?^\1}/sub $2 {die qq(sub $2 deleted)}/smg;$src}, $src2 );
   /1/ ? ok(  -s"$f.bk", "$f.bk exist" )
       : ok( !-s"$f.bk", "$f.bk dont exist" );
   splice@opt,0,2;

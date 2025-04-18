@@ -617,7 +617,7 @@ our @Primes=qw(2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71 73 79 83 
     2477 2503 2521 2531 2539 2543 2549 2551 2557 2579 2591 2593 2609 2617 2621 2633 2647 2657 2659 2663 2671 2677
     2683 2687 2689 2693 2699 2707 2711 2713 2719 2729 2731 2741 2749 2753 2767 2777 2789 2791 2797 2801 2803 2819
     2833 2837 2843 2851 2857 2861 2879 2887 2897 2903 2909 2917 2927 2939 2953 2957 2963 2969 2971 2999 ); #<3000
-my $is_prime;
+our $is_prime;
 sub is_prime {
     $is_prime //= {map{($_=>1)}@Primes};
     my $n = shift;
@@ -2179,12 +2179,15 @@ sub pluscode {         #https://en.wikipedia.org/wiki/Open_Location_Code OLC a.k
     my @c="23456789CFGHJMPQRVWX"=~/./g;
     if($pr==11){
         my $n=0; my %c=map{$_=>$n++}@c;
-        return pluscode($lat,$lon,12)=~s{(.)(.)$}{$c[4*int($c{$1}/5)+$c{$2}/4]}er;
+	my $pc=pluscode($lat,$lon,12);
+	$pc=~s{(.)(.)$}{$c[4*int($c{$1}/5)+$c{$2}/4]}e;
+        return $pc;
     }
     my($i,@l)=(0, ($lat+90)/400, ($lon+180)/400 );
     my $pc=join'',map{my$d=$c[$l[$i]*=20];$l[$i]-=int$l[$i];$i=1-$i;$d}1..$pr;
     $pc.='00' while 8>length$pc;
-    $pc=~s/.{8}/$&+/r;
+    $pc=~s/.{8}/$&+/;
+    $pc
 }
 sub pluscode2latlon {
     carp"pluscode2latlon: 11 digits not yet supported" if length($_[0])%2==0;
@@ -2196,7 +2199,9 @@ sub pluscode2latlon {
 sub pluscode_short {
     my($lat,$lon,$place,$pr)=@_;
     $pr=10 if !defined$pr;
-    pluscode($lat,$lon,$pr) =~ s/^....(.+)$/$1 $place/r;
+    my $pc=pluscode($lat,$lon,$pr);
+    $pc =~ s/^....(.+)$/$1 $place/;
+    $pc
 }
 sub pluscode_short2latlon {
     my($pcs,$near_lat,$near_lon)=@_;
@@ -2722,9 +2727,9 @@ sub chunks {
 
 sub chars { split//, shift }
 
-sub l2u { $_[0] =~ s/[\x80-\xFF]/chr(ord$&<192?194:195).chr(ord$&&191)/ger }
+sub l2u { $_[0] =~ s/[\x80-\xFF]/chr(ord$&<192?194:195).chr(ord$&&191)/ge; $_[0] }
 #sub l2u { shift =~ s/[\x80-\xFF]/chr(195-(192>ord$&)).chr(128+ord($&)%64)/ger }
-sub u2l { shift =~ s/([\xC2\xC3])([\x80-\xBF])/chr(64*(ord($1)%2)+ord$2)/ger }
+sub u2l { $_[0] =~ s/([\xC2\xC3])([\x80-\xBF])/chr(64*(ord($1)%2)+ord$2)/ge; $_[0] }
 
 =head2 huffman
 
@@ -7058,7 +7063,8 @@ Prints:
 
 sub brex($) {
     my $s=@_?$_[0]:$_;
-    globr $s =~ s/(?<!\\)[\*\?\~]/\\$&/gr #protect special (joker) chars for files
+    $s =~ s/(?<!\\)[\*\?\~]/\\$&/g; #protect special (joker) chars for files
+    globr $s
 }
 
 =head2 permutations
@@ -9915,7 +9921,7 @@ sub cmd_cilmd   {
     for(@_){
         warn "cilmd: $_ dont exists\n"   and next if !-e$_;
         warn "cilmd: $_ is not a file\n" and next if !-f$_;
-        my @v=grep -f$_,"$_,v",s|[^/]+$|RCS/$&|r;
+        my @v=grep -f$_,"$_,v",do{my$s=$_;$s=~s|[^/]+$|RCS/$&|;$s};
         warn "cilmd: both ".join(' and ',@v)." found, skipping\n" and next if @v>1;
         my @stat=stat;
         my $cmd="$ci -l -m. -d $_";

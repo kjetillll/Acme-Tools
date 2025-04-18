@@ -21,7 +21,7 @@ else {
 }
 sub is_approx { my($got,$exp,$msg)=@_; my $margin=30/31; between($got/$exp, $margin,1/$margin) ? ok(1,$msg) : is($got,$exp,$msg) }
 my($F,$T)=(0.999999,1.000001);
-sub _tst    {my$d=&{"$_[0]"}($_[1],$_[2]); my$e=eval$_[3]; ok(btw($d?$d/$e:$e==0,$F,$T),"$_[0]: $_[1] vs $_[2] exp $e ($_[3]) got $d"=~s/(\S+) \(\1\)/$1/r)}
+sub _tst    {my$d=&{"$_[0]"}($_[1],$_[2]); my$e=eval$_[3]; ok(btw($d?$d/$e:$e==0,$F,$T),do{my$s="$_[0]: $_[1] vs $_[2] exp $e ($_[3]) got $d";$s=~s/(\S+) \(\1\)/$1/;$s})}
 sub ltst    {_tst('levdist',@_)}
 sub jtst    {_tst('jsim'   ,@_)}
 sub jwtst   {_tst('jwsim'  ,@_)}

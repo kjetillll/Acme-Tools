@@ -71,6 +71,7 @@ for(sort{$a<=>$b}map$_*int(rand 100000),1..20){
   is($_,$p,"factor($_)   $p == ".join('*',@f));
 }
 
+sub primes2($);
 my(@t1,@t2);
 for(0..30,980..1000,5000,25000){  #primes2() faster for small n
 #for(1e3){
@@ -90,11 +91,11 @@ is(0+@err,0,sprintf'primes2() alternative    %.2f%%',avg(@pnt));
 #for(1e5-30 .. 1e5){ primes($_); print "_=$_ bits=".length($Acme::Tools::bits)."\n" }
 
 my @p1=primes(1e4);
-my $t=time_fp;
+my $ti=time_fp;
 my @p2=grep Acme::Tools::is_prime($_), 1..1e4;
-$t=time_fp()-$t;
+$ti=time_fp()-$ti;
 
-is( join(',',@p1), join(',',@p2), "is_prime, time: $t" );
+is( join(',',@p1), join(',',@p2), "is_prime, time: $ti" );
 ok(is_prime(99999989),            'is_prime 99999989');
 ok(!is_prime(99999987),           'is_prime not 99999987');
 
@@ -158,7 +159,7 @@ $ENV{ATDEBUG}&&-s't/primes1.txt.xz'?testalot():ok(1,'skip testalot() wo ATDEBUG'
 sub testalot {
   my $ant=pop//1e4;
   my @p1=primes(-$ant);
-  open my $fh,"xzcat t/primes1.txt.xz|head -$ant|"||die; my@p2=map s/\D//gr,<$fh>; close($fh);
+  open my $fh,"xzcat t/primes1.txt.xz|head -$ant|"||die; my@p2=map {s/\D//g;$_} <$fh>; close($fh);
   is( join(',',@p1), join(',',@p2), "First $ant vs t/primes1.txt.xz" );
 }
 
