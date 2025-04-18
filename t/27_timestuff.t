@@ -6,7 +6,7 @@ use Test::More;
 use Digest::MD5 'md5_hex';
 my $skip_all=$^O=~/(?<!cyg)win/i && !$ENV{ATSLEEP};
 if( $skip_all ) { plan skip_all => 'POSIX::tzset not ok on windows'  }
-else            { plan tests    => 76                                }
+else            { plan tests    => 85                                }
 
 $ENV{TZ}='CET';
 #$ENV{TZ}='Europe/Oslo';
@@ -171,7 +171,17 @@ ok(!@err, 'no misses');
 print "Err: ".join(",",@err)."\n" if @err;
 #printf"%.5f\n",time_fp()-$s;
 
+#my@NY=(40,-74); #New York at 40N -74W
+#is(sunrise(@NY,'2025-03-01',-5), 11.52); #11:31 am
+#is(sunset(@NY,'2025-03-01',-5), 22.72); #22:43 pm
 
+is(julian_day(2025,3,4       ), 2460738.5,"julian_day");
+is(julian_day(2025,3,4,12,0,0), 2460739,"julian_day");
+is(julian_day(2024,3,1), 2460370.5,"julian_day"); is(julian_day(2024,2,29), 2460369.5,"julian_day");
+is(julian_day(2000,3,1), 2451604.5,"julian_day"); is(julian_day(2000,2,29), 2451603.5,"julian_day");
+is(julian_day(1900,3,1), 2415079.5,"julian_day"); is(julian_day(1900,2,28), 2415078.5,"julian_day");
+is(tms('JDN'),julian_day(),"julian_day");
+#perl -I ~/Acme-Tools/ -MAcme::Tools -MTime::Piece -E'say Time::Piece->strptime("2025012700",q(%Y%m%d%H))->julian_day;say tms(time()-3600*24*36,"JD");say julian_day(2025,1,27)'
 __END__
 http://stackoverflow.com/questions/753346/how-do-i-set-the-timezone-for-perls-localtime
 https://en.wikipedia.org/wiki/Tz_database

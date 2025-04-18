@@ -326,7 +326,7 @@ Acme::Tools - Lots of more or less useful subs lumped together and exported into
 
 =head1 ABSTRACT
 
-About 160 more or less useful perl subroutines lumped together and exported into your namespace.
+Around 200 more or less useful perl subroutines lumped together and exported into your namespace.
 
 =head1 DESCRIPTION
 
@@ -353,7 +353,7 @@ Reported to work on Mac:
 
 =head1 EXPORT
 
-Almost every sub, about 100 of them.
+Almost every sub, around 200 of them.
 
 Beware of namespace pollution. But what did you expect from an Acme module?
 
@@ -626,8 +626,8 @@ sub is_prime {
     return $n>1 if $n<=3;
     return 0    if $n%2==0 or $n%3==0;
     for(@Primes){
-	return 1 if $_ > $n_sqrt;
-	return 0 if $n%$_==0;
+        return 1 if $_ > $n_sqrt;
+        return 0 if $n%$_==0;
     }
     #hm my($i, $stop) = ($Primes[-1]+6, int sqrt $n);
     my($i, $stop) = (5, int sqrt $n);
@@ -2088,13 +2088,16 @@ and L<Geo::Direction::Distance>, but Acme::Tools::distance() is about 8 times fa
 =cut
 
 our $Distance_factor = $PI / 180;
-sub acos { atan2( sqrt(1 - $_[0] * $_[0]), $_[0] ) }
+sub tan { sin($_[0]) / cos($_[0]) }
+sub acos { atan2( sqrt(1 - $_[0] * $_[0]), $_[0] ) }  # x = -1 --> 1, otherwise nothing (core Math::Trig::acos returns complex when > 1)
 sub distance_great_circle {
   my($lat1,$lon1,$lat2,$lon2)=map $Distance_factor*$_, @_;
   my($Re,$Rp)=( 6378137.0, 6356752.3 ); #earth equatorial and polar radius
   my $R=$Re-($Re-$Rp)*sin(abs($lat1+$lat2)/2); #approx
   return $R*acos(sin($lat1)*sin($lat2)+cos($lat1)*cos($lat2)*cos($lon2-$lon1))
 }
+
+#https://perldoc.perl.org/Math::Trig#great_circle_distance 
 
 sub distance {
   my($lat1,$lon1,$lat2,$lon2)=map $Distance_factor*$_, @_;
@@ -5724,7 +5727,7 @@ sub wipe {
   open my $WIFH, '+<', $file or croak "ERROR: Unable to open $file: $!\n";
   binmode($WIFH);
   my $bs=10240;
-  my $p;if($progress and require'Term::ProgressBar'){$p=Term::ProgressBar->new({count=>$times*$size/$bs,name=>'Wipe...',remove=>1,ETA=>'linear',max_update_rate=>0.5})}
+  my $p;if($progress and require'Term/ProgressBar.pm'){$p=Term::ProgressBar->new({count=>$times*$size/$bs,name=>'Wipe...',remove=>1,ETA=>'linear',max_update_rate=>0.5})}
   my $i=0;
   for(1..$times){
     my $block=chr(int(rand(256))) x $bs;#hm
@@ -6061,8 +6064,8 @@ The following list of codes in the first argument will be replaced:
           YYYY-MM-DDTHH:MI:SS or YYYYMMDD to the number of seconds since January 1st 1970.
           Commonly known as the Unix epoch.
 
-  JDN     Julian day number. Integer. The number of days since the day starting at noon on January 1 4713 BC
-  JD      Same as JDN but a float accounting for the time of day
+  JDN     Julian day number. Days since noon January 1 4713 BC, i.e. 2460702.5 for Jan 27th 2025
+  JD      As JDN but float accounting for the time of day
 
 B<Third argument:> (optional) Is_date. False|true, default false. If true, the second argument is
 interpreted as a date of the form YYYYMMDD, not as a number of seconds since epoch (January 1st 1970).
@@ -6225,13 +6228,36 @@ sub _yyyymmddhh24miss_time{
   $time;
 }
 
+=head2 julian_day
+
+Input: zero, three or six params: year, month, day, hour, minute, seconds
+
+Output: julian_day, number of days since Jan 1st 4713 BC
+
+Examples:
+
+ print julian_day();                 #todays julian date, ends with .5 always
+ print julian_day(2025,3,4);         #julian date of Mar 4th 2025 midnight is 2460738.5
+ print julian_day(2025,3,4,12,0,0)   #with hour, minute, seconds it returns 2460739
+ print [qw(tu we th fr sa su mo)]->[julian_day()%7]; #prints todays day of week
+
+Note: dates before Jan 1 of year 0001 AD will return a wrong answer, year 0 didn't exist...
+
+=cut
+
 sub julian_day {
-    my($yyyy,$mm,$dd,$hh,$mi,$ss)=(@_,12,0,0); #hm (@_,0,0,0);
-    return do{my@lt=localtime;julian_day(1900+$lt[5],1+$lt[4],@lt[3,2,1,0])} if !@_;
+    my($yyyy,$mm,$dd,$hh,$mi,$ss)=
+      @_ ? (@_,0,0,0) #hm (@_,12,0,0)
+         : do{my@lt=localtime;(1900+$lt[5],1+$lt[4],$lt[3],0,0,0)};
     my $a = int( (14 - $mm) / 12 );
     my($y,$m) = ($yyyy + 4800 - $a, $mm + 12*$a - 3);
     $dd + int((153*$m + 2) / 5) + 365*$y + int($y/4) - int($y/100) + int($y / 400) - 32045 + ($hh-12)/24 + $mi/1440 + $ss/86400 #hm
 }
+
+sub julian_day_modified { julian_day(@_) - 2400000.5 }
+
+#https://aa.usno.navy.mil/data/JulianDate
+#...for dates on or before 4 October 1582, the Julian calendar is used; for dates on or after 15 October 1582, the Gregorian calendar is used. Thus, there is a ten-day gap in calendar dates, but no discontinuity in Julian dates or days of the week: 4 October 1582 (Julian) is a Thursday, which begins at JD 2299159.5; and 15 October 1582 (Gregorian) is a Friday, which begins at JD 2299160.5
 
 sub tms {
   if(@_>1 and not defined $_[1]){
@@ -6278,7 +6304,7 @@ sub tms {
     return $time if $format eq 'epoch' or $format eq 'E';
     #return do{require Time::Piece; Time::Piece->strptime(tms($time),q(%Y%m%d-%H:%M:%S))->julian_day} if $format =~ /^JDN?$/; #hm
     @lt=localtime($time);
-    return julian_day(1900+$lt[5],1+$lt[4],@lt[3,2,1,0]) if $format =~ /^JDN?$/; #hm
+    return julian_day(1900+$lt[5],1+$lt[4],$1?($lt[3],0,0,0):@lt[3,2,1,0]) if $format =~ /^JD(N?)$/; #hm
   }
   tms_init() if !$_tms_inited;
   return sprintf("%04d%02d%02d-%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]) if !$format;
@@ -6351,6 +6377,34 @@ sub tms {
   $format=~s/(?:\bE\b|epoch)   /$time                           /gxi;
   $format;
 }
+
+
+# sub sunrise_sunset {
+#     carp "sunrise_sunset doesn't work!";
+#     my($lat,$lon,$date,$tz)=@_;
+#     die if !btw($lat,-90,90);
+#     die if !btw($lon,-180,180);
+#     die if !btw($tz,-12,12);
+#     my($y,$m,$d)= $date =~ /^(\d{4})-?(\d{2})-?(\d{2})$/ ? ($1,$2,$3)
+#                 : $date =~ /^\d{9,}$/ ? do{my@t=gmtime($&);(1900+$t[5],1+$t[4],$t[3])} : die;
+#     ($m,$y) = ($m+12, $y-1) if $m < 3;
+#     $d=julian_day($y,$m,$d);
+#     require Math::Trig; require POSIX;
+#     my $day_of_year = $d + POSIX::floor((153 * ($m - 3) + 2) / 5) + 365 * ($y - 1) + POSIX::floor(($y - 1) / 4) - POSIX::floor(($y - 1) / 100) + POSIX::floor(($y - 1) / 400);
+#     my $gamma = 2 * $PI * ($day_of_year - 1) / 365;
+#     my $M = 0.9856 * $day_of_year - 3.289;
+#     my $M_rad = $M * $PI / 180; print"M_rad: $M_rad\n";
+#     my $E = 229.18 * (0.000075 + 0.001868 * cos($M_rad) - 0.032077 * sin($M_rad) - 0.014615 * cos(2 * $M_rad) - 0.04089 * sin(2 * $M_rad));
+#     print"y: $y   m: $m   d: $d   day_of_year: $day_of_year   E: $E\n";
+#     my $delta_rad = 0.006918 - 0.399912 * cos($gamma) + 0.070257 * sin($gamma) - 0.006758 * cos(2 * $gamma) + 0.000907 * sin(2 * $gamma);
+#     my $HA = acos( -Math::Trig::tan($lat*$PI/180)*Math::Trig::tan($delta_rad));
+#     my $solar_noon = 12 - ($lon / 15) - ($E / 60);
+#     ( $solar_noon - ($HA*4/60) + $tz,
+#       $solar_noon + ($HA*4/60) + $tz);
+# }
+# sub sunrise {(sunrise_sunset(@_))[0]}
+# sub sunset  {(sunrise_sunset(@_))[1]}
+
 
 =head2 easter
 
@@ -6744,6 +6798,9 @@ not installed, you just don't get the colors).
 See also L<Term::ANSIColor>.
 
 =cut
+
+
+#todo: https://github.com/fidian/ansi
 
 sub ansicolor {
   my $txt=shift;
@@ -9462,10 +9519,23 @@ sub cmd_xcat {
   }
 }
 sub cmd_freq {
-  my%o; #my @argv=opts("H",\%o,@_);
-  if(@ARGV and $ARGV[0] eq '-H'){$o{H}++;shift@ARGV}
-  my(@f,$i);
-  map $f[$_]++, unpack("C*",$_) while <>; #todo: fix "out of memory" (for large files without \n)
+  my %o; @ARGV=opts("Hu",\%o,@_);
+#  if(@ARGV and $ARGV[0] eq '-H'){$o{H}++;shift@ARGV}
+  my(@f,%f,$i);
+  # map $f[$_]++, unpack("C*",$_) while <>; #todo: fix "out of memory" (for large files without \n)
+  my%FF;
+  while(<>){
+      $FF{$ARGV}++;
+      if(!$o{u}){
+          map $f[$_]++, unpack("C*",$_); #todo: fix "out of memory" (for large files without \n)
+      }
+      else{
+          map $f[ord()]++, /[\x00-\x7F]/g;
+          map $f{$_}++, /[\xC0-\xDF][\x80-\xBF]
+                        |[\xE0-\xEF][\x80-\xBF]{2}
+                        |[\xF0-\xFF][\x80-\xBF]{3}/xg;
+      }
+  }
   my @b=grep$f[$_],0..255;
   my $c=$^O eq 'linux'?`tput cols`||75:75; $c=min(int(($c+10)/(18+10)),0+@b);
   my $s=" " x 10; map{print join($s,($_)x$c),"\n"}("BYTE  CHAR   COUNT","---- ----- -------"); #len 18
@@ -9476,7 +9546,13 @@ sub cmd_freq {
   my $info=@no?"No bytes of: ".join(",",map @$_>1?"$$_[0]-$$_[-1]":$$_[0],@no)
               :"All bytes 0-255 are found";
   $info=~s/\d+/sprintf"%02X",$&/ge if $o{H};
-  print"$info\n";  
+  print"$info\n";
+  if($o{u}){
+      ($i,$c)=(0,$c>>1);
+      map{print join($s,($_) x $c),"\n"} "UTF-8 BYTES       CHAR   COUNT", "----------------- ------ -----";
+      printf("%-15s   %s   %8d".(++$i%$c&&$i<keys(%f)?$s:"\n"), join(' ',map $o{H}?sprintf("%02X",ord):ord,/./g), $_, $f{$_}) for sort keys %f;
+  }
+  #print srlz(\%FF,'FF');
 }
 sub cmd_anlz {
   my%o;
@@ -9602,10 +9678,10 @@ sub cmd_ccmd {
 #todo:   wipe -n 4 filer*   #virker ikke! tror det er args() eller opts() som ikke virker
 sub cmd_wipe  {
   my %o;
-  my @argv=opts("n:k0123456789p",\%o,@_);
+  my @argv=opts("n:k0123456789pv",\%o,@_);
   die if 1<grep exists$o{$_},'n',0..9;
   $o{$_} and $o{n}=$_ for 0..9;
-  wipe($_,$o{n},$o{k},$o{p}) for @argv;
+  print($o{v}?"wipe $_\n":"") and wipe($_,$o{n},$o{k},$o{p}) for @argv;
 }
 
 sub which { my $prog=shift; -x "$_/$prog" and return "$_/$prog" for split /:/, $ENV{PATH} }
