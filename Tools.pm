@@ -2727,9 +2727,9 @@ sub chunks {
 
 sub chars { split//, shift }
 
-sub l2u { $_[0] =~ s/[\x80-\xFF]/chr(ord$&<192?194:195).chr(ord$&&191)/ge; $_[0] }
+sub l2u { my $s=$_[0]; $s =~ s/[\x80-\xFF]/chr(ord$&<192?194:195).chr(ord$&&191)/ge; $s }
 #sub l2u { shift =~ s/[\x80-\xFF]/chr(195-(192>ord$&)).chr(128+ord($&)%64)/ger }
-sub u2l { $_[0] =~ s/([\xC2\xC3])([\x80-\xBF])/chr(64*(ord($1)%2)+ord$2)/ge; $_[0] }
+sub u2l { my $s=$_[0]; $s =~ s/([\xC2\xC3])([\x80-\xBF])/chr(64*(ord($1)%2)+ord$2)/ge; $s }
 
 =head2 huffman
 

@@ -33,18 +33,15 @@ is $s2, "ÆØÅ";
 #printf "%3d -> %3d %3d   %s\n", $$_[0], ord(substr($$_[1],0,1))
 #                                      , ord(substr($$_[1],1,1)), $$_[1] for map [$_,l2u(chr($_))], 128..255;
 
-sub utf8ify {
-    my $str = shift();
-    ref($str) eq 'SCALAR' ? ( $$str = utf8ify($$str) ) :
-    $str =~ s/ (?<![\xC2\xC3])   [\x80-\xC1\xC4-\xFF]
-             |                   [\xC2\xC3]             (?![\x80-\xBF])
-             / chr(ord$&<192?194:195) . chr(ord$&&191) /gerx
+sub utf8ify {  #A::T candidate ?
+    if( ref($_[0]) eq 'SCALAR' ){
+      ${$_[0]} =~ s/ (?<![\xC2\xC3])   [\x80-\xC1\xC4-\xFF]
+                  |                   [\xC2\xC3]             (?![\x80-\xBF])
+                  / chr(ord$&<192?194:195) . chr(ord$&&191) /gex;
+      return ${$_[0]} if defined wantarray();
+    }
+    else{
+        my $s=shift;
+        return utf8ify(\$s);
+    }
 }
-
-__END__
-
-my $tmp=tmp();
-writefile("$tmp/str",$str);
-writefile("$tmp/lstr",$lstr);
-writefile("$tmp/ustr",$ustr);
-print "tmp: $tmp\n";
