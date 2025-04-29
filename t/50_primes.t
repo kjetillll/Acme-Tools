@@ -157,7 +157,7 @@ sub primes4 {    # sieve of Eratosthenes
 
 $ENV{ATDEBUG}&&-s't/primes1.txt.xz'?testalot():ok(1,'skip testalot() wo ATDEBUG');
 sub testalot {
-  my $ant=pop//1e4;
+  my $ant=defined$_[-1]?pop():1e4;
   my @p1=primes(-$ant);
   open my $fh,"xzcat t/primes1.txt.xz|head -$ant|"||die; my@p2=map {s/\D//g;$_} <$fh>; close($fh);
   is( join(',',@p1), join(',',@p2), "First $ant vs t/primes1.txt.xz" );

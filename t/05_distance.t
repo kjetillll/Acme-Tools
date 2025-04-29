@@ -117,6 +117,6 @@ for my $f ( qw( acos tan ) ){
   my @lst = map rand(2)-1, 1..1e1;
   @lst = $f eq 'acos' ? (-1,0,1,@lst) : (2*$PI,$PI,0,-$PI,-2*$PI,$PI/2,-$PI/2,1,2,3,@lst);
  #my @err = grep !/(=\S+ ).*\1/, map { "Acme::Tools::$f($_) != Math::Trig::$f($_)" =~ s/(\S{3,})\K/'='.eval($1).' '/ger } @lst;
-  my @err = grep !/(=\S+ ).*\1/, map { my $str="Acme::Tools::$f($_) != Math::Trig::$f($_)"; $str =~ s/(\S{3,})\K/'='.eval($1).' '/ge; $str } @lst;
+  my @err = grep !/(=\S+ ).*\1/, map { my $str="Acme::Tools::$f($_) != Math::Trig::$f($_)"; $str =~ s/(\S{3,})/$1.'='.eval($1).' '/ge; $str } @lst;
   ok( !@err, $f . ( @err ? " errors: @err" : ""));
 }

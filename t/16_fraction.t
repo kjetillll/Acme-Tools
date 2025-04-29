@@ -2,7 +2,7 @@
 # perl Makefile.PL && make && perl -Iblib/lib t/16_fraction.t
 
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More;
+use Test::More tests=>49;
 
 my $s=int(rand(1000));
 #$s=621;

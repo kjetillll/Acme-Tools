@@ -619,7 +619,7 @@ our @Primes=qw(2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71 73 79 83 
     2833 2837 2843 2851 2857 2861 2879 2887 2897 2903 2909 2917 2927 2939 2953 2957 2963 2969 2971 2999 ); #<3000
 our $is_prime;
 sub is_prime {
-    $is_prime //= {map{($_=>1)}@Primes};
+    $is_prime = {map{($_=>1)}@Primes} if !defined$is_prime;
     my $n = shift;
     my $n_sqrt=int sqrt $n;
 #    return exists $$is_prime{$n} ? 1 : 0 if $n<=@Primes[-1];
@@ -3058,7 +3058,7 @@ sub sim {
   my($simlikest,$simnestlikest,$likest,$idlikest)=(-1,-1);
   for(@r){
     my($s,$id)=ref($_) eq 'ARRAY' ? @$_ : ($_);
-    my $sim=String::Similarity::similarity($str,$s,$simnestlikest//0);
+    my $sim=String::Similarity::similarity($str,$s,defined$simnestlikest?$simnestlikest:0);
     if($sim>=$simlikest){
       ($simnestlikest,$likest,$simlikest)=($simlikest,$s,$sim);
       $idlikest=$id if defined$id;
@@ -3107,7 +3107,7 @@ names are going on the list of probable doubles.
 
 sub sim_perm {
   require String::Similarity;
-  my($s1,$s2)=map {s/^\s*(.+?)\s*$/$1/;$_} map upper($_), @_; #/r v5.14
+  my($s1,$s2)=map {my$s=$_;$s=~s/^\s*(.+?)\s*$/$1/;$s} map upper($_), @_; #/r v5.14
   croak if !length($s1) or !length($s2);
   my $max;
   for(cart([permutations(split(/[\s,]+/,$s1))],
@@ -4073,7 +4073,7 @@ sub smavg {
     my($ar,$win)=@_;
     croak"ERR: smavg() 1st arg should be arrayref" if ref($ar) ne 'ARRAY';
     croak"ERR: smavg() optional 2nd arg should be int>0" if defined$win and $win!~/^[1-9]\d*$/;
-    $win//=10;
+    $win=10 if !defined$win;
     my@win;
     my$winsum=0;
     map{
@@ -5974,7 +5974,7 @@ Redirects C<print> and C<printf> from STDOUT to a string which is returned.
 
 =cut
 
-sub printed (&) { my $s; open(local *STDOUT, '>', \$s) or croak "ERR: $! $?"; shift->(); $s } #todo catch stderr also?
+sub printed (&) { my $s=''; open(local *STDOUT, '>', \$s) or croak "ERR: $! $?"; shift->(); $s } #todo catch stderr also?
 
 #todo: sub stdin{}
 #todo: sub stdout{}
@@ -7960,9 +7960,9 @@ sub tablestring_box {
   return tablestring_box([@_],$tmpo) if !ref($_[0]) or !ref($_[0][0]);
   my($hl,$i,$t,$opt)=(0,-1,@_);
   my @t=map {
-      my @r=map[split/\n/,$_//''],@$_;
+      my @r=map[split/\n/,defined$_?$_:''],@$_;
       my $l=0;$l=$l<@$_?@$_:$l for@r;
-      my @l=map{my$i=$_;[map$$_[$i]//'',@r]}0..$l-1;
+      my @l=map{my$i=$_;[map defined$$_[$i]?$$_[$i]:'',@r]}0..$l-1;
       @l=([],@l,[]) if $l>1 and $hl;
       $hl||=$l;
       @l
@@ -7976,7 +7976,8 @@ sub tablestring_box {
         ."└───┴───┘";
   $ts=~s/^(.+?)([┼┴┬]───|│ [xy] )/$1.$2x$#w/gem;
   $ts=join'',map{for my$w(1..@w){my$pos=2+4*(@w-$w);s/(.{$pos})(.)/$1.($2x$w[@w-$w])/e};"$_\n"}split/\n/,$ts;
-  $ts=~s!([xy])+!sprintf$l{++$i%@w}||$1eq'x'?"%-*s":"%*s",length$&,$t[$i/@w][$i%@w]//''!ge;
+ #$ts=~s!([xy])+!sprintf$l{++$i%@w}||$1eq'x'?"%-*s":"%*s",length$&,$t[$i/@w][$i%@w]//''!ge;
+  $ts=~s!([xy])+!sprintf$l{++$i%@w}||$1eq'x'?"%-*s":"%*s",length$&,defined$t[$i/@w][$i%@w]?$t[$i/@w][$i%@w]:''!ge;
   #utf8::encode($ts); #hm ::decode input?
   $ts
 }
@@ -9596,7 +9597,6 @@ sub cmd_finddup {
   }@argv;
   @argv=grep -s$_, @argv if $o{z};
   my %md5sum;
- #my $md5sum=sub{$md5sum{$_[0]}//=md5sum($_[0])}; #memoize //= is v5.10 and later
   my $md5sum=sub{$md5sum{$_[0]}=md5sum($_[0]) if!defined$md5sum{$_[0]};$md5sum{$_[0]}}; #memoize
   my $md5sum_1st_part=sub{
       open my $fh, "<", $_[0] or die "ERR: Could not read $_[0]";
@@ -9841,7 +9841,8 @@ sub opts {
       unshift@a,"-$1","-$2";
     }
     elsif($a=~/^-(\w)(.*)$/){
-      my $d=$def{$1}//0;
+     #my $d=$def{$1}//0;
+      my $d=defined$def{$1}?$def{$1}:0;
       push@{$$hashref{$1}},$d==1 && length($2) ? croak"opt -$1 has no arg (is $2 here)"
           :$d==1               ? 1
           :$d==2 && length($2) ? $2
@@ -10068,7 +10069,7 @@ sub dcols {
 our %Dpk;
 sub dpk {
     my $tbl=shift;
-    @{ $Dpk{$tbl} //= do{
+    $Dpk{$tbl} = do{
         my $type=$$Dbh{Driver}{Name};
         if($type eq 'SQLite'){
             die if $tbl!~/^\w+$/;
@@ -10079,7 +10080,8 @@ sub dpk {
         #elsif($type eq 'Oracle'){}
         #elsif($type eq 'Pg'){}
         else {die"dpk: not implemented for database type '$type'"}
-    }};
+    } if !exists$Dpk{$tbl};
+    @{ $Dpk{$tbl} }
 }
 sub dsel {
 }
@@ -10180,7 +10182,8 @@ sub sum      { &Acme::Tools::bfsum      }
 # - perl            Makefile.PL && make test
 # - /usr/bin/perl   Makefile.PL && make test
 # - perlbrew exec "perl Makefile.PL && time make test"
-# - perlbrew exec "perl Makefile.PL && make test" | grep -P '^(perl-|All tests successful)'
+# - perlbrew exec "perl Makefile.PL && make test" | grep -P '^(perl-|===|All tests successful|Files=)' # ok >= 5.8.9
+# - perlbrew exec --with 5.8.9 "perl Makefile.PL && make test"
 # - perlbrew use perl-5.10.1; perl Makefile.PL && make test; perlbrew off
 # - test evt i cygwin og mingw-perl
 # - pod2html Tools.pm > Tools.html && chromium-browser Tools.html

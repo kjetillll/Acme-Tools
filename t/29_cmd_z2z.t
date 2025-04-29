@@ -26,7 +26,7 @@ my @f=map"$tf.$_",1..4;
 my $nn=0;
 writefile($_,join" ",map ++$nn,1..5000) for @f;
 my $b4=sum(map -s$_,@f);
-if( qx(which pv) and qx(which xz) ){
+if( qx(which pv) and qx(which xz) and $]>=5.010){
   Acme::Tools::cmd_z2z('-vp6t','xz',@f);
   Acme::Tools::cmd_z2z('-vht','gz',map"$_.xz",@f);
 }
