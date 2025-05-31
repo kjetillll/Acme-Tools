@@ -1,6 +1,6 @@
-# make && perl -Iblib/lib t/39_sim.t	
+# make && perl -Iblib/lib t/39_sim.t
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests    => 79;
+use Test::More tests => 90;
 eval 'require String::Similarity';
 if($@){ map ok(1,'skip -- String::Similarity is missing'),1..21 }
 else {
@@ -21,10 +21,15 @@ else {
 }
 sub is_approx { my($got,$exp,$msg)=@_; my $margin=30/31; between($got/$exp, $margin,1/$margin) ? ok(1,$msg) : is($got,$exp,$msg) }
 my($F,$T)=(0.999999,1.000001);
-sub _tst    {my$d=&{"$_[0]"}($_[1],$_[2]); my$e=eval$_[3]; ok(btw($d?$d/$e:$e==0,$F,$T),"$_[0]: $_[1] vs $_[2] exp $e ($_[3]) got $d"=~s/(\S+) \(\1\)/$1/r)}
+sub _tst    {my$d=&{"$_[0]"}($_[1],$_[2]); my$e=eval$_[3]; ok(btw($d?$d/$e:$e==0,$F,$T),do{my$s="$_[0]: $_[1] vs $_[2] exp $e ($_[3]) got $d";$s=~s/(\S+) \(\1\)/$1/;$s})}
+#sub stst    {_tst('sim'  ,@_)}
 sub ltst    {_tst('levdist',@_)}
 sub jtst    {_tst('jsim'   ,@_)}
 sub jwtst   {_tst('jwsim'  ,@_)}
+sub jw02tst   {_tst('jwsim02'  ,@_)}
+sub jw00tst   {_tst('jwsim00'  ,@_)}
+sub jwsim02{jwsim(@_[0,1],0.2)}
+sub jwsim00{jwsim(@_[0,1],0.0)}
 
 ltst( 'elephant', 'elepanto',   2 );
 ltst( 'elephant', 'elephapntv', 2 );
@@ -80,22 +85,40 @@ jwtst('DWAYNE',                'DUANE',                 '21/25');     # 0.84
 jwtst('MARTHA',                'MARHTA',                '173/180');   # 0.961111111111111
 jwtst('DIXON',                 'DICKSONX',              '61/75');     # 0.813333333333333
 jwtst('JELLYFISH',             'SMELLYFISH',            '121/135');   # 0.896296296296296
-#jwtst('ARNAB',                'ARANB',                 '14/15');     # 0.933333333333333
+ jtst('ARNAB',                 'ARANB',                 '14/15');     # 0.933333333333333   jwtst?
 jwtst('TRATE',                 'TRACE',                 '68/75');     # 0.906666666666667
 jwtst('i walked to the store', 'the store walked to i', '1597/2142'); # 0.745564892623716 0.7553688141923436?
 jwtst('banana',                'bandana',               '29/30');     # 0.966666666666667 0.9523809523809524?
+jwtst('shackleford',           'shackelford',           '54/55');     # 0.981818181818182
 
-#---- oracle, https://docs.oracle.com/cd/E18283_01/appdev.112/e16760/u_match.htm#CHDEFJFC
-jwtst('dunningham', 'cunnigham', 0.896296296296296);   # 80
-jwtst('abroms', 'abrams', 0.922222222222222);          # 83
-jwtst('lampley', 'campley', 0.904761904761905);        # 86
-jwtst('marhta', 'martha', 0.961111111111111);          # 67
-jwtst('jonathon', 'jonathan', 0.95);                   # 88
-jwtst('jeraldine',  'geraldine', 0.925925925925926);   # 89
-_tst('jwsim02','marhta', 'martha', 0.977777777777778); # 67
-_tst('jwsim00','marhta', 'martha', 0.944444444444445); # 67
-sub jwsim02{jwsim(@_[0,1],0.2)}
-sub jwsim00{jwsim(@_[0,1],0.0)}
+#---- cmp
+jwtst('ebony and ivory',       'ivory and ebony',       '29/45');     # 0.644444444444444
+jtst('ebony and ivory',        'ivory and ebony',       '29/45');     # 0.644444444444444
+ltst('ebony and ivory',        'ivory and ebony',       6);
+
+jw02tst('marhta', 'martha', 0.977777777777778); # 67
+jw00tst('marhta', 'martha', 0.944444444444445); # 67
+
+deb"--------------------------------------------------------------------------------\n";
+/^(\w+)\s+(\w+)\s+(\d+)\s+(\d+)\s+(\d{1,3}\.\d+)\s*$/ and 
+  jwtst($1,$2,$5/100),
+# jw02tst($1,$2,$5/100),
+# jw00tst($1,$2,$5/100),
+  ltst($1,$2,sprintf"%.0f",(1-$4/100)*min(length($1),length($2)))
+for split/\n/,<<'.';
+Compare with Oracle utl_match.jaro_winkler()
+Tests below copied from https://docs.oracle.com/cd/E18283_01/appdev.112/e16760/u_match.htm#CHDEFJFC
+
+                                Oracle's utl_match.       Oracle's utl_match.
+String 1        String 2        jaro_winkler_similarity() edit_distane_similarity() 100 * Acme::Tools::jwsim()
+--------------- --------------- ------------------------- ------------------------- --------------------------
+Dunningham      Cunnigham       89                        80                        89.6296296296296
+Abroms          Abrams          92                        83                        92.2222222222222
+Lampley         Campley         90                        86                        90.4761904761905
+Marhta          Martha          96                        67                        96.1111111111111
+Jonathon        Jonathan        95                        88                        95.0
+Jeraldine       Geraldine       92                        89                        92.5925925925926
+.
 
 __END__
 use Text::Levenshtein 'distance';

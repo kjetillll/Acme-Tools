@@ -326,7 +326,7 @@ Acme::Tools - Lots of more or less useful subs lumped together and exported into
 
 =head1 ABSTRACT
 
-About 160 more or less useful perl subroutines lumped together and exported into your namespace.
+Around 200 more or less useful perl subroutines lumped together and exported into your namespace.
 
 =head1 DESCRIPTION
 
@@ -353,7 +353,7 @@ Reported to work on Mac:
 
 =head1 EXPORT
 
-Almost every sub, about 100 of them.
+Almost every sub, around 200 of them.
 
 Beware of namespace pollution. But what did you expect from an Acme module?
 
@@ -617,17 +617,17 @@ our @Primes=qw(2 3 5 7 11 13 17 19 23 29 31 37 41 43 47 53 59 61 67 71 73 79 83 
     2477 2503 2521 2531 2539 2543 2549 2551 2557 2579 2591 2593 2609 2617 2621 2633 2647 2657 2659 2663 2671 2677
     2683 2687 2689 2693 2699 2707 2711 2713 2719 2729 2731 2741 2749 2753 2767 2777 2789 2791 2797 2801 2803 2819
     2833 2837 2843 2851 2857 2861 2879 2887 2897 2903 2909 2917 2927 2939 2953 2957 2963 2969 2971 2999 ); #<3000
-my $is_prime;
+our $is_prime;
 sub is_prime {
-    $is_prime //= {map{($_=>1)}@Primes};
+    $is_prime = {map{($_=>1)}@Primes} if !defined$is_prime;
     my $n = shift;
     my $n_sqrt=int sqrt $n;
 #    return exists $$is_prime{$n} ? 1 : 0 if $n<=@Primes[-1];
     return $n>1 if $n<=3;
     return 0    if $n%2==0 or $n%3==0;
     for(@Primes){
-	return 1 if $_ > $n_sqrt;
-	return 0 if $n%$_==0;
+        return 1 if $_ > $n_sqrt;
+        return 0 if $n%$_==0;
     }
     #hm my($i, $stop) = ($Primes[-1]+6, int sqrt $n);
     my($i, $stop) = (5, int sqrt $n);
@@ -2088,13 +2088,16 @@ and L<Geo::Direction::Distance>, but Acme::Tools::distance() is about 8 times fa
 =cut
 
 our $Distance_factor = $PI / 180;
-sub acos { atan2( sqrt(1 - $_[0] * $_[0]), $_[0] ) }
+sub tan { sin($_[0]) / cos($_[0]) }
+sub acos { atan2( sqrt(1 - $_[0] * $_[0]), $_[0] ) }  # x = -1 --> 1, otherwise nothing (core Math::Trig::acos returns complex when > 1)
 sub distance_great_circle {
   my($lat1,$lon1,$lat2,$lon2)=map $Distance_factor*$_, @_;
   my($Re,$Rp)=( 6378137.0, 6356752.3 ); #earth equatorial and polar radius
   my $R=$Re-($Re-$Rp)*sin(abs($lat1+$lat2)/2); #approx
   return $R*acos(sin($lat1)*sin($lat2)+cos($lat1)*cos($lat2)*cos($lon2-$lon1))
 }
+
+#https://perldoc.perl.org/Math::Trig#great_circle_distance 
 
 sub distance {
   my($lat1,$lon1,$lat2,$lon2)=map $Distance_factor*$_, @_;
@@ -2176,12 +2179,15 @@ sub pluscode {         #https://en.wikipedia.org/wiki/Open_Location_Code OLC a.k
     my @c="23456789CFGHJMPQRVWX"=~/./g;
     if($pr==11){
         my $n=0; my %c=map{$_=>$n++}@c;
-        return pluscode($lat,$lon,12)=~s{(.)(.)$}{$c[4*int($c{$1}/5)+$c{$2}/4]}er;
+	my $pc=pluscode($lat,$lon,12);
+	$pc=~s{(.)(.)$}{$c[4*int($c{$1}/5)+$c{$2}/4]}e;
+        return $pc;
     }
     my($i,@l)=(0, ($lat+90)/400, ($lon+180)/400 );
     my $pc=join'',map{my$d=$c[$l[$i]*=20];$l[$i]-=int$l[$i];$i=1-$i;$d}1..$pr;
     $pc.='00' while 8>length$pc;
-    $pc=~s/.{8}/$&+/r;
+    $pc=~s/.{8}/$&+/;
+    $pc
 }
 sub pluscode2latlon {
     carp"pluscode2latlon: 11 digits not yet supported" if length($_[0])%2==0;
@@ -2193,7 +2199,9 @@ sub pluscode2latlon {
 sub pluscode_short {
     my($lat,$lon,$place,$pr)=@_;
     $pr=10 if !defined$pr;
-    pluscode($lat,$lon,$pr) =~ s/^....(.+)$/$1 $place/r;
+    my $pc=pluscode($lat,$lon,$pr);
+    $pc =~ s/^....(.+)$/$1 $place/;
+    $pc
 }
 sub pluscode_short2latlon {
     my($pcs,$near_lat,$near_lon)=@_;
@@ -2719,9 +2727,9 @@ sub chunks {
 
 sub chars { split//, shift }
 
-sub l2u { $_[0] =~ s/[\x80-\xFF]/chr(ord$&<192?194:195).chr(ord$&&191)/ger }
+sub l2u { my $s=$_[0]; $s =~ s/[\x80-\xFF]/chr(ord$&<192?194:195).chr(ord$&&191)/ge; $s }
 #sub l2u { shift =~ s/[\x80-\xFF]/chr(195-(192>ord$&)).chr(128+ord($&)%64)/ger }
-sub u2l { shift =~ s/([\xC2\xC3])([\x80-\xBF])/chr(64*(ord($1)%2)+ord$2)/ger }
+sub u2l { my $s=$_[0]; $s =~ s/([\xC2\xC3])([\x80-\xBF])/chr(64*(ord($1)%2)+ord$2)/ge; $s }
 
 =head2 huffman
 
@@ -3050,7 +3058,7 @@ sub sim {
   my($simlikest,$simnestlikest,$likest,$idlikest)=(-1,-1);
   for(@r){
     my($s,$id)=ref($_) eq 'ARRAY' ? @$_ : ($_);
-    my $sim=String::Similarity::similarity($str,$s,$simnestlikest//0);
+    my $sim=String::Similarity::similarity($str,$s,defined$simnestlikest?$simnestlikest:0);
     if($sim>=$simlikest){
       ($simnestlikest,$likest,$simlikest)=($simlikest,$s,$sim);
       $idlikest=$id if defined$id;
@@ -3099,7 +3107,7 @@ names are going on the list of probable doubles.
 
 sub sim_perm {
   require String::Similarity;
-  my($s1,$s2)=map {s/^\s*(.+?)\s*$/$1/;$_} map upper($_), @_; #/r v5.14
+  my($s1,$s2)=map {my$s=$_;$s=~s/^\s*(.+?)\s*$/$1/;$s} map upper($_), @_; #/r v5.14
   croak if !length($s1) or !length($s2);
   my $max;
   for(cart([permutations(split(/[\s,]+/,$s1))],
@@ -3158,8 +3166,7 @@ Jaro-similarity.
 Input: two strings.
 
 Returns a number between 0 and 1 to grade the similarity between two strings.
-See L</jwsim>. Both jsim() and jwsim() are case-sensitive. So A and a is
-counted as different characters.
+See L</jwsim>. Both jsim() and jwsim() are case-sensitive so C< A > and C< a > are different.
 
 1 means the strings are equal
 
@@ -4065,7 +4072,7 @@ sub smavg {
     my($ar,$win)=@_;
     croak"ERR: smavg() 1st arg should be arrayref" if ref($ar) ne 'ARRAY';
     croak"ERR: smavg() optional 2nd arg should be int>0" if defined$win and $win!~/^[1-9]\d*$/;
-    $win//=10;
+    $win=10 if !defined$win;
     my@win;
     my$winsum=0;
     map{
@@ -5724,7 +5731,7 @@ sub wipe {
   open my $WIFH, '+<', $file or croak "ERROR: Unable to open $file: $!\n";
   binmode($WIFH);
   my $bs=10240;
-  my $p;if($progress and require'Term::ProgressBar'){$p=Term::ProgressBar->new({count=>$times*$size/$bs,name=>'Wipe...',remove=>1,ETA=>'linear',max_update_rate=>0.5})}
+  my $p;if($progress and require'Term/ProgressBar.pm'){$p=Term::ProgressBar->new({count=>$times*$size/$bs,name=>'Wipe...',remove=>1,ETA=>'linear',max_update_rate=>0.5})}
   my $i=0;
   for(1..$times){
     my $block=chr(int(rand(256))) x $bs;#hm
@@ -5966,7 +5973,7 @@ Redirects C<print> and C<printf> from STDOUT to a string which is returned.
 
 =cut
 
-sub printed (&) { my $s; open(local *STDOUT, '>', \$s) or croak "ERR: $! $?"; shift->(); $s } #todo catch stderr also?
+sub printed (&) { my $s=''; open(local *STDOUT, '>', \$s) or croak "ERR: $! $?"; shift->(); $s } #todo catch stderr also?
 
 #todo: sub stdin{}
 #todo: sub stdout{}
@@ -6061,8 +6068,8 @@ The following list of codes in the first argument will be replaced:
           YYYY-MM-DDTHH:MI:SS or YYYYMMDD to the number of seconds since January 1st 1970.
           Commonly known as the Unix epoch.
 
-  JDN     Julian day number. Integer. The number of days since the day starting at noon on January 1 4713 BC
-  JD      Same as JDN but a float accounting for the time of day
+  JDN     Julian day number. Days since noon January 1 4713 BC, i.e. 2460702.5 for Jan 27th 2025
+  JD      As JDN but float accounting for the time of day
 
 B<Third argument:> (optional) Is_date. False|true, default false. If true, the second argument is
 interpreted as a date of the form YYYYMMDD, not as a number of seconds since epoch (January 1st 1970).
@@ -6225,13 +6232,36 @@ sub _yyyymmddhh24miss_time{
   $time;
 }
 
+=head2 julian_day
+
+Input: zero, three or six params: year, month, day, hour, minute, seconds
+
+Output: julian_day, number of days since Jan 1st 4713 BC
+
+Examples:
+
+ print julian_day();                 #todays julian date, ends with .5 always
+ print julian_day(2025,3,4);         #julian date of Mar 4th 2025 midnight is 2460738.5
+ print julian_day(2025,3,4,12,0,0)   #with hour, minute, seconds it returns 2460739
+ print [qw(tu we th fr sa su mo)]->[julian_day()%7]; #prints todays day of week
+
+Note: dates before Jan 1 of year 0001 AD will return a wrong answer, year 0 didn't exist...
+
+=cut
+
 sub julian_day {
-    my($yyyy,$mm,$dd,$hh,$mi,$ss)=(@_,12,0,0); #hm (@_,0,0,0);
-    return do{my@lt=localtime;julian_day(1900+$lt[5],1+$lt[4],@lt[3,2,1,0])} if !@_;
+    my($yyyy,$mm,$dd,$hh,$mi,$ss)=
+      @_ ? (@_,0,0,0) #hm (@_,12,0,0)
+         : do{my@lt=localtime;(1900+$lt[5],1+$lt[4],$lt[3],0,0,0)};
     my $a = int( (14 - $mm) / 12 );
     my($y,$m) = ($yyyy + 4800 - $a, $mm + 12*$a - 3);
     $dd + int((153*$m + 2) / 5) + 365*$y + int($y/4) - int($y/100) + int($y / 400) - 32045 + ($hh-12)/24 + $mi/1440 + $ss/86400 #hm
 }
+
+sub julian_day_modified { julian_day(@_) - 2400000.5 }
+
+#https://aa.usno.navy.mil/data/JulianDate
+#...for dates on or before 4 October 1582, the Julian calendar is used; for dates on or after 15 October 1582, the Gregorian calendar is used. Thus, there is a ten-day gap in calendar dates, but no discontinuity in Julian dates or days of the week: 4 October 1582 (Julian) is a Thursday, which begins at JD 2299159.5; and 15 October 1582 (Gregorian) is a Friday, which begins at JD 2299160.5
 
 sub tms {
   if(@_>1 and not defined $_[1]){
@@ -6278,7 +6308,7 @@ sub tms {
     return $time if $format eq 'epoch' or $format eq 'E';
     #return do{require Time::Piece; Time::Piece->strptime(tms($time),q(%Y%m%d-%H:%M:%S))->julian_day} if $format =~ /^JDN?$/; #hm
     @lt=localtime($time);
-    return julian_day(1900+$lt[5],1+$lt[4],@lt[3,2,1,0]) if $format =~ /^JDN?$/; #hm
+    return julian_day(1900+$lt[5],1+$lt[4],$1?($lt[3],0,0,0):@lt[3,2,1,0]) if $format =~ /^JD(N?)$/; #hm
   }
   tms_init() if !$_tms_inited;
   return sprintf("%04d%02d%02d-%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]) if !$format;
@@ -6351,6 +6381,34 @@ sub tms {
   $format=~s/(?:\bE\b|epoch)   /$time                           /gxi;
   $format;
 }
+
+
+# sub sunrise_sunset {
+#     carp "sunrise_sunset doesn't work!";
+#     my($lat,$lon,$date,$tz)=@_;
+#     die if !btw($lat,-90,90);
+#     die if !btw($lon,-180,180);
+#     die if !btw($tz,-12,12);
+#     my($y,$m,$d)= $date =~ /^(\d{4})-?(\d{2})-?(\d{2})$/ ? ($1,$2,$3)
+#                 : $date =~ /^\d{9,}$/ ? do{my@t=gmtime($&);(1900+$t[5],1+$t[4],$t[3])} : die;
+#     ($m,$y) = ($m+12, $y-1) if $m < 3;
+#     $d=julian_day($y,$m,$d);
+#     require Math::Trig; require POSIX;
+#     my $day_of_year = $d + POSIX::floor((153 * ($m - 3) + 2) / 5) + 365 * ($y - 1) + POSIX::floor(($y - 1) / 4) - POSIX::floor(($y - 1) / 100) + POSIX::floor(($y - 1) / 400);
+#     my $gamma = 2 * $PI * ($day_of_year - 1) / 365;
+#     my $M = 0.9856 * $day_of_year - 3.289;
+#     my $M_rad = $M * $PI / 180; print"M_rad: $M_rad\n";
+#     my $E = 229.18 * (0.000075 + 0.001868 * cos($M_rad) - 0.032077 * sin($M_rad) - 0.014615 * cos(2 * $M_rad) - 0.04089 * sin(2 * $M_rad));
+#     print"y: $y   m: $m   d: $d   day_of_year: $day_of_year   E: $E\n";
+#     my $delta_rad = 0.006918 - 0.399912 * cos($gamma) + 0.070257 * sin($gamma) - 0.006758 * cos(2 * $gamma) + 0.000907 * sin(2 * $gamma);
+#     my $HA = acos( -Math::Trig::tan($lat*$PI/180)*Math::Trig::tan($delta_rad));
+#     my $solar_noon = 12 - ($lon / 15) - ($E / 60);
+#     ( $solar_noon - ($HA*4/60) + $tz,
+#       $solar_noon + ($HA*4/60) + $tz);
+# }
+# sub sunrise {(sunrise_sunset(@_))[0]}
+# sub sunset  {(sunrise_sunset(@_))[1]}
+
 
 =head2 easter
 
@@ -6745,6 +6803,9 @@ See also L<Term::ANSIColor>.
 
 =cut
 
+
+#todo: https://github.com/fidian/ansi
+
 sub ansicolor {
   my $txt=shift;
   eval{require Term::ANSIColor} or return replace($txt,qr/¤./);
@@ -7001,7 +7062,8 @@ Prints:
 
 sub brex($) {
     my $s=@_?$_[0]:$_;
-    globr $s =~ s/(?<!\\)[\*\?\~]/\\$&/gr #protect special (joker) chars for files
+    $s =~ s/(?<!\\)[\*\?\~]/\\$&/g; #protect special (joker) chars for files
+    globr $s
 }
 
 =head2 permutations
@@ -7897,9 +7959,9 @@ sub tablestring_box {
   return tablestring_box([@_],$tmpo) if !ref($_[0]) or !ref($_[0][0]);
   my($hl,$i,$t,$opt)=(0,-1,@_);
   my @t=map {
-      my @r=map[split/\n/,$_//''],@$_;
+      my @r=map[split/\n/,defined$_?$_:''],@$_;
       my $l=0;$l=$l<@$_?@$_:$l for@r;
-      my @l=map{my$i=$_;[map$$_[$i]//'',@r]}0..$l-1;
+      my @l=map{my$i=$_;[map defined$$_[$i]?$$_[$i]:'',@r]}0..$l-1;
       @l=([],@l,[]) if $l>1 and $hl;
       $hl||=$l;
       @l
@@ -7913,7 +7975,8 @@ sub tablestring_box {
         ."└───┴───┘";
   $ts=~s/^(.+?)([┼┴┬]───|│ [xy] )/$1.$2x$#w/gem;
   $ts=join'',map{for my$w(1..@w){my$pos=2+4*(@w-$w);s/(.{$pos})(.)/$1.($2x$w[@w-$w])/e};"$_\n"}split/\n/,$ts;
-  $ts=~s!([xy])+!sprintf$l{++$i%@w}||$1eq'x'?"%-*s":"%*s",length$&,$t[$i/@w][$i%@w]//''!ge;
+ #$ts=~s!([xy])+!sprintf$l{++$i%@w}||$1eq'x'?"%-*s":"%*s",length$&,$t[$i/@w][$i%@w]//''!ge;
+  $ts=~s!([xy])+!sprintf$l{++$i%@w}||$1eq'x'?"%-*s":"%*s",length$&,defined$t[$i/@w][$i%@w]?$t[$i/@w][$i%@w]:''!ge;
   #utf8::encode($ts); #hm ::decode input?
   $ts
 }
@@ -9357,33 +9420,38 @@ sub cmd_due {
     my $stdin=join"",map"$_\n",@Due_fake_stdin; #test
     open(local *STDIN, '<', \$stdin) or die "ERR: $! $?\n" if $stdin;
     my $rl=qr/(^| )\-[rwx\-sS]{9}\s+(?:\d )?(?:[\w\-]+(?:\/|\s+)[\w\-]+)\s+(\d+)\s+.*?([^\/]*\.[\w,\-]+)?$/;
-    my $MorP=$o{M}||$o{C}||$o{A}||$o{P}?"due: -M, -C, -A and -P not yet implemented for STDIN unless list of filenames only\n":0;
+    my $MCAP=$o{M}||$o{C}||$o{A}||$o{P}?"due: -M, -C, -A and -P not yet implemented for STDIN unless list of filenames only\n":0;
     while(<STDIN>){
       chomp;
       next if /\/$/;
-      my($f,$sz,$xtime)=(/$rl/?($3,$2):-f$_?($_,(stat)[7,$x]):next);
+      my($f,$sz,$xtime)= /$rl/ ? ($3,$2)
+                       : -l$_  ? ($_,(lstat(_))[7,$x])
+                       : -f$_  ? ($_,( stat(_))[7,$x])
+                       :         next;
       #   1576142    240 -rw-r--r--   1 root     root       242153 april  4  2016 /opt/wine-staging/share/wine/wine.inf
       my $ext=$f=~$r?$1:'';
       $ext=lc($ext) if $o{i};
       $cnt++;    $c{$ext}++;
       $bts+=$sz; $b{$ext}+=$sz;
-      defined $xtime and $xtime{$ext}.=",$xtime" or die $MorP if $MorP;
+      defined $xtime and $xtime{$ext}.=",$xtime" or die $MCAP if $MCAP;
     }
   }
   else { #hm DRY
     @argv=('.') if !@argv;
+    my $MCAP=$o{M}||$o{C}||$o{A}||$o{P};
     File::Find::find(
       {
         follow => 0,
         wanted => sub {
           return if !-f$_;
           return if $qrexcl and defined $File::Find::name and $File::Find::name=~$qrexcl;
-          my($sz,$xtime)=(stat($_))[7,$x];
+          my($sz,$xtime)=-l$_ ?  (lstat(_))[7,$x]
+                              :  ( stat(_))[7,$x];
           my $ext=m/$r/?$1:'';
           $ext=lc($ext) if $o{i};
           $cnt++;    $c{$ext}++;
           $bts+=$sz; $b{$ext}+=$sz;
-          $xtime{$ext}.=",$xtime" if $o{M} || $o{C} || $o{A} || $o{P};
+          $xtime{$ext}.=",$xtime" if $MCAP;
           1;
         }
       },@argv);
@@ -9462,10 +9530,23 @@ sub cmd_xcat {
   }
 }
 sub cmd_freq {
-  my%o; #my @argv=opts("H",\%o,@_);
-  if(@ARGV and $ARGV[0] eq '-H'){$o{H}++;shift@ARGV}
-  my(@f,$i);
-  map $f[$_]++, unpack("C*",$_) while <>; #todo: fix "out of memory" (for large files without \n)
+  my %o; @ARGV=opts("Hu",\%o,@_);
+#  if(@ARGV and $ARGV[0] eq '-H'){$o{H}++;shift@ARGV}
+  my(@f,%f,$i);
+  # map $f[$_]++, unpack("C*",$_) while <>; #todo: fix "out of memory" (for large files without \n)
+  my%FF;
+  while(<>){
+      $FF{$ARGV}++;
+      if(!$o{u}){
+          map $f[$_]++, unpack("C*",$_); #todo: fix "out of memory" (for large files without \n)
+      }
+      else{
+          map $f[ord()]++, /[\x00-\x7F]/g;
+          map $f{$_}++, /[\xC0-\xDF][\x80-\xBF]
+                        |[\xE0-\xEF][\x80-\xBF]{2}
+                        |[\xF0-\xFF][\x80-\xBF]{3}/xg;
+      }
+  }
   my @b=grep$f[$_],0..255;
   my $c=$^O eq 'linux'?`tput cols`||75:75; $c=min(int(($c+10)/(18+10)),0+@b);
   my $s=" " x 10; map{print join($s,($_)x$c),"\n"}("BYTE  CHAR   COUNT","---- ----- -------"); #len 18
@@ -9476,7 +9557,13 @@ sub cmd_freq {
   my $info=@no?"No bytes of: ".join(",",map @$_>1?"$$_[0]-$$_[-1]":$$_[0],@no)
               :"All bytes 0-255 are found";
   $info=~s/\d+/sprintf"%02X",$&/ge if $o{H};
-  print"$info\n";  
+  print"$info\n";
+  if($o{u}){
+      ($i,$c)=(0,$c>>1);
+      map{print join($s,($_) x $c),"\n"} "UTF-8 BYTES       CHAR   COUNT", "----------------- ------ -----";
+      printf("%-15s   %s   %8d".(++$i%$c&&$i<keys(%f)?$s:"\n"), join(' ',map $o{H}?sprintf("%02X",ord):ord,/./g), $_, $f{$_}) for sort keys %f;
+  }
+  #print srlz(\%FF,'FF');
 }
 sub cmd_anlz {
   my%o;
@@ -9514,7 +9601,6 @@ sub cmd_finddup {
   }@argv;
   @argv=grep -s$_, @argv if $o{z};
   my %md5sum;
- #my $md5sum=sub{$md5sum{$_[0]}//=md5sum($_[0])}; #memoize //= is v5.10 and later
   my $md5sum=sub{$md5sum{$_[0]}=md5sum($_[0]) if!defined$md5sum{$_[0]};$md5sum{$_[0]}}; #memoize
   my $md5sum_1st_part=sub{
       open my $fh, "<", $_[0] or die "ERR: Could not read $_[0]";
@@ -9602,10 +9688,10 @@ sub cmd_ccmd {
 #todo:   wipe -n 4 filer*   #virker ikke! tror det er args() eller opts() som ikke virker
 sub cmd_wipe  {
   my %o;
-  my @argv=opts("n:k0123456789p",\%o,@_);
+  my @argv=opts("n:k0123456789pv",\%o,@_);
   die if 1<grep exists$o{$_},'n',0..9;
   $o{$_} and $o{n}=$_ for 0..9;
-  wipe($_,$o{n},$o{k},$o{p}) for @argv;
+  print($o{v}?"wipe $_\n":"") and wipe($_,$o{n},$o{k},$o{p}) for @argv;
 }
 
 sub which { my $prog=shift; -x "$_/$prog" and return "$_/$prog" for split /:/, $ENV{PATH} }
@@ -9759,7 +9845,8 @@ sub opts {
       unshift@a,"-$1","-$2";
     }
     elsif($a=~/^-(\w)(.*)$/){
-      my $d=$def{$1}//0;
+     #my $d=$def{$1}//0;
+      my $d=defined$def{$1}?$def{$1}:0;
       push@{$$hashref{$1}},$d==1 && length($2) ? croak"opt -$1 has no arg (is $2 here)"
           :$d==1               ? 1
           :$d==2 && length($2) ? $2
@@ -9839,7 +9926,7 @@ sub cmd_cilmd   {
     for(@_){
         warn "cilmd: $_ dont exists\n"   and next if !-e$_;
         warn "cilmd: $_ is not a file\n" and next if !-f$_;
-        my @v=grep -f$_,"$_,v",s|[^/]+$|RCS/$&|r;
+        my @v=grep -f$_,"$_,v",do{my$s=$_;$s=~s|[^/]+$|RCS/$&|;$s};
         warn "cilmd: both ".join(' and ',@v)." found, skipping\n" and next if @v>1;
         my @stat=stat;
         my $cmd="$ci -l -m. -d $_";
@@ -9986,7 +10073,7 @@ sub dcols {
 our %Dpk;
 sub dpk {
     my $tbl=shift;
-    @{ $Dpk{$tbl} //= do{
+    $Dpk{$tbl} = do{
         my $type=$$Dbh{Driver}{Name};
         if($type eq 'SQLite'){
             die if $tbl!~/^\w+$/;
@@ -9997,7 +10084,8 @@ sub dpk {
         #elsif($type eq 'Oracle'){}
         #elsif($type eq 'Pg'){}
         else {die"dpk: not implemented for database type '$type'"}
-    }};
+    } if !exists$Dpk{$tbl};
+    @{ $Dpk{$tbl} }
 }
 sub dsel {
 }
@@ -10098,7 +10186,8 @@ sub sum      { &Acme::Tools::bfsum      }
 # - perl            Makefile.PL && make test
 # - /usr/bin/perl   Makefile.PL && make test
 # - perlbrew exec "perl Makefile.PL && time make test"
-# - perlbrew exec "perl Makefile.PL && make test" | grep -P '^(perl-|All tests successful)'
+# - perlbrew exec "perl Makefile.PL && make test" | grep -P '^(perl-|===|All tests successful|Files=)' # ok >= 5.8.9
+# - perlbrew exec --with 5.8.9 "perl Makefile.PL && make test"
 # - perlbrew use perl-5.10.1; perl Makefile.PL && make test; perlbrew off
 # - test evt i cygwin og mingw-perl
 # - pod2html Tools.pm > Tools.html && chromium-browser Tools.html

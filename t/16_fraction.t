@@ -2,7 +2,7 @@
 # perl Makefile.PL && make && perl -Iblib/lib t/16_fraction.t
 
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More;
+use Test::More tests=>49;
 
 my $s=int(rand(1000));
 #$s=621;
@@ -47,7 +47,7 @@ for(
   my $g="$min_n/$min_d";
   my $info=sub{sprintf"%s: %-20s %-14s",$_[0],eval($_[1]),$_[1]=~m|/|?"($_[1])":''};
   $info=join('',map&$info(@$_),['got',$g],['exp',$_]).sprintf"%-38s %-8s","d=$min_diff c=$c mc=$min_c","$tμs";
-  my $diff=eval($g)-eval;
+  #my $diff=eval($g)-eval;
   push@c,$c;
   is(eval$g, eval, $info)
 }

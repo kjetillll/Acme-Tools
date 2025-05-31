@@ -1,6 +1,6 @@
 # make && perl -Iblib/lib t/42_finddup.t
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More;
+use Test::More tests=>19;
 my $tmp;
 my @f;
 sub mkf {
