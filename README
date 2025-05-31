@@ -3,34 +3,40 @@ Acme::Tools version 0.28
 
 INSTALLATION
 
-To install this module type the following:
+With cpanm:
 
-   wget http://search.cpan.org/CPAN/authors/id/K/KJ/KJETIL/Acme-Tools-0.28.tar.gz
+   sudo yum install -y perl-App-cpanminus   #if needed, for Fedora, RHEL, CentOS, OracleLinux types of OS'es
+   sudo apt install cpanminus               #if needed, for Ubuntu, Debian types of OS'es
+   sudo cpan App::cpanminus                 #if one of the above didnt work
+
+   sudo cpanm Acme::Tools
+
+
+Or get the tar-ball from cpan.org for manual install:
+
+   wget https://search.cpan.org/CPAN/authors/id/K/KJ/KJETIL/Acme-Tools-0.28.tar.gz
    tar zxf Acme-Tools-0.28.tar.gz
    cd Acme-Tools-0.28
 
    perl Makefile.PL
    make test
-   make install
+   sudo make install
 
-Or using the cpan command:
+Or use the cpan command:
 
    cpan Acme::Tools
-
-Or if you've installed 'App::cpanminus' and have the 'cpanm' tool available, run:
-
-   cpan App::cpanminus     #or:  apt-get -y install cpanminus  #on ubundu or debian
-   cpanm Acme::Tools
 
 Or from github:
 
    git clone https://github.com/kjetillll/Acme-Tools.git
    cd Acme-Tools
+   #git branch -va   #view branches
+   #git checkout ${BRANCNAME?}
    perl Makefile.PL
    make test
    sudo make install
 
-To install system wide, run make install, cpanm or cpan as root.
+To install system wide, run make install, cpanm or cpan as root or with sudo.
 
 To self-update, grabs newest in master branch from github and replaces just the Tools.pm file:
 
@@ -40,11 +46,11 @@ WHAT
 
 Acme::Tools is a collection of more or less useful subs lumped together in one module.
 
-All subs are exported, so beware of name space pollution. (What did you expect of an acme module?)
+All subs are exported so beware of name space pollution. (What did you expect from an acme module?)
 
-To import just some subs, do:
+To import just a selection of subs:
 
- use Acme::Tools qw(pivot ansicolor);
+ use Acme::Tools qw(pivot random in mix brex curb ansicolor);
 
 See documentation for more.
 
@@ -52,17 +58,18 @@ See documentation for more.
 DEPENDENCIES
 
 This module in itself does not require these modules to be used, but
-some of the subs in  Acme::Tools  require  them:
+some of the subs will  require  them upon first call:
 
  require Compress::Zlib;
- require Digest::MD5
+ require Digest::MD5;
+ require String::Similarity;
 
 
 COPYRIGHT AND LICENCE
 
 Put the correct copyright and licence information here.
 
-Copyright (C) 2008-2020 Kjetil Skotheim
+Copyright (C) 2008-2025 Kjetil Skotheim
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself. 

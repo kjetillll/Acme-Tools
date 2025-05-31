@@ -1,6 +1,11 @@
 # make test
 # perl Makefile.PL && make && perl -Iblib/lib t/02_general.t
 
+#--Fedora42:
+#t/02_general.t                  (Wstat: 512 (exited 2) Tests: 204 Failed: 2)
+#  Failed tests:  109-110
+
+
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests => 204;
 use Digest::MD5 qw(md5_hex);

@@ -3166,8 +3166,7 @@ Jaro-similarity.
 Input: two strings.
 
 Returns a number between 0 and 1 to grade the similarity between two strings.
-See L</jwsim>. Both jsim() and jwsim() are case-sensitive. So A and a is
-counted as different characters.
+See L</jwsim>. Both jsim() and jwsim() are case-sensitive so C< A > and C< a > are different.
 
 1 means the strings are equal
 
@@ -9421,33 +9420,38 @@ sub cmd_due {
     my $stdin=join"",map"$_\n",@Due_fake_stdin; #test
     open(local *STDIN, '<', \$stdin) or die "ERR: $! $?\n" if $stdin;
     my $rl=qr/(^| )\-[rwx\-sS]{9}\s+(?:\d )?(?:[\w\-]+(?:\/|\s+)[\w\-]+)\s+(\d+)\s+.*?([^\/]*\.[\w,\-]+)?$/;
-    my $MorP=$o{M}||$o{C}||$o{A}||$o{P}?"due: -M, -C, -A and -P not yet implemented for STDIN unless list of filenames only\n":0;
+    my $MCAP=$o{M}||$o{C}||$o{A}||$o{P}?"due: -M, -C, -A and -P not yet implemented for STDIN unless list of filenames only\n":0;
     while(<STDIN>){
       chomp;
       next if /\/$/;
-      my($f,$sz,$xtime)=(/$rl/?($3,$2):-f$_?($_,(stat)[7,$x]):next);
+      my($f,$sz,$xtime)= /$rl/ ? ($3,$2)
+                       : -l$_  ? ($_,(lstat(_))[7,$x])
+                       : -f$_  ? ($_,( stat(_))[7,$x])
+                       :         next;
       #   1576142    240 -rw-r--r--   1 root     root       242153 april  4  2016 /opt/wine-staging/share/wine/wine.inf
       my $ext=$f=~$r?$1:'';
       $ext=lc($ext) if $o{i};
       $cnt++;    $c{$ext}++;
       $bts+=$sz; $b{$ext}+=$sz;
-      defined $xtime and $xtime{$ext}.=",$xtime" or die $MorP if $MorP;
+      defined $xtime and $xtime{$ext}.=",$xtime" or die $MCAP if $MCAP;
     }
   }
   else { #hm DRY
     @argv=('.') if !@argv;
+    my $MCAP=$o{M}||$o{C}||$o{A}||$o{P};
     File::Find::find(
       {
         follow => 0,
         wanted => sub {
           return if !-f$_;
           return if $qrexcl and defined $File::Find::name and $File::Find::name=~$qrexcl;
-          my($sz,$xtime)=(stat($_))[7,$x];
+          my($sz,$xtime)=-l$_ ?  (lstat(_))[7,$x]
+                              :  ( stat(_))[7,$x];
           my $ext=m/$r/?$1:'';
           $ext=lc($ext) if $o{i};
           $cnt++;    $c{$ext}++;
           $bts+=$sz; $b{$ext}+=$sz;
-          $xtime{$ext}.=",$xtime" if $o{M} || $o{C} || $o{A} || $o{P};
+          $xtime{$ext}.=",$xtime" if $MCAP;
           1;
         }
       },@argv);
