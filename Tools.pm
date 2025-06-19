@@ -9464,18 +9464,19 @@ sub cmd_due {
   my @e=$o{a}?(sort(keys%c))
        :$o{c}?(sort{$c{$a}<=>$c{$b} or $a cmp $b}keys%c)
        :      (sort{$b{$a}<=>$b{$b} or $a cmp $b}keys%c);
-  my $perc=!$o{M}&&!$o{C}&&!$o{A}&&!$o{P}?sub{""}:
-    sub{
+  my $perc=$o{M}||$o{C}||$o{A}||$o{P}
+  ? sub{
       my @p=$o{P}?(10,50,90):(50);
-      my @m=@_>0 ? do {grep$_, split",", $xtime{$_[0]}}
-                 : do {grep$_, map {split","} values %xtime};
+      my @m=@_>0 ? do {grep length, split",", $xtime{$_[0]}}
+                 : do {grep length, map {split","} values %xtime};
       my @r=percentile(\@p,@m);
       @r=(min(@m),@r,max(@m)) if $o{M}||$o{C}||$o{A};
       @r=map int($_), @r;
       my $fmt=$o{t}?'YYYY/MM/DD-MM:MI:SS':'YYYY/MM/DD';
       @r=map tms($_,$fmt), @r;
       "  ".join(" ",@r);
-    };
+  }
+  : sub{""};
   my $width=max( 10, grep $_, map length($_), @e );
   @e=@e[-10..-1] if $o{t} and @e>10; #-t tail
   printf("%-*s %8d $f %7.2f%%%s\n",$width,$_,$c{$_},&$s($b{$_}),100*$b{$_}/$bts,&$perc($_)) for @e;
