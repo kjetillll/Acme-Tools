@@ -2232,6 +2232,18 @@ Converts a geohash code to latitude and longitude floating point numbers. Exampl
 
 =cut
 
+sub geohash_fast { #...but wrong on edge cases, poles etc
+    my($lat,$lon,$chars)=@_;
+    $chars=9 if !defined$chars;
+    croak"geohash: @_ outside domain" if @_<2 or @_>3 or $lat<-90 or $lat>90 or $lon<-180 or $lon>180 or $chars>20;
+    return geohash_slow(@_) if $chars>=11;
+    my $latbits =  $chars*5 >> 1;
+    my $lonbits =  $chars*5 - $latbits;
+    my $bits=sprintf("%0*b", $lonbits, (180-$lon)/360 * 2**$lonbits)
+	    .sprintf("%0*b", $latbits, ( 90-$lat)/180 * 2**$latbits);
+    my $zip=join('',map substr($bits, $lonbits*($_%2)+($_>>1), 1), 0 .. $chars*5-1);
+    join'', map substr('0123456789bcdefghjkmnpqrstuvwxyz',oct"0b".y/01/10/r,1),$zip=~/.{5}/g;
+}
 sub geohash {
     my($lat,$lon,$chars)=@_;
     $chars=9 if !defined$chars;
