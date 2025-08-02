@@ -2232,11 +2232,12 @@ Converts a geohash code to latitude and longitude floating point numbers. Exampl
 
 =cut
 
+our $Geohash_fast_limit=11;
 sub geohash_fast { #...but wrong on edge cases, poles etc
     my($lat,$lon,$chars)=@_;
     $chars=9 if !defined$chars;
     croak"geohash: @_ outside domain" if @_<2 or @_>3 or $lat<-90 or $lat>90 or $lon<-180 or $lon>180 or $chars>20;
-    return geohash_slow(@_) if $chars>=11;
+    return geohash(@_) if $chars >= $Geohash_fast_limit;
     my $latbits =  $chars*5 >> 1;
     my $lonbits =  $chars*5 - $latbits;
     my $bits=sprintf("%0*b", $lonbits, (180-$lon)/360 * 2**$lonbits)
