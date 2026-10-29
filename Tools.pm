@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+
 package Acme::Tools;
 
 our $VERSION = '0.28';
@@ -17,6 +18,7 @@ our @EXPORT = qw(
   max
   mins
   maxs
+  minmax
   sum
   avg
   geomavg
@@ -110,6 +112,9 @@ our @EXPORT = qw(
   makedir
   qrlist
   ansicolor
+  colred
+  colgreen
+  colblue
   ccn_ok
   KID_ok
   writefile
@@ -155,6 +160,7 @@ our @EXPORT = qw(
   oct2dec
   oct2bin
   oct2hex
+  bitswap
   base
   gcd
   lcm
@@ -365,7 +371,7 @@ See L</code2num>
 
 =head2 code2num
 
-C<num2code()> convert numbers (integers) from the normal decimal system to some arbitrary other number system.
+C<num2code()> converts numbers (integers) from the normal decimal system to some arbitrary other number system.
 This can be binary (2), oct (8), hex (16) or others.
 
 Example:
@@ -373,8 +379,8 @@ Example:
  print num2code(255,2,"0123456789ABCDEF");  # prints FF
  print num2code( 14,2,"0123456789ABCDEF");  # prints 0E
 
-...because 255 are converted to hex FF (base C<< length("0123456789ABCDEF") >> ) which is 2 digits of 0-9 or A-F.
-...and 14 are converted to 0E, with leading 0 because of the second argument 2.
+...because 255 is converted to hex FF (base C<< length("0123456789ABCDEF") >> ) which is 2 digits of 0-9 or A-F.
+...and 14 is converted to 0E, with a leading zero because of the second argument 2.
 
 Example:
 
@@ -479,6 +485,26 @@ sub oct2dec {             oct(shift)      }
 sub oct2bin { sprintf"%b",oct(shift)      }
 sub oct2hex { sprintf"%x",oct(shift)      }
 
+=head2 bitswap
+
+Input: an integer number and an array saying which bits should go where
+
+Examples:
+
+  bitswap(10, 0..3)            # 5 since 1010 => 0101, 0th bit go in position 3 and so on
+  bitswap(18, 1,4,0,2,3,5,6)   # 96 since 10010 => 0010010 => 1100000
+  bitswap(481, 0,1)            # 482 since 481   => 111100001 => 111100010 (swap two first, first meaning least significant)
+
+=cut
+
+sub bitswap {
+    my($n, @swap) = @_;
+    die if join(',', sort {$a<=>$b} @swap) ne join(',', 0 .. $#swap);
+    my @bits = reverse sprintf("%b", $n) =~ /./g;
+    push @bits, (0) x (@swap-@bits) if @swap > @bits;
+    @bits[0 .. $#swap] = @bits[reverse@swap];
+    oct "0b".join('',  reverse @bits);
+}
 
 =head2 gcd
 
@@ -496,8 +522,8 @@ B<Example:>
 
   print gcd(12, 8);   # prints 4
 
-Because the (prime number) factors of  12  is  2 * 2 * 3 and the factors of 8 is 2 * 2 * 2
-and the common ('overlapping') factors for both 12 and 8 is then 2 * 2 and the result becomes 4.
+Because the (prime number) factors of 12 are 2 * 2 * 3 and the factors of 8 are 2 * 2 * 2
+and the common ('overlapping') factors for both 12 and 8 are then 2 * 2, and the result becomes 4.
 
 B<Example two>:
 
@@ -508,7 +534,7 @@ Implementation:
 
  sub gcd { my($a,$b,@r)=@_; @r ? gcd($a,gcd($b,@r)) : $b==0 ? $a : gcd($b, $a % $b) }
 
-One way of putting it: Keep replacing the larger of the two numbers with the difference between them until you got two equal numbers. Then thats the answer.
+One way of putting it: keep replacing the larger of the two numbers with the difference between them until you get two equal numbers. Then that's the answer.
 
 L<http://en.wikipedia.org/wiki/Greatest_common_divisor>
 
@@ -541,12 +567,12 @@ Because the factors are:
  120 = 2^3 * 3^1 * 5^1
   75 = 2^0 * 3^1 * 5^2
 
-Take the bigest power of each primary number (2, 3 and 5 here).
-Which is 2^3, 3^2 and 5^2. Multiplied this is 8 * 9 * 25 = 1800.
+Take the biggest power of each prime number (2, 3 and 5 here).
+This is 2^3, 3^2 and 5^2; multiplied, this is 8 * 9 * 25 = 1800.
 
  sub lcm { my($a,$b,@r)=@_; @r ? lcm($a,lcm($b,@r)) : $a*$b/gcd($a,$b) }
 
-Seems to works with L<Math::BigInt> as well: (C<lcm> of all integers from 1 to 200)
+Seems to work with L<Math::BigInt> as well: (C<lcm> of all integers from 1 to 200)
 
  perl -MAcme::Tools -MMath::BigInt -le'print lcm(map Math::BigInt->new($_),1..200)'
 
@@ -560,9 +586,9 @@ sub lcm { my($a,$b,@r)=@_; @r ? lcm($a,lcm($b,@r)) : $a*$b/gcd($a,$b) }
 
 B<Input:>
 
-* positive number returns primes up to and including that number (including if it's a prime)
+* A positive number returns primes up to and including that number (including that number itself, if it is prime)
 
-* negative number returns that many of the first primes
+* A negative number returns that many of the first primes
 
 B<Output:> a list of the first primes
 
@@ -976,9 +1002,9 @@ B<Examples:>
 
 B<Units, types of measurement and currencies supported by C<conv> are:>
 
-Note: units starting with the symbol _ means that all metric
-prefixes from yocto 10^-24 to yotta 10^+24 is supported, so _m means
-km, cm, mm, µm and so on. And _N means kN, MN GN and so on.
+Note: units starting with the symbol _ mean that all metric
+prefixes from yocto 10^-24 to yotta 10^+24 are supported, so _m means
+km, cm, mm, µm and so on. And _N means kN, MN, GN and so on.
 
 Note2: Many units have synonyms: m, meter, meters ...
 
@@ -2046,7 +2072,7 @@ sub roman2int {
 
 =head2 distance
 
-B<Input:> the four decimal numbers of two GPS positions: latutude1, longitude1, latitude2, longitude2
+B<Input:> the four decimal numbers of two GPS positions: latitude1, longitude1, latitude2, longitude2
 
 B<Output:> the air distance in meters between the two points
 
@@ -2117,10 +2143,10 @@ sub distance {
 Input: two or three args: Latitude and longitude as two floating point numbers
 and an optional precision (default 10).
 
-Output: returns the corresponding pluscode, also know as Google Pluscode and Open Location Code (OLC). Returned in one of these formats depending on precision argument:
+Output: returns the corresponding pluscode, also known as Google Pluscode and Open Location Code (OLC). Returned in one of these formats depending on precision argument:
 
- XXXXYYYY+YYYY      (precision 12, uofficial)
- XXXXYYYY+YYG       (precision 11 with the last char reprecenting a 5x4 grid code)
+ XXXXYYYY+YYYY      (precision 12, unofficial)
+ XXXXYYYY+YYG       (precision 11 with the last char representing a 5x4 grid code)
  XXXXYYYY+YY        (precision 10)
  XXXXYYYY+          (precision 8)
  XXXXYY00+          (precision 6)
@@ -2129,10 +2155,10 @@ Output: returns the corresponding pluscode, also know as Google Pluscode and Ope
 
 Pluscodes are often given in Short Form where the first four chars (XXXX) are deleted and a place name added behind: C<< YYYY+YY Place
 >>. To convert Short Form and Place to actual latitude and longitude requires a database to find the nearest for that town, city or smaller
-area (an area small enough so XXXX dont become indeterminate). L<pluscode()> here don't return Short Form codes.
+area (an area small enough so XXXX don't become indeterminate). L<pluscode()> here doesn't return Short Form codes.
 
-The C<< + >> char contains do data, but makes the codes recogniseable as Pluscodes. Google's site https://plus.codes/map
-overlays their world map with plus code and a click reveals latitude, longitude and the pluscode for that position.
+The C<< + >> char contains no data, but makes the codes recognisable as Pluscodes. Google's site https://plus.codes/map
+overlays their world map with pluscodes, and a click reveals latitude, longitude and the pluscode for that position.
 
 Examples:
 
@@ -2165,9 +2191,9 @@ Removes the first four chars from pluscode(lat,lon,10) and adds place from the s
 
 =head2 pluscode_short2latlon
 
-Converting from a Pluscode in Short Form requires either a database of names for places with lat, lon or with a closeby latitude and
-longitude from witch the first four chars are taken. Note: this can lead to edge cases where neighbouring first four char gridcode is
-closer for that YYYY+YY...TODO/KNOW BUG.
+Converting from a Pluscode in Short Form requires either a database of names for places with lat, lon, or a nearby latitude and
+longitude from which the first four chars are taken. Note: this can lead to edge cases where a neighbouring four-char gridcode is
+closer for that YYYY+YY...TODO/KNOWN BUG.
 
 =cut
 
@@ -2285,7 +2311,7 @@ C<< Math::BigInt->new() >>, C<< Math::BigFloat->new() >> and C<< Math::BigRat->n
   print bigf(1/7);    # 0.142857142857143   probably not what you wanted
 
   print 1/bigf(7);    # 0.1428571428571428571428571428571428571429
-  bigscale(80);       # for increased precesion (default is 40)
+  bigscale(80);       # for increased precision (default is 40)
   print 1/bigf(7);    # 0.14285714285714285714285714285714285714285714285714285714285714285714285714285714
 
 In C<big()> the characters C<< . >> and C<< / >> will make it return a
@@ -2304,7 +2330,7 @@ Math::BigInt::GMP and Math::BigFloat::GMP like this on some OS variants:
   sudo apt-get install libmath-bigint-gmp-perl libmath-gmp-perl  # on Ubuntu
 
 Unless GMP is installed for perl like this, the Math::Big*-modules
-will fall back to using similar but slower built in modules. See: L<https://gmplib.org/>
+will fall back to using similar but slower built-in modules. See: L<https://gmplib.org/>
 
 =cut
 
@@ -2420,8 +2446,8 @@ sub isnum {(@_?$_[0]:$_)=~$Re_isnum}
 Input: Three arguments.
 
 Returns: Something I<true> if the first argument is numerically between the two next.
-Uses Perls C<< >= >> and C<< <= >> operators even if passing string args.
-Order of the to last args dont matter.
+Uses Perl's C<< >= >> and C<< <= >> operators even if passing string args.
+Order of the two last args don't matter.
 
 =head2 btw
 
@@ -2441,7 +2467,7 @@ but with one or more leading zeros.
  btw('a', 'B', 'c')      #true because upper case letters comes before lower case ones in the "ascii alphabet"
  btw('a', 'c', 'B')      #true, btw() and between switches from and to if the first is > the second
  btw( -1, -2, 1)         #true
- btw( -1, 1, -2)         #true also, order of the two last args dont matter
+ btw( -1, 1, -2)         #true also, order of the two last args don't matter
 
 Both between() and btw() return C<undef> if any of the three input args are C<undef> (not defined).
 If you're doing only numerical comparisons, using C<between> is faster than C<btw>.
@@ -2467,9 +2493,9 @@ sub btw {
 
 =head2 curb
 
-B<Input:> Three numeric arguments: value, minumum, maximum.
+B<Input:> Three numeric arguments: value, minimum, maximum.
 
-B<Output:> Returns the value if its between the given minumum and maximum.
+B<Output:> Returns the value if it's between the given minimum and maximum.
 Returns minimum if the value is less or maximum if the value is more.
 Changes the variable if 1st arg is a scalarref. Croaks if the number of
 input arguments is different than three or if any of them are not defined.
@@ -2485,7 +2511,7 @@ input arguments is different than three or if any of them are not defined.
 
 sub curb {
   my($val,$min,$max)=@_;
-  # todo: undef min|max => dont curb min|max
+  # todo: undef min|max => don't curb min|max
   croak "curb: wrong args" if @_!=3 or !defined$min or !defined$max or !defined$val or $min>$max;
   return $$val=curb($$val,$min,$max) if ref($val) eq 'SCALAR';
   $val < $min ? $min :
@@ -2522,7 +2548,7 @@ sub logn  { log($_[0]) / log($_[1]) }
 
 Returns input string as uppercase or lowercase.
 
-Can be used if Perls build in C<uc()> and C<lc()> for some reason does not convert æøå or other latin1 letters outsize a-z.
+Can be used when Perl's built-in C<uc()> and C<lc()> for some reason do not convert æøå or other latin1 letters outside a-z.
 
 Converts C<< æøåäëïöüÿâêîôûãõàèìòùáéíóúýñð >> to ...
 
@@ -2534,7 +2560,7 @@ Or use Perl's own uc() and lc() like this:
  use open ":std", ":encoding(UTF-8)";
  print uc("æøå");                           # ÆØÅ  (the three extra letters in Norwegian and Danish)
 
-See also C<< perldoc -f uc >> and C<< perldoc -f lc >>. Note: upper+lower is unchanged here for backward compatability purposes.
+See also C<< perldoc -f uc >> and C<< perldoc -f lc >>. Note: upper+lower is unchanged here for backward compatibility purposes.
 
 =head2 trim
 
@@ -2640,7 +2666,7 @@ sub cpad_old {
 
 B<Input:> A string (i.e. a name). And an optional x (see example 2)
 
-B<Output:> A list of this strings trigrams (See examlpe)
+B<Output:> A list of this string's trigrams (see example)
 
 B<Example 1:>
 
@@ -2661,19 +2687,19 @@ And this prints:
  Hump, umpt, mpty, pty , ty D, y Du,  Dum, Dump, umpt, mpty
 
 C<trigram()> was created for "fuzzy" name searching. With a database of many names,
-addresses, phone numbers, customer numbers etc. You can use trigram() to search
-among all of those at the same time. If the search form only has one input field.
-One general search box to find equal or similar strings.
+addresses, phone numbers, customer numbers etc., you can use trigram() to search
+among all of those at the same time, if the search form only has one input field
+one general search box to find equal or similar strings.
 
 How: Store all of the trigrams of the trigram-indexed input fields coupled
 with each person. When searching, for each trigram in your query string add
-to a created list of people that has that trigram. The search result should
-then be sorted so that persons with most hits are listed first (or you could
+to a created list of people that have that trigram. The search result should
+then be sorted so that the persons with the most hits are listed first (or you could
 combine that with some scoring value using L</jsim> or L</jwsim> as well).
 Both the query strings and the indexed database fields should have a space
 added first and last before C<trigram()>-ing them.
 
-This search algorithm is not includes here yet...
+This search algorithm is not included here yet...
 
 C<trigram()> should perhaps have been named ngram for obvious reasons.
 
@@ -2719,6 +2745,8 @@ sub sliding {
   return map [@$s[$_..$_+$w-1]], 0..@$s-$w         if ref($s) eq 'ARRAY';
 }
 
+sub sliding_window_circular_list { my $o = shift >> 1; map { my $i = $_; [ @_[ map $_ % @_, $i-$o .. $i+$o ] ] } keys @_ }
+
 sub chunks {
   my($s,$w)=@_;
   return $s=~/(.{1,$w})/g                                      if !ref($s);
@@ -2762,7 +2790,7 @@ A tip for decoding:
 
 Input: First arg: a string or arrayref. Optional second arg: a hashref to what encoding to use. Default is a ref to a hash found by L</huffman>.
 
-Output: to elements: the encoded binary string and the hashref to the given or found encoding hash which is to be used upon L</huffman_decode>
+Output: two elements: the encoded binary string and the hashref to the given or found encoding hash which is to be used upon L</huffman_decode>
 
  my($encoded_binary_string, $encoding_hashref) = huffman_pack("some string which will be split into chars")
 
@@ -2904,7 +2932,7 @@ Without a third argument, subarr returns the rest of the array.
 
 For one to three input args, subarr works as C<splice> without changing the array.
 
-Negative offsets and lengths works as Perls substr, see C<perldoc -f substr>
+Negative offsets and lengths work as Perl's substr, see C<perldoc -f substr>
 
 For four or more input args, subarr works just as splice with replacement and as substr with four args, and returns what is replaced.
 
@@ -2914,11 +2942,11 @@ For four or more input args, subarr works just as splice with replacement and as
  @last6 = subarr  $array_ref, -6;    # returns last 6 elems, parens are optional
  @last6 = subarr( $array_ref, -6,6,'x','y'); # replaces last 6 elems with the two string elems x and y, still returns the last six
  my $ref = [1..10];
- @arr   = subarr( $ref, -6, -4, qw(X Y ZZ); #replaces sixth and fifth last elems with x, y and zz. Returns replaced two elems
+ @arr   = subarr( $ref, -6, -4, qw(X Y ZZ); #replaces the sixth and fifth to last elems with x, y and zz. Returns the two replaced elems
  print join('+',@arr);               # 5+6
  print join('+',@$ref);              # 1+2+3+4+X+Y+ZZ+7+8+9+10
 
-The same can be obtained from C<< @array[$from..$to] >> but that dont work the
+The same can be obtained from C<< @array[$from..$to] >> but that doesn't work the
 same way with negative offsets and boundary control of length.
 
 =cut
@@ -2948,7 +2976,7 @@ Returns the smallest number in a list. Undef is ignored.
  @lengths=(3,2,5,2,10,undef,5,4);
  $shortest = min(@lengths);   # returns 2
 
-Note: The comparison operator is perls C<< < >> which means empty strings is treated as C<0>, the number zero. The same goes for C<max()>, except of course C<< > >> is used instead.
+Note: The comparison operator is Perl's C<< < >> which means empty strings are treated as C<0>, the number zero. The same goes for C<max()>, except of course C<< > >> is used instead.
 
  min(3,4,5)       # 3
  min(3,4,5,undef) # 3
@@ -2983,6 +3011,8 @@ sub min  {my $min;for(@_){ $min=$_ if defined($_) and !defined($min) || $_ < $mi
 sub mins {my $min;for(@_){ $min=$_ if defined($_) and !defined($min) || $_ lt $min} $min }
 sub max  {my $max;for(@_){ $max=$_ if defined($_) and !defined($max) || $_ > $max } $max }
 sub maxs {my $max;for(@_){ $max=$_ if defined($_) and !defined($max) || $_ gt $max} $max }
+sub minmax { (min(@_), max(@_)) }
+sub dvmd { ( int($_[0] / $_[1]), $_[0] % $_[1] ) } #divmod
 
 =head2 zip
 
@@ -2996,7 +3026,7 @@ B<Output:> An array of those input arrays zipped (interlocked, merged) into each
 
 Example:
 
-zip() creates a hash where the keys are found in the first array and values in the secord in the correct order:
+zip() creates a hash where the keys are found in the first array and values in the second in the correct order:
 
  my @media = qw/CD DVD VHS LP Blueray/;
  my @count = qw/20 12  2   4  3/;
@@ -3081,7 +3111,7 @@ B<Input:> Two strings
 
 B<Output:> A number 0 - 1 indicating the maximum similarity between two strings tested
 against all permutations of both strings split on C<< [\s,]+ >> and where the string
-with most words (i.e. names) are cut to as many words as the one with least words.
+with the most words (i.e. names) is cut to as many words as the one with the fewest words.
 
 Requires L<String::Similarity> where the real magic happens.
 
@@ -3133,7 +3163,7 @@ sub sim_perm {
 Returns the Levenshtein distance between two strings. This is the minimum number
 of edits needed on one of them to become equal to the other. Three types of edits
 are allowed: insertion of a char, deletion of a char and substitution of one char
-into another.
+for another.
 
 Examples:
 
@@ -3143,7 +3173,7 @@ Examples:
  levdist('abc','cba');           #2
 
 The first example returns 3 because 3 edits are needed. When v is substituted
-to e, one of the p's is deleted and the t is inserted we get elephant.
+with e, one of the p's is deleted and the t is inserted, we get elephant.
 
 L<https://en.wikipedia.org/wiki/Levenshtein_distance>
 
@@ -3171,7 +3201,7 @@ See L</jwsim>. Both jsim() and jwsim() are case-sensitive so C< A > and C< a > a
 1 means the strings are equal
 
 0 means no similarity which means either zero common letters or all common letters
-positions in their strings are too far apart adjusted for the max lenght of the two strings.
+positions in their strings are too far apart adjusted for the max length of the two strings.
 
 Jaro-similarity. L<https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance#Jaro_Similarity>
 
@@ -3198,10 +3228,10 @@ L<https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance#Jaro%E2%80%93Winkl
  jsim('MARTHA','MARHTA');      # 0.944444444444445
  jwsim('MARTHA','MARHTA');     # 0.961111111111111 which is higher, Winkler added a reward for equality in the beginning of the strings
  jwsim('MARTHA','MARHTA',0.1); # 0.961111111111111, same since 0.1 is the default scaling factor for the prefix reward
- jwsim('MARTHA','MARHTA',0.2); # 0.977777777777778, larger scaling factor makes jwsim put more weigh into same prefix.
+ jwsim('MARTHA','MARHTA',0.2); # 0.977777777777778, larger scaling factor makes jwsim put more weight into the same prefix.
                                # The 3rd argument should be between 0 - 0.25. Larger than 0.25 and jwsim() can in
                                # some cases return numbers larger than 1.
- jwsim('MARTHA','MARHTA',0.0); # 0.944444444444445, scaling factor = 0 makes jwsim() return the same a jsim().
+ jwsim('MARTHA','MARHTA',0.0); # 0.944444444444445, scaling factor = 0 makes jwsim() return the same as jsim().
                                # No reward for same prefix.
 
 =cut
@@ -3330,7 +3360,7 @@ B<Input:> Two, three or four arguments
 B<First argument:> the element to find. Usually a number.
 
 B<Second argument:> a reference to the array to search in. The array
-should be sorted in ascending numerical order (se exceptions below).
+should be sorted in ascending numerical order (see exceptions below).
 
 B<Third argument:>  Optional. Default false.
 
@@ -3490,7 +3520,7 @@ $prevr is the previous value, rotated so that the previous of the first element 
 
 $nextr is the next value, rotated so that the next of the last element is the first element
 
-$_ is the current value, just as with Perls built-in grep
+$_ is the current value, just as with Perl's built-in grep
 
  my @a = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20);  # 1..20
  my @r = egrep { $_ % 3 == 0 } @a;  # @r is 3, 6, 9, 12, 15, 18. Plain grep could have been used here
@@ -3586,7 +3616,7 @@ sub sortedstr { $_[$_] gt $_[$_+1] and return 0 for 0..$#$_-1; return 1 }
 sub sortby {
   my($arr,@by)=@_;
   die if grep/^-/,@by; #hm 4now todo! - dash meaning descending order
-  my $pattern=join(" ",map"%-40s",@by);#hm 4now bad, cant handle numeric sort
+  my $pattern=join(" ",map"%-40s",@by);#hm 4now bad, can't handle numeric sort
   map$$_[0],
   sort{$$a[1]cmp$$b[1]}
   map[$_,sprintf($pattern,@$_{@by})],
@@ -3597,7 +3627,7 @@ sub sortby {
 =head2 subarrays
 
 Returns all 2^n-1 combinatory subarrays of an array where each element
-of input array participates or not. Note: The empty array is not among
+of the input array participates or not. Note: The empty array is not among
 the returned arrayrefs unless an empty input is given.
 
  my @a = subarrays( 'a', 'b', 'c' );         # same as:
@@ -3822,8 +3852,8 @@ sub pile { my $size=shift; my @r; for (@_){ push@r,[] if !@r or @{$r[-1]}>=$size
    #varchar=>'varchar',   #default, change to varchar2 if Oracle
    #date=>'date',         #default, perhaps change to 'timestamp with time zone' if postgres
    #varchar_maxlen=>4000, #default, 4000 (used to be?) is max in Oracle
-   #create=>1,            #default, use 0 to dont include create table
-   #drop=>0,              #default 0: dont include drop table x; 1: drop table x; 2: drop table if exists x;
+   #create=>1,            #default, use 0 to not include create table
+   #drop=>0,              #default 0: don't include drop table x; 1: drop table x; 2: drop table if exists x;
    #end=>"commit;\n",
    #begin=>"begin;\n",
    #fix_colnames=>0,
@@ -4136,7 +4166,7 @@ sub rstddev { stddev(@_) / avg(@_) }
 
 =head2 median
 
-Returns the median value of a list of numbers. The list do not have to
+Returns the median value of a list of numbers. The list does not have to
 be sorted.
 
 Example 1, list having an odd number of numbers:
@@ -4171,7 +4201,7 @@ quartile, 75 is the third quartile.
 
 B<Input:>
 
-First argument is your wanted percentile, or a refrence to a list of percentiles you want from the dataset.
+First argument is your wanted percentile, or a reference to a list of percentiles you want from the dataset.
 
 If the first argument to percentile() is a scalar, this percentile is returned.
 
@@ -4202,11 +4232,11 @@ Data: 1, 4, 6, 7, 8, 9, 22, 24, 39, 49, 555, 992
 
 Average (or mean) is 143
 
-Median is 15.5 (which is the average of 9 and 22 who both equally lays in the middle)
+Median is 15.5 (which is the average of 9 and 22, which both equally lie in the middle)
 
-The 25-percentile is 6.25 which are between 6 and 7, but closer to 6.
+The 25-percentile is 6.25 which is between 6 and 7, but closer to 6.
 
-The 75-percentile is 46.5, which are between 39 and 49 but close to 49.
+The 75-percentile is 46.5, which is between 39 and 49 but close to 49.
 
 Linear interpolation is used to find the 25- and 75-percentile and any
 other x-percentile which doesn't fall exactly on one of the numbers in
@@ -4214,26 +4244,25 @@ the set.
 
 B<Interpolation:>
 
-As you saw, 6.25 are closer to 6 than to 7 because 25% along the set of
-the twelve numbers is closer to the third number (6) than to he fourth
+As you saw, 6.25 is closer to 6 than to 7 because 25% along the set of
+the twelve numbers is closer to the third number (6) than to the fourth
 (7). The median (50-percentile) is also really interpolated, but it is
 always in the middle of the two center numbers if there are an even count
 of numbers.
 
-However, there is two methods of interpolation:
+However, there are two methods of interpolation:
 
 Example, we have only three numbers: 5, 6 and 7.
 
-Method 1: The most common is to say that 5 and 7 lays on the 25- and
+Method 1: The most common is to say that 5 and 7 lie on the 25- and
 75-percentile. This method is used in Acme::Tools.
 
 Method 2: In Oracle databases the least and greatest numbers
-always lay on the 0- and 100-percentile.
+always lie on the 0- and 100-percentile.
 
-As an argument on why Oracles (and others?) definition is not the best way is to
-look at your data as for instance temperature measurements.  If you
+As an argument for why Oracle's (and others'?) definition is not the best way, consider your data as, for instance, temperature measurements. If you
 place the highest temperature on the 100-percentile you are sort of
-saying that there can never be a higher temperatures in future measurements.
+saying that there can never be a higher temperature in future measurements.
 
 A quick non-exhaustive Google survey suggests that method 1 here is most used.
 
@@ -4253,9 +4282,9 @@ Another method could be to use "soft curves" instead of "straight
 lines" in interpolation. Maybe B-splines or Bezier curves. This is not
 used here.
 
-For large sets of data Hoares algorithm would be faster than the
+For large sets of data, Hoare's algorithm would be faster than the
 simple straightforward implementation used in C<percentile()>
-here. Hoares don't sort all the numbers fully.
+here. Hoare's algorithm doesn't sort all the numbers fully.
 
 B<Differences between the two main methods described above:>
 
@@ -4335,7 +4364,7 @@ If 20% of the best payed get 80% of the total income, a.k.a. pareto or "80-20-ru
 Example 1: two earns 80 beans each and eight earns 5 each => 0.60
 Example 2: one earns 81, next earns 79 and the eight lowest payed earn 5 each => 0.601
 
-Both examples adheres to the 80-20-rule, but the last have a little more inequality.
+Both examples adhere to the 80-20-rule, but the last has a little more inequality.
 
 L<https://en.wikipedia.org/wiki/Gini_coefficient>
 
@@ -4410,13 +4439,13 @@ sub random {
 
 =head2 random_gauss
 
-Returns an pseudo-random number with a Gaussian distribution instead
-of the uniform distribution of perls C<rand()> or C<random()> in this
+Returns a pseudo-random number with a Gaussian distribution instead
+of the uniform distribution of Perl's C<rand()> or C<random()> in this
 module.  The algorithm is a variation of the one at
 L<http://www.taygeta.com/random/gaussian.html> which is both faster
 and better than adding a long series of C<rand()>.
 
-Uses perls C<rand> function internally.
+Uses Perl's C<rand> function internally.
 
 B<Input:> 0 - 3 arguments.
 
@@ -4598,12 +4627,12 @@ Shuffles a deck of cards: (s=spaces, h=hearts, c=clubs, d=diamonds)
 
 (This example uses L</cart>, which is not a typo, see further down)
 
-Note: C<List::Util::shuffle()> is approximately four times faster. Both respects the Perl built-in C<srand()>.
+Note: C<List::Util::shuffle()> is approximately four times faster. Both respect the Perl built-in C<srand()>.
 
 =cut
 
 sub mix {
-  if(@_==1 and ref($_[0]) eq 'ARRAY'){ #one arg and its an arrayref
+  if(@_==1 and ref($_[0]) eq 'ARRAY'){ #one arg and it's an arrayref
     my $r=$_[0];
     push@$r,splice(@$r,rand(@$r-$_),1) for 0..$#$r;
     return $r;
@@ -4637,12 +4666,12 @@ B<Input:> 0-n args
 * should contain at least one char from each of the groups lower, upper, digit and special char
 
 To keep the default requirement-sub but add additional ones just set the fourth arg to false/undef
-and add your own requirements in the fifth arg and forward (examples below). Sub pwgen uses perls
+and add your own requirements in the fifth arg and forward (examples below). Sub pwgen uses Perl's
 own C<rand()> internally so srand() can be used to get consistent deterministic results.
 
 C<< $Acme::Tools::Pwgen_max_sec >> and C<< $Acme::Tools::Pwgen_max_trials >> can be set to adjust for how long
 pwgen tries to find  password(s) before croak-ing. Defaults for those are 0.05 seconds and 10000 trials, whichever
-occur first. Those defaults can be change by setting $Acme::Tools::Pwgen_max_sec and $Acme::Tools::Pwgen_max_trials.
+occur first. Those defaults can be changed by setting $Acme::Tools::Pwgen_max_sec and $Acme::Tools::Pwgen_max_trials.
 Note: those limits are for all the passwords so change the defaults if you generate many at once with hard constraints.
 
 Examples:
@@ -4703,7 +4732,7 @@ sub pwgen {
   return @pw;
 }
 
-#push_srand() and pop_srand dont work as intended
+#push_srand() and pop_srand don't work as intended
 #=head2 push_srand
 #
 # srand(7); print rand(), 
@@ -4726,7 +4755,7 @@ sub pop_srand {
 
 # =head1 veci
 #
-# Perls C<vec> takes 1, 2, 4, 8, 16, 32 and possibly 64 as its third argument.
+# Perl's C<vec> takes 1, 2, 4, 8, 16, 32 and possibly 64 as its third argument.
 #
 # This limitation is removed with C<veci> (vec improved, but much slower)
 #
@@ -4751,7 +4780,7 @@ sub pop_srand {
 
 =head2 distinct
 
-Returns the values of the input list, sorted alfanumerically, but only
+Returns the values of the input list, sorted alphanumerically, but only
 one of each value. This is the same as L</uniq> except uniq does not
 sort the returned list.
 
@@ -4880,7 +4909,7 @@ Example:
  print join " ", uniq @t;                          # prints  7 2 3 4 1 5 x xx 07
 
 Beware of using C<sort> like the following because sort will see C<uniq>
-as the subroutine for comparing elements! Which you most likely didnt mean.
+as the subroutine for comparing elements! Which you most likely didn't mean.
 This has nothing to do with the way uniq is implemented. It's Perl's C<sort>.
 
  print sort uniq('a','dup','z','dup');  # will return this four element array: a dup z dup
@@ -5199,7 +5228,7 @@ Example:
 
  perl -MAcme::Tools -le 'print ipaddr("129.240.8.200")'  # prints www.uio.no
 
-Uses perls C<gethostbyaddr> internally.
+Uses Perl's C<gethostbyaddr> internally.
 
 C<ipaddr()> memoizes the results internally (using the
 C<%Acme::Tools::IPADDR_memo> hash) so only the first loopup on a
@@ -5226,7 +5255,7 @@ sub ipaddr {
 C<ipnum()> does the opposite of C<ipaddr()>
 
 Does an attempt of converting an IP address (hostname) to an IP number.
-Uses DNS name servers via perls internal C<gethostbyname()>.
+Uses DNS name servers via Perl's internal C<gethostbyname()>.
 Return empty string (undef) if unsuccessful.
 
  print ipnum("www.uio.no");   # prints 129.240.13.152
@@ -5515,7 +5544,7 @@ Automatic compression:
 
  writefile('file.txt.gz','my text is compressed by /bin/gzip when written to the file');
 
-Extentions C<.gz>, C<.bz2>, C<.xz> and C<.zst> are recognized for compression. See also C<readfile()> and C<openstr()>.
+Extensions C<.gz>, C<.bz2>, C<.xz> and C<.zst> are recognized for compression. See also C<readfile()> and C<openstr()>.
 
 B<Output:> Nothing (for the time being). C<die()>s (C<croak($!)> really) if something goes wrong.
 
@@ -5578,7 +5607,7 @@ Automatic decompression:
 
  my $txt = readfile('file.txt.gz');  #uses /bin/gunzip to decompress content
 
-Extentions C<.gz>, C<.bz2> and C<.xz> are recognized for decompression. See also C<writefile()> and C<openstr()>.
+Extensions C<.gz>, C<.bz2> and C<.xz> are recognized for decompression. See also C<writefile()> and C<openstr()>.
 
 =cut
 
@@ -5613,12 +5642,12 @@ Name of a directory.
 
 B<Output:>
 
-A list of all files in it, except of  C<.> and C<..>  (on linux/unix systems, all directories have a C<.> and C<..> directory).
+A list of all files in it, except for C<.> and C<..>  (on linux/unix systems, all directories have a C<.> and C<..> directory).
 
 The names of all types of files are returned: normal files, directories, symbolic links,
-pipes, semaphores. That is every thing shown by C<ls -la> except C<.> and C<..>
+pipes, semaphores. That is everything shown by C<ls -la> except C<.> and C<..>
 
-C<readdirectory> do not recurce down into subdirectories (but see example below).
+C<readdirectory> does not recurse down into subdirectories (but see example below).
 
 B<Example:>
 
@@ -5641,14 +5670,14 @@ See also: L<File::Find>
 
 B<Why not readdirectory?>
 
-On huge directories with perhaps tens or houndreds of thousands of
-files, readdirectory() will consume more memory than perls
+On huge directories with perhaps tens or hundreds of thousands of
+files, readdirectory() will consume more memory than Perl's
 opendir/readdir. This isn't usually a concern anymore for modern
 computers with gigabytes of RAM, but might be the rationale behind
-Perls more tedious way created in the 80s.  The same argument goes for
-file slurping. On the other side it's also a good practice to never
-assume to much on available memory and the number of files if you
-don't know for certain that enough memory is available whereever your
+Perl's more tedious way, created in the 80s. The same argument goes for
+file slurping. On the other hand it's also a good practice to never
+assume too much on available memory and the number of files if you
+don't know for certain that enough memory is available wherever your
 code is run or that the size of the directory is limited.
 
 B<Example:>
@@ -5749,11 +5778,11 @@ sub wipe {
 
 Does chmod + utime + chown on one or more files.
 
-Returns the number of files of which those operations was successful.
+Returns the number of files of which those operations were successful.
 
 Mode, uid, gid, atime and mtime are set from the array ref in the first argument.
 
-The first argument references an array which is exactly like an array returned from perls internal C<stat($filename)> -function.
+The first argument references an array which is exactly like an array returned from Perl's internal C<stat($filename)> -function.
 
 Example:
 
@@ -5780,7 +5809,7 @@ sub chall {
 
 Input: One or two arguments.
 
-Works like perls C<mkdir()> except that C<makedir()> will create nesessary parent directories if they dont exists.
+Works like Perl's C<mkdir()> except that C<makedir()> will create necessary parent directories if they don't exist.
 
 First input argument: A directory name (absolute, starting with C< / > or relative).
 
@@ -5790,12 +5819,12 @@ Example:
 
  makedir("dirB/dirC")
 
-...will create directory C<dirB> if it does not already exists, to be able to create C<dirC> inside C<dirB>.
+...will create directory C<dirB> if it does not already exist, to be able to create C<dirC> inside C<dirB>.
 
 Returns true on success, otherwise false.
 
-C<makedir()> memoizes directories it has checked for existence before (trading memory and for speed).
-Thus directories removed during running the script is not discovered by makedir.
+C<makedir()> memoizes directories it has checked for existence before (trading memory for speed).
+Thus directories removed during running the script are not discovered by makedir.
 
 See also C<< perldoc -f mkdir >>, C<< man umask >>
 
@@ -5818,7 +5847,7 @@ B<Input:> a filename (or a scalar ref to a string, see below)
 
 B<Output:> a string of 32 hexadecimal chars from 0-9 or a-f.
 
-Example, the md5sum gnu/linux command without options could be implementet like this:
+Example, the md5sum gnu/linux command without options could be implemented like this:
 
  use Acme::Tools;
  print eval{ md5sum($_)."  $_\n" } || $@ for @ARGV;
@@ -5854,7 +5883,7 @@ Returns the first executable program in $ENV{PATH} paths (split by : colon) with
 B<First argument:> A file name or a reference to a string with settings in the format described below.
 
 B<Second argument, optional:> A reference to a hash. This hash will have the settings from the file (or stringref).
-The hash do not have to be empty beforehand.
+The hash does not have to be empty beforehand.
 
 Returns a hash with the settings as in this examples:
 
@@ -5876,19 +5905,19 @@ File use for the above example:
  text:      { values starting with { continues
               until reaching a line with }
 
-Everything from # and behind is regarded comments and ignored. Comments can be on any line.
+Everything from # and behind is regarded as a comment and ignored. Comments can be on any line.
 To keep a # char, put a \ in front of it.
 
 A C< : > or C< = > separates keys and values.  Spaces at the beginning or end of lines are
 ignored (after removal of #comments), as are any spaces before and after : and = separators.
 
-Empty lines or lines with no C< : > or C< = > is also ignored. Keys and values can contain
+Empty lines or lines with no C< : > or C< = > are also ignored. Keys and values can contain
 internal spaces and tabs, but not at the beginning or end.
 
 Multi-line values must start and end with { and }. Using { and } keep spaces at the start
 or end in both one-line and multi-line values.
 
-Sections are marked with C<< [sectionname] >>.  Section names, keys and values is case
+Sections are marked with C<< [sectionname] >>.  Section names, keys and values are case
 sensitive. C<Key:values> above the first section or below and empty C<< [] >> is placed
 both in the empty section in the returned hash and as top level key/values.
 
@@ -5944,7 +5973,7 @@ sub read_conf {
 Environment variable PATH is used. So in the examples above, /bin/gzip
 is returned instead of gzip if /bin is the first directory in
 $ENV{PATH} containing an executable file gzip. Dirs /usr/bin, /bin and
-/usr/local/bin is added to PATH in openstr(). They are checked even if
+/usr/local/bin are added to PATH in openstr(). They are checked even if
 PATH is empty.
 
 See also C<writefile()> and C<readfile()> for automatic compression and decompression using C<openstr>.
@@ -5994,31 +6023,31 @@ B<Input:> One, two or three arguments.
 
 B<First argument:> A format string.
 
-B<Second argument: (optional)> An epock C<time()> number or a time
+B<Second argument: (optional)> An epoch C<time()> number or a time
 string of the form YYYYMMDD-HH24:MI:SS or YYYYMMDDTHH:MI:SS or
-YYYY-MM-DDTHH:MI:SS (in which T is litteral and HH is the 24-hour
+YYYY-MM-DDTHH:MI:SS (in which T is literal and HH is the 24-hour
 version of hours) or YYYYMMDD. Uses the current C<time()> if the
 second argument is missing.
 
 TODO: Formats with % as in C<man date> (C<%Y%m%d> and so on)
 
-B<Third argument: (optional> True or false. If true and first argument
-is eight digits: Its interpreted as a date like YYYYMMDD time string,
-not an epoch time.  If true and first argument is six digits its
+B<Third argument:> (optional) True or false. If true and first argument
+is eight digits: it's interpreted as a date like YYYYMMDD time string,
+not an epoch time. If true and first argument is six digits it's
 interpreted as a date like DDMMYY (not YYMMDD!).
 
 B<Output:> a date or clock string on the wanted form.
 
 B<Examples:>
 
-Prints C<< 3. july 1997 >> if thats the dato today:
+Prints C<< 3. july 1997 >> if that's the date today:
 
   perl -MAcme::Tools -le 'print timestr("D. month YYYY")'
 
-  print tms("HH24:MI");              # prints 23:55 if thats the time now
+  print tms("HH24:MI");              # prints 23:55 if that's the time now
   tms("HH24:MI",time());             # ...same,since time() is the default
   tms("HH:MI",time()-5*60);          # 23:50 if that was the time 5 minutes ago
-  tms("HH:MI",time()-5*60*60);       # 18:55 if thats the time 5 hours ago
+  tms("HH:MI",time()-5*60*60);       # 18:55 if that's the time 5 hours ago
   tms("Day Month Dth YYYY HH:MI");   # Saturday July 1st 2004 23:55    (big S, big J)
   tms("Day D. Month YYYY HH:MI");    # Saturday 8. July 2004 23:55     (big S, big J)
   tms("DAY D. MONTH YYYY HH:MI");    # SATURDAY 8. JULY 2004 23:55     (upper)
@@ -6030,8 +6059,8 @@ The following list of codes in the first argument will be replaced:
 
   YYYY    Year, four digits
   YY      Year, two digits, i.e. 04 instead of 2004
-  yyyy    Year, four digits, but nothing if its the current year
-  YYYY|HH:MI  Year if its another year than the current, a time in hours and minutes elsewise
+  yyyy    Year, four digits, but nothing if it's the current year
+  YYYY|HH:MI  Year if it's another year than the current, a time in hours and minutes elsewise
   MM      Month, two digits. I.e. 08 for August
   DD      Day of month, two digits. I.e. 01 (not 1) for the first day in a month
   D       Day of month, one digit. I.e. 1 (not 01)
@@ -6040,8 +6069,8 @@ The following list of codes in the first argument will be replaced:
   HH12    12 becomes 12 (never 00), 13 becomes 01, 14 02 and so on.
           Note: 00 after midnight becomes 12 (am). Tip: always include the code
           am in a format string that uses HH12.
-  MI      Minutt. Fra 00 til 59.
-  SS      Sekund. Fra 00 til 59.
+  MI      Minute. From 00 to 59.
+  SS      Second. From 00 to 59.
   am      Becomes am or pm
   pm      Same
   AM      Becomes AM or PM (upper case)
@@ -6060,9 +6089,9 @@ The following list of codes in the first argument will be replaced:
   DY      Upper case
   Dth     1st 2nd 3rd 4th 5th ... 11th 12th ... 20th 21st 22nd 23rd 24th ... 30th 31st
 
-  WW      Week number of the year 01-53 according to the ISO8601-definition (which most countries uses)
+  WW      Week number of the year 01-53 according to the ISO8601-definition (which most countries use)
   WWUS    Week number of the year 01-53 according to the most used definition in the USA.
-          Other definitions also exists.
+          Other definitions also exist.
 
   epoch   Converts a time string from YYYYMMDD-HH24:MI:SS, YYYYMMDD-HH24:MI:SS, YYYYMMDDTHH:MI:SS,
           YYYY-MM-DDTHH:MI:SS or YYYYMMDD to the number of seconds since January 1st 1970.
@@ -6308,7 +6337,7 @@ sub tms {
     return $time if $format eq 'epoch' or $format eq 'E';
     #return do{require Time::Piece; Time::Piece->strptime(tms($time),q(%Y%m%d-%H:%M:%S))->julian_day} if $format =~ /^JDN?$/; #hm
     @lt=localtime($time);
-    return julian_day(1900+$lt[5],1+$lt[4],$1?($lt[3],0,0,0):@lt[3,2,1,0]) if $format =~ /^JD(N?)$/; #hm
+    return julian_day(1900+$lt[5],1+$lt[4],$1?($lt[3],0,0,0):@lt[3,2,1,0]) if $format =~ /^J(D?N?)$/; #hm
   }
   tms_init() if !$_tms_inited;
   return sprintf("%04d%02d%02d-%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]) if !$format;
@@ -6450,7 +6479,7 @@ sub easter { use integer;my$Y=shift;my$C=$Y/100;my$L=($C-$C/4-($C-($C-17)/25)/3+
 
 No input arguments.
 
-Return the same number as perls C<time()> except with decimals (fractions of a second, _fp as in floating point number).
+Return the same number as Perl's C<time()> except with decimals (fractions of a second, _fp as in floating point number).
 
  print time_fp(),"\n";
  print time(),"\n";
@@ -6488,8 +6517,8 @@ sleep_fp() work as the built in C<< sleep() >> but also accepts fractional secon
 
  sleep_fp(0.020);  # sleeps for 20 milliseconds
 
-Sub sleep_fp do a C<require Time::HiRes>, thus it might take some
-extra time the first call. To avoid that, add C<< use Time::HiRes >>
+Sub sleep_fp does a C<require Time::HiRes>, thus it might take some
+extra time on the first call. To avoid that, add C<< use Time::HiRes >>
 to your code. Sleep_fp should not be trusted for accuracy to more than
 a tenth of a second. Virtual machines tend to be less accurate (sleep
 longer) than physical ones. This was tested on VMware and RHEL
@@ -6529,7 +6558,7 @@ Estimated time of arrival (ETA).
     print "" . localtime($eta);
  }
 
-TODO: eta is borken and out of wack, good idea?: http://en.wikipedia.org/wiki/Kalman_filter
+TODO: eta is broken and out of whack, good idea?: http://en.wikipedia.org/wiki/Kalman_filter
 
 =head2 etahhmm
 
@@ -6567,7 +6596,7 @@ sub eta {
 =head2 sleep_until
 
 sleep_until(0.5) sleeps until half a second has passed since the last
-call to sleep_until. This example starts the next job excactly ten
+call to sleep_until. This example starts the next job exactly ten
 seconds after the last job started even if the last job lasted for a
 while (but not more than ten seconds):
 
@@ -6622,16 +6651,16 @@ sub throttle {
 
 B<Input:> A year. A four digit number.
 
-B<Output:> True (1) or false (0) of whether the year is a leap year or
-not. (Uses current calendar even for periods before leapyears was used).
+B<Output:> True (1) or false (0) for whether the year is a leap year or
+not. (Uses current calendar even for periods before leap years were used).
 
  print join(", ",grep leapyear($_), 1900..2014)."\n";
 
  1904, 1908, 1912, 1916, 1920, 1924, 1928, 1932, 1936, 1940, 1944, 1948, 1952, 1956,
  1960, 1964, 1968, 1972, 1976, 1980, 1984, 1988, 1992, 1996, 2000, 2004, 2008, 2012
 
-Note: 1900 is not a leap year, but 2000 is. Years divided by 100 is a leap year only
-if it can be divided by 400.
+Note: 1900 is not a leap year, but 2000 is. Years divided by 100 are a leap year only
+if they can be divided by 400.
 
 =cut
 
@@ -6659,14 +6688,14 @@ sub ldist {
 
 The I<no value> function (or I<null value> function)
 
-C<nvl()> takes two or more arguments. (Oracles nvl-function take just two)
+C<nvl()> takes two or more arguments. (Oracle's nvl-function takes just two)
 
 Returns the value of the first input argument with length() > 0.
 
 Return I<undef> if there is no such input argument.
 
 In perl 5.10 and perl 6 this will most often be easier with the C< //
-> operator, although C<nvl()> and C<< // >> treats empty strings C<"">
+> operator, although C<nvl()> and C<< // >> treat empty strings C<"">
 differently. Sub nvl here considers empty strings and undef the same.
 
 =cut
@@ -6684,9 +6713,9 @@ See L</decode>.
 
 =head2 decode
 
-C<decode()> and C<decode_num()> works just as Oracles C<decode()>.
+C<decode()> and C<decode_num()> work just as Oracle's C<decode()>.
 
-C<decode()> and C<decode_num()> accordingly uses perl operators C<eq> and C<==> for comparison.
+C<decode()> and C<decode_num()> accordingly use perl operators C<eq> and C<==> for comparison.
 
 Examples:
 
@@ -6739,11 +6768,11 @@ sub decode_num {
 
 =head2 qrlist
 
-Input: An array of values to be used to test againts for existence.
+Input: An array of values to be used to test against for existence.
 
 Output: A reference to a regular expression. That is a C<qr//>
 
-The regex sets $1 if it match.
+The regex sets $1 if it matches.
 
 Example:
 
@@ -6801,6 +6830,16 @@ not installed, you just don't get the colors).
 
 See also L<Term::ANSIColor>.
 
+=head2 colred
+
+=head2 colgreen
+
+=head2 colblue
+
+ print colred("Moe");      # shorthand for: print ansicolor("¤rMoe¤¤");
+ print colgreen("Larry");  # shorthand for: print ansicolor("¤rLarry¤¤");
+ print colblue("Curly");   # shorthand for: print ansicolor("¤rCurly¤¤");
+
 =cut
 
 
@@ -6808,12 +6847,18 @@ See also L<Term::ANSIColor>.
 
 sub ansicolor {
   my $txt=shift;
-  eval{require Term::ANSIColor} or return replace($txt,qr/¤./);
+  my $a164=chr(164);
+  eval{require Term::ANSIColor} or return replace(replace($txt,qr/¤?¤./),qr/$a?$a./);
   my %h=qw/r red  g green  b blue  y yellow  m magenta  B bold  u underline  c clear  ¤ reset/;
+  $h{$a164} = 'reset'; #also ¤
   my $re=join"|",keys%h;
-  $txt=~s/¤($re)/Term::ANSIColor::color($h{$1})/ge;
+  $txt=~s/¤?¤($re)/Term::ANSIColor::color($h{$1})/ge;
   return $txt;
 }
+
+sub colred   { ansicolor("¤r$_[0]¤¤") }
+sub colgreen { ansicolor("¤g$_[0]¤¤") }
+sub colblue  { ansicolor("¤b$_[0]¤¤") }
 
 =head2 ccn_ok
 
@@ -6833,7 +6878,7 @@ Or more accurately:
 
 Returns C<undef> (false) if the input argument is missing digits.
 
-Returns 0 (zero, which is false) is the digits is not correct according to the LUHN algorithm.
+Returns 0 (zero, which is false) if the digits are not correct according to the LUHN algorithm.
 
 Returns 1 or the name of a credit card company (true either way) if the last digit is an ok control digit for this ccn.
 
@@ -6842,16 +6887,16 @@ The name of the credit card company is returned like this (without the C<'> char
  Returns (wo '')                Starts on                Number of digits
  ------------------------------ ------------------------ ----------------
  'MasterCard'                   51-55                    16
- 'Visa'                         4                        13 eller 16
- 'American Express'             34 eller 37              15
+ 'Visa'                         4                        13 or 16
+ 'American Express'             34 or 37              15
  'Discover'                     6011                     16
- 'Diners Club / Carte Blanche'  300-305, 36 eller 38     14
+ 'Diners Club / Carte Blanche'  300-305, 36 or 38     14
  'JCB'                          3                        16
- 'JCB'                          2131 eller 1800          15
+ 'JCB'                          2131 or 1800          15
 
 And should perhaps have had:
 
- 'enRoute'                      2014 eller 2149          15
+ 'enRoute'                      2014 or 2149          15
 
 ...but that card uses either another control algorithm or no control
 digits at all. So C<enRoute> is never returned here.
@@ -6870,16 +6915,16 @@ The first digit in a credit card number is supposed to tell what "industry" the 
  3                           Travel and entertainment
  4                           Banking and financial
  5                           Banking and financial
- 6                           Merchandizing and banking
+ 6                           Merchandising and banking
  7                           Petroleum
  8                           Telecommunications and other industry assignments
  9                           National assignment
 
 ...although this has no meaning to C<Acme::Tools::ccn_ok()>.
 
-The first six digits is I<Issuer Identifier>, that is the bank
-(probably). The rest in the "account number", except the last digits,
-which is the control digit. Max length on credit card numbers are 19
+The first six digits are I<Issuer Identifier>, that is the bank
+(probably). The rest is the "account number", except the last digit,
+which is the control digit. Max length of credit card numbers is 19
 digits.
 
 =cut
@@ -6918,13 +6963,13 @@ The algorithm, as described in Phrack (47-8) (a long time hacker online publicat
  number of digits, perform the same addition doubling the even numbered
  digits instead."
 
-B<Input:> A KID-nummer. Must consist of digits 0-9 only, otherwise a die (croak) happens.
+B<Input:> A KID number. Must consist of digits 0-9 only, otherwise a die (croak) happens.
 
 B<Output:>
 
 - Returns undef if the input argument is missing.
 
-- Returns 0 if the control digit (the last digit) does not satify the LUHN/mod-10 algorithm.
+- Returns 0 if the control digit (the last digit) does not satisfy the LUHN/mod-10 algorithm.
 
 - Returns 1 if ok
 
@@ -6975,7 +7020,7 @@ B<Examples:>
  print join ", ",range(2,11,1,0.1);       # 2, 3, 4.1, 5.3, 6.6, 8, 9.5   adds 0.1 to step each time
  print join ", ",range(2,11,1,0.1,-0.01); # 2, 3, 4.1, 5.29, 6.56, 7.9, 9.3, 10.75
 
-Note: In the Python language and others, C<range> is a build in iterator (a
+Note: In the Python language and others, C<range> is a built-in iterator (a
 generator), not an array. This saves memory for large sets and sometimes time.
 Use C<range> in L<List::Gen> to get a similar lazy generator in Perl.
 
@@ -7008,7 +7053,7 @@ sub _range_accellerated {
 
 =head2 globr
 
-Works like and uses Perls builtin C<< glob() >> but adds support for ranges
+Works like and uses Perl's built-in C<< glob() >> but adds support for ranges
 with C<< {from..to} >> and C<< {from..to..step} >>. Like brace expansion in bash.
 
 Examples:
@@ -7039,7 +7084,7 @@ sub globr($) {
 
 =head2 brex
 
-Brace expasion. Input: a string without the special meaning for * and ? and ~ in Perl's builtin C<< glob() >>. Outputs a list.
+Brace expansion. Input: a string without the special meaning for * and ? and ~ in Perl's built-in C<< glob() >>. Outputs a list.
 
  perl -MAcme::Tools -E' say for brex "~/{Documents,Backup{1..3}}/*.{doc{,.gz,.xz}}" '
 
@@ -7078,7 +7123,7 @@ How many ways (permutations) can six people be placed around a table:
  Six  persons:        720
 
 The formula is C<x!> where the postfix unary operator C<!>, also known as I<faculty> is defined as:
-C<x! = x * (x-1) * (x-2) ... * 1>. Example: C<5! = 5 * 4 * 3 * 2 * 1 = 120>.Run this to see the 100 first C<< n! >>
+C<x! = x * (x-1) * (x-2) ... * 1>. Example: C<5! = 5 * 4 * 3 * 2 * 1 = 120>. Run this to see the first 100 C<< n! >>
 
  perl -MAcme::Tools -le'$i=big(1);print "$_!=",$i*=$_ for 1..100'
 
@@ -7109,7 +7154,7 @@ of the permutations of the input list:
 Up to five input arguments C<permutations()> is probably as fast as it
 can be in this pure perl implementation (see source). For more than
 five, it could be faster. How fast is it now: Running with different
-n, this many time took that many seconds:
+n, this many times took that many seconds:
 
  n   times    seconds
  -- ------- ---------
@@ -7132,7 +7177,7 @@ If the first argument is a coderef, that sub will be called for each permutation
  print for map join("",@$_), permutations(1..3);
 
 ...but the first of those two uses less RAM if 3 has been say 9.
-Changing 3 with 10, and many computers hasn't enough memory
+Changing 3 with 10, and many computers haven't enough memory
 for the latter.
 
 The examples prints:
@@ -7144,8 +7189,8 @@ The examples prints:
  312
  321
 
-If you just want to say calculate something on each permutation,
-but is not interested in the list of them, you just don't
+If you just want to, say, calculate something on each permutation,
+but are not interested in the list of them, you just don't
 take the return. That is:
 
  my $ant;
@@ -7158,9 +7203,9 @@ take the return. That is:
 ...but the first uses next to nothing of memory compared to the latter. They have about the same speed.
 (The examples just counts the permutations where the last number is at least twice as large as the first)
 
-C<permutations()> was created to find all combinations of a persons
+C<permutations()> was created to find all combinations of a person's
 name. This is useful in "fuzzy" name searches with
-L<String::Similarity> if you can not be certain what is first, middle
+L<String::Similarity> if you can not be certain which are the first, middle
 and last names. In foreign or unfamiliar names it can be difficult to
 know that.
 
@@ -7316,7 +7361,7 @@ See also this faster implementation:
  sudo apt install libalgorithm-combinatorics-perl #works on ubuntu20
  perl -le'use Algorithm::Combinatorics "combinations";print"@$_" for combinations([1..34],7)'|wc -l #5379616
 
-...where the 5379616 is 34! / (7! * 27!) discribed on L<https://en.wikipedia.org/wiki/Binomial_coefficient>
+...where the 5379616 is 34! / (7! * 27!) described on L<https://en.wikipedia.org/wiki/Binomial_coefficient>
 
 =cut
 
@@ -7348,7 +7393,7 @@ B<Input:>
 B<Output:> An array of x * y * z number of arrayrefs (the cartesian product)
 minus the ones that did not fulfill the condition(s).
 
-This of is as joins with one or more where conditions as coderefs.
+Think of this as joins with one or more where conditions as coderefs.
 
 The coderef input arguments can be placed last or among the array refs
 to save both runtime and memory if the conditions depend on
@@ -7417,7 +7462,7 @@ Returns hashrefs instead of arrayrefs:
    print "From deck number $$card{deck} we got $$card{rank} $$card{suit}\n";
  }
 
-Note: using sub-ref filters do not work (yet) in hash-mode. Use grep on result instead.
+Note: using sub-ref filters do not work (yet) in hash-mode. Use grep on the result instead.
 
 =cut
 
@@ -7710,7 +7755,7 @@ sub _sortsub {
   my @b=split $;,$b;
   for(0..$#a){
     my $c=$a[$_]<=>$b[$_];
-    return $c if $c and "$a[$_]$b[$_]"!~/[iI][nN][fF]|þ|∞/i; # hm inf(inity)
+    return $c if $c and "$a[$_]$b[$_]" !~ /[iI][nN][fF]|þ|∞/i; # hm inf(inity)
     $c=$a[$_]cmp$b[$_];
     return $c if $c;
   }
@@ -7899,7 +7944,7 @@ sub tablestring {  #see Term::Table?
 
 =head2 tablestring_box
 
-Returns a multiline string of the rendered two dimentional input table with
+Returns a multiline string of the rendered two dimensional input table with
 utf-8 box-drawing chars (like C<.mode box> in newer sqlite3 versions).
 Numeric columns are right aligned. Requires a UTF-8 enabled terminal to
 see the UTF-8 lines properly. Run the 'locale' command if on Linux-ish
@@ -7945,7 +7990,7 @@ Cells can be multilined:
  │       │       │           │         │
  └───────┴───────┴───────────┴─────────┘
 
-TODO: tablestring_box() dont yet support tags in values as in html/xml tags like tablestring() do.
+TODO: tablestring_box() doesn't yet support tags in values as in html/xml tags like tablestring() do.
 
 =cut
 
@@ -8000,7 +8045,7 @@ C<< > >> char in from of the filename will append that file
 instead. Use C<''> or C<undef> to not write to a file if you want to
 use a fourth argument.
 
-Fourth argument: (optional) A number signalling the depth on which newlines is used in the output.
+Fourth argument: (optional) A number signalling the depth on which newlines are used in the output.
 The default is infinite (some big number) so no extra newlines are output.
 
 B<Output:> A string containing the perl-code definition that makes that data structure.
@@ -8050,8 +8095,8 @@ Areas of use:
 - eval earlier stored string to get back the data structure
 
 Be aware of the security implications of C<eval>ing a perl code string
-stored somewhere that unauthorized users can change them! You are
-probably better of using L<YAML::Syck> or L<Storable> without
+stored somewhere that unauthorized users can change it! You are
+probably better off using L<YAML::Syck> or L<Storable> without
 enabling the CODE-options if you have such security issues.
 More on decompiling Perl-code: L<Storable> or L<B::Deparse>.
 
@@ -8243,8 +8288,8 @@ NOT IMPLEMENTED
 
 Same as ref, but goes deeper.
 
- print ref_deep( { 10=>[1,'ten'], 100=>[2,'houndred'], 1000=>[3,'thousand'] } );   # prints HASH_of_ARRAYS
- print ref_deep( { 10=>'ten',     100=>[2,'houndred'], 1000=>[3,'thousand'] } );   # prints same (mixed, deepest)
+ print ref_deep( { 10=>[1,'ten'], 100=>[2,'hundred'], 1000=>[3,'thousand'] } );   # prints HASH_of_ARRAYS
+ print ref_deep( { 10=>'ten',     100=>[2,'hundred'], 1000=>[3,'thousand'] } );   # prints same (mixed, deepest)
  print ref_deep( { 1=>[{a=>3,b=>6},{a=>1,b=>8}], 5=>[{a=>2,b=>5},{a=>7,b=>1}] } ); # HASH_of_ARRAYS_of_HASHES
 
 (Todo, not supported: circular, alternatives for mixed)
@@ -8380,10 +8425,10 @@ sub ed {
     print "\n" if changed(substr($_,8,2));
  }
 
-Returns undef, 0 or 1. Undef if its the first time C<changed> is
+Returns undef, 0 or 1. Undef if it's the first time C<changed> is
 called on that perl line. 0 if not the first time and the parameters
 differ from the last call on that line. 1 if not the first time and
-the parameters is the exact same as they where on the previous call on
+the parameters are the exact same as they were on the previous call on
 that line of perl source code.
 
 =cut
@@ -8461,7 +8506,7 @@ sub graph_scc {
 B<Input:> one or two arguments
 
 First argument: a string, source code of the brainfu
-language. String containing the eight charachters + - < > [ ] . ,
+language. String containing the eight characters + - < > [ ] . ,
 Every other char is ignored silently.
 
 Second argument: if the source code contains commas (,) the second
@@ -8574,7 +8619,7 @@ Two arguments is interpreted as error_rate and capacity accordingly.
 
   bfadd($bf, @phone_numbers);          # ...or all at once (faster)
 
-Returns 1 on success or C<die>s (croaks) if more strings than capacity is added.
+Returns 1 on success or C<die>s (croaks) if more strings than capacity are added.
 
 =head2 bfcheck
 
@@ -8588,7 +8633,7 @@ Returns 1 on success or C<die>s (croaks) if more strings than capacity is added.
 
 Returns true if C<$phone_number> exists in C<@phone_numbers>.
 
-Returns false most of the times, but sometimes true*), if C<$phone_number> doesn't exists in C<@phone_numbers>.
+Returns false most of the time, but sometimes true*), if C<$phone_number> doesn't exist in C<@phone_numbers>.
 
 *) This is what is called a false positive.
 
@@ -8601,7 +8646,7 @@ Returns an array the same size as @keys where each element is true or false acco
 
 =head2 bfgrep
 
-Same as C<bfcheck> except it returns the keys that exists in the bloom filter
+Same as C<bfcheck> except it returns the keys that exist in the bloom filter
 
  @found = bfgrep($bf, @keys);           # or ...
  @found = bfgrep($bf, \@keys);          # uses less memory if @keys are many, or ...
@@ -8609,7 +8654,7 @@ Same as C<bfcheck> except it returns the keys that exists in the bloom filter
 
 =head2 bfgrepnot
 
-Same as C<bfgrep> except it returns the keys that do NOT exists in the bloom filter:
+Same as C<bfgrep> except it returns the keys that do NOT exist in the bloom filter:
 
  @not_found = bfgrepnot($bf, @keys);          # or ...
  @not_found = bfgrepnot($bf, \@keys);         # uses less memory if @keys are many, or ...
@@ -8625,7 +8670,7 @@ for small filters with a small capacity (a small number of keys), but
 setting the number to 4 ensures that even very large filters with very
 small error rates would not overflow.
 
-*) Acme::Tools do not currently support C<< counting_bits => 3 >> so 4
+*) Acme::Tools does not currently support C<< counting_bits => 3 >> so 4
 and 8 are the only practical alternatives where 8 is almost always overkill.
 
  my $bf = bfinit(
@@ -8670,16 +8715,16 @@ Even after the error_rate is changed from 0.001 to a percent of that,
        65 counters = 8
         4 counters = 9
 
-In algorithmic terms the number of bits needed is C<ln of ln of n>.  Thats why 4 bits (counters up
-to 15) is "always" good enough except for extremely large capasities or extremely small error rates.
-(Except when adding the same key many times, which is the users responsibility to avoid as
-Acme::Tools::bfadd do not check for that, perhaps in a mode of a future version. In
+In algorithmic terms the number of bits needed is C<ln of ln of n>.  That's why 4 bits (counters up
+to 15) is "always" good enough except for extremely large capacities or extremely small error rates.
+(Except when adding the same key many times, which is the user's responsibility to avoid as
+Acme::Tools::bfadd does not check for that, perhaps in a mode of a future version. In
 non-counting bloom filters, for when you don't need delete, you can add the same keys
 many times without ruining the filter).
 
 Bloom filters of the counting type are not very space efficient: The tables above shows that 84%-85%
 of the counters are 0 or 1. This means most counting bits are zero. This doesn't have to be a problem
-if a counting bloom filter is used to be sent over slow networks because they are very compressable by
+if a counting bloom filter is used to be sent over slow networks because they are very compressible by
 common tools like I<gzip> or L<Compress::Zlib>.
 
 Deletion of non-existing keys makes C<bfdelete> die (croak).
@@ -8693,13 +8738,13 @@ Deletes from a counting bloom filter:
 
 Returns C<$bf> after deletion.
 
-Croaks (dies) on deleting a non-existing key or deleting from a previouly overflown counter in a counting bloom filter.
+Croaks (dies) on deleting a non-existing key or deleting from a previously overflown counter in a counting bloom filter.
 
 =head2 bfaddbf
 
 Adds another bloom filter to a bloom filter.
 
-Bloom filters has the proberty that bit-wise I<OR>-ing the bit-filters
+Bloom filters have the property that bit-wise I<OR>-ing the bit-filters
 of two filters with the same capacity and the same number and type of
 hash functions, adds the filters:
 
@@ -8732,7 +8777,7 @@ Input, two numeric arguments: Capacity and error_rate.
 Outputs an array of two numbers: m and k.
 
   m = - n * log(p) / log(2)**2   # n = capacity, m = bits in filter (divide by 8 to get bytes)
-  k = log(1/p) / log(2)          # p = error_rate, uses perls internal log() with base e (2.718)
+  k = log(1/p) / log(2)          # p = error_rate, uses Perl's internal log() with base e (2.718)
 
 ...that is: m = the best number of bits in the filter and k = the best
 number of hash functions optimized for the given capacity (n) and
@@ -8772,7 +8817,7 @@ number of bytes as the number of keys.
 
 =head2 bfstore
 
-Storing and retrieving bloom filters to and from disk uses L<Storable>s C<store> and C<retrieve>. This:
+Storing and retrieving bloom filters to and from disk uses L<Storable>'s C<store> and C<retrieve>. This:
 
  bfstore($bf,'filename.bf');
 
@@ -8798,7 +8843,7 @@ Is the same as:
  my $bf=retrieve('filename.bf');
 
 ...except that bfretrieve/bfinit/new will C<warn> (carp) if the stored filter was created
-with an earlier version of Acme::Tools. (Todo: only C<warn> or C<die> rather when the new
+with an earlier version of Acme::Tools. (Todo: only C<warn> or C<die> when the new
 version has actually broken backwards compatibility. Most new versions do not and might never do.
 Todo2: backwards compatibility in versions of Storable should also be checked)
 
@@ -8842,13 +8887,13 @@ C<Acme::Tools::BloomFilter::retrieve> are synonyms.
 The internal hash-functions are C<< md5( "$key$salt" ) >> from L<Digest::MD5>.
 
 Since C<md5> returns 128 bits and most medium to large sized bloom
-filters need only a 32 bit hash function, the result from md5() are
+filters need only a 32 bit hash function, the result from md5() is
 split (C<unpack>-ed) into 4 parts 32 bits each and are treated as if 4
-hash functions was called at once (speedup). Using different salts to
+hash functions were called at once (speedup). Using different salts to
 the key on each md5 results in different hash functions.
 
 Digest::SHA512 would have been even better since it returns more bits,
-if it werent for the fact that it's much slower than Digest::MD5.
+if it weren't for the fact that it's much slower than Digest::MD5.
 
 String::CRC32::crc32 is faster than Digest::MD5, but not 4 times faster:
 
@@ -8856,7 +8901,7 @@ String::CRC32::crc32 is faster than Digest::MD5, but not 4 times faster:
  time perl -e'use String::CRC32;crc32("asdf$_")           for 1..1e7' #2.79 sec, faster but not per bit
  time perl -e'use Digest::SHA qw(sha512);sha512("asdf$_") for 1..1e7' #36.10 sec, too slow (sha1, sha224, sha256 and sha384 too)
 
-MD5 seems to be an ok choice both for speed and avoiding collitions due to skewed data keys.
+MD5 seems to be an ok choice both for speed and avoiding collisions due to skewed data keys.
 
 Todo: check out Digest::MurmurHash3::murmur128_x64() which seems faster than md5 and also return 128 bits, but not a core module. (Use if installed AND asked for?). murmur is a lot faster for several 1K byte long input strings, like 10 x, but only about 30% faster for many short words (tested on /usr/share/dict/american-english), might not be worth the effort.
 
@@ -9192,7 +9237,8 @@ sub base64 ($;$$) { #
 our $Fix_unbase64=0;
 sub unbase64 ($) {
   my $s=shift;
-  $s=~tr,0-9a-zA-Z+=/,,cd;
+  $s =~ y,-_,+/,; #handle http safe strings
+  $s =~ y,0-9a-zA-Z+=/,,cd;
   if($Fix_unbase64){ $s.='=' while length($s)%4 }
   croak "unbase64 failed: length ".length($s)." not multiple of 4" if length($s)%4;
   $s=~s/=+$//;
@@ -9200,6 +9246,8 @@ sub unbase64 ($) {
   length($s) ? unpack("u",join'',map(chr(32+length($_)*3/4).$_,$s=~/(.{1,60})/gs)) : "";
 }
 
+sub uuid_v4 { my $t = [qw(8 9 a b)]->[rand 4]; sprintf "%08x-%04x-4%03x-$t%03x-%012x",map rand(16<<4*$_-4), 8, 4, 3, 3, 12 } #v4 type 1
+sub uuid_version { pop =~ /^[\da-f]{8}-[\da-f]{4}-([\da-f])[\da-f]{3}-[\da-f]{4}-[\da-f]{12}$/i ? hex($1) : undef }
 
 =head1 COMMANDS
 
@@ -9225,10 +9273,10 @@ sub unbase64 ($) {
 
 Examples of commands then made available:
 
- conv 1 USD EUR                #might show 0.88029 if thats the current currency rate. Uses conv()
+ conv 1 USD EUR                #might show 0.88029 if that's the current currency rate. Uses conv()
  conv .5 in cm                 #reveals that 1/2 inch is 1.27 cm, see doc on conv() for all supported units
- due [-h] /path/1/ /path/2/    #like du, but show statistics on file extentions instead of subdirs
- xcat file                     #like cat, zcat, bzcat or xzcat in one. Uses file extention to decide. Uses openstr()
+ due [-h] /path/1/ /path/2/    #like du, but show statistics on file extensions instead of subdirs
+ xcat file                     #like cat, zcat, bzcat or xzcat in one. Uses file extension to decide. Uses openstr()
  freq file                     #reads file(s) or stdin and view counts of each byte 0-255
  ccmd grep string /huge/file   #caches stdout+stderr for 15 minutes (default) for much faster results later
  ccmd "sleep 2;echo hello"     #slow first time. Note the quotes!
@@ -9293,26 +9341,26 @@ The -L 100K (or lower) slows down the compression and cpu usage (i.e. to not sta
 
 =head3 due
 
-Like C<du> command but views space used by file extentions instead of dirs. Options:
+Like C<du> command but views space used by file extensions instead of dirs. Options:
 
  due [-options] [dirs] [files]
  due -?          todo: show this help
  due -h          View bytes "human readable", i.e. C<8.72 MB> instead of C<9145662 b> (bytes)
  due -k | -m     View bytes in kilobytes | megabytes (1024 | 1048576)
  due -K          Like -k but uses 1000 instead of 1024
- due -z          View two extentions if .z .Z .gz .bz2 .rz or .xz (.tar.gz, not just .gz)
+ due -z          View two extensions if .z .Z .gz .bz2 .rz or .xz (.tar.gz, not just .gz)
  due -M          Also show min, medium and max date (mtime) of files, give an idea of their age
  due -C          Like -M, but create time instead (ctime)
  due -A          Like -M, but access time instead (atime)
  due -P          Also show 10, 50 (medium) and 90 percentile of file date
  due -MP         Both -M and -P, shows min, 10p, 50p, 90p and max
  #due -U         TODO: view top 5 users by size for each .ext
- due -a          Sort output alphabetically by extention (default order is by size)
+ due -a          Sort output alphabetically by extension (default order is by size)
  due -c          Sort output by number of files
  due -i          Ignore case, .GZ and .gz is the same, output in lower case
  due -t          Adds time of day to -M and -P output
  due -e 'regex'  Exclude files (full path) matching regex. Ex: due -e '\.git'
- TODO: due -l    TODO: Exclude hardlinks (dont count "same" file more than once, "man du")
+ TODO: due -l    TODO: Exclude hardlinks (don't count "same" file more than once, "man du")
  TODO: -S        TODO: exclude for sparse files (like 'du')
  ls -l | due     Parses output of ls -l, find -ls, tar tvf for size+filename and reports
  find | due      List of filenames from stdin produces same as just command 'due'
@@ -9581,7 +9629,7 @@ sub cmd_anlz {
   print "Lines: $l   Chars: $c   Bytes: $b   Empty lines:   Whitespace lines: Line lengths: avg= median= max= percs 10 25 75 90=\n";
   #print"mix of utf8 and iso88591?" if ...
   #print info from `file`
-  #print ...anlz_compressability...gzip bytes of first, mid and last x lines? if $o{'z'};
+  #print ...anlz_compressibility...gzip bytes of first, mid and last x lines? if $o{'z'};
 }
 sub cmd_deldup {
   cmd_finddup('-d',@_);
@@ -9705,7 +9753,7 @@ sub cmd_2xz    {cmd_z2z("-t","xz", @_)}
 #todo: sub cmd_7z
 #todo: .tgz same as .tar.gz (but not .tbz2/.txz)
 #todo:
-#  2xz -9pvkL 100K big_fat_file.tar.gz  # -L100K for slow compress (ie dont start laptop fan)
+#  2xz -9pvkL 100K big_fat_file.tar.gz  # -L100K for slow compress (ie don't start laptop fan)
 #  pv: -L: integer argument expected
 #  gzip: stdin: unexpected end of file
 #    1/2   ETA:-0.0000260s 0.0%      900493585 b =>          32 b webdok.20200508.tar.xz
@@ -9762,7 +9810,7 @@ sub cmd_z2z {
     sys($cmd);
     chall($_,$new) or croak("$0 cannot chmod|chown|touch $new") if !$o{n};
     my($szold,$sznew)=map{-s$_}($_,$new);
-    cmd_z2z_test($_,$new) or croak "ERR: Md5 of $_ and $new dont match" if $o{T} or $sznew<50;
+    cmd_z2z_test($_,$new) or croak "ERR: Md5 of $_ and $new dont match" if $o{T} or $szold and $sznew<50;
     $bsf+=-s$_;
     unlink $_ if !$o{k};
     rename($new, replace($new,qr/.tmp.$t$/)) or die if $same;
@@ -9962,7 +10010,7 @@ sub cmd_catal   { die "catal: not implemented here yet.\n" } #-a (all, inkl VERS
 
 =head1 DATABASE STUFF - NOT IMPLEMENTED YET
 
-Uses L<DBI>. Comming soon...
+Uses L<DBI>. Coming soon...
 
   $Dbh
   dlogin
@@ -10136,7 +10184,7 @@ Update Acme::Tools to newest version quick and dirty:
  sudo perl -MAcme::Tools -e Acme::Tools::self_update    #update to newest version
  pmview Acme::Tools                                     #view date and version after
 
-Does C<cd> to where Acme/Tools.pm are and then wget -N https://raw.githubusercontent.com/kjetillll/Acme-Tools/master/Tools.pm
+Does C<cd> to where Acme/Tools.pm is and then wget -N https://raw.githubusercontent.com/kjetillll/Acme-Tools/master/Tools.pm
 
 TODO: cmd_acme_tools_self_update, accept --no-check-certificate to use on curl
 
@@ -10211,6 +10259,8 @@ sub sum      { &Acme::Tools::bfsum      }
 # - grep '//=' Tools.pm t/*.t  #v5.10 and later
 # - Failed test 'pwgen croak works: pwgen timeout or max trials reached, trials: 3 time: 1.00135803222656e-05 sec at t/25_pwgen.t line 14.'
 #   at t/25_pwgen.t line 14.
+# - `cpanm Acme::Tools` on fresh linux: which: no pv in (/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/var/lib/snapd/snap/bin)
+# - t/02_general.t: expected 'www.vg.no', rm!
 # http://en.wikipedia.org/wiki/Birthday_problem#Approximations
 # todo: undersøk perl-Module-Signature støttet av rhel9 og {/usr,}/bin/prove i perlcore siden lenge
 # todo: undersøk https://en.wikipedia.org/wiki/Merkle_tree
@@ -10261,6 +10311,8 @@ sub sum      { &Acme::Tools::bfsum      }
 =head1 HISTORY
 
 Release history
+
+ 0.29  Oct 2026   ...later...
 
  0.28  Feb 2025   tablestring_box, graph_scc, opts, huffman,
                   huffman_pack, huffman_unpack, push_srand, pop_srand, julian_day
@@ -10315,10 +10367,10 @@ Kjetil Skotheim, E<lt>kjetil.skotheim@gmail.comE<gt>
 
 =head1 COPYRIGHT
 
-2008-2025, Kjetil Skotheim
+2008-2026, Kjetil Skotheim
 
 =head1 LICENSE
 
 This library is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
-=
-cut
+
+=cut
