@@ -85,3 +85,114 @@ SKIP: {
   is(maxs(@d),'1998/07/09','max');
   okk('find|due -Mihz  ...with -M');
 };
+
+__END__
+
+# perl code to parse output of linux 'ls -l' and 'tar tvf' commands into a perl hash with keys like size, filename etc
+#  ⎿  1 skill available
+
+● Here's a parser that handles both formats with one regex. The trick is that ls -l has nlink user group where tar tvf has user/group, and both can carry major, minor instead of a size for device nodes.
+
+  use strict;
+  use warnings;
+
+  our $Re_ls = qr{
+      ^
+      ( [-bcdlpsDC] [-rwxsStT]{9} ) [.+@]?         #  1 mode (+ SELinux '.', ACL '+', macOS '@')
+      \s+
+      (?:
+        (\d+) \s+ (\S+) \s+ (\S+)                #  2 nlink  3 user  4 group   -- ls -l
+        |
+        ()      ( [^/\s]+ ) / (\S*)              #     ""    3 user  4 group   -- tar tvf
+      )
+      \s+
+      (?: (\d+) ,\s* (\d+) | (\d+) )               #  5 major 6 minor | 7 size
+      \s+
+      (                                            #  8 date
+        \w{3} \s+ \d{1,2} \s+ (?: \d{1,2}:\d{2} | \d{4} )                 # Jan 10 12:15 | Jan 10  2024
+      | \d{4}-\d{2}-\d{2}
+        (?: \s+ \d{2}:\d{2} (?::\d{2})? (?:\.\d+)? (?:\s*[-+]\d{4})? )?   # 2024-01-10 12:15[:21]
+      )
+      \s+
+      (.+?)                                        #  9 filename (may contain spaces)
+      (?: \s+ (?: -> | link \s to ) \s+ (.+) )?    # 10 symlink target / tar hardlink
+      $
+  }x;
+
+  sub _perms2oct {
+      my $p = shift;
+      my @bit = (0400,0200,0100, 0040,0020,0010, 0004,0002,0001);
+      my $m = 0;
+      for my $i (0..8) {
+          my $c = substr($p,$i,1);
+          $m |= $bit[$i] if $c =~ /[rwxst]/;       # lower-case x/s/t imply the exec bit, S/T don't
+      }
+      $m |= 04000 if substr($p,2,1) =~ /[sS]/;     # setuid
+      $m |= 02000 if substr($p,5,1) =~ /[sS]/;     # setgid
+      $m |= 01000 if substr($p,8,1) =~ /[tT]/;     # sticky
+      $m;
+  }
+
+  sub parse_ls_line {
+      my $line = shift;
+      return if !defined $line or $line !~ /\S/;
+      return if $line =~ /^total\s+\d+\s*$/;       # ls -l header
+      my($mode,$nlink,$user,$group,$major,$minor,$size,$date,$name,$linkto) = $line =~ $Re_ls
+          or return;                               # 'dir:' headers from ls -lR fall out here too
+      my %h = (
+        mode     => $mode,
+        type     => substr($mode,0,1),           # - d l b c p s
+        perms    => substr($mode,1),
+        mode_oct => _perms2oct(substr($mode,1)),
+        user     => $user,
+        group    => $group,
+        size     => $size,
+        date     => $date,
+        filename => $name,
+      );
+      $h{nlink}  = $nlink  if defined $nlink && length $nlink;
+      $h{linkto} = $linkto if defined $linkto;
+      @h{qw/major minor/} = ($major,$minor) if defined $major;
+      $h{filename} =~ s{/+$}{} if $h{type} eq 'd'; # tar prints dirs with a trailing /
+      \%h;
+  }
+
+  sub parse_ls {
+      my @lines = map { ref $_ eq 'ARRAY' ? @$_ : split /\r?\n/, $_ } @_;
+      my @r = grep defined, map parse_ls_line($_), @lines;
+      wantarray ? @r : \@r;
+  }
+
+__END__
+
+# Usage:
+
+  my @files = parse_ls(`LC_ALL=C ls -l /usr/bin`);
+  my @intar = parse_ls(`tar tvf archive.tar`);
+  my @both  = parse_ls(\@lines_from_somewhere);
+
+  printf "%10d  %s\n", $_->{size}, $_->{filename} for @files;
+
+  my %by_name = map { $_->{filename} => $_ } @files;
+  print $by_name{'perl'}{mode_oct};             # 493 (0755)
+
+  my $total = 0; $total += $_->{size} for grep $_->{type} eq '-', @intar;
+
+  A sample row comes back as:
+
+  { mode => '-rw-rw-r--', type => '-', perms => 'rw-rw-r--', mode_oct => 436,
+    nlink => 1, user => 'hei', group => 'hei', size => 375899,
+    date => 'Sep  3 12:15', filename => 'Tools.pm' }
+
+  Things that will bite you:
+
+  - Locale. ls -l month names follow LC_TIME, so a Norwegian box prints sep.  3 12:15 and the \w{3} branch breaks on the dot. Force LC_ALL=C, or better, ls -l --time-style=long-iso which gives the unambiguous 2026-09-03 12:15 form the regex already handles.
+  - Dates are lossy. Jan 10  2024 has no time, Jan 10 12:15 has no year (it's "within ~6 months", which you can't recover from the line alone). If you need an epoch, parse with Date::Parse/Time::Local and supply the year yourself — or avoid the issue with --time-style=full-iso.
+  - Device nodes have 1, 3 where the size goes, so size is undef and you get major/minor instead.
+  - ls -lh (1.2K, 3.4M) isn't handled — you'd need the inverse of bytes_readable().
+  - Filenames with newlines can't be parsed from line-oriented output at all. For local files don't parse ls in the first place; readdir + stat gives you everything directly and correctly.
+  - tar dialects: GNU tar prints user/group and link to for hard links; some BSD/star variants print a nlink user group layout closer to ls -l — that's why the regex accepts both branches.
+
+Incidentally, this would slot straight into Acme::Tools: cmd_due currently parses the same three formats with a one-off $rl regex and carries a #TODO: output from tar tvf and ls and find -ls right above it. One shared parse_ls() would cover that TODO — though note find -ls adds leading inode and block-count columns, so it needs two extra optional fields up front.
+
+✻ Brewed for 1m 43s · done 8:20 PM
