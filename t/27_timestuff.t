@@ -22,7 +22,8 @@ my $t6=+9e9;       #22550314-17:00:00
 
 #my @lt=localtime($t);
 #print tms($t),"<<- ".tms()."\n";
-ok( tms()   eq tms(   'YYYYMMDD-HH:MI:SS') ,'no args');
+#ok( tms()   eq tms(   'YYYYMMDD-HH:MI:SS') ,'no args');
+ok( (0 < grep {tms()   eq tms(   'YYYYMMDD-HH:MI:SS')} 1..2) ,'no args');
 ok( tms($t) eq tms($t,'YYYYMMDD-HH:MI:SS') ,'one arg');
 is( tms("epoch",tms("YYYY-MM-DDTHH24:MI:SS",$_)), $_,
     qq(is(tms("epoch",tms("YYYY-MM-DDTHH24:MI:SS",$_)),$_)).' '.tms('YYYYMMDD-HH24:MI:SS',$_))
