@@ -132,6 +132,7 @@ our @EXPORT = qw(
   permute
   permute_continue
   comb
+  polyarea
   trigram
   sliding
   chunks
@@ -141,7 +142,6 @@ our @EXPORT = qw(
   huffman
   huffman_pack
   huffman_unpack
-  
   cart
   reduce
   int2roman
@@ -2141,41 +2141,49 @@ sub distance {
 =head2 pluscode
 
 Input: two or three args: Latitude and longitude as two floating point numbers
-and an optional precision (default 10).
+and an optional precision number where the default is 10. Supported precision
+number are 12, 11, 10, 8, 6, 4 and 2.
 
-Output: returns the corresponding pluscode, also known as Google Pluscode and Open Location Code (OLC). Returned in one of these formats depending on precision argument:
+Output: returns the corresponding pluscode, also known as Google Pluscode and Open Location Code (OLC) L<https://en.wikipedia.org/wiki/Open_Location_Code>
 
- XXXXYYYY+YYYY      (precision 12, unofficial)
- XXXXYYYY+YYG       (precision 11 with the last char representing a 5x4 grid code)
- XXXXYYYY+YY        (precision 10)
- XXXXYYYY+          (precision 8)
- XXXXYY00+          (precision 6)
- XXXX0000+          (precision 4)
- XX000000+          (precision 2)
+Returned in one of these formats depending on precision argument:
 
-Pluscodes are often given in Short Form where the first four chars (XXXX) are deleted and a place name added behind: C<< YYYY+YY Place
->>. To convert Short Form and Place to actual latitude and longitude requires a database to find the nearest for that town, city or smaller
-area (an area small enough so XXXX don't become indeterminate). L<pluscode()> here doesn't return Short Form codes.
+ XXXXYYYY+YYYY      precision 12, unofficial
+ XXXXYYYY+YYG       precision 11, with the last char representing a 5x4 grid code
+ XXXXYYYY+YY        precision 10, around 14
+ XXXXYYYY+          precision 8
+ XXXXYY00+          precision 6
+ XXXX0000+          precision 4
+ XX000000+          precision 2
+
+XXXX and YYYY and G are placeholders for these 20 chars 23456789CFGHJMPQRVWX.
+
+Pluscodes are often given in Short Form where the first four chars (XXXX) are missing and replaced with a place name added behind instead:
+C<< YYYY+YY Place>>. To convert Short Form and Place to the actual latitude and longitude numbers requires a database to find the nearest
+for that town, city or smaller area or country (an area small enough so XXXX don't become indeterminate). L<pluscode()> here doesn't return Short Form codes.
 
 The C<< + >> char contains no data, but makes the codes recognisable as Pluscodes. Google's site https://plus.codes/map
 overlays their world map with pluscodes, and a click reveals latitude, longitude and the pluscode for that position.
 
 Examples:
 
- my @et=(48.858312, 2.294437); # latitude and longitude for the Eiffel Tower in Paris, France
- print pluscode(@et);          # prints: 8FW4V75V+8Q
- print pluscode(@et,10);       # prints: 8FW4V75V+8Q (same, default precision is 10)
- print pluscode(@et,8);        # prints: 8FW4V75V+
- print pluscode(@et,6);        # prints: 8FW4V700+
+ my @et = (48.858312, 2.294437); # latitude and longitude for the Eiffel Tower in Paris, France
+ print pluscode(@et);            # 8FW4V75V+8Q
+ print pluscode(@et, 10);        # 8FW4V75V+8Q (same, default precision is 10)
+ print pluscode(@et, 8);         # 8FW4V75V+
+ print pluscode(@et, 6);         # 8FW4V700+
+ print pluscode(@et, 11);        # 8FW4V75V+8Q8
+ print pluscode(@et, 12);        # 8FW4V700+8QFF (unofficial)
 
 See L<pluscode2latlon()> for the opposite conversion.
 
 =head2 pluscode2latlon
 
-Converts a Pluscode to latitude and longitude. See L<pluscode()> for the opposite conversion. Example:
+Converts a Pluscode to floating point numbers for latitude and longitude. See L<pluscode()> for the opposite conversion. Example:
 
- my($latitude, $longitude) = pluscode2latlon("8FW4V75V+8Q");
- print "Lat: $latitude   Lon: $longitude\n";  #Lat: 48.85825   Lon: 2.294375
+ my $eiffel_tower = '8FW4V75V+8Q';
+ my($latitude, $longitude) = pluscode2latlon($eiffel_tower);
+ print "Lat: $latitude   Lon: $longitude\n";                 #Lat: 48.85825   Lon: 2.294375
 
 Note: this will not return exactly the same floating point number that was input in pluscode()
 since there is a limit to how accurate a location the 2, 4, 6, 8, 10, 11 and 12 chars can encode.
@@ -2199,42 +2207,42 @@ closer for that YYYY+YY...TODO/KNOWN BUG.
 
 sub OLC {pluscode(@_)} #https://en.wikipedia.org/wiki/Open_Location_Code
 sub pluscode {         #https://en.wikipedia.org/wiki/Open_Location_Code OLC a.k.a. pluscode
-    my($lat,$lon,$pr)=@_;
-    $pr=10 if !defined$pr;
-    croak if $pr!~/^(2|4|6|8|10|11|12)$/;
-    my @c="23456789CFGHJMPQRVWX"=~/./g;
-    if($pr==11){
-        my $n=0; my %c=map{$_=>$n++}@c;
-	my $pc=pluscode($lat,$lon,12);
-	$pc=~s{(.)(.)$}{$c[4*int($c{$1}/5)+$c{$2}/4]}e;
+    my($lat, $lon, $pr) = @_;
+    $pr = 10 if !defined $pr;
+    croak if $pr !~ /^(2|4|6|8|10|11|12)$/;
+    my @c = "23456789CFGHJMPQRVWX" =~ /./g;
+    if( $pr == 11 ){
+        my $n = 0; my %c = map { $_ => $n++ } @c;
+	my $pc = pluscode($lat, $lon, 12);
+	$pc =~ s{(.)(.)$}{ $c[ 4 * int($c{$1} / 5) + $c{$2} / 4 ] }e;
         return $pc;
     }
-    my($i,@l)=(0, ($lat+90)/400, ($lon+180)/400 );
-    my $pc=join'',map{my$d=$c[$l[$i]*=20];$l[$i]-=int$l[$i];$i=1-$i;$d}1..$pr;
-    $pc.='00' while 8>length$pc;
-    $pc=~s/.{8}/$&+/;
+    my($i, @l) = (0, ($lat+90)/400, ($lon+180)/400 );
+    my $pc = join '', map { my $d = $c[$l[$i] *= 20]; $l[$i] -= int $l[$i]; $i = 1-$i; $d } 1 .. $pr;
+    $pc .= '00' while 8 > length $pc;
+    $pc =~ s/.{8}/$&+/;
     $pc
 }
 sub pluscode2latlon {
-    carp"pluscode2latlon: 11 digits not yet supported" if length($_[0])%2==0;
-    my $n=0; my %c=map{$_=>$n++}"23456789CFGHJMPQRVWX"=~/./g;
-    my($f,$i,@l)=(1/20,1,0,0);
-    $l[$i=1-$i]+=$_/$f, $f*=$i?20:1 for map$_?$c{$_}:9.5,pop=~/\w/g;
-    ($l[0]-90, $l[1]-180)
+    carp "pluscode2latlon: 11 digits not yet supported" if length($_[0]) % 2 == 0;
+    my $n = 0; my %c  =map { $_ => $n++ } "23456789CFGHJMPQRVWX" =~ /./g;
+    my($f, $i, @l) = (1/20, 1, 0, 0);
+    $l[ $i = 1 - $i ] += $_ / $f, $f *= $i ? 20 : 1 for map $_ ? $c{$_} : 9.5, pop =~ /\w/g;
+    ( $l[0] - 90, $l[1] - 180)
 }
 sub pluscode_short {
-    my($lat,$lon,$place,$pr)=@_;
-    $pr=10 if !defined$pr;
-    my $pc=pluscode($lat,$lon,$pr);
+    my($lat, $lon, $place, $pr) = @_;
+    $pr = 10 if !defined $pr;
+    my $pc = pluscode($lat, $lon, $pr);
     $pc =~ s/^....(.+)$/$1 $place/;
     $pc
 }
 sub pluscode_short2latlon {
-    my($pcs,$near_lat,$near_lon)=@_;
-    my $chars="23456789CFGHJMPQRVWX";
-    croak if not $pcs=~s/^([$chars]{4}\+([$chars]{2}\b)?).*/$1/s;
-    my $near=substr(pluscode($near_lat,$near_lon),0,4);
-    carp"TODO: pluscode_short2latlon: dont yet deal with corner cases";
+    my($pcs, $near_lat, $near_lon) = @_;
+    my $chars = "23456789CFGHJMPQRVWX";
+    croak if not $pcs =~ s/^([$chars]{4}\+([$chars]{2}\b)?).*/$1/s;
+    my $near = substr( pluscode($near_lat,$near_lon), 0, 4 );
+    carp "TODO: pluscode_short2latlon: dont yet deal with corner cases";
     pluscode2latlon("$near$pcs"); #TODO!
 }
 
@@ -2258,34 +2266,34 @@ Converts a geohash code to latitude and longitude floating point numbers. Exampl
 
 =cut
 
-our $Geohash_fast_limit=11;
+our $Geohash_fast_limit = 11;
 sub geohash_fast { #...but wrong on edge cases, poles etc
-    my($lat,$lon,$chars)=@_;
-    $chars=9 if !defined$chars;
-    croak"geohash: @_ outside domain" if @_<2 or @_>3 or $lat<-90 or $lat>90 or $lon<-180 or $lon>180 or $chars>20;
+    my($lat, $lon, $chars) = @_;
+    $chars = 9 if !defined $chars;
+    croak "geohash: @_ outside domain" if @_ < 2 or @_ > 3 or $lat < -90 or $lat > 90 or $lon < -180 or $lon > 180 or $chars > 20;
     return geohash(@_) if $chars >= $Geohash_fast_limit;
-    my $latbits =  $chars*5 >> 1;
-    my $lonbits =  $chars*5 - $latbits;
-    my $bits=sprintf("%0*b", $lonbits, (180-$lon)/360 * 2**$lonbits)
-	    .sprintf("%0*b", $latbits, ( 90-$lat)/180 * 2**$latbits);
-    my $zip=join('',map substr($bits, $lonbits*($_%2)+($_>>1), 1), 0 .. $chars*5-1);
-    join'', map substr('0123456789bcdefghjkmnpqrstuvwxyz',oct"0b".y/01/10/r,1),$zip=~/.{5}/g;
+    my $latbits =  $chars * 5 >> 1;
+    my $lonbits =  $chars * 5 - $latbits;
+    my $bits=sprintf("%0*b", $lonbits, (180-$lon) / 360 * 2 ** $lonbits)
+	    .sprintf("%0*b", $latbits, ( 90-$lat) / 180 * 2 ** $latbits);
+    my $zip = join '', map substr($bits, $lonbits * ($_ % 2) + ($_>>1), 1), 0 .. $chars * 5 - 1;
+    join '', map substr('0123456789bcdefghjkmnpqrstuvwxyz', oct"0b".y/01/10/r, 1), $zip =~ /.{5}/g;
 }
 sub geohash {
-    my($lat,$lon,$chars)=@_;
-    $chars=9 if !defined$chars;
-    croak"geohash: @_ outside domain" if @_<2 or @_>3 or $lat<-90 or $lat>90 or $lon<-180 or $lon>180 or $chars>20;
-    my($i, @l)=(3, $lat,-90,90, $lon,-180,180);
-    my $nextbit=sub{my$m=($l[1+$i]+$l[2+$i])/2;my$b=$l[$i]<$m?0:1;$l[2+$i-$b]=$m;$i=3-$i;$b};
-    my @c=(0..9,'b'..'h',qw(j k m n),'p'..'z');
-    join'',map$c[oct"0b".join'',map&$nextbit,1..5],1..$chars;
+    my($lat, $lon, $chars) = @_;
+    $chars = 9 if !defined $chars;
+    croak "geohash: @_ outside domain" if @_ < 2 or @_ > 3 or $lat < -90 or $lat > 90 or $lon < -180 or $lon > 180 or $chars > 20;
+    my($i, @l) = (3, $lat, -90, 90, $lon, -180, 180);
+    my $nextbit = sub{ my $m = ( $l[1+$i] + $l[2+$i] ) / 2; my $b = $l[$i] < $m ? 0 : 1; $l[2+$i-$b] = $m; $i = 3 - $i; $b };
+    my @c = ( 0..9, 'b'..'h', qw(j k m n), 'p' .. 'z');
+    join '', map $c[ oct"0b".join '', map &$nextbit, 1 .. 5 ], 1 .. $chars;
 }
 sub geohash2latlon {
-    croak"geohash2latlon: illegal char $_[0]" if $_[0]=~/[^0-9b-hjkmnp-z]/;
-    my($n,$i,@l)=(0, 2, -90,90, -180,180);
-    my %c=map{$_=>sprintf'%05b',$n++}0..9,'b'..'h',qw(j k m n),'p'..'z';
-    $l[$i+1-$_]=($l[$i]+$l[$i+1])/2,$i=2-$i for map $c{$_}=~/./g,pop=~/./g;
-    ( ($l[0]+$l[1])/2, ($l[2]+$l[3])/2 );
+    croak "geohash2latlon: illegal char $_[0]" if $_[0] =~ /[^0-9b-hjkmnp-z]/;
+    my($n, $i, @l) = (0, 2, -90, 90, -180, 180);
+    my %c = map { $_ => sprintf'%05b', $n++ } 0 .. 9, 'b' .. 'h', qw(j k m n), 'p' .. 'z';
+    $l[ $i + 1 - $_ ] = ( $l[$i] + $l[$i+1] ) / 2, $i = 2 - $i for map $c{$_} =~ /./g, pop =~ /./g;
+    ( ($l[0] + $l[1]) / 2, ($l[2] + $l[3]) / 2 );
 }
 
 
@@ -2488,15 +2496,15 @@ If you're doing only numerical comparisons, using C<between> is faster than C<bt
 =cut
 
 sub between {
-  my($test ,$fom, $tom)=@_;
-  return if !defined$test or !defined$fom or !defined$tom;
+  my($test, $fom, $tom) = @_;
+  return if !defined $test or !defined $fom or !defined $tom;
   $fom < $tom ? $test >= $fom && $test <= $tom
               : $test >= $tom && $test <= $fom;
 }
 
 sub btw {
-  my($test,$fom,$tom)=@_;
-  return if !defined$test or !defined$fom or !defined$tom;
+  my($test, $fom, $tom) = @_;
+  return if !defined $test or !defined $fom or !defined $tom;
   $fom =~ $Re_isnum_wolz &&
   $tom =~ $Re_isnum_wolz &&
   $test=~ $Re_isnum_wolz
@@ -2523,10 +2531,10 @@ input arguments is different than three or if any of them are not defined.
 =cut
 
 sub curb {
-  my($val,$min,$max)=@_;
+  my($val, $min, $max) = @_;
   # todo: undef min|max => don't curb min|max
-  croak "curb: wrong args" if @_!=3 or !defined$min or !defined$max or !defined$val or $min>$max;
-  return $$val=curb($$val,$min,$max) if ref($val) eq 'SCALAR';
+  croak "curb: wrong args" if @_ != 3 or !defined $min or !defined $max or !defined $val or $min > $max;
+  return $$val = curb($$val, $min, $max) if ref($val) eq 'SCALAR';
   $val < $min ? $min :
   $val > $max ? $max :
                 $val;
@@ -2624,53 +2632,54 @@ Center pads. Pads the string both on left and right equal to the given length. C
 
 =cut
 
-sub upper {no warnings;my $s=@_?shift:$_;$s=~tr/a-zæøåäëïöü.âêîôûãõàèìòùáéíóúýñð/A-ZÆØÅÄËÏÖÜ.ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ/;$s}
-sub lower {no warnings;my $s=@_?shift:$_;$s=~tr/A-ZÆØÅÄËÏÖÜ.ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ/a-zæøåäëïöü.âêîôûãõàèìòùáéíóúýñð/;$s}
+sub upper {no warnings; my $s = @_ ? shift : $_; $s =~ tr/a-zæøåäëïöü.âêîôûãõàèìòùáéíóúýñð/A-ZÆØÅÄËÏÖÜ.ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ/; $s }
+sub lower {no warnings; my $s = @_ ? shift : $_; $s =~ tr/A-ZÆØÅÄËÏÖÜ.ÂÊÎÔÛÃÕÀÈÌÒÙÁÉÍÓÚÝÑÐ/a-zæøåäëïöü.âêîôûãõàèìòùáéíóúýñð/; $s }
 
 sub trim {
   return trim($_) if !@_;
-  return map trim($_), @_ if @_>1;
-  my $s=shift;
-  if(ref($s) eq 'SCALAR'){ $$s=~s,^\s+|(?<=\s)\s+|\s+$,,g; return $$s}
+  return map trim($_), @_ if @_ > 1;
+  my $s = shift;
+  if(ref($s) eq 'SCALAR'){ $$s =~ s,^\s+|(?<=\s)\s+|\s+$,,g; return $$s}
   if(ref($s) eq 'ARRAY') { trim(\$_) for @$s; return $s }
-  $s=~s,^\s+|(?<=\s)\s+|\s+$,,g if defined $s;
+  $s =~ s,^\s+|(?<=\s)\s+|\s+$,,g if defined $s;
   $s;
 }
 
 sub rpad {
-  my($s,$l,$p)=@_;
-  $p=' ' if @_<3 or !length($p);
-  $s.=$p while length($s)<$l;
-  substr($s,0,$l);
+  my($s, $l, $p) = @_;
+  $p = ' ' if @_ < 3 or !length $p;
+  $s .= $p while length($s) < $l;
+  substr($s, 0, $l);
 }
 
 sub lpad {
-  my($s,$l,$p)=@_;
-  $p=' ' if @_<3 or !length($p);
-  $l<length($s)
-  ? substr($s,0,$l)
-  : substr($p x (1+$l/length($p)), 0, $l-length($s)).$s;
+  my($s, $l, $p) = @_;
+  $p = ' ' if @_ < 3 or !length $p;
+  $l < length($s)
+  ? substr($s, 0, $l)
+  : substr($p x ( 1 + $l / length $p), 0, $l - length $s ) . $s;
 }
 
 sub cpad {
-  my($s,$l,$p)=@_;
-  $p=' ' if @_<3 or !length($p);
-  my $ls=length($s);
-  return substr($s,0,$l) if $l<$ls;
-  $p=$p x (($l-$ls+2)/length($p));
-  substr($p, 0, ($l-$ls  )/2) . $s .
-  substr($p, 0, ($l-$ls+1)/2);
+  my($s, $l, $p) = @_;
+  $p = ' ' if @_ < 3 or !length $p;
+  my $ls = length $s;
+  return substr($s,0,$l) if $l < $ls;
+  $p=$p x ( ( $l - $ls + 2 ) / length $p );
+  substr($p, 0, ( $l - $ls     ) / 2)
+  . $s .
+  substr($p, 0, ( $l - $ls + 1 ) / 2);
 }
 
 sub cpad_old {
-  my($s,$l,$p)=@_;
-  $p=' ' if !length($p);
-  return substr($s,0,$l) if $l<length($s);
-  my $i=0;
-  while($l>length($s)){
-    my $pc=substr($p,($i==int($i)?1:-1)*($i%length($p)),1);
-    $i==int($i) ? ($s.=$pc) : ($s=$pc.$s);
-    $i+=1/2;
+  my($s, $l, $p) = @_;
+  $p = ' ' if !length $p;
+  return substr($s, 0, $l) if $l < length $s;
+  my $i = 0;
+  while($l > length $s){
+    my $pc = substr $p, ( $i == int($i) ? 1 : -1 ) * ( $i % length $p ), 1;
+    $i == int($i) ? ( $s .= $pc ) : ( $s = $pc . $s );
+    $i += 1 / 2;
   }
   $s;
 }
@@ -2750,27 +2759,26 @@ Return the chars as an array. Perhaps more readable than C< split(//,"Tittentei"
 
 =cut
 
-sub trigram { sliding($_[0],$_[1]||3) }
+sub trigram { sliding($_[0], $_[1] || 3) }
 
 sub sliding {
-  my($s,$w)=@_;
-  return map substr($s,$_,$w),   0..length($s)-$w  if !ref($s);
-  return map [@$s[$_..$_+$w-1]], 0..@$s-$w         if ref($s) eq 'ARRAY';
+  my($s, $w) = @_;
+  return map substr($s, $_, $w),   0 .. length($s) - $w  if !ref($s);
+  return map [ @$s[ $_ .. $_ + $w - 1 ] ], 0 .. @$s - $w if ref($s) eq 'ARRAY';
 }
 
 sub sliding_window_circular_list { my $o = shift >> 1; map { my $i = $_; [ @_[ map $_ % @_, $i-$o .. $i+$o ] ] } keys @_ }
 
 sub chunks {
-  my($s,$w)=@_;
-  return $s=~/(.{1,$w})/g                                      if !ref($s);
-  return map [@$s[$_*$w .. min($_*$w+$w-1,$#$s)]], 0..$#$s/$w  if ref($s) eq 'ARRAY';
+  my($s, $w) = @_;
+  return $s =~ /.{1,$w}/g                                                       if !ref($s);
+  return map [ @$s[ $_ * $w .. min($_ * $w + $w - 1, $#$s) ] ], 0 .. $#$s / $w  if ref($s) eq 'ARRAY';
 }
 
-sub chars { split//, shift }
+sub chars { split //, shift }
 
-sub l2u { my $s=$_[0]; $s =~ s/[\x80-\xFF]/chr(ord$&<192?194:195).chr(ord$&&191)/ge; $s }
-#sub l2u { shift =~ s/[\x80-\xFF]/chr(195-(192>ord$&)).chr(128+ord($&)%64)/ger }
-sub u2l { my $s=$_[0]; $s =~ s/([\xC2\xC3])([\x80-\xBF])/chr(64*(ord($1)%2)+ord$2)/ge; $s }
+sub l2u { my $s = $_[0]; $s =~ s/[\x80-\xFF]/chr(ord$&<192?194:195).chr(ord$&&191)/ge;   $s }
+sub u2l { my $s = $_[0]; $s =~ s/([\xC2\xC3])([\x80-\xBF])/chr(64*(ord($1)%2)+ord$2)/ge; $s }
 
 =head2 huffman
 
@@ -2831,49 +2839,49 @@ Output: A string or an array of codes depending on scalar or list context.
 =cut
 
 sub huffman {
-  if(@_==1){
-    if   (ref($_[0]) eq 'SCALAR'){ return huffman([split//,${$_[0]}]) }
-    elsif(!ref($_[0])           ){ return huffman([split//,$_[0]   ]) }
-    elsif(ref($_[0]) eq 'ARRAY' ){ my %freq; $freq{$_}++ for @{pop()}; return huffman(map+($_=>$freq{$_}),sort keys%freq) }
-    elsif(ref($_[0]) eq 'HASH'  ){ my$f=shift;return huffman(map+($_=>$$f{$_}),sort{$$f{$b}<=>$$f{$a} or $a<=>$b}keys%$f) }
+  if( @_ == 1 ){
+    if   (ref($_[0]) eq 'SCALAR'){ return huffman( [ split //, ${$_[0]} ] ) }
+    elsif(!ref($_[0])           ){ return huffman( [ split //, $_[0]    ] ) }
+    elsif(ref($_[0]) eq 'ARRAY' ){ my %freq; $freq{$_}++ for @{pop()}; return huffman( map +($_=>$freq{$_}), sort keys%freq) }
+    elsif(ref($_[0]) eq 'HASH'  ){ my $f = shift; return huffman( map +($_=>$$f{$_}), sort{ $$f{$b} <=> $$f{$a} or $a <=> $b } keys%$f ) }
   }
-  my($s,@c,%h,$h)=0 x 9;
-  push @c, [splice@_,0,2] while @_;
-  while(@c>2){
-    @c = sort {$$b[1]<=>$$a[1] or $$a[0]cmp$$b[0] or die} @c;
-    push @c, [ ++$s, $c[-2][1]+$c[-1][1], pop@c, pop@c ];
+  my($s, @c, %h, $h) = 0 x 9;
+  push @c, [ splice @_, 0, 2 ] while @_;
+  while( @c > 2 ){
+    @c = sort { $$b[1] <=> $$a[1] or $$a[0] cmp $$b[0] or die } @c;
+    push @c, [ ++$s, $c[-2][1] + $c[-1][1], pop @c, pop @c ];
   }
-  $h=sub{my$n=0;my$pre=pop;@$_==2?($h{$$_[0]}=$pre.$n++):&$h(@$_,$pre.$n++) for grep ref,@_};
-  &$h(@c,'');
+  $h = sub{ my $n = 0;my $pre = pop; @$_ == 2 ? ($h{$$_[0]} = $pre . $n++) : &$h(@$_, $pre . $n++) for grep ref, @_ };
+  &$h(@c, '');
   %h
 }
 
 our $Huffman_pack_length;
 our $Huffman_pack_bits;
 sub huffman_pack {
-  my($data,$enchash)=@_;
-  $enchash={huffman($data)} if @_<2;
-  if(ref($data) eq 'ARRAY'){
-    my($i,$r)=(0,'');
-    vec($r,$i++,1)=$_ for map split(//,$$enchash{$_}), @$data;
-    $Huffman_pack_length=@$data;
-    $Huffman_pack_bits=$i;
-    ($r,$enchash);
+  my($data, $enchash) = @_;
+  $enchash = { huffman($data) } if @_ < 2;
+  if( ref($data) eq 'ARRAY' ){
+    my($i, $r) = (0, '');
+    vec($r, $i++, 1) = $_ for map split(//, $$enchash{$_}), @$data;
+    $Huffman_pack_length = @$data;
+    $Huffman_pack_bits = $i;
+    return ($r, $enchash);
   }
-  elsif(ref($data) eq 'SCALAR'){ (huffman_pack($$data,         $enchash),$enchash) }
-  else                         { (huffman_pack([split//,$data],$enchash),$enchash) }
+  elsif(ref($data) eq 'SCALAR'){ return ( huffman_pack($$data,          $enchash), $enchash ) }
+  else                         { return ( huffman_pack([split//,$data], $enchash), $enchash ) }
 }
 
 sub huffman_unpack {
-  my($str,$enchash,$len)=@_;
-  $len=9e9 if @_<3;
-  my($bits,$r,%dec,@r)=('','',reverse%$enchash);
-  for(0..8*length($str)-1){
-    $bits.=vec($str,$_,1);
-    if(exists$dec{$bits} and $len--){
-        if(wantarray){ push @r, $dec{$bits} }
-        else         { $r.=$dec{$bits}      }
-        $bits='';
+  my($str, $enchash, $len) = @_;
+  $len = 9e9 if @_ < 3;
+  my($bits, $r, %dec, @r) = ('', '', reverse %$enchash);
+  for(0 .. 8 * length($str) - 1){
+    $bits .= vec $str, $_, 1;
+    if( exists $dec{$bits} and $len-- ){
+        if( wantarray ){ push @r, $dec{$bits} }
+        else           { $r .= $dec{$bits}    }
+        $bits = '';
     }
   }
   wantarray ? @r : $r;
@@ -2922,13 +2930,13 @@ Example:
 
 sub replace { repl(@_) }
 sub repl {
-  my $str=shift;
-  return $$str=replace($$str,@_) if ref($str) eq 'SCALAR';
+  my $str = shift;
+  return $$str = replace($$str, @_) if ref($str) eq 'SCALAR';
  #return ? if ref($str) eq 'ARRAY';
  #return ? if ref($str) eq 'HASH';
-  while(@_){
-    my($fra,$til)=(shift,shift);
-    defined $til ? $str=~s/$fra/$til/g : $str=~s/$fra//g;
+  while( @_ ){
+    my($fra, $til) = (shift, shift);
+    defined $til ? $str =~ s/$fra/$til/g : $str =~ s/$fra//g;
   }
   return $str;
 }
@@ -2969,17 +2977,17 @@ same way with negative offsets and boundary control of length.
 
 #sub subarr(+$;$) { #perl>=5.14        # t/35_subarr.t
 sub subarr { #perl<5.14
-  my($a,$o,$l,@r)=@_;
+  my($a, $o, $l, @r) = @_;
   croak "subarr: first arg not array ref" if ref($a) ne 'ARRAY';
-  $o=@$a+$o    if $o<0;
-  $o=0         if $o<0;
-  $o=@$a-1     if $o>@$a-1;
-  $l=@$a-$o    if @_<3;
-  $l=@$a-$o+$l if $l<0;
-  $l=@$a-$o    if $l<0;
-  $l=@$a-$o    if $l>@$a-$o;
-  @_>3 ? splice(@$a,$o,$l,@r)
-       : @$a[$o..$o+$l-1];
+  $o = @$a + $o      if $o < 0;
+  $o = 0             if $o < 0;
+  $o = @$a - 1       if $o > @$a-1;
+  $l = @$a - $o      if @_ < 3;
+  $l = @$a - $o + $l if $l < 0;
+  $l = @$a - $o      if $l < 0;
+  $l = @$a - $o      if $l > @$a-$o;
+  @_ > 3 ? splice(@$a, $o, $l, @r)
+         : @$a[ $o .. $o + $l - 1 ];
 }
 
 =head2 min
@@ -3020,10 +3028,10 @@ Just as L</max>, except for strings. Uses the alphanumerical comparison operator
 
 =cut
 
-sub min  {my $min;for(@_){ $min=$_ if defined($_) and !defined($min) || $_ < $min } $min }
-sub mins {my $min;for(@_){ $min=$_ if defined($_) and !defined($min) || $_ lt $min} $min }
-sub max  {my $max;for(@_){ $max=$_ if defined($_) and !defined($max) || $_ > $max } $max }
-sub maxs {my $max;for(@_){ $max=$_ if defined($_) and !defined($max) || $_ gt $max} $max }
+sub min  {my $min; for(@_){ $min = $_ if defined($_) and !defined($min) || $_ <  $min } $min }
+sub mins {my $min; for(@_){ $min = $_ if defined($_) and !defined($min) || $_ lt $min } $min }
+sub max  {my $max; for(@_){ $max = $_ if defined($_) and !defined($max) || $_ >  $max } $max }
+sub maxs {my $max; for(@_){ $max = $_ if defined($_) and !defined($max) || $_ gt $max } $max }
 sub minmax { (min(@_), max(@_)) }
 sub dvmd { ( int($_[0] / $_[1]), $_[0] % $_[1] ) } #divmod
 
@@ -3053,11 +3061,11 @@ Dies (croaks) if the two lists are of different sizes
 =cut
 
 sub zip {
-  my @t=@_;
-  ref($_) ne 'ARRAY' and croak "ERROR: zip should have arrayrefs as arguments" for @t;
-  @{$t[$_]} != @{$t[0]} and croak "ERROR: zip should have equal sized arrays" for 1..$#t;
+  my @t = @_;
+  ref($_) ne 'ARRAY'      and croak "ERROR: zip should have arrayrefs as arguments" for @t;
+  @{ $t[$_] } != @{$t[0]} and croak "ERROR: zip should have equal sized arrays"     for 1 .. $#t;
   my @res;
-  for my $i ( 0 .. @{$t[0]}-1 ){
+  for my $i ( 0 .. @{ $t[0] } - 1 ){
     push @res, $$_[$i] for @t;
   }
   return @res;
@@ -3090,32 +3098,32 @@ Todo: more doc
 
 sub sim {
   require String::Similarity;
-  my($str,@r)=@_;
-  return String::Similarity::similarity(@_) if @r==1; #to param
-  my($min,$mindiff);
-  if(ref($r[0]) eq 'ARRAY'){
-    ($min,$mindiff)=@r[1,2];
-    @r=@{$r[0]};
+  my($str, @r) = @_;
+  return String::Similarity::similarity(@_) if @r == 1; #to param
+  my($min, $mindiff);
+  if( ref( $r[0] ) eq 'ARRAY'){
+    ($min, $mindiff) = @r[1,2];
+    @r = @{$r[0]};
   }
-  $min=0 if!defined$min;
-  my($simlikest,$simnestlikest,$likest,$idlikest)=(-1,-1);
-  for(@r){
-    my($s,$id)=ref($_) eq 'ARRAY' ? @$_ : ($_);
-    my $sim=String::Similarity::similarity($str,$s,defined$simnestlikest?$simnestlikest:0);
-    if($sim>=$simlikest){
-      ($simnestlikest,$likest,$simlikest)=($simlikest,$s,$sim);
-      $idlikest=$id if defined$id;
+  $min = 0 if !defined $min;
+  my($simlikest, $simnestlikest, $likest, $idlikest) = (-1, -1);
+  for( @r ){
+    my($s, $id) = ref($_) eq 'ARRAY' ? @$_ : ($_);
+    my $sim = String::Similarity::similarity($str, $s, defined $simnestlikest ? $simnestlikest : 0);
+    if( $sim >= $simlikest ){
+      ($simnestlikest, $likest, $simlikest) = ($simlikest, $s, $sim);
+      $idlikest = $id if defined $id;
     }
-    elsif($sim>=$simnestlikest){
-      $simnestlikest=$sim;
+    elsif( $sim >= $simnestlikest ){
+      $simnestlikest = $sim;
     }
   }
-  my@ret=($simlikest,$likest);
-  @ret=(undef,undef) if $simnestlikest>0 and $simlikest-$simnestlikest<$mindiff;
-  @ret=(undef,undef) if $simlikest<$min;
-  @ret=(@ret,$simnestlikest,$simlikest,$likest);
-  push(@ret, $ret[0] ? $idlikest : undef) if defined $idlikest;
-  return wantarray?@ret:$ret[0];
+  my @ret = ($simlikest, $likest);
+  @ret = (undef, undef) if $simnestlikest>0 and $simlikest-$simnestlikest<$mindiff;
+  @ret = (undef, undef) if $simlikest<$min;
+  @ret = (@ret, $simnestlikest, $simlikest, $likest);
+  push @ret, $ret[0] ? $idlikest : undef if defined $idlikest;
+  return wantarray ? @ret : $ret[0];
 }
 
 =head2 sim_perm
@@ -3150,23 +3158,23 @@ names are going on the list of probable doubles.
 
 sub sim_perm {
   require String::Similarity;
-  my($s1,$s2)=map {my$s=$_;$s=~s/^\s*(.+?)\s*$/$1/;$s} map upper($_), @_; #/r v5.14
+  my($s1, $s2) = map { my $s = $_; $s =~ s/^\s*(.+?)\s*$/$1/; $s } map upper($_), @_; #/r v5.14
   croak if !length($s1) or !length($s2);
   my $max;
-  for(cart([permutations(split(/[\s,]+/,$s1))],
-           [permutations(split(/[\s,]+/,$s2))])) {
-    my($n1,$n2)=@$_;
-    if(@$n1>@$n2){    pop@$n1 while @$n1>@$n2 }
-    else         {    pop@$n2 while @$n1<@$n2 }
-    my($str1,$str2)=map join(" ",@$_),($n1,$n2);
+  for( cart( [ permutations( split /[\s,]+/, $s1 ) ],
+             [ permutations( split /[\s,]+/, $s2 ) ] ) ) {
+    my($n1, $n2) = @$_;
+    if( @$n1 > @$n2 ){ pop @$n1 while @$n1 > @$n2 }
+    else             { pop @$n2 while @$n1 < @$n2 }
+    my($str1, $str2) = map join(" ", @$_), $n1, $n2;
     if(defined $max){
-      my $sim=String::Similarity::similarity($str1,$str2,$max);
-      $max=$sim if $sim>$max;
+      my $sim=  String::Similarity::similarity($str1, $str2, $max);
+      $max = $sim if $sim > $max;
     }
     else {
-      $max=String::Similarity::similarity($str1,$str2);
+      $max = String::Similarity::similarity($str1, $str2);
     }
-    last if $max==1;
+    last if $max == 1;
   }
   $max;
 }
@@ -3193,11 +3201,11 @@ L<https://en.wikipedia.org/wiki/Levenshtein_distance>
 =cut
     
 sub levdist {
-  my($s1,$s2) = map[/./g],@_;
-  my @a=0..@$s2;
-  for my $i (1..@$s1){
-    my $n=$i;
-    @a=($i,map $n=1+min( $a[$_], $n, $a[$_-1]-($$s1[$i-1] eq $$s2[$_-1])), 1..@$s2);
+  my($s1, $s2) = map [ /./g ], @_;
+  my @a = 0 .. @$s2;
+  for my $i ( 1 .. @$s1 ){
+    my $n = $i;
+    @a = ( $i, map $n = 1 + min( $a[$_], $n, $a[$_-1] - ( $$s1[$i-1] eq $$s2[$_-1] ) ), 1 .. @$s2 );
   }
   pop@a
 }
@@ -3250,36 +3258,36 @@ L<https://en.wikipedia.org/wiki/Jaro%E2%80%93Winkler_distance#Jaro%E2%80%93Winkl
 =cut
 
 sub jsim {
-  my @s = split//,shift;
-  my @t = split//,shift;
+  my @s = split //, shift;
+  my @t = split //, shift;
   return 1 if !@s and !@t;
-  my($match_distance, $matches, @s_matches, @t_matches) = (int(max(0+@s,0+@t)/2)-1, 0);
-  for my $i (0 .. $#s) {
-    my $start = max(0,    $i-$match_distance);
-    my $end   = min(0+@t, $i+$match_distance+1);
+  my($match_distance, $matches, @s_matches, @t_matches) = ( int( max(0+@s, 0+@t) / 2 ) - 1, 0 );
+  for my $i ( 0 .. $#s ) {
+    my $start = max(0,    $i - $match_distance);
+    my $end   = min(0+@t, $i + $match_distance+1);
     for my $j (grep !$t_matches[$_] && $s[$i] eq $t[$_], $start .. $end - 1) {
-      $s_matches[$i]=1;
-      $t_matches[$j]=1;
+      $s_matches[$i] = 1;
+      $t_matches[$j] = 1;
       $matches++;
       last;
     }
   }
   return 0 if !$matches;
-  my($k,$tr) = (0,0);
-  for(grep $s_matches[$_], 0..$#s) {
+  my($k, $tr) = (0, 0);
+  for( grep $s_matches[$_], 0 .. $#s ) {
     $k++ while !$t_matches[$k];
     $tr++ if $s[$_] ne $t[$k++];
   }
-  (  $matches/@s + $matches/@t + 1 - $tr/$matches/2  ) / 3;
+  (  $matches / @s + $matches / @t + 1 - $tr / $matches / 2  ) / 3;
 }
 
 sub jwsim {
-  my($s1,$s2,$p)=@_;
-  $p=0.1 if @_<3; #default
-  my $sim=jsim($s1,$s2);
-  my $prefix=(grep substr($s1,0,$_) eq substr($s2,0,$_), 0..min(4,length($s1),length($s2)))[-1];
+  my($s1, $s2, $p) = @_;
+  $p = 0.1 if @_ < 3; #default
+  my $sim = jsim($s1, $s2);
+  my $prefix = (grep substr($s1, 0, $_) eq substr($s2, 0, $_), 0 .. min(4, length($s1), length($s2) ) )[-1];
   #print "...prefix=$prefix\n";
-  $sim + $prefix*$p*(1-$sim);
+  $sim + $prefix * $p * ( 1 - $sim );
 }
 
 =head2 hpush
@@ -3293,32 +3301,32 @@ sub jwsim {
 # hpushstr, hpopstr
 
 sub hpush {
-  my $heap=shift;
-  my $attr=pop if ref($_[-1]) eq 'HASH';
-  for(@_){
+  my $heap = shift;
+  my $attr = pop if ref( $_[-1] ) eq 'HASH';
+  for( @_ ){
     push @$heap, $_;
-    my $i=@$heap;
-    while($i>=2 and $$heap[$i-1] > $$heap[$i/2-1]){
-      @$heap[$i-1,$i/2-1]=@$heap[$i/2-1,$i-1];
-      $i/=2;
+    my $i = @$heap;
+    while($i >= 2 and $$heap[$i-1] > $$heap[ $i / 2 - 1 ]){
+      @$heap[ $i - 1, $i / 2 - 1 ] = @$heap[ $i / 2 - 1, $i-1];
+      $i /= 2;
     }
-    pop@$heap while $attr and @$heap > $$attr{maxsize};
+    pop @$heap while $attr and @$heap > $$attr{maxsize};
   }
-  0+@$heap;
+  0 + @$heap;
 }
 sub hpop {
-  my $heap=shift;
-  my $last=pop@$heap;
+  my $heap = shift;
+  my $last = pop @$heap;
   return $last if !@$heap;
-  my($i,$top)=(1,splice@$heap,0,1,$last);
+  my($i, $top) = ( 1, splice @$heap, 0, 1, $last );
   while(1){  #swap with largest kid while any kid is larger
-    my $left_exists=  $#$heap >= $i*2-1 || last;
-    my $right_exists= $#$heap >= $i*2;
-    my($left,$right)=@$heap[$i*2-1,$i*2];
+    my $left_exists  = $#$heap >= $i * 2 - 1 || last;
+    my $right_exists = $#$heap >= $i * 2;
+    my($left,$right) = @$heap[ $i * 2 - 1, $i * 2 ];
     last if (!$left_exists  or $last > $left)
         and (!$right_exists or $last > $right);
-    $i = $i*2 + ($right_exists && $left < $right);
-    @$heap[$i-1,$i/2-1]=@$heap[$i/2-1,$i-1];
+    $i = $i * 2 + ($right_exists && $left < $right);
+    @$heap[$i - 1, $i / 2 - 1 ] = @$heap[ $i / 2 - 1, $i - 1 ];
   }
   $top
 }
@@ -3342,27 +3350,27 @@ Same as pushsort except that the array is kept sorted alphanumerically (cmp) ins
 #todo: use List::BinarySearch::XS 'binsearch_pos'; # hvis installert
 our $Pushsort_cmpsub=undef;
 sub pushsort (\@@) {
-  my $ar=shift;
+  my $ar = shift;
 
   #not needed but often faster
-  if(!defined $Pushsort_cmpsub and @$ar+@_<100){ #hm speedup?
-    @$ar=(sort {$a<=>$b} (@$ar,@_));
-    return 0+@$ar;
+  if( !defined $Pushsort_cmpsub and @$ar + @_ < 100 ){ #hm speedup?
+    @$ar = ( sort {$a<=>$b} (@$ar, @_) );
+    return 0 + @$ar;
   }
 
   for my $v (@_){
 
     #not needed but often faster
-    if(!defined $Pushsort_cmpsub){ #faster rank() in most cases
-      push    @$ar, $v and next if $v>=$$ar[-1];
-      unshift @$ar, $v and next if $v< $$ar[0];
+    if( !defined $Pushsort_cmpsub ){ #faster rank() in most cases
+      push    @$ar, $v and next if $v >= $$ar[-1];
+      unshift @$ar, $v and next if $v <  $$ar[0];
     }
 
-    splice @$ar, binsearch($v,$ar,1,$Pushsort_cmpsub)+1, 0, $v;
+    splice @$ar, binsearch($v, $ar, 1, $Pushsort_cmpsub) + 1, 0, $v;
   }
-  0+@$ar
+  0 + @$ar
 }
-sub pushsortstr(\@@){ local $Pushsort_cmpsub=sub{$_[0]cmp$_[1]}; pushsort(@_) } #speedup: copy sub pushsort
+sub pushsortstr(\@@){ local $Pushsort_cmpsub = sub { $_[0] cmp $_[1] }; pushsort(@_) } #speedup: copy sub pushsort
 
 =head2 binsearch
 
@@ -3421,36 +3429,36 @@ string, not a number. See L</binsearch>.
 =cut
 
 our $Binsearch_steps;
-our $Binsearch_maxsteps=100;
+our $Binsearch_maxsteps = 100;
 sub binsearch {
-  my($search,$aref,$insertpos,$cmpsub)=@_; #search pos of search in array
+  my($search, $aref, $insertpos, $cmpsub) = @_; #search pos of search in array
   croak "binsearch did not get arrayref as second arg" if ref($aref) ne 'ARRAY';
   croak "binsearch got fourth arg which is not a code-ref" if defined $cmpsub and ref($cmpsub) and ref($cmpsub) ne 'CODE';
-  if(defined $cmpsub and !ref($cmpsub)){
-    my $key=$cmpsub;
+  if( defined $cmpsub and !ref $cmpsub ){
+    my $key = $cmpsub;
     $cmpsub = sub{ $_[0]{$key} <=> $_[1]{$key} };
   }
   return $insertpos ? -0.5 : undef if !@$aref;
-  my($min,$max)=(0,$#$aref);
-  $Binsearch_steps=0;
-  while (++$Binsearch_steps <= $Binsearch_maxsteps) {
-    my $middle=int(($min+$max+0.5)/2);
-    my $middle_value=$$aref[$middle];
+  my($min, $max) = (0, $#$aref);
+  $Binsearch_steps = 0;
+  while ( ++$Binsearch_steps <= $Binsearch_maxsteps) {
+    my $middle = int( ($min + $max + 0.5) / 2 );
+    my $middle_value = $$aref[$middle];
 
     #croak "binsearch got non-sorted array" if !$cmpsub and $$aref[$min]>$$aref[$min]
     #                                       or  $cmpsub and &$cmpsub($$aref[$min],$$aref[$min])>0;
 
     if(   !$cmpsub and $search < $middle_value
-    or     $cmpsub and &$cmpsub($search,$middle_value) < 0  ) {      #print "<\n";
-      $max=$min, next                   if $middle == $max and $min != $max;
-      return $insertpos ? $middle-0.5 : undef if $middle == $max;
-      $max=$middle;
+    or     $cmpsub and &$cmpsub($search, $middle_value) < 0  ) {      #print "<\n";
+      $max = $min, next                         if $middle == $max and $min != $max;
+      return $insertpos ? $middle - 0.5 : undef if $middle == $max;
+      $max = $middle;
     }
     elsif( !$cmpsub and $search > $middle_value
-    or      $cmpsub and &$cmpsub($search,$middle_value) > 0 ) {      #print ">\n";
-      $min=$max, next                   if $middle == $min and $max != $min;
-      return $insertpos ? $middle+0.5 : undef if $middle == $min;
-      $min=$middle;
+    or      $cmpsub and &$cmpsub($search, $middle_value) > 0 ) {      #print ">\n";
+      $min = $max, next                         if $middle == $min and $max != $min;
+      return $insertpos ? $middle + 0.5 : undef if $middle == $min;
+      $min = $middle;
     }
     else {                                                           #print "=\n";
       return $middle;
@@ -3460,18 +3468,18 @@ sub binsearch {
 }
 
 sub binsearchfast { # binary search routine finds index just below value
-  my ($x,$v)=@_;
-  my ($klo,$khi)=(0,$#{$x});
+  my ($x, $v) = @_;
+  my ($klo, $khi) = (0, $#{$x});
   my $k;
-  while (($khi-$klo)>1) {
-    $k=int(($khi+$klo)/2);
-    if ($$x[$k]>$v) { $khi=$k; } else { $klo=$k; }
+  while( ( $khi - $klo ) > 1) {
+    $k = int( ($khi + $klo ) / 2 );
+    if( $$x[$k] > $v ) { $khi = $k }
+    else               { $klo = $k }
   }
   return $klo;
 }
 
-
-sub binsearchstr {binsearch(@_[0..2],sub{$_[0]cmp$_[1]})}
+sub binsearchstr { binsearch( @_[0..2], sub{ $_[0] cmp $_[1] } ) }
 
 =head2 rank
 
@@ -3500,20 +3508,20 @@ Just as C<rank> but sorts alphanumerically (strings, cmp) instead of numerically
 =cut
 
 sub rank {
-  my($rank,$aref,$cmpsub)=@_;
-  if($rank<0){
-    $cmpsub||=sub{$_[0]<=>$_[1]};
-    return rank(-$rank,$aref,sub{0-&$cmpsub});
+  my($rank, $aref, $cmpsub) = @_;
+  if( $rank < 0 ){
+    $cmpsub ||= sub { $_[0] <=> $_[1] };
+    return rank( -$rank, $aref, sub{ 0 - &$cmpsub } );
   }
   my @sort;
-  local $Pushsort_cmpsub=$cmpsub;
-  for(@$aref){
+  local $Pushsort_cmpsub = $cmpsub;
+  for( @$aref ){
     pushsort @sort, $_;
-    pop @sort if @sort>$rank;
+    pop @sort if @sort > $rank;
   }
-  return wantarray ? @sort : $sort[$rank-1];
+  return wantarray ? @sort : $sort[ $rank - 1 ];
 }
-sub rankstr {wantarray?(rank(@_,sub{$_[0]cmp$_[1]})):rank(@_,sub{$_[0]cmp$_[1]})}
+sub rankstr { wantarray ? (rank(@_, sub{ $_[0] cmp $_[1] } ) ) : rank(@_, sub{ $_[0] cmp $_[1] } ) }
 
 =head2 egrep
 
@@ -3582,16 +3590,16 @@ Examples:
 =cut
 
 sub eqarr {
-  my @arefs=@_;
-  croak if @arefs<2;
+  my @arefs = @_;
+  croak if @arefs < 2;
   ref($_) ne 'ARRAY' and croak for @arefs;
-  @{$arefs[0]} != @{$arefs[$_]} and return undef for 1..$#arefs;
+  @{$arefs[0]} != @{$arefs[$_]} and return undef for 1 .. $#arefs;
   my $ant;
-  for my $ar (@arefs[1..$#arefs]){
-    for(0..@$ar-1){
-      ++$ant and $ant>100 and croak ">100";  #TODO: feiler ved sammenligning av to tabeller > 10000(?) tall
+  for my $ar ( @arefs[ 1 .. $#arefs ] ) {
+    for ( 0 .. @$ar - 1 ){
+      ++$ant and $ant > 100 and croak ">100";  #TODO: feiler ved sammenligning av to tabeller > 10000(?) tall
       return 0 if $arefs[0][$_] ne $$ar[$_]
-              or $arefs[0][$_] != $$ar[$_];
+               or $arefs[0][$_] != $$ar[$_];
     }
   }
   return 1;
@@ -3656,7 +3664,7 @@ the returned arrayrefs unless an empty input is given.
 
 =cut
 
-sub subarrays { map { my $n = 2*$_; [ grep {($n/=2)%2} @_ ] } 1 .. 2**@_-1 }
+sub subarrays { map { my $n = 2*$_; [ grep { ( $n /= 2 ) % 2 } @_ ] } 1 .. 2 ** @_ - 1 }
 
 =head2 part
 
@@ -3707,9 +3715,9 @@ Two undefs at first (index positions 0 and 1) since there are no words of length
 
 =cut
 
-sub part  (&@) { my($c,@r)=(shift,[],[]); push @{ $r[ &$c?0:1 ] }, $_ for @_; @r }
-sub parth (&@) { my($c,%r)=(shift);       push @{ $r{ &$c     } }, $_ for @_; %r }
-sub parta (&@) { my($c,@r)=(shift);       push @{ $r[ &$c     ] }, $_ for @_; @r }
+sub part  (&@) { my($c, @r) = (shift,[],[]); push @{ $r[ &$c?0:1 ] }, $_ for @_; @r }
+sub parth (&@) { my($c, %r) = (shift);       push @{ $r{ &$c     } }, $_ for @_; %r }
+sub parta (&@) { my($c, @r) = (shift);       push @{ $r[ &$c     ] }, $_ for @_; @r }
 #sub mapn (&$@) { ... } like map but @_ contains n elems at a time, n=1 is map
 
 =head2 refa
@@ -3794,39 +3802,35 @@ sub pushr    { push    @{shift()}, @_ } # ?    ($@)
 sub popr     { pop     @{shift()}     }
 sub shiftr   { shift   @{shift()}     }
 sub unshiftr { unshift @{shift()}, @_ }
-sub splicer  { @_==1 ? splice( @{shift()} )
-              :@_==2 ? splice( @{shift()}, shift() )
-              :@_==3 ? splice( @{shift()}, shift(), shift() )
-              :@_>=4 ? splice( @{shift()}, shift(), shift(), @_ ) : croak }
-sub keysr    { ref($_[0]) eq 'HASH' ? keys(%{shift()}) : keysr({@{shift()}})  } #hm sort(keys%{shift()}) ?
-sub valuesr  { values( %{shift()} )    }
-sub eachr    { ref($_[0]) eq 'HASH'  ? each(%{shift()})
-             #:ref($_[0]) eq 'ARRAY' ? each(@{shift()})  # perl 5.8.8 cannot compile each on array! eval?
+sub splicer  { @_ == 1 ? splice( @{shift()} )
+              :@_ == 2 ? splice( @{shift()}, shift() )
+              :@_ == 3 ? splice( @{shift()}, shift(), shift() )
+              :@_ >= 4 ? splice( @{shift()}, shift(), shift(), @_ ) : croak }
+sub keysr    { ref($_[0]) eq 'HASH'  ? keys(%{shift()}) : keysr( { @{ shift() } } ) } #hm sort(keys%{shift()}) ?
+sub valuesr  { values( %{ shift() } ) }
+sub eachr    { ref($_[0]) eq 'HASH'  ? each( %{ shift() } )
+             #:ref($_[0]) eq 'ARRAY' ? each( @{ shift() } )  # perl 5.8.8 cannot compile each on array! eval?
               :                        croak("eachr needs hashref or arrayref got '".ref($_[0])."'") }
-sub joinr    { join(shift(),@{shift()}) }
+sub joinr    { join shift(), @{ shift() } }
 #sub mapr    # som scala: hvis map faar subref se kalles den sub paa hvert elem og resultatet returneres
 
 #sub eachr    { each(%{shift()}) }
 
 =head2 pile
 
-B<Input:> a pile size s and a list
+B<Input:> A pile size s and a list.
 
 B<Output:> A list of lists of length s or the length of the remainder in
 the last list. Piles together the input list in lists of the given size.
 
- my @list=(1,2,3,4,5,6,7,8,9,10);
- my @piles = pile(3, @list );        # ([1,2,3], [4,5,6], [7,8,9], [10])
- my $i=0;
- my @piles = parta {$i++/3} @list;   # same as above pile(3, @list)
+ my @list = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+ my @piles = pile(3, @list );           # ([1,2,3], [4,5,6], [7,8,9], [10])
+ my $i = 0;
+ my @piles = parta { $i++ / 3 } @list;  # same as above pile(3, @list)
 
 =cut
 
-sub pile { my $size=shift; my @r; for (@_){ push@r,[] if !@r or @{$r[-1]}>=$size; push @{$r[-1]}, $_ } @r }
-#sub pile {my$s=shift; @{(reduce {!ref($a) ? [[$b]] : @{$$a[-1]} >= $s ? [@$a,[$b]] : [@$a[0..$#$a-1],[@{$$a[-1]},$b]]} 0,@_)[0]} }
-#sub pile {my$s=shift; @{(reduce {!ref($a) ? [[$b]] : @{$$a[-1]} >= $s ? [@$a,[$b]] : [@$a[0..$#$a-1],[@{$$a[-1]},$b]]} 0,@_)[0]} }
-#sub pile {my$s=shift; @{(reduce {!ref($a) ? [[$b]] : @{$$a[-1]} >= $s ? [@$a,[$b]] : do{push@{$$a[-1]},$b;$a}} 0,@_)[0]}
-#sub pile {my$s=shift; @{(reduce {ref($a)?do{push@$a,[]if@{$$a[-1]}>=$s;push@{$$a[-1]},$b;$a}:[[$b]]} 0,@_)[0]}}
+sub pile { my $size = shift; my @r; for (@_){ push @r, [] if !@r or @{ $r[-1] } >= $size; push @{ $r[-1] }, $_ } @r }
 
 =head2 aoh2sql
 
@@ -3919,74 +3923,74 @@ Returns:
 sub aoh2sql {
   my($aoh,$conf)=@_;
   my %def=( #defaults
-            name=>'my_table',
-            number=>'numeric',
-            varchar=>'varchar',
-            date=>'date',
-            varchar_maxlen=>4000,
-            create=>1,
-            drop=>0,  # 1 drop table if exists, 2 plain drop
-            end=>"commit;\n",
-            begin=>"begin;\n",
-            fix_colnames=>0,
-      );
-  my %conf=(%def,(@_<2?():%$conf));
-  #$conf{$_}||=$def{$_} for keys%def;
+    name           => 'my_table',
+    number         => 'numeric',
+    varchar        => 'varchar',
+    date           => 'date',
+    varchar_maxlen => 4000,
+    create         => 1,
+    drop           => 0,  # 1 drop table if exists, 2 plain drop
+    end            => "commit;\n",
+    begin          => "begin;\n",
+    fix_colnames   => 0,
+  );
+  my %conf = (%def, ( @_ < 2 ? () : %$conf ) );
+  #$conf{$_} ||= $def{$_} for keys %def;
   my %col;
   map $col{$_}++, keys %$_ for @$aoh;
-  my @col=sort keys %col;
-  my @colerr=grep!/^[a-z]\w+$/i,@col;
+  my @col = sort keys %col;
+  my @colerr = grep !/^[a-z]\w+$/i, @col;
   croak "Invalid column name(s): @colerr" if @colerr and !$conf{fix_colnames};
-  my(%t,%tdb);
-  for my $c (@col){
-    my($l,$s,$p,$nn,%ant,$t)=(0,0,0,0);
-    for my $r (@$aoh){
-      my $v=$$r{$c};
-      next if !defined$v or $v!~/\S/;
+  my(%t, %tdb);
+  for my $c ( @col ){
+    my($l, $s, $p, $nn, %ant, $t) = (0, 0, 0, 0);
+    for my $r ( @$aoh ){
+      my $v = $$r{$c};
+      next if !defined $v or $v !~ /\S/;
       $nn++;
-      $l=length($v) if length($v)>$l;
+      $l = length($v) if length($v) > $l;
       no warnings 'uninitialized';
-      if($v=~/^(18|19|20)\d\d(0[1-9]|1[0-2])(0[1-9]|1\d|2\d|3[01])-?\d\d:?\d\d:?\d\d$/ and $conf{date}){
+      if( $v =~ /^(18|19|20)\d\d(0[1-9]|1[0-2])(0[1-9]|1\d|2\d|3[01])-?\d\d:?\d\d:?\d\d$/ and $conf{date} ){
         $ant{date}++;
         next;
       }
-      elsif($v=~/^\s*[-+]?(\d*)(\.\d+)?([Ee]\-?\d+)?\s*$/ and length("$1$2") and $conf{number}){
+      elsif( $v =~ /^\s*[-+]?(\d*)(\.\d+)?([Ee]\-?\d+)?\s*$/ and length("$1$2") and $conf{number} ){
         $ant{number}++;
-        $s=length("$1.$2") if length("$1.$2")>$s;#hm
-        $p=length($2)-1 if $2 and length($2)-1>$p;
+        $s = length("$1.$2") if        length("$1.$2") > $s;#hm
+        $p = length($2)-1    if $2 and length($2) - 1  > $p;
         next;
       }
       else {
         $ant{varchar}++;
       }
     }
-    $t||='varchar' if $ant{varchar}  or  $ant{number} and $ant{date};
-    $t||='number'  if $ant{number};
-    $t||='date'    if $ant{date};
-    $t||='varchar'; #hm
-    $l=$conf{varchar_maxlen} if $conf{varchar_maxlen} and $l>$conf{varchar_maxlen};
-    $l||=1;
+    $t ||= 'varchar' if $ant{varchar}  or  $ant{number} and $ant{date};
+    $t ||= 'number'  if $ant{number};
+    $t ||= 'date'    if $ant{date};
+    $t ||= 'varchar'; #hm
+    $l = $conf{varchar_maxlen} if $conf{varchar_maxlen} and $l>$conf{varchar_maxlen};
+    $l ||= 1;
     my $tdb;
-    $tdb="$conf{$t}($l)"    if $t eq 'varchar';
-    $tdb="$conf{$t}($s)"    if $t eq 'number' and $p==0;
-    $tdb="$conf{$t}($s,$p)" if $t eq 'number' and $p>0 and ++$s;
-    $tdb.=" not null" if $nn == 0+@$aoh;
-    $t{$c}=$t;
-    $tdb{$c}=$tdb;
+    $tdb = "$conf{$t}($l)"    if $t eq 'varchar';
+    $tdb = "$conf{$t}($s)"    if $t eq 'number' and $p == 0;
+    $tdb = "$conf{$t}($s,$p)" if $t eq 'number' and $p > 0 and ++$s;
+    $tdb .= " not null" if $nn == 0 + @$aoh;
+    $t{$c} = $t;
+    $tdb{$c} = $tdb;
   }
   my $sql;
-  $sql="create table $conf{name} (".
+  $sql = "create table $conf{name} (".
     join(",",map sprintf("\n  %-30s %s",do{s/\W+//g;$_},$tdb{$_}), @col). "\n);\n\n"
       if $conf{create};
-  my $val=sub{my($v,$t)=@_;defined$v or $v="";!length($v)?'null':$t eq 'number' ? $v : "'".repl($v,"\'","''")."'"};
-  for my $r (@$aoh){
-    my $v=join",",map &$val($$r{$_},$t{$_}), @col;
-    $sql.="insert into $conf{name} values ($v);\n";
+  my $val = sub{ my($v,$t) = @_; defined $v or $v = ""; !length($v) ? 'null' : $t eq 'number' ? $v : "'" . repl($v, "\'", "''") . "'" };
+  for my $r ( @$aoh ){
+    my $v = join ",",map &$val($$r{$_},$t{$_}), @col;
+    $sql .= "insert into $conf{name} values ($v);\n";
   }
-  $sql="drop table $conf{name};\n\n$sql" if $conf{drop}==1;
-  $sql="drop table if exists $conf{name};\n\n$sql" if $conf{drop}>=2;
-  $sql="$conf{begin}\n$sql" if $conf{begin};
-  $sql.=$conf{end};
+  $sql = "drop table $conf{name};\n\n$sql" if $conf{drop} == 1;
+  $sql = "drop table if exists $conf{name};\n\n$sql" if $conf{drop} >= 2;
+  $sql = "$conf{begin}\n$sql" if $conf{begin};
+  $sql .= $conf{end};
   $sql;
 }
 
@@ -7381,6 +7385,35 @@ See also this faster implementation:
 #sub lottorekker { comb([1..34],7) } #5379616 stk arrayrefs, n!/(k!(n-k)!) = 34!/(7! * 27!)
 sub comb{my($l,$k,$s)=(@_,0);$k?map{my$i=$_;map[$$l[$i],@$_],comb($l,$k-1,$i+1)}$s..@$l-$k:[]}
 
+
+=head2 polyarea
+
+Input: a list of 2D coordinates of the vertices (points) of a simple polygon. The last coordinate
+being equal to the first is voluntarly. The output will be the same. A simple polygon is a polygon
+that doesn't intersect with itself and has no holes. The input is not checked for that. The sweep-line technique of the Shamos-Hoey algorithm could check for that in O(n log n) time.
+
+Output: that polygons area. A floating point number.
+
+Examples:
+
+ print polyarea([3, 4], [2, 3], [1, 3], [2, 2], [2, 1], [4, 2], [5, 3]); # 5.5
+ print polyarea([1,6], [8,5], [4,4], [7,2], [3,1] );          # 16.5
+ print polyarea([1,6], [8,5], [4,4], [7,2], [3,1], [1,6] );   # 16.5  also, last being equal to the first
+
+Uses the Shoelace formula. A.k.a. Gauss's aera formula or surveyor's formula: https://en.wikipedia.org/wiki/Shoelace_formula
+
+=cut
+
+sub polyarea {
+    my($sum1, $sum2) = (0, 0);
+    my @p = @_;
+    push @p, $_[0] if $_[$#_][0] != $_[0][0] or $_[$#_][1] != $_[0][1];
+    for( 0 .. $#p - 1 ){
+	$sum1 += $p[$_][0] * $p[$_+1][1];
+	$sum2 += $p[$_][1] * $p[$_+1][0];
+    }
+    abs( $sum1 - $sum2 ) / 2
+}
 
 =head2 cart
 

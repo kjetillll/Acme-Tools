@@ -1,6 +1,6 @@
 # make test
-# perl Makefile.PL; make; perl -Iblib/lib t/53_chars.t
-# perl Makefile.PL; make; ATDEBUG=1 perl -Iblib/lib t/53_chars.t
+# perl Makefile.PL && make && perl -Iblib/lib t/53_chars.t
+# perl Makefile.PL && make && ATDEBUG=1 perl -Iblib/lib t/53_chars.t
 
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More tests => 12;
