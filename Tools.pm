@@ -2125,7 +2125,7 @@ sub distance_great_circle {
 
 #https://perldoc.perl.org/Math::Trig#great_circle_distance 
 
-sub distance {
+sub distance_ca_haversine {
   my($lat1,$lon1,$lat2,$lon2)=map $Distance_factor*$_, @_;
   return 0 if $lat1==$lat2 and $lon1==$lon2;
   my $a= sin(($lat2-$lat1)/2)**2
@@ -2137,6 +2137,45 @@ sub distance {
   my $R=$Re-($Re-$Rp)*sin(abs($lat1+$lat2)/2); #approx
   return $c*$R;
 }
+
+sub distance { #from claude
+    my ($lat1, $lon1, $lat2, $lon2) = @_;
+    my $a = 6378137.0;               # WGS84 semi-major axis
+    my $f = 1 / 298.257223563;       # WGS84 flattening
+    my $b = (1 - $f) * $a;
+    my $rad = 3.141592653589793238462643383279502884197169399375105820974944592307816406286 / 180;
+    my $L  = ($lon2 - $lon1) * $rad;
+    my $U1 = atan2((1 - $f) * sin($lat1 * $rad), cos($lat1 * $rad));
+    my $U2 = atan2((1 - $f) * sin($lat2 * $rad), cos($lat2 * $rad));
+    my ($sinU1, $cosU1, $sinU2, $cosU2) = (sin $U1, cos $U1, sin $U2, cos $U2);
+    my ($lambda, $lambdaP, $iter) = ($L, 0, 0);
+    my ($sinSigma, $cosSigma, $sigma, $cosSqAlpha, $cos2SigmaM);
+    do {
+	my ($sinL, $cosL) = (sin $lambda, cos $lambda);
+	$sinSigma = sqrt(($cosU2 * $sinL)**2
+			 + ($cosU1 * $sinU2 - $sinU1 * $cosU2 * $cosL)**2);
+	return 0 if $sinSigma == 0;                     # same point
+	$cosSigma   = $sinU1 * $sinU2 + $cosU1 * $cosU2 * $cosL;
+	$sigma      = atan2($sinSigma, $cosSigma);
+	my $sinAlpha = $cosU1 * $cosU2 * $sinL / $sinSigma;
+	$cosSqAlpha = 1 - $sinAlpha**2;
+	$cos2SigmaM = $cosSqAlpha ? $cosSigma - 2 * $sinU1 * $sinU2 / $cosSqAlpha : 0;
+	my $C = $f / 16 * $cosSqAlpha * (4 + $f * (4 - 3 * $cosSqAlpha));
+	$lambdaP = $lambda;
+	$lambda = $L + (1 - $C) * $f * $sinAlpha * ($sigma + $C * $sinSigma
+						    * ($cos2SigmaM + $C * $cosSigma * (-1 + 2 * $cos2SigmaM**2)));
+    } while (abs($lambda - $lambdaP) > 1e-12 && ++$iter < 200);
+    return undef if $iter >= 200;
+
+    my $uSq = $cosSqAlpha * ($a**2 - $b**2) / $b**2;
+    my $A = 1 + $uSq / 16384 * (4096 + $uSq * (-768 + $uSq * (320 - 175 * $uSq)));
+    my $B = $uSq / 1024 * (256 + $uSq * (-128 + $uSq * (74 - 47 * $uSq)));
+    my $dSigma = $B * $sinSigma * ($cos2SigmaM + $B / 4 * ($cosSigma
+							   * (-1 + 2 * $cos2SigmaM**2) - $B / 6 * $cos2SigmaM
+							   * (-3 + 4 * $sinSigma**2) * (-3 + 4 * $cos2SigmaM**2)));
+    return $b * $A * ($sigma - $dSigma);
+}
+
 
 =head2 pluscode
 

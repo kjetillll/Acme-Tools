@@ -1,27 +1,46 @@
 #perl Makefile.PL && make && perl -Iblib/lib t/05_distance.t
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests => 79;
+use Test::More tests => 86;
 
 #--oslo-rio = 10434.047 meter says http://www.daftlogic.com/projects-google-maps-distance-calculator.htm
 
 my %gps = (
-    oslo    => [ 59.933983,  10.756037],
-    rio     => [-22.97673,  -43.19508 ],
-    london  => [ 51.507726,  -0.128079],
-    jakarta => [ -6.175381, 106.828176],
+    oslo               => [ 59.933983,   10.756037 ],
+    rio                => [-22.97673,   -43.19508  ],
+    london             => [ 51.507726,   -0.128079 ],
+    jakarta            => [ -6.175381,  106.828176 ],
+    new_york           => [ 40.7128,    -74.0060   ],
+    eiffel_tower       => [ +48.8583,    +2.2945   ],
+    statue_of_liberty  => [ +40.68925   -74.04450  ],
+    sphinx_giza        => [ +29.9753,   +31.1377   ],
+    christ_statue_rio  => [ -22.95191,  -43.21044  ],
+    north_cape         => [ +71.17094,  +25.78302  ],
+    north_pole         => [ +90,       +180        ],
+    south_pole         => [ -90,       -180        ],
+    leon_spain         => [ +42.605,     -5.603    ],
 );
-my @test = ( ['oslo', 'rio',     10431.5],
-	     ['rio',  'oslo',    10431.5],
-	     ['oslo', 'london',   1153.7],
-	     ['oslo', 'jakarta', 10935.3],
-	     ['oslo', 'oslo',        0.0] );
+my @test = (     #From         To                  Km
+             [qw( oslo         rio                 10407.748 )],
+             [qw( rio          oslo                10407.748 )],
+             [qw( oslo         london               1157.878 )],
+             [qw( oslo         jakarta             10935.760 )],
+             [qw( oslo         oslo                    0.0   )],
+             [qw( jakarta      christ_statue_rio   15435.904 )],
+             [qw( sphinx_giza  south_pole          13319.341 )],
+             [qw( sphinx_giza  eiffel_tower         3215.778 )],
+             [qw( north_pole   south_pole          20003.931 )],
+             [qw( south_pole   north_pole          20003.931 )],
+             [qw( north_cape   oslo                 1423.189 )],
+             [qw( london       new_york             5585.204 )],
+);
 for(@test){
-    my($from,$to,$km_expected) = @$_;
-    my($la1,$lo1,$la2,$lo2) = (@{$gps{$from}},@{$gps{$to}});
-    my $km = distance($la1,$lo1,$la2,$lo2)/1000;              #meters/1000=km
+    my($from, $to, $km_expected) = @$_;
+    my($la1, $lo1, $la2, $lo2) = ( @{$gps{$from}}, @{$gps{$to}} );
+    my $km = distance($la1, $lo1, $la2, $lo2) / 1000;
     my $diff = abs( $km - $km_expected );
-    my $info = sprintf"distance %-14s   got: %9.3f km    expects: %9.3f km   diff: %.3f", "$from - $to", $km, $km_expected, $diff;
-    ok( $diff <= 0.1, $info );
+    my $info = sprintf "distance %-14s   got: %9.3f km    expects: %9.3f km   diff: %.3f",
+        "$from - $to", $km, $km_expected, $diff;
+    ok( $diff <= 0.010, $info );
 }
 
 #eval{require Geo::Direction::Distance};
@@ -38,8 +57,8 @@ for(@test){
 #}
 
 
-my @t=( #tests
-    [+57.64911, 10.40744, undef() => 'u4pruydqq'], #default length 9
+my @t = ( #tests
+    [+57.64911, 10.40744, undef() => 'u4pruydqq'],   #default length 9
     [+57.64911, 10.40744, 11      => 'u4pruydqqvj'],
     [+48.8583,  +2.2945,   8      => 'u09tunqu'],    # Eiffel Tower
     [+40.68925, -74.04450, 8      => 'dr5r7p62'],    # Statue of Liberty
@@ -52,22 +71,22 @@ my @t=( #tests
     map
     [+40.80551545, -73.96538804, $_ => substr'dr72hukj3e3m',0,$_], # Tom's Restaurant New York
     1..12
-    );
+);
 for(@t){
     my($lat, $lon, $len, $exp) = @$_;
     my $gh = geohash($lat, $lon, $len);
     is( $gh, $exp, "geohash: $gh" );
-    my($hlat,$hlon)=geohash2latlon( $gh );
-    my $d=distance($lat,$lon,$hlat,$hlon);
-    deb sprintf"lat:  %.10f   lon:  %.10f\n",$lat,$lon;
-    deb sprintf"hlat: %.10f   hlon: %.10f\n",$hlat,$hlon;
-    deb sprintf"distance: $d m\n";
+    my($hlat, $hlon) = geohash2latlon( $gh );
+    my $d = distance($lat, $lon, $hlat, $hlon);
+    deb sprintf "lat:  %.10f   lon:  %.10f\n", $lat, $lon;
+    deb sprintf "hlat: %.10f   hlon: %.10f\n", $hlat, $hlon;
+    deb sprintf "distance: $d m\n";
     my @pr=(0, 2500e3, 630e3, 78e3, 20e3, 2400, 610, 76, 19, 5, 1, 0.25, 0.06); #precision by length
     $len=9 if !defined$len;
-    ok( $d < $pr[$len]*1.2, "len: $len   diff dist: $d meter within precision $pr[$len]");
+    ok( $d < $pr[$len] * 1.2, "len: $len   diff dist: $d meter within precision $pr[$len]");
 }
-eval{ geohash(-91,0)};             ok( $@, caught('south of south pole') );
-eval{ geohash2latlon("stq4s8af")}; ok( $@, caught('bad char') );
+eval{ geohash(-91, 0)};             ok( $@, caught('south of south pole') );
+eval{ geohash2latlon("stq4s8af")};  ok( $@, caught('bad char') );
 
 my @pt=(
     [48.858312, 2.294437          => '8FW4V75V+8Q'], # Eiffel Tower
@@ -84,35 +103,36 @@ my @pt=(
     [-22.95191, -43.21044         => '589R2QXQ+6R'], # Statue of Christ, Brazil
     );
 for(@pt){
-    my($lat,$lon,$precision,$exp);
-    ($lat,$lon,$precision,$exp)=@$_ if @$_==4;
-    ($lat,$lon,           $exp)=@$_ if @$_==3;
+    my($lat, $lon, $precision, $exp);
+    ($lat, $lon, $precision, $exp) = @$_ if @$_ == 4;
+    ($lat, $lon,             $exp) = @$_ if @$_ == 3;
     my $pc;
-    is( $pc=pluscode($lat,$lon,$precision), $exp,   sprintf"%-20s -> pluscode $pc","$lat, $lon" );
+    is( $pc = pluscode($lat, $lon, $precision), $exp,   sprintf "%-20s -> pluscode $pc", "$lat, $lon" );
 }
 for(@pt){
     next if defined $$_[2] and $$_[2] eq '11'; #todo
-    my $exp=$$_[-1];
-    my $z=0+$exp=~s/0/0/g;
-    my($lat,$lon)=@$_[0,1];
-    my($plat,$plon)=pluscode2latlon($exp);
-    my $d=distance($lat,$lon,$plat,$plon);
-    ok( $d < {0=>300,2=>5000,4=>1e5,6=>1e6}->{$z}, "pluscode2latlon($exp) dist: $d   ($lat,$lon) --> ($plat,$plon)" );
+    my $exp = $$_[-1];
+    my $z = 0 + $exp =~ s/0/0/g;
+    my($lat,$lon) = @$_[0,1];
+    my($plat, $plon) = pluscode2latlon($exp);
+    my $d = distance($lat, $lon, $plat, $plon);
+    ok( $d < {0=>300, 2=>5000, 4=>1e5, 6=>1e6}->{$z}, "pluscode2latlon($exp) dist: $d   ($lat,$lon) --> ($plat,$plon)" );
 }
 
 my$pcs;
-is( $pcs=pluscode_short(-22.95191, -43.21044, 'Rio'), '2QXQ+6R Rio', "pluscode_short: $pcs" );
+is( $pcs = pluscode_short(-22.95191, -43.21044, 'Rio'), '2QXQ+6R Rio', "pluscode_short: $pcs" );
 
 do{
-  local$SIG{__WARN__}=sub{}; #suppress warn/TODO-carp in sub pluscode_short2latlon
-  is( pluscode(pluscode_short2latlon('2QXQ+6R Rio',-22.95191, -43.21044)), '589R2QXQ+5R', 'pluscode_short2latlon' ); #hm, +5R not +6R due to precision...
+  local $SIG{__WARN__} = sub{}; #suppress warn/TODO-carp in sub pluscode_short2latlon
+  is( pluscode(pluscode_short2latlon('2QXQ+6R Rio', -22.95191, -43.21044)), '589R2QXQ+5R', 'pluscode_short2latlon' ); #hm, +5R not +6R due to precision...
 };
 
-eval{ pluscode_short2latlon("xyz") }; ok( $@, caught('bad short code') );
+eval{ pluscode_short2latlon("xyz") };
+ok( $@, caught('bad short code') );
 
 #print srlz(\@pt,'pt','',1);
 
-use Math::Trig;
+use Math::Trig; #core module...
 for my $f ( qw( acos tan ) ){
   my @lst = map rand(2)-1, 1..1e1;
   @lst = $f eq 'acos' ? (-1,0,1,@lst) : (2*$PI,$PI,0,-$PI,-2*$PI,$PI/2,-$PI/2,1,2,3,@lst);
