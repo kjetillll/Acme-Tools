@@ -7390,7 +7390,8 @@ sub comb{my($l,$k,$s)=(@_,0);$k?map{my$i=$_;map[$$l[$i],@$_],comb($l,$k-1,$i+1)}
 
 Input: a list of 2D coordinates of the vertices (points) of a simple polygon. The last coordinate
 being equal to the first is voluntarly. The output will be the same. A simple polygon is a polygon
-that doesn't intersect with itself and has no holes. The input is not checked for that. The sweep-line technique of the Shamos-Hoey algorithm could check for that in O(n log n) time.
+that doesn't intersect with itself and has no holes. The input is not checked for that. The
+sweep-line technique of the Shamos-Hoey algorithm could check for that in O(n log n) time.
 
 Output: that polygons area. A floating point number.
 
@@ -8624,12 +8625,12 @@ sub brainfu2perl_optimized {
 =head1 BLOOM FILTER SUBROUTINES
 
 Bloom filters can be used to check whether an element (a string) is a
-member of a large set using much less memory or disk space than other
-data structures. Trading speed and accuracy for smaller memory usage.
-Accepting a few false positives, Bloom filters have a very strong
-space advantage over other data structures for representing sets.
+member of a large set using much less memory or disk space than an more
+straight forward set data structure. Trading speed and accuracy for a much
+smaller memory usage. Accepting a few false positives, Bloom filters have a very
+strong memory space advantage over other data structures for representing sets.
 
-In the example below, a set of 100000 phone numbers (or any string of
+In the example below, a set of 100 000 phone numbers (or any string of
 any length) can be "stored" in just 91230 bytes if you accept that you
 can only check the data structure for existence of a string and accept
 false positives with an error rate of 0.03 (that is three percent as
@@ -8651,11 +8652,11 @@ See also: L<Bloom::Filter>
 
 Initialize a new Bloom Filter:
 
-  my $bf = bfinit( error_rate=>0.01, capacity=>100000 );
+  my $bf = bfinit( error_rate => 0.03, capacity => 100000 );
 
 The same:
 
-  my $bf = bfinit( 0.01, 100000 );
+  my $bf = bfinit( 0.03, 100000 );
 
 Two arguments is interpreted as error_rate and capacity accordingly.
 
@@ -8663,17 +8664,16 @@ Two arguments is interpreted as error_rate and capacity accordingly.
 
   bfadd($bf, $_) for @phone_numbers;   # Adding strings one at a time
 
-  bfadd($bf, @phone_numbers);          # ...or all at once (faster)
+  bfadd($bf, @phone_numbers);          # ...or all at once is faster
 
 Returns 1 on success or C<die>s (croaks) if more strings than capacity are added.
 
 =head2 bfcheck
 
-  my $phone_number="99999999";
+  my $phone_number = "99999999";
   if ( bfcheck($bf, $phone_number) ) {
     print "Yes, $phone_number was PROBABLY added\n";
-  }
-  else {
+  } else {
     print "No, $phone_number was DEFINITELY NOT added\n";
   }
 
@@ -8696,7 +8696,7 @@ Same as C<bfcheck> except it returns the keys that exist in the bloom filter
 
  @found = bfgrep($bf, @keys);           # or ...
  @found = bfgrep($bf, \@keys);          # uses less memory if @keys are many, or ...
- @found = grep bfcheck($bf,$_), @keys;  # same but slower
+ @found = grep bfcheck($bf, $_), @keys; # same but slower
 
 =head2 bfgrepnot
 
@@ -8730,9 +8730,9 @@ and 8 are the only practical alternatives where 8 is almost always overkill.
 Example: examine the frequency of the counters with 4 bit counters and 4 million keys:
 
  my $bf = bfinit( error_rate=>0.001, capacity=>4e6, counting_bits=>4 );
- bfadd($bf,[1e3*$_+1 .. 1e3*($_+1)]) for 0..4000-1;  # add 4 million keys one thousand at a time
- my %c; $c{vec($$bf{filter},$_,$$bf{counting_bits})}++ for 0..$$bf{filterlength}-1;
- printf "%8d counters = %d\n",$c{$_},$_ for sort {$a<=>$b} keys %c;
+ bfadd($bf, [1e3*$_+1 .. 1e3*($_+1)]) for 0 .. 4000-1;  # add 4 million keys one thousand at a time
+ my %c; $c{vec($$bf{filter}, $_, $$bf{counting_bits})}++ for 0 .. $$bf{filterlength}-1;
+ printf "%8d counters = %d\n", $c{$_}, $_ for sort {$a<=>$b} keys %c;
 
 The output:
 
@@ -8794,10 +8794,10 @@ Bloom filters have the property that bit-wise I<OR>-ing the bit-filters
 of two filters with the same capacity and the same number and type of
 hash functions, adds the filters:
 
-  my $bf1=bfinit(error_rate=>0.01,capacity=>$cap,keys=>[1..500]);
-  my $bf2=bfinit(error_rate=>0.01,capacity=>$cap,keys=>[501..1000]);
+  my $bf1 = bfinit(error_rate=>0.01, capacity=>$cap, keys=>[1..500]);
+  my $bf2 = bfinit(error_rate=>0.01, capacity=>$cap, keys=>[501..1000]);
 
-  bfaddbf($bf1,$bf2);     # bf1 = bf1 + bf2
+  bfaddbf($bf1, $bf2);     # bf1 = bf1 + bf2
 
   print "Yes!" if bfgrep($bf1, 1..1000) == 1000;  #prints Yes!
 
@@ -8863,30 +8863,19 @@ number of bytes as the number of keys.
 
 =head2 bfstore
 
-Storing and retrieving bloom filters to and from disk uses L<Storable>'s C<store> and C<retrieve>. This:
+Storing and retrieving bloom filters to and from disk uses L<Storable>'s C<store> and C<retrieve>.
+Storable is a core module that follows all normal perl installations. No extra CPAN installation needed.
 
- bfstore($bf,'filename.bf');
+ bfstore($bf,'filename.bf');     # this is the same as:
 
-Is the same as:
-
- use Storable qw(store retrieve);
- ...
- store($bf,'filename.bf');
+ use Storable; Storable::store($bf,'filename.bf');
 
 =head2 bfretrieve
 
-This:
-
- my $bf=bfretrieve('filename.bf');
-
-Or this:
-
- my $bf=bfinit('filename.bf');
-
-Is the same as:
-
- use Storable qw(store retrieve);
- my $bf=retrieve('filename.bf');
+ my $bf = bfretrieve('filename.bf');                       # this is the same as
+ my $bf = bfinit('filename.bf');                           # this or 
+ my $bf = new Acme::Tools::BloomFilter('filename.bf');     # this or
+ use Storable; my $bf = Storable::retrieve('filename.bf'); # this
 
 ...except that bfretrieve/bfinit/new will C<warn> (carp) if the stored filter was created
 with an earlier version of Acme::Tools. (Todo: only C<warn> or C<die> when the new
@@ -8895,29 +8884,23 @@ Todo2: backwards compatibility in versions of Storable should also be checked)
 
 =head2 bfclone
 
-Deep copies the bloom filter data structure. (Which btw is not very deep, two levels at most)
+Deep copies the bloom filter data structure. Which btw is not very deep, two levels at most.
 
-This:
-
- my $bfc = bfclone($bf);
-
-Is the same as:
-
- my $bfc=Storable::dclone($bf);
+ my $bf_copy = bfclone($bf);           # this is the same as
+ my $bf_copy = Storable::dclone($bf);  # this
 
 =head2 Object oriented interface to bloom filters
 
  use Acme::Tools;
- my $bf=new Acme::Tools::BloomFilter(0.1,1000); # the same as bfinit, see bfinit above
- print ref($bf),"\n";                           # prints Acme::Tools::BloomFilter
+ my $bf = new Acme::Tools::BloomFilter(0.1, 1000); # the same as bfinit, see bfinit above
+ print ref($bf),"\n";                              # prints Acme::Tools::BloomFilter
  $bf->add(@keys);
- $bf->check($keys[0]) and print "ok\n";         # prints ok
- $bf->grep(\@keys)==@keys and print "ok\n";     # prints ok
+ $bf->check($keys[0]) and print "ok\n";            # prints ok
+ $bf->grep(\@keys) == @keys and print "ok\n";      # prints ok
  $bf->store('filename.bf');
- my $bf2=bfretrieve('filename.bf');
- $bf2->check($keys[0]) and print "ok\n";        # still ok
-
- $bf2=$bf->clone();
+ my $bf2 = bfretrieve('filename.bf');
+ $bf2->check( $keys[0] ) and print "ok\n";         # still ok
+ $bf2 = $bf->clone();
 
 To instantiate a previously stored bloom filter:
 
@@ -8941,7 +8924,8 @@ the key on each md5 results in different hash functions.
 Digest::SHA512 would have been even better since it returns more bits,
 if it weren't for the fact that it's much slower than Digest::MD5.
 
-String::CRC32::crc32 is faster than Digest::MD5, but not 4 times faster:
+String::CRC32::crc32 is faster than Digest::MD5, but returns 4 timer
+fewer bits and it is not 4 times faster:
 
  time perl -e'use Digest::MD5 qw(md5);md5("asdf$_")       for 1..1e7' #5.56 sec
  time perl -e'use String::CRC32;crc32("asdf$_")           for 1..1e7' #2.79 sec, faster but not per bit
@@ -8949,11 +8933,10 @@ String::CRC32::crc32 is faster than Digest::MD5, but not 4 times faster:
 
 MD5 seems to be an ok choice both for speed and avoiding collisions due to skewed data keys.
 
-Todo: check out Digest::MurmurHash3::murmur128_x64() which seems faster than md5 and also return 128 bits, but not a core module. (Use if installed AND asked for?). murmur is a lot faster for several 1K byte long input strings, like 10 x, but only about 30% faster for many short words (tested on /usr/share/dict/american-english), might not be worth the effort.
+Todo: check out Digest::MurmurHash3::murmur128_x64() which seems faster than md5 and also return 128 bits, but is not a core module. (Use if installed AND asked for?). murmur is a lot faster for several 1K byte long input strings, like 10 x, but only about 30% faster for many short words (tested on /usr/share/dict/american-english), so might not be worth the effort.
 
-time perl -nle'use Digest::MurmurHash3 "murmur128_x64"; print join" ",$_,murmur128_x64($_);' /usr/share/dict/american-english|wcl
-time perl -nle'use Digest::MD5 "md5"; print join" ",$_,md5($_);' /usr/share/dict/american-english|wcl
-
+ time perl -nle'use Digest::MurmurHash3 "murmur128_x64"; print join" ",$_,murmur128_x64($_);' /usr/share/dict/american-english | wc -l
+ time perl -nle'use Digest::MD5 "md5"; print join" ",$_,md5($_);' /usr/share/dict/american-english | wc -l
 
 =head2 Theory and math on bloom filters
 
@@ -8970,68 +8953,67 @@ See also Scaleable Bloom Filters for when you don't know the capacity in advance
 =cut
 
 sub bfinit {
-  return bfretrieve(@_)                             if @_==1;
-  return bfinit(error_rate=>$_[0], capacity=>$_[1]) if @_==2 and 0<$_[0] and $_[0]<1 and $_[1]>1;
-  return bfinit(error_rate=>$_[1], capacity=>$_[0]) if @_==2 and 0<$_[1] and $_[1]<1 and $_[0]>1;
+  return bfretrieve(@_)                             if @_ == 1; #file
+  return bfinit(error_rate=>$_[0], capacity=>$_[1]) if @_ == 2 and 0 < $_[0] and $_[0] < 1 and $_[1] > 1;
+  return bfinit(error_rate=>$_[1], capacity=>$_[0]) if @_ == 2 and 0 < $_[1] and $_[1] < 1 and $_[0] > 1;
   require Digest::MD5;
-  @_%2&&croak "Arguments should be a hash of equal number of keys and values";
-  my %arg=@_;
-  my @ok_param=qw/error_rate capacity min_hashfuncs max_hashfuncs hashfuncs counting_bits adaptive keys/;
-  my @not_ok=sort(grep!in($_,@ok_param),keys%arg);
-  croak "Not ok param to bfinit: ".join(", ",@not_ok) if @not_ok;
+  croak "Arguments should be a hash of equal number of keys and values" if @_ % 2;
+  my %arg = @_;
+  my @ok_param = qw/error_rate capacity min_hashfuncs max_hashfuncs hashfuncs counting_bits adaptive keys/;
+  my @not_ok = sort grep !in($_, @ok_param), keys %arg;
+  croak "Not ok param to bfinit: ".join(", ", @not_ok) if @not_ok;
   croak "Not an arrayref in keys-param" if exists $arg{keys} and ref($arg{keys}) ne 'ARRAY';
   croak "Not implemented counting_bits=$arg{counting_bits}, should be 2, 4, 8, 16 or 32" if !in(nvl($arg{counting_bits},1),1,2,4,8,16,32);
-  croak "A bloom filters here can not be in both adaptive and counting_bits modes" if $arg{adaptive} and $arg{counting_bits}>1;
-  my $bf={error_rate    => 0.001,  #default p
-          capacity      => 100000, #default n
-          min_hashfuncs => 1,
-          max_hashfuncs => 100,
-          counting_bits => 1,      #default: not counting filter
-          adaptive      => 0,
-          %arg,                    #arguments
-          key_count     => 0,
-          overflow      => {},
-          version       => $Acme::Tools::VERSION,
-  };
+  croak "A bloom filters here can not be in both adaptive and counting_bits modes" if $arg{adaptive} and $arg{counting_bits} > 1;
+  my $bf = { error_rate    => 0.001,  #default p
+	     capacity      => 100000, #default n
+	     min_hashfuncs => 1,
+	     max_hashfuncs => 100,
+	     counting_bits => 1,      #default: not counting filter
+	     adaptive      => 0,
+	     %arg,                    #arguments that can override above defaults
+	     key_count     => 0,
+	     overflow      => {},
+	     version       => $Acme::Tools::VERSION };
   croak "Error rate ($$bf{error_rate}) should be larger than 0 and smaller than 1" if $$bf{error_rate}<=0 or $$bf{error_rate}>=1;
-  @$bf{'min_hashfuncs','max_hashfuncs'}=(map$arg{hashfuncs},1..2) if $arg{hashfuncs};
-  @$bf{'filterlength','hashfuncs'}=bfdimensions($bf); #m and k
-  $$bf{filter}=pack("b*", '0' x ($$bf{filterlength}*$$bf{counting_bits}) ); #hm x   new empty filter
-  $$bf{unpack}= $$bf{filterlength}<=2**16/4 ? "n*" # /4 alleviates skewing if m just slightly < 2**x
-               :$$bf{filterlength}<=2**32/4 ? "N*"
-               :                              "Q*";
-  bfadd($bf,@{$arg{keys}}) if $arg{keys};
+  @$bf{'min_hashfuncs','max_hashfuncs'} = (map $arg{hashfuncs}, 1..2) if $arg{hashfuncs};
+  @$bf{'filterlength','hashfuncs'} = bfdimensions($bf); #m and k
+  $$bf{filter} = pack("b*", '0' x ($$bf{filterlength} * $$bf{counting_bits}) ); #hm x   new empty filter
+  $$bf{unpack} = $$bf{filterlength} <= 2**16/4 ? "n*" # /4 alleviates skewing if m just slightly < 2**x
+               : $$bf{filterlength} <= 2**32/4 ? "N*"
+               :                                 "Q*";
+  bfadd($bf, @{ $arg{keys} }) if $arg{keys};
   return $bf;
 }
+
 sub bfaddbf {
-  my($bf,$bf2)=@_;
-  my $differror=join"\n",
+  my($bf, $bf2) = @_;
+  my $differror = join "\n",
     map "Property $_ differs ($$bf{$_} vs $$bf2{$_})",
     grep $$bf{$_} ne $$bf2{$_},
     qw/capacity counting_bits adaptive hashfuncs filterlength/; #not error_rate
   croak $differror if $differror;
   croak "Can not add adaptive bloom filters" if $$bf{adaptive};
-  my $count=$$bf{key_count}+$$bf2{key_count};
+  my $count = $$bf{key_count} + $$bf2{key_count};
   croak "Exceeded filter capacity $$bf{key_count} + $$bf2{key_count} = $count > $$bf{capacity}"
     if $count > $$bf{capacity};
-  $$bf{key_count}+=$$bf2{key_count};
-  if($$bf{counting_bits}==1){
+  $$bf{key_count} += $$bf2{key_count};
+  if($$bf{counting_bits} == 1){
     $$bf{filter} |= $$bf2{filter};
-   #$$bf{filter} = $$bf{filter} | $$bf2{filter}; #or-ing
   }
   else {
-    my $cb=$$bf{counting_bits};
-    for(0..$$bf{filterlength}-1){
-      my $sum=vec($$bf{filter}, $_,$cb)
-             +vec($$bf2{filter},$_,$cb);
-      if( $sum>2**$cb-1 ){
-        $sum=2**$cb-1;
+    my $cb = $$bf{counting_bits};
+    for( 0 .. $$bf{filterlength} - 1 ){
+      my $sum = vec($$bf{filter},  $_, $cb)
+              + vec($$bf2{filter}, $_, $cb);
+      if( $sum > 2 ** $cb - 1 ){
+        $sum = 2 ** $cb - 1;
         $$bf{overflow}{$_}++;
       }
-      vec($$bf{filter}, $_,$cb)=$sum;
+      vec($$bf{filter}, $_, $cb) = $sum;
       no warnings;
-      $$bf{overflow}{$_}+=$$bf2{overflow}{$_}
-      and keys(%{$$bf{overflow}})>10 #hmm, arbitrary limit
+      $$bf{overflow}{$_} += $$bf2{overflow}{$_}
+      and keys( %{ $$bf{overflow} } ) > 10 #hmm, arbitrary limit
       and croak "Too many overflows, concider doubling counting_bits from $cb to ".(2*$cb)
         if exists $$bf2{overflow}{$_};
     }
@@ -9039,46 +9021,46 @@ sub bfaddbf {
   return $bf; #for convenience
 }
 sub bfsum {
-  my($bf)=@_;
-  return unpack( "%32b*", $$bf{filter}) if $$bf{counting_bits}==1;
-  my($sum,$cb)=(0,$$bf{counting_bits});
-  $sum+=vec($$bf{filter},$_,$cb) for 0..$$bf{filterlength}-1;
+  my($bf) = @_;
+  return unpack( "%32b*", $$bf{filter}) if $$bf{counting_bits} == 1;
+  my($sum, $cb) = (0, $$bf{counting_bits});
+  $sum += vec($$bf{filter}, $_, $cb) for 0 .. $$bf{filterlength} - 1;
   return $sum;
 }
 sub bfadd {
   require Digest::MD5;
-  my($bf,@keys)=@_;
+  my($bf, @keys) = @_;
   return if !@keys;
-  my $keysref=@keys==1 && ref($keys[0]) eq 'ARRAY' ? $keys[0] : \@keys;
-  my($m,$k,$up,$n,$cb,$adaptive)=@$bf{'filterlength','hashfuncs','unpack','capacity','counting_bits','adaptive'};
-  for(@$keysref){
+  my $keysref = @keys == 1 && ref($keys[0]) eq 'ARRAY' ? $keys[0] : \@keys;
+  my($m, $k, $up, $n, $cb, $adaptive) = @$bf{'filterlength','hashfuncs','unpack','capacity','counting_bits','adaptive'};
+  for( @$keysref ){
     #croak "Key should be scalar" if ref($_);
     $$bf{key_count} >= $n and croak "Exceeded filter capacity $n"  or  $$bf{key_count}++;
-    my @h; push @h, unpack $up, Digest::MD5::md5($_,0+@h) while @h<$k;
-    if ($cb==1 and !$adaptive) { # normal bloom filter
-      vec($$bf{filter}, $h[$_] % $m, 1) = 1 for 0..$k-1;
+    my @h; push @h, unpack $up, Digest::MD5::md5($_, 0 + @h) while @h < $k;
+    if ($cb == 1 and !$adaptive) { # normal non-counting bloom filter
+      vec($$bf{filter}, $h[$_] % $m, 1) = 1 for 0 .. $k - 1;
     }
-    elsif ($cb>1) {                 # counting bloom filter
-      for(0..$k-1){
-        my $pos=$h[$_] % $m;
-        my $c=vec($$bf{filter}, $pos, $cb) =
-              vec($$bf{filter}, $pos, $cb) + 1;
-        if($c==0){
+    elsif ($cb > 1) {                 # counting bloom filter
+      for(0 .. $k - 1){
+        my $pos = $h[$_] % $m;
+        my $c = vec($$bf{filter}, $pos, $cb) =
+                vec($$bf{filter}, $pos, $cb) + 1;
+        if($c == 0){
           vec($$bf{filter}, $pos, $cb) = -1;
           $$bf{overflow}{$pos}++
-            and keys(%{$$bf{overflow}})>10 #hmm, arbitrary limit
+            and keys(%{ $$bf{overflow} }) > 10 #hmm, arbitrary limit
             and croak "Too many overflows, concider doubling counting_bits from $cb to ".(2*$cb);
         }
       }
     }
     elsif ($adaptive) {             # adaptive bloom filter
-      my($i,$key,$bit)=(0+@h,$_);
-      for(0..$$bf{filterlength}-1){
-        $i+=push(@h, unpack $up, Digest::MD5::md5($key,$i)) if !@h;
-        my $pos=shift(@h) % $m;
-        $bit=vec($$bf{filter}, $pos, 1);
-        vec($$bf{filter}, $pos, 1)=1;
-        last if $_>=$k-1 and $bit==0;
+      my($i, $key, $bit) = ( 0+@h, $_ );
+      for( 0 .. $$bf{filterlength} - 1 ){
+        $i += push(@h, unpack $up, Digest::MD5::md5($key, $i)) if !@h;
+        my $pos = shift(@h) % $m;
+        $bit = vec($$bf{filter}, $pos, 1);
+        vec($$bf{filter}, $pos, 1) = 1;
+        last if $_ >= $k - 1 and $bit == 0;
       }
     }
     else {croak}
@@ -9199,13 +9181,13 @@ sub bfdimensions_old {
   return ($flen,$k);
 }
 sub bfdimensions {
-  my($n,$p,$mink,$maxk)=
-    @_==1 ? (@{$_[0]}{'capacity','error_rate','min_hashfuncs','max_hashfuncs'})
-   :@_==2 ? (@_,1,100)
-   :        croak "Wrong number of arguments (".@_."), should be 2";
-  my $k=log(1/$p)/log(2);           # k hash funcs
-  my $m=-$n*log($p)/log(2)**2;      # m bits in filter
-  return ($m+0.5,min($maxk,max($mink,int($k+0.5))));
+  my($n, $p, $mink, $maxk) =
+     @_ == 1 ? (@{$_[0]}{'capacity','error_rate','min_hashfuncs','max_hashfuncs'})
+   : @_ == 2 ? (@_, 1, 100)
+   :           croak "Wrong number of arguments (".@_."), should be 2";
+  my $k = log(1/$p) / log(2);           # k hash funcs
+  my $m = -$n * log($p) / log(2) ** 2;  # m bits in filter
+  return ( $m + 0.5, min($maxk, max($mink, int($k + 0.5) ) ) );
 }
 
 #crontab -e
