@@ -2,8 +2,9 @@
 # perl Makefile.PL && make && perl -Iblib/lib t/16_fraction.t
 
 use lib '.'; BEGIN{require 't/common.pl'}
-use Test::More tests=>49;
+use Test::More tests => 53;
 
+#-- sub fraction  ...is DEPRECATED and will probably be removed, use sub dec2frac instead...if you must...
 my $s=int(rand(1000));
 #$s=621;
 $s=273;
@@ -55,8 +56,17 @@ print join('   ',map"$_: ".&{$_}(@c),qw(sum avg median)).$/ if $ENV{ATDEBUG};
 ok(!defined fraction(sqrt(2)),'undef for sqrt(2)');
 ok(!defined fraction($PI),"undef for $PI");
 
-my$b='3/8'; #'1/37';
-my($n,$d,$c)=dec2frac(eval$b);
-ok("$n/$d" eq $b, "$n/$d vs $b   count=$c");
+#-- dec2frac
+for my $b (
+    '3/8', '1/37', '303/377', '304/377', '-38770/18999',
+    $ENV{ATDEBUG} ? (map int(1+rand(5000)) . "/$_", primes(-100)) : ()
+){
+    my @p = (eval $b);
+    push @p, 1e5 if length($b) > 10; #max_trials
+    my $t = time_fp();
+    my($n, $d, $c) = dec2frac(@p);
+    my $t = 1e6 * ( time_fp() - $t );
+    ok("$n/$d" eq $b, sprintf"$n/$d vs $b   (or @{[$n/$d]} vs $p[0])   count=$c   %dμs", $t);
+}
 
 done_testing;

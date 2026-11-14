@@ -265,7 +265,6 @@ our @EXPORT = qw(
   bfclone
   bfdimensions
   $PI
-
   $Dbh
   dlogin
   dlogout
@@ -681,20 +680,20 @@ sub is_prime {
 #}
     
 
-sub factors_bad {
-    my $n = shift;
-    croak "ERR: cannot factor $n\n" if $n<1 or $n>1e15 or $n!=int$n;
-    my @r;
-    my @p=(2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97,101,103,107,109,113,127,131,137,139,149,
-           151,157,163,167,173,179,181,191,193,197,199,211,223,227,229,233,239,241,251,257,263,269,271,277,281,283,293,
-           307,311,313,317,331,337,347,349,353,359,367,373,379,383,389,397,401,409,419,421,431,433,439,443,449,457,461,
-           463,467,479,487,491,499,503,509,521,523,541,547,557,563,569,571,577,587,593,599,601,607,613,617,619,631,641,
-           643,647,653,659,661,673,677,683,691,701,709,719,727,733,739,743,751,757,761,769,773,787,797,809,811,821,823,
-           827,829,839,853,857,859,863,877,881,883,887,907,911,919,929,937,941,947,953,967,971,977,983,991,997); #<1000
-    push @p, grep$_>997, primes(sqrt($n)) if $n>=1000**2;
-    $n%$_==0 and $n/=$_ and push(@r, $_) and redo  or  $_>$n and last for @p;
-    $n>1 ? (@r,$n) : @r;
-}
+#sub factors_bad {
+#    my $n = shift;
+#    croak "ERR: cannot factor $n\n" if $n<1 or $n>1e15 or $n!=int$n;
+#    my @r;
+#    my @p=(2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97,101,103,107,109,113,127,131,137,139,149,
+#           151,157,163,167,173,179,181,191,193,197,199,211,223,227,229,233,239,241,251,257,263,269,271,277,281,283,293,
+#           307,311,313,317,331,337,347,349,353,359,367,373,379,383,389,397,401,409,419,421,431,433,439,443,449,457,461,
+#           463,467,479,487,491,499,503,509,521,523,541,547,557,563,569,571,577,587,593,599,601,607,613,617,619,631,641,
+#           643,647,653,659,661,673,677,683,691,701,709,719,727,733,739,743,751,757,761,769,773,787,797,809,811,821,823,
+#           827,829,839,853,857,859,863,877,881,883,887,907,911,919,929,937,941,947,953,967,971,977,983,991,997); #<1000
+#    push @p, grep$_>997, primes(sqrt($n)) if $n>=1000**2;
+#    $n%$_==0 and $n/=$_ and push(@r, $_) and redo  or  $_>$n and last for @p;
+#    $n>1 ? (@r,$n) : @r;
+#}
 
 sub factors {
     my $n = shift;
@@ -719,6 +718,15 @@ sub factors {
 #    @ca
 #}
 
+=head2 factors2divisors
+
+Takes a list of prime factors, as returned by C<factors>, and returns all divisors of their product in ascending order. Repeated factors are handled.
+
+ print join(",", factors2divisors(2,2,3));           # 1,2,3,4,6,12
+ print join(",", factors2divisors(factors(60)));     # 1,2,3,4,5,6,10,12,15,20,30,60
+
+=cut
+
 sub factors2divisors {
     my %freq; $freq{$_}++for@_;
     my $p=sub{my$p=bigi(1);$p*=bigi($_) for @_; $p};#hm
@@ -726,6 +734,8 @@ sub factors2divisors {
 }
 
 =head2 fraction
+
+DEPRECATED, use dec2frac() instead.
 
 Input: a number with decimals or not, positive, zero or negative
 
@@ -785,14 +795,34 @@ sub fraction {
     return wantarray ? @r : "$min_n/$min_d";
 }
 
+=head2 dec2frac
+
+Converts a decimal number to a fraction by stepping through approximations. It stops when the fraction is exact or after 10000 steps, so a number that is not an exact fraction returns the closest approximation reached.
+
+In scalar context it returns a string C<n/d>. In list context it returns C<(N, D, STEPS)>, where STEPS is the number of steps taken.
+
+ my $f = dec2frac(0.75);             # '3/4'
+ my $g = dec2frac(0.4);              # '2/5'
+ my ($n, $d, $steps) = dec2frac(0.75);   # 3, 4, 5
+
+Note: C<print dec2frac(0.75)> calls it in list context and prints C<345>. Use C<scalar()> or assign to a scalar to get C<3/4>.
+
+=cut
+
 sub dec2frac {
-    my($f,$n,$d,$df,$c)=(shift(),1,1,1,0);
-    while($df != $f and ++$c < 1e4){
-        if( $df<$f ){ $n++ }
-        else        { $d++ }  #;my $new=int($f*$d); $eq++ if $new==$n; $n=$new }
+    my $f = shift;
+    my $mt = shift // 1e5; #max trials
+    if( $f < 0 ){
+	if( wantarray ){ my($n, $d, $c) = dec2frac(-$f, $mt); return (-$n, $d, $c)            }
+	else           {                                      return '-' . dec2frac(-$f, $mt) }
+    }
+    my($n, $d, $df, $c) = (1, 1, 1, 0);
+    while($df != $f and ++$c < $mt){
+        if( $df < $f ){ $n++ }
+        else          { $d++ }  #;my $new=int($f*$d); $eq++ if $new==$n; $n=$new }
         $df=$n/$d;
     }
-    wantarray ? ($n,$d,$c) : "$n/$d"
+    wantarray ? ($n, $d, $c) : "$n/$d"
 }
 
 =head2 resolve
@@ -2040,7 +2070,7 @@ sub int2roman {
       $n
      }
 }
-sub int2roman_golfed{my$r='I'x pop;for(qw(IVX XLC CDM)){my($I,$V,$X)=split//;$r=~s,$I$I$I$I($I?),$1?$V:"$I$V",ge;$r=~s,$V($I?)$V,$1$X,g}$r}
+#sub int2roman_golfed{my$r='I'x pop;for(qw(IVX XLC CDM)){my($I,$V,$X)=split//;$r=~s,$I$I$I$I($I?),$1?$V:"$I$V",ge;$r=~s,$V($I?)$V,$1$X,g}$r}
 
 sub roman2int {
   my($r,$n,%c)=(shift,0,'',0,qw/I 1 V 5 X 10 L 50 C 100 D 500 M 1000/);
@@ -2578,6 +2608,16 @@ sub curb {
   $val > $max ? $max :
                 $val;
 }
+=head2 bound
+
+Alias for L</curb>. Takes the same three arguments (value, minimum, maximum) and returns the value limited to that range.
+
+ print bound(15,1,10);   # 10
+ print bound(-3,1,10);   # 1
+ print bound(5,1,10);    # 5
+
+=cut
+
 sub bound { &curb }
 
 =head2 log10
@@ -3064,6 +3104,15 @@ Just as L</max>, except for strings. Uses the alphanumerical comparison operator
  print max(2,7,10);          # 10
  print maxs("2","7","10");   # 7
  print maxs(2,7,10);         # 7
+
+=head2 minmax
+
+Returns the smallest and the largest number in a list, as a two-element list. Undef is ignored, as in L</min> and L</max>.
+
+ my ($lo, $hi) = minmax(3,1,4);       # 1 and 4
+ my ($lo, $hi) = minmax(5,undef,2,9); # 2 and 9
+
+If the list is empty, or contains only undef, both values are undef.
 
 =cut
 
@@ -4032,6 +4081,12 @@ sub aoh2sql {
   $sql .= $conf{end};
   $sql;
 }
+
+=head2 aoh2xls
+
+Not implemented yet. Calling it dies with C<Not implemented yet: aoh2xls>.
+
+=cut
 
 sub aoh2xls { croak "Not implemented yet: aoh2xls" } #TODO
 
@@ -6722,10 +6777,21 @@ if they can be divided by 400.
 
 sub leapyear{$_[0]%400?$_[0]%100?$_[0]%4?0:1:0:1} #bool
 
+=head2 ldist
+
+Returns the Levenshtein distance between two strings, the same measure as L</levdist>. Intermediate results are cached in the package variable C<%ldist_cache>.
+
+ print ldist('vlepphan','elephant');   # 3
+ print ldist('abc','cba');             # 2
+ print ldist('elephant','');           # 8
+
+=cut
+
 #http://rosettacode.org/wiki/Levenshtein_distance#Perl
 our %ldist_cache;
 sub ldist {
   my($s,$t,$l) = @_;
+  $l ||= 0;
   return length($t) if !$s;
   return length($s) if !$t;
   %ldist_cache=() if !$l and 1000<0+%ldist_cache;
@@ -9300,6 +9366,20 @@ sub base64 ($;$$) { #
   $res=~s/(.{1,$wid})/$1$eol/g if length($eol);
   $res;
 }
+
+=head2 unbase64
+
+Decodes a base64 string back to bytes. Accepts the URL-safe alphabet (C<-> and C<_>) and ignores characters that are not part of base64, such as whitespace.
+
+If the length is not a multiple of 4, it croaks. Set C<$Acme::Tools::Fix_unbase64> to a true value to add the missing C<=> padding instead.
+
+ print unbase64("SGVsbG8sIFdvcmxkIQ==");         # Hello, World!
+ {
+   local $Acme::Tools::Fix_unbase64 = 1;
+   print unbase64("SGVsbG8sIFdvcmxkIQ");         # Hello, World!
+ }
+
+=cut
 
 our $Fix_unbase64=0;
 sub unbase64 ($) {
