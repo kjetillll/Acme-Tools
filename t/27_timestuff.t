@@ -3,35 +3,39 @@
 # perl Makefile.PL && make && perl -Iblib/lib t/27_timestuff.t
 use lib '.'; BEGIN{require 't/common.pl'}
 use Test::More;
+use POSIX;
 use Digest::MD5 'md5_hex';
-my $skip_all=$^O=~/(?<!cyg)win/i && !$ENV{ATSLEEP};
-if( $skip_all ) { plan skip_all => 'POSIX::tzset not ok on windows'  }
-else            { plan tests    => 85                                }
 
-$ENV{TZ}='CET';
-#$ENV{TZ}='Europe/Oslo';
+#$ENV{TZ}='CET';
+$ENV{TZ}='Europe/Oslo'; 
 #$ENV{TZ}='Asia/Kolkata';
-require POSIX; POSIX::tzset();
 
-my $t =1450624919; #20151220-16:21:59 Sun
-my $t2=1000000000; #20150909-03:46:40 Sun
-my $t3=1560000000; #20190608-15:20:00 Sat
-my $t4=-1e9;       #19380424-23:13:20
-my $t5=-9e9;       #16841019-09:00:00
-my $t6=+9e9;       #22550314-17:00:00
+my $skip_no_cet = join(",",do{tzset();POSIX::tzname()}) ne 'CET,CEST';
+my $skip_win = $^O =~ /(?<!cyg)win/i && !$ENV{ATSLEEP};
+
+if( $skip_no_cet ) { plan skip_all => "POSIX::tzname not CET,CEST. Is: ".join(',',tzname())  }
+if( $skip_win    ) { plan skip_all => 'POSIX::tzset not ok on windows'  }
+else               { plan tests    => 85                                }
+
+my $t  = 1450624919;  # 20151220-16:21:59 Sun
+my $t2 = 1000000000;  # 20150909-03:46:40 Sun
+my $t3 = 1560000000;  # 20190608-15:20:00 Sat
+my $t4 = -1e9;        # 19380424-23:13:20
+my $t5 = -9e9;        # 16841019-09:00:00
+my $t6 = +9e9;        # 22550314-17:00:00
 
 #my @lt=localtime($t);
 #print tms($t),"<<- ".tms()."\n";
 #ok( tms()   eq tms(   'YYYYMMDD-HH:MI:SS') ,'no args');
-ok( (0 < grep {tms()   eq tms(   'YYYYMMDD-HH:MI:SS')} 1..2) ,'no args');
-ok( tms($t) eq tms($t,'YYYYMMDD-HH:MI:SS') ,'one arg');
-is( tms("epoch",tms("YYYY-MM-DDTHH24:MI:SS",$_)), $_,
+ok( (0 < grep { tms()  eq tms(   'YYYYMMDD-HH:MI:SS')} 1..2) ,'no args');
+ok( tms($t) eq tms($t, 'YYYYMMDD-HH:MI:SS') ,'one arg');
+is( tms("epoch", tms("YYYY-MM-DDTHH24:MI:SS",$_)), $_,
     qq(is(tms("epoch",tms("YYYY-MM-DDTHH24:MI:SS",$_)),$_)).' '.tms('YYYYMMDD-HH24:MI:SS',$_))
   for $t,$t2,$t3,$t4,$t5,$t6,time();
 
 
-sub tst {my($fasit,@arg)=@_;my $tms=tms(@arg); is($tms, $fasit, "$fasit = $tms")}
-tst('16:21:59',          'HH:MI:SS',$t);
+sub tst { my($fasit, @arg) = @_; my $tms = tms(@arg); is($tms, $fasit, "$fasit = $tms") }
+tst('16:21:59',          'HH:MI:SS', $t);
 tst('16:21',             'HH:MI',$t);
 tst('2015',              'YYYY',$t);
 tst('2015',              $t,'YYYY');
@@ -71,15 +75,11 @@ tst('354',$t,'doy');tst('353',$t,'doy0');tst('353',$t,'d0y');
 
 #--------------------------------------------------------------------------------
 
-my $tt='20151229-19:13';
-
-# more
-
 #-- easter
-ok( '384f0eefc22c35d412ff01b2088e9e05' eq  md5_hex( join",", map{easter($_)} 1..5000), 'easter');
+ok( '384f0eefc22c35d412ff01b2088e9e05' eq  md5_hex( join",", map{easter($_)} 1 .. 5000), 'easter for 5000 years');
 
 sub EasterSunday { #https://no.wikipedia.org/wiki/P%C3%A5skeformelen
-  my $year=shift;
+  my $year = shift;
   my $a = $year % 19;
   my $b = int($year/100);
   my $c = $year % 100;
@@ -94,33 +94,33 @@ sub EasterSunday { #https://no.wikipedia.org/wiki/P%C3%A5skeformelen
   my $m = int(($a+11*$h+22*$l)/451);
   my $n = int(($h+$l-7*$m+114)/31);
   my $p = ($h+$l-7*$m+114) % 31;
-  (++$p,$n);
+  (++$p, $n);
 }
 my @diff;
-for(1498..1e4){ #1498..1e7 ok also!
-  my $e1=join",",easter($_);
-  my $e2=join",",EasterSunday($_);
+for( 1498 .. 1e4 ){ #1498..1e7 ok also!
+  my $e1 = join ",", easter($_);
+  my $e2 = join ",", EasterSunday($_);
   push @diff, "easter year $_ e1=$e1 e2=$e2" if $e1 ne $e2;
 }
-ok(@diff==0,'easter formula1 and 2 eq from year 1498 to 10000');
+ok(@diff==0, 'easter formula1 and 2 eq from year 1498 to 10000');
 
 #--time_fp
 ok( time_fp() =~ /^\d+\.\d+$/ , 'time_fp' );
 
 #--sleep_fp
 SKIP: {
-  skip 'sleep_fp-tests',2 unless $ENV{ATSLEEP};  #some systems fails...virtual boxes? un-linux-es?
-  my $test_sleep=sub{
-    my($exp,$test)=@_;
-    my $tfp=time_fp();
+  skip 'sleep_fp-tests', 2 if !$ENV{ATSLEEP};  #some systems fails...virtual machines? un-linux-es?
+  my $test_sleep = sub{
+    my($exp, $test) = @_;
+    my $tfp = time_fp();
     &$test;
-    $got=time_fp()-$tfp;
-    my $p=100*abs(($got-$exp)/$exp); #percent
-    ok($p < 30, sprintf"sleep_fp, got %.7fs vs %.7fs, %.1f%% off, < 30%% off is ok",$got,$exp,$p);
+    $got = time_fp()-$tfp;
+    my $p = 100 * abs( ($got - $exp) / $exp ); #percent
+    ok( $p < 30, sprintf "sleep_fp, got %.7fs vs %.7fs, %.1f%% off, < 30%% off is ok", $got, $exp, $p );
   };
   require Time::HiRes; #init
-  &$test_sleep(0.001,sub{sleep_fp(0.001)});
-  &$test_sleep(4*0.01,sub{
+  &$test_sleep(0.001, sub { sleep_fp(0.001) } );
+  &$test_sleep(4*0.01, sub {
     sleeps(0.010);     #seconds
     sleepms(10);       #milliseconds 1e-3
     sleepus(10000);    #microseconds 1e-6 (10000 μs)
@@ -128,9 +128,10 @@ SKIP: {
   });
 }
 
-if(eval{require Date::Parse}){
+if( eval { require Date::Parse } ){
   is(s2t("18/februar/2019:13:53","MM"),'02','s2t MM');
   is(join(" ; ",s2t("18/februar/2019:13:53","DD","MM","YYYY","YYYYMMDD-HH24:MI:SS")), '18 ; 02 ; 2019 ; 20190218-13:53:00','s2t...');
+  
   is( s2t($$_[1]), $$_[0], "ok s2t('$$_[1]')" ) for map[split/\s/,$_,2],grep$_,map trim,split"\n","
   1555588437 20190418-13:53:57
   1555588437 2019-04-18T13:53:57
@@ -148,13 +149,13 @@ if(eval{require Date::Parse}){
   1550494380 18/February/2019:13:53
   1000000000 9/Sep/2001:03:46:40
   1000000000 9/9/2001:03:46:40"
-} else { ok(1) for 1..18 }
+} else { ok(1) for 1 .. 18 }
 
 #---------- eta
-eta(1,100);
+eta(1, 100);
 #warn serialize(\%Acme::Tools::Eta,'Eta','',1);
-my $k=(keys%Acme::Tools::Eta)[0];
-ok( @{$Acme::Tools::Eta{$k}}==1, 'ok aref');
+my $k = (keys %Acme::Tools::Eta)[0];
+ok( @{ $Acme::Tools::Eta{$k} } == 1, 'ok aref');
 
 ok(!defined eta("x",6,10,70)                ,'!def');
 ok(         eta("x",8,10,80) == 90          ,'ok 90');
@@ -162,28 +163,29 @@ ok(         eta("x",8,10,80) == 90          ,'ok 90');
 ok(         @{$Acme::Tools::Eta{'x'}} == 2  ,'ok len' );
 #my $s=time_fp;
 my @err;
-for(1..2000){
-  #$t=1e6+$_/100; #time_fp
-  my $e=eta("id",$_,2000,1e6+$_/100);
-  push @err,$_ if defined $e and abs(1-$e/1000020)>1e-5;
+for( 1 .. 2000 ){
+  #$t = 1e6 + $_ / 100; #time_fp
+  my $e = eta("id", $_, 2000, 1e6 + $_ / 100);
+  push @err, $_ if defined $e and abs(1 - $e / 1000020) > 1e-5;
   #printf "%4d   %-20s   %-20s\n", $_, $t, $e if $_%100==0;
 }
 ok(!@err, 'no misses');
-print "Err: ".join(",",@err)."\n" if @err;
+print "Err: " . join(",", @err) . "\n" if @err;
 #printf"%.5f\n",time_fp()-$s;
 
 #my@NY=(40,-74); #New York at 40N -74W
 #is(sunrise(@NY,'2025-03-01',-5), 11.52); #11:31 am
 #is(sunset(@NY,'2025-03-01',-5), 22.72); #22:43 pm
 
-is(julian_day(2025,3,4       ), 2460738.5,"julian_day");
-is(julian_day(2025,3,4,12,0,0), 2460739,"julian_day");
-is(julian_day(2024,3,1), 2460370.5,"julian_day"); is(julian_day(2024,2,29), 2460369.5,"julian_day");
-is(julian_day(2000,3,1), 2451604.5,"julian_day"); is(julian_day(2000,2,29), 2451603.5,"julian_day");
-is(julian_day(1900,3,1), 2415079.5,"julian_day"); is(julian_day(1900,2,28), 2415078.5,"julian_day");
-is(tms('JDN'),julian_day(),"julian_day");
-#perl -I ~/Acme-Tools/ -MAcme::Tools -MTime::Piece -E'say Time::Piece->strptime("2025012700",q(%Y%m%d%H))->julian_day;say tms(time()-3600*24*36,"JD");say julian_day(2025,1,27)'
+is( julian_day(2025,3,4       ), 2460738.5, "julian_day");
+is( julian_day(2025,3,4,12,0,0), 2460739,   "julian_day");
+is( julian_day(2024,3,1),        2460370.5, "julian_day"); is( julian_day(2024,2,29), 2460369.5, "julian_day");
+is( julian_day(2000,3,1),        2451604.5, "julian_day"); is( julian_day(2000,2,29), 2451603.5, "julian_day");
+is( julian_day(1900,3,1),        2415079.5, "julian_day"); is( julian_day(1900,2,28), 2415078.5, "julian_day");
+is( tms('JDN'), julian_day(), "julian_day");
+
 __END__
+#perl -I ~/Acme-Tools/ -MAcme::Tools -MTime::Piece -E'say Time::Piece->strptime("2025012700",q(%Y%m%d%H))->julian_day;say tms(time()-3600*24*36,"JD");say julian_day(2025,1,27)'
 http://stackoverflow.com/questions/753346/how-do-i-set-the-timezone-for-perls-localtime
 https://en.wikipedia.org/wiki/Tz_database
 perl -MPOSIX -le'      print for tzname' #GMT GMT

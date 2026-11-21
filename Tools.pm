@@ -6267,45 +6267,45 @@ my $_tms_inited=0;
 sub tms_init {
   return if $_tms_inited++;
   for(qw(MAANED Maaned maaned MAAN Maan maan),'MAANE.','Maane.','maane.'){
-    $Tms_str{$_}=$Tms_str{replace($_,"aa","å","AA","Å")};
+    $Tms_str{$_} = $Tms_str{replace($_,"aa","å","AA","Å")};
   }
-  $Tms_pattern=join( "|",
-      map{quotemeta($_)}
-      sort{length($b)<=>length($a)}
+  $Tms_pattern = join( "|",
+      map { quotemeta($_) }
+      sort { length($b) <=> length($a) }
       keys %Tms_str
   );
   #without sort "måned" could be "mared" because "mån"=>"mar"
 }
 
-sub totime {
-
+sub totime { #todo
+    warn "Somethings missing alright..."
 }
 
 =head2 s2t
 
 Convert strings to "time pieces". Example:
 
- my($dd,$mm,$yyyy,$str) = s2t("18/february/2019:13:53","DD","MM","YYYY","YYYYMMDD-HH24:MI:SS")
+ my($dd, $mm, $yyyy, $str) = s2t("18/february/2019:13:53", "DD", "MM", "YYYY", "YYYYMMDD-HH24:MI:SS")
  print "dd: $dd   mm: $mm   yyyy: $yyyy   str: $str\n";  # dd: 18   mm: 02   yyyy: 2019   str: 20190218-13:53:00
 
 =cut
 
 sub s2t {
   require Date::Parse;
-  my $s=shift;
-  if($s=~/\b(?:mai|okt|des|juni|juli|februar)/i){ #fix norwegian/danish (for now)
-     $s=~s/\bMai\b/May/i;         $s=~s/\bmai\b/may/i;         $s=~s/\bMAI\b/MAY/i;
-     $s=~s/\bOkt\b/Oct/i;         $s=~s/\bokt\b/oct/i;         $s=~s/\bOKT\b/OCT/i;
-     $s=~s/\bDes/Dec/;            $s=~s/\bdes/dec/;            $s=~s/\bDES/DEC/;
-     $s=~s/\bFebruar\b/February/; $s=~s/\bfebruar\b/february/; $s=~s/\bFEBRUAR\b/FEBRUARY/;
-     $s=~s/\bjuli\b/July/i;
-     $s=~s/\bjuni\b/June/i;
+  my $s = shift;
+  if( $s =~ /\b(?:mai|okt|des|juni|juli|februar)/i ){ #fix norwegian/danish (for now)
+      $s =~ s/\bMai\b/May/i;         $s =~ s/\bmai\b/may/i;         $s =~ s/\bMAI\b/MAY/i;
+      $s =~ s/\bOkt\b/Oct/i;         $s =~ s/\bokt\b/oct/i;         $s =~ s/\bOKT\b/OCT/i;
+      $s =~ s/\bDes/Dec/;            $s =~ s/\bdes/dec/;            $s =~ s/\bDES/DEC/;
+      $s =~ s/\bFebruar\b/February/; $s =~ s/\bfebruar\b/february/; $s =~ s/\bFEBRUAR\b/FEBRUARY/;
+      $s =~ s/\bjuli\b/July/i;
+      $s =~ s/\bjuni\b/June/i;
   }
-  elsif($s           =~ /^[19]\d{9}$/){ $s=localtime($s)      } #hm, make faster
-  elsif($s           =~ /^[19]\d{12}$/
-    and int($s/1000) =~ /^[19]\d{9}$/){ $s=localtime($s/1000) } #hm
-  elsif($s=~/^((?:17|18|19|20|21)\d\d)(0[1-9]|1[012])(0[1-9]|[12]\d|3[01])$/)
-                                      { $s="$1-$2-$3T00:00:00" }
+  elsif( $s           =~ /^[19]\d{9}$/  ){ $s = localtime($s)      } #hm, make faster
+  elsif( $s           =~ /^[19]\d{12}$/
+    and int($s/1000) =~ /^[19]\d{9}$/   ){ $s = localtime($s/1000 ) } #hm
+  elsif( $s=~/^((?:17|18|19|20|21)\d\d)(0[1-9]|1[012])(0[1-9]|[12]\d|3[01])$/ )
+                                         { $s = "$1-$2-$3T00:00:00" }
   return Date::Parse::str2time($s)                  if !@_;
   return tms(Date::Parse::str2time($s),shift(@_))   if 0+@_ == 1;
   return map tms(Date::Parse::str2time($s),$_), @_;
@@ -6404,23 +6404,23 @@ sub julian_day_modified { julian_day(@_) - 2400000.5 }
 #...for dates on or before 4 October 1582, the Julian calendar is used; for dates on or after 15 October 1582, the Gregorian calendar is used. Thus, there is a ten-day gap in calendar dates, but no discontinuity in Julian dates or days of the week: 4 October 1582 (Julian) is a Thursday, which begins at JD 2299159.5; and 15 October 1582 (Gregorian) is a Friday, which begins at JD 2299160.5
 
 sub tms {
-  if(@_>1 and not defined $_[1]){
+  if( @_ > 1 and not defined $_[1] ){
     return undef; #time=undef => undef
   }
-  elsif(@_==0){
-    my @lt=localtime();
-    return sprintf("%04d%02d%02d-%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]);
+  elsif( @_ == 0 ){
+    my @lt = localtime();
+    return sprintf '%04d%02d%02d-%02d:%02d:%02d', 1900+$lt[5], 1+$lt[4], @lt[3,2,1,0];
   }
-  elsif(@_==1){
-    my $isnum=$_[0]=~$Re_isnum;
-    my @lt=$isnum?localtime($_[0]):localtime();
-    $isnum              and return sprintf('%04d%02d%02d-%02d:%02d:%02d',1900+$lt[5],1+$lt[4],@lt[3,2,1,0]);
-    $_[0] eq 'YYYYMMDD' and return sprintf('%04d%02d%02d',               1900+$lt[5],1+$lt[4],$lt[3]);
+  elsif( @_ == 1 ){
+    my $isnum = $_[0] =~ $Re_isnum;
+    my @lt = $isnum ? localtime($_[0]) : localtime();
+    $isnum              and return sprintf '%04d%02d%02d-%02d:%02d:%02d', 1900+$lt[5], 1+$lt[4], @lt[3,2,1,0];
+    $_[0] eq 'YYYYMMDD' and return sprintf '%04d%02d%02d',                1900+$lt[5], 1+$lt[4], $lt[3];
     $_[0] eq 'YYYY'     and return 1900+$lt[5];
   }
-  my($format,$time,$is_date)=@_;
-  $time=time_fp() if !defined$time;
-  ($time,$format)=($format,$time) if @_>=2 and $format=~/^[\d+\:\-\.]+$/; #swap /hm/
+  my($format, $time, $is_date) = @_;
+  $time = time_fp() if !defined $time;
+  ($time, $format) = ($format, $time) if @_ >= 2 and $format =~ /^[\d+\:\-\.]+$/; #swap /hm/
   my @lt;
   #todo? $is_date=0 if $time=~s/^\@(\-?\d)/$1/; #@n where n is sec since epoch makes it clear that its not a formatted, as in `date`
   #todo? date --date='TZ="America/Los_Angeles" 09:00 next Fri' #`info date`
@@ -6432,10 +6432,10 @@ sub tms {
   #date --date="-1 day"  #date --date='10 week'
 
   if( $is_date ){
-    @lt=localtime($time);
-    my $yy2c=sub{10+$_[0]>$lt[5]%100?"20":"19"}; #hm 10+
-    $time=totime(&$yy2c($1)."$1$2$3")."000000" if $time=~/^(\d\d)(\d\d)(\d\d)$/;
-    $time=totime("$1$2${3}000000")             if $time=~/^((?:18|19|20)\d\d)(\d\d)(\d\d)$/; #hm 18-20?
+    @lt = localtime($time);
+    my $yy2c = sub{10+$_[0]>$lt[5]%100?"20":"19"}; #hm 10+
+    $time = totime(&$yy2c($1)."$1$2$3")."000000" if $time =~ /^(\d\d)(\d\d)(\d\d)$/;
+    $time = totime("$1$2${3}000000")             if $time =~ /^((?:18|19|20)\d\d)(\d\d)(\d\d)$/; #hm 18-20?
   }
   else {
     $time = _yyyymmddhh24miss_time("$1$2$3$4$5$6") #yyyymmddhh24miss_time ???
@@ -6447,50 +6447,50 @@ sub tms {
                   ([0-5]\d)             $/x;      #ss
     return $time if $format eq 'epoch' or $format eq 'E';
     #return do{require Time::Piece; Time::Piece->strptime(tms($time),q(%Y%m%d-%H:%M:%S))->julian_day} if $format =~ /^JDN?$/; #hm
-    @lt=localtime($time);
-    return julian_day(1900+$lt[5],1+$lt[4],$1?($lt[3],0,0,0):@lt[3,2,1,0]) if $format =~ /^J(D?N?)$/; #hm
+    @lt = localtime($time);
+    return julian_day(1900+$lt[5], 1+$lt[4], $1 ? ($lt[3],0,0,0) : @lt[3,2,1,0]) if $format =~ /^J(D?N?)$/; #hm
   }
   tms_init() if !$_tms_inited;
-  return sprintf("%04d%02d%02d-%02d:%02d:%02d",1900+$lt[5],1+$lt[4],@lt[3,2,1,0]) if !$format;
-  my %p=('%'=>'%',
-         a=>'Dy',
-         A=>'Day',
-         b=>'Mon',
-         b=>'Month',
-         c=>'Dy Mon D HH:MI:SS YYYY',
-         C=>'CC',
-         d=>'DD',
-         D=>'MM/DD/YY',
-         e=>'D',
-         F=>'YYYY-MM-DD',
-        #G=>'',
-         h=>'Month', H=>'HH24', I=>'HH12',
-         j=>'DoY', #day of year
-         k=>'H24', _H=>'H24',
-         l=>'H12', _I=>'H12',
-         m=>'MM', M=>'MI',
-         n=>"\n",
-        #N=>'NS', #sprintf%09d,1e9*(time_fp()-time()) #000000000..999999999
-         p=>'AM', #AM|PM upper (yes, opposite: date +%H%M%S%P%p)
-         P=>'am', #am|pm lower
-         S=>'SS',
-         t=>"\t",
-         T=>'HH24:MI:SS',
-         u=>'DoW',  #day of week 1..7, 1=mon 7=sun
-         w=>'DoW0', #day of week 0..6, 1=mon 0=sun
-        #U=>'WoYs', #week num of year 00..53, sunday as first day of week
-        #V=>'UKE',  #ISO week num of year 01..53, monday as first day of week
-        #W=>'WoYm', #week num of year 00..53, monday as first day of week, not ISO!
-        #x=>$ENV{locale's date representation}, #e.g. MM/DD/YY
-        #X=>$ENV{locale's time representation}, #e.g. HH/MI/SS
-         y=>'YY',
-         Y=>'YYYY',
-        #z=>'TZHHMI', #time zone hour minute e.g. -0430
-        #':z'=>'TZHH:MI',
-        #'::z'=>'TZHH:MI:SS',
-        #':::z'=>'TZ', #number of :'s necessary precision, e.g. -02 or +03:30
-        #Z=>'TZN', #e.g. CET, EDT, ...
-      );
+  return sprintf("%04d%02d%02d-%02d:%02d:%02d", 1900+$lt[5], 1+$lt[4], @lt[3,2,1,0]) if !$format;
+  my %p = ('%' => '%',
+           a => 'Dy',
+           A => 'Day',
+           b => 'Mon',
+           b => 'Month',
+           c => 'Dy Mon D HH:MI:SS YYYY',
+           C => 'CC',
+           d => 'DD',
+           D => 'MM/DD/YY',
+           e => 'D',
+           F => 'YYYY-MM-DD',
+          #G => '',
+           h => 'Month', H => 'HH24', I => 'HH12',
+           j => 'DoY', #day of year
+           k => 'H24', _H => 'H24',
+           l => 'H12', _I => 'H12',
+           m => 'MM', M => 'MI',
+           n => "\n",
+          #N => 'NS', #sprintf%09d,1e9*(time_fp()-time()) #000000000..999999999
+           p => 'AM', #AM|PM upper (yes, opposite: date +%H%M%S%P%p)
+           P => 'am', #am|pm lower
+           S => 'SS',
+           t => "\t",
+           T => 'HH24:MI:SS',
+           u => 'DoW',  #day of week 1..7, 1=mon 7=sun
+           w => 'DoW0', #day of week 0..6, 1=mon 0=sun
+          #U => 'WoYs', #week num of year 00..53, sunday as first day of week
+          #V => 'UKE',  #ISO week num of year 01..53, monday as first day of week
+          #W => 'WoYm', #week num of year 00..53, monday as first day of week, not ISO!
+          #x => $ENV{locale's date representation}, #e.g. MM/DD/YY
+          #X => $ENV{locale's time representation}, #e.g. HH/MI/SS
+           y => 'YY',
+           Y => 'YYYY',
+          #z => 'TZHHMI', #time zone hour minute e.g. -0430
+          #':z' => 'TZHH:MI',
+          #'::z' => 'TZHH:MI:SS',
+          #':::z' => 'TZ', #number of :'s necessary precision, e.g. -02 or +03:30
+          #Z => 'TZN', #e.g. CET, EDT, ...
+        );
   my $pkeys=join"|",keys%p;
   $format=~s,\%($pkeys),$p{$1},g;
   $format=~s/($Tms_pattern)/$Tms_str{$1}[1+$lt[$Tms_str{$1}[0]]]/g;
